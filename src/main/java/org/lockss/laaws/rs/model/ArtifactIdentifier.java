@@ -33,21 +33,20 @@ package org.lockss.laaws.rs.model;
 import com.google.common.collect.ComparisonChain;
 
 import java.io.Serializable;
-import java.util.UUID;
 
 public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIdentifier> {
-    private String id;
+    private String artifactId;
     private String collection;
     private String auid;
     private String uri;
     private String version;
 
     public ArtifactIdentifier(String collection, String auid, String uri, String version) {
-        this(UUID.randomUUID().toString(), collection, auid, uri, version);
+        this(null, collection, auid, uri, version);
     }
 
     public ArtifactIdentifier(String id, String collection, String auid, String uri, String version) {
-        this.id = id;
+        this.artifactId = id;
         this.collection = collection;
         this.auid = auid;
         this.uri = uri;
@@ -71,7 +70,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     }
 
     public String getId() {
-        return id;
+        return artifactId;
     }
 
     @Override
