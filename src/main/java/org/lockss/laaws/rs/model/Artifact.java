@@ -36,16 +36,24 @@ import org.springframework.http.HttpHeaders;
 import java.io.*;
 
 public class Artifact implements Comparable<Artifact> {
+    // Core artifact attributes
     private ArtifactIdentifier identifier;
-    private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
     private InputStream artifactStream;
-    private StatusLine httpStatus;
 
-    public Artifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
-        this(null, artifactMetadata, inputStream, httpStatus);
+    // Metadata
+    private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
+    private StatusLine httpStatus;
+    private RepositoryArtifactMetadata repositoryMetadata;
+
+    public Artifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
+        this(null, artifactMetadata, inputStream, responseStatus, null);
     }
 
     public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
+        this(identifier, artifactMetadata, inputStream, httpStatus, null);
+    }
+
+    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
         this.artifactMetadata = artifactMetadata;
         this.artifactStream = inputStream;
@@ -70,6 +78,15 @@ public class Artifact implements Comparable<Artifact> {
 
     public Artifact setIdentifier(ArtifactIdentifier identifier) {
         this.identifier = identifier;
+        return this;
+    }
+
+    public RepositoryArtifactMetadata getRepositoryMetadata() {
+        return repositoryMetadata;
+    }
+
+    public Artifact setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
+        this.repositoryMetadata = metadata;
         return this;
     }
 
