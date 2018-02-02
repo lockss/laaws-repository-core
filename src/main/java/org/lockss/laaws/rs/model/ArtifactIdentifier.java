@@ -53,26 +53,68 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
         this.version = version;
     }
 
+    /**
+     * Returns the collection name encoded in this artifact identifier.
+     *
+     * @return Collection name
+     */
     public String getCollection() {
         return collection;
     }
 
+    /**
+     * Returns the Archival Unit ID (AUID) encoded in this artifact identifier.
+     *
+     * @return Archival unit ID
+     */
     public String getAuid() {
         return auid;
     }
 
+    /**
+     * Returns the URI component in this artifact identifier.
+     *
+     * @return Artifact URI
+     */
     public String getUri() {
         return uri;
     }
 
+    /**
+     * Returns the version component encoded in this artifact identifier.
+     *
+     * @return Artifact version
+     */
     public String getVersion() {
         return version;
     }
 
+    /**
+     * Returns the internal artifactId component encoded in this artifact identifier.
+     *
+     * @return Internal artifactId
+     */
     public String getId() {
         return artifactId;
     }
 
+    /**
+     * Sets the internal artifactId encoded within this artifact identifier.
+     *
+     * @param id
+     */
+    public void setId(String id) {
+        this.artifactId = id;
+    }
+
+    /**
+     * Implements Comparable - The canonical order here from most significant to least significant is the assigned
+     * collection, archival unit (AU), URI, and version. The artifactId is a unique internal handle and has no
+     * useful ordering in this context, and so is not included in the comparison calculation.
+     *
+     * @param other The other instance of ArtifactIdentifier to compare against.
+     * @return An integer indicating whether order relative to other.
+     */
     @Override
     public int compareTo(ArtifactIdentifier other) {
         return ComparisonChain.start()
@@ -80,7 +122,19 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
                 .compare(this.getAuid(), other.getAuid())
                 .compare(this.getUri(), other.getUri())
                 .compare(this.getVersion(), other.getVersion())
-                .compare(this.getId(), this.getId())
+//                .compare(this.getId(), this.getId())
                 .result();
     }
+
+    @Override
+    public String toString() {
+        return "ArtifactIdentifier{" +
+                "artifactId='" + artifactId + '\'' +
+                ", collection='" + collection + '\'' +
+                ", auid='" + auid + '\'' +
+                ", uri='" + uri + '\'' +
+                ", version='" + version + '\'' +
+                '}';
+    }
+
 }
