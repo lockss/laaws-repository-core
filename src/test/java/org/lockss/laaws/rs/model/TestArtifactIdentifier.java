@@ -77,6 +77,7 @@ public class TestArtifactIdentifier {
     @Test
     public void compareTo_equal() {
         ArtifactIdentifier id1 = new ArtifactIdentifier(
+                "id1",
                 "c",
                 "a",
                 "u",
@@ -84,6 +85,7 @@ public class TestArtifactIdentifier {
         );
 
         ArtifactIdentifier id2 = new ArtifactIdentifier(
+                "id1",
                 "c",
                 "a",
                 "u",
