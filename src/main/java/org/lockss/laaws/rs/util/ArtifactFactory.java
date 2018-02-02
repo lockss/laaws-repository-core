@@ -176,7 +176,7 @@ public class ArtifactFactory {
             }
 
             // Parse the ArchiveRecord into an artifact and return it
-                return ArtifactFactory.fromHttpResponseStream(metadata, record);
+            return ArtifactFactory.fromHttpResponseStream(metadata, record);
 
         } else if (recordType.equals(RESOURCE_TYPE)) {
             // Setup artifact headers from WARC record headers
