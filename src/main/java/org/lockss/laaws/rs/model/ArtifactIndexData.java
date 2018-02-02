@@ -30,7 +30,12 @@
 
 package org.lockss.laaws.rs.model;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 public class ArtifactIndexData {
+    private static final Log log = LogFactory.getLog(ArtifactIndexData.class);
+
     private String id;
     private String collection;
     private String auid;
@@ -38,13 +43,25 @@ public class ArtifactIndexData {
     private String version;
     private Boolean committed;
 
-    public ArtifactIndexData(String id, String collection, String auid, String uri, String version, Boolean committed) {
+    private long warcRecordOffset;
+    private String warcFilePath;
+    private String warcRecordId;
+
+    public ArtifactIndexData(String id, String collection, String auid, String uri, String version, Boolean committed,
+                             String warcRecordId, String warcFilePath, long warcRecordOffset) {
         this.id = id;
         this.collection = collection;
         this.auid = auid;
         this.uri = uri;
         this.version = version;
         this.committed = committed;
+        this.warcRecordId = warcRecordId;
+        this.warcFilePath = warcFilePath;
+        this.warcRecordOffset = warcRecordOffset;
+    }
+
+    public ArtifactIdentifier getIdentifier() {
+        return new ArtifactIdentifier(id, collection, auid, uri, version);
     }
 
     public String getCollection() {
@@ -91,6 +108,30 @@ public class ArtifactIndexData {
         this.committed = committed;
     }
 
+    public long getWarcRecordOffset() {
+        return warcRecordOffset;
+    }
+
+    public void setWarcRecordOffset(long warcRecordOffset) {
+        this.warcRecordOffset = warcRecordOffset;
+    }
+
+    public String getWarcFilePath() {
+        return warcFilePath;
+    }
+
+    public void setWarcFilePath(String warcFilePath) {
+        this.warcFilePath = warcFilePath;
+    }
+
+    public String getWarcRecordId() {
+        return warcRecordId;
+    }
+
+    public void setWarcRecordId(String warcRecordId) {
+        this.warcRecordId = warcRecordId;
+    }
+
     @Override
     public String toString() {
         return "ArtifactIndexData{" +
@@ -100,6 +141,9 @@ public class ArtifactIndexData {
                 ", uri='" + uri + '\'' +
                 ", version='" + version + '\'' +
                 ", committed=" + committed +
+                ", warcRecordOffset=" + warcRecordOffset +
+                ", warcFilePath='" + warcFilePath + '\'' +
+                ", warcRecordId='" + warcRecordId + '\'' +
                 '}';
     }
 }
