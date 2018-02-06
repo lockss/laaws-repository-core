@@ -42,6 +42,21 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
     public static String REPOSITORY_COMMITTED_KEY = "committed";
     public static String REPOSITORY_DELETED_KEY = "deleted";
 
+    /**
+     * Constructor that takes JSON formatted as a String object.
+     *
+     * @param s JSON string
+     */
+    public RepositoryArtifactMetadata(String s) {
+        super(s);
+
+        // Set defaults if they do not exist
+//        if (!this.has(REPOSITORY_COMMITTED_KEY))
+//            setCommitted(false);
+//        if (!this.has(REPOSITORY_DELETED_KEY))
+//            setDeleted(false);
+    }
+
     @Override
     public String getMetadataId() {
         return this.LOCKSS_METADATA_ID;
