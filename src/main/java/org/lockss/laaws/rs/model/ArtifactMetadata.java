@@ -48,6 +48,25 @@ public abstract class ArtifactMetadata extends JSONObject {
     }
 
     /**
+     * Constructor to parse JSON stored in a String object
+     *
+     * @param s
+     */
+    public ArtifactMetadata(String s) {
+        super(s);
+//        this.put(LOCKSS_MD_ARTIFACTID_KEY, artifactId.getId());
+    }
+
+    /**
+     * Returns the artifact ID this metadata belongs to.
+     *
+     * @return Artifact ID
+     */
+    public String getArtifactId() {
+        return (String)this.get(LOCKSS_MD_ARTIFACTID_KEY);
+    }
+
+    /**
      * Returns the metadata ID of an implementation.
      *
      * @return Metadata ID
