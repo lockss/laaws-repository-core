@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.mock;
+package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -36,7 +36,6 @@ import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactFactory;
-import org.lockss.laaws.rs.io.storage.WarcArtifactStore;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

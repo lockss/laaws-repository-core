@@ -39,7 +39,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Syncable;
-import org.lockss.laaws.rs.io.storage.WarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
 import org.springframework.data.hadoop.store.DataStoreWriter;
 import org.springframework.data.hadoop.store.codec.CodecInfo;
 import org.springframework.data.hadoop.store.event.FileWrittenEvent;
@@ -49,7 +49,6 @@ import org.springframework.data.hadoop.store.support.OutputContext;
 import org.springframework.data.hadoop.store.support.StreamsHolder;
 
 import java.io.*;
-import java.nio.charset.Charset;
 
 public class HdfsWarcFileWriter extends AbstractDataStreamWriter implements DataStoreWriter<WARCRecordInfo>, WARCConstants {
     private final static Log log = LogFactory.getLog(HdfsWarcFileWriter.class);

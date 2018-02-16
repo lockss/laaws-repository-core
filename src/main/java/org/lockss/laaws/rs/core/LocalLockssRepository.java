@@ -35,7 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactStore;
-import org.lockss.laaws.rs.io.storage.mock.VolatileWarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIndexData;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
