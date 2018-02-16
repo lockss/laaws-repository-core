@@ -46,13 +46,10 @@ public class ArtifactIndexData {
     private String uri;
     private String version;
     private Boolean committed;
-
-    private long warcRecordOffset;
-    private String warcFilePath;
-    private String warcRecordId;
+    private String storageUrl;
 
     public ArtifactIndexData(String id, String collection, String auid, String uri, String version, Boolean committed,
-                             String warcRecordId, String warcFilePath, long warcRecordOffset) {
+                             String storageUrl) {
         if (StringUtil.isNullString(id)) {
           throw new IllegalArgumentException(
               "Cannot create ArtifactIndexData with null or empty id");
@@ -89,18 +86,11 @@ public class ArtifactIndexData {
         }
         this.committed = committed;
 
-        if (StringUtil.isNullString(warcRecordId)) {
+        if (StringUtil.isNullString(storageUrl)) {
           throw new IllegalArgumentException("Cannot create "
-              + "ArtifactIndexData with null or empty warcRecordId");
+              + "ArtifactIndexData with null or empty storageUrl");
         }
-        this.warcRecordId = warcRecordId;
-
-        if (StringUtil.isNullString(warcFilePath)) {
-          throw new IllegalArgumentException("Cannot create "
-              + "ArtifactIndexData with null or empty warcFilePath");
-        }
-        this.warcFilePath = warcFilePath;
-        this.warcRecordOffset = warcRecordOffset;
+        this.storageUrl = storageUrl;
     }
 
     public ArtifactIdentifier getIdentifier() {
@@ -168,36 +158,16 @@ public class ArtifactIndexData {
         this.committed = committed;
     }
 
-    public long getWarcRecordOffset() {
-        return warcRecordOffset;
+    public String getStorageUrl() {
+        return storageUrl;
     }
 
-    public void setWarcRecordOffset(long warcRecordOffset) {
-        this.warcRecordOffset = warcRecordOffset;
-    }
-
-    public String getWarcFilePath() {
-        return warcFilePath;
-    }
-
-    public void setWarcFilePath(String warcFilePath) {
-        if (StringUtil.isNullString(warcFilePath)) {
+    public void setStorageUrl(String storageUrl) {
+        if (StringUtil.isNullString(storageUrl)) {
           throw new IllegalArgumentException(
-              "Cannot set null or empty warcFilePath");
+              "Cannot set null or empty storageUrl");
         }
-        this.warcFilePath = warcFilePath;
-    }
-
-    public String getWarcRecordId() {
-        return warcRecordId;
-    }
-
-    public void setWarcRecordId(String warcRecordId) {
-        if (StringUtil.isNullString(warcRecordId)) {
-          throw new IllegalArgumentException(
-              "Cannot set null or empty warcRecordId");
-        }
-        this.warcRecordId = warcRecordId;
+        this.storageUrl = storageUrl;
     }
 
     @Override
@@ -209,9 +179,7 @@ public class ArtifactIndexData {
                 ", uri='" + uri + '\'' +
                 ", version='" + version + '\'' +
                 ", committed=" + committed +
-                ", warcRecordOffset=" + warcRecordOffset +
-                ", warcFilePath='" + warcFilePath + '\'' +
-                ", warcRecordId='" + warcRecordId + '\'' +
+                ", storageUrl='" + storageUrl + '\'' +
                 '}';
     }
 }

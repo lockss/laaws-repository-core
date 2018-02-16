@@ -44,20 +44,22 @@ public class Artifact implements Comparable<Artifact> {
     private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
     private StatusLine httpStatus;
     private RepositoryArtifactMetadata repositoryMetadata;
+    private String storageUrl;
 
     public Artifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
-        this(null, artifactMetadata, inputStream, responseStatus, null);
+        this(null, artifactMetadata, inputStream, responseStatus, null, null);
     }
 
     public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
-        this(identifier, artifactMetadata, inputStream, httpStatus, null);
+        this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
     }
 
-    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, RepositoryArtifactMetadata repoMetadata) {
+    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, String storageUrl, RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
         this.artifactMetadata = artifactMetadata;
         this.artifactStream = inputStream;
         this.httpStatus = httpStatus;
+        this.storageUrl = storageUrl;
         this.repositoryMetadata = repoMetadata;
     }
 
@@ -89,6 +91,14 @@ public class Artifact implements Comparable<Artifact> {
     public Artifact setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
         this.repositoryMetadata = metadata;
         return this;
+    }
+
+    public String getStorageUrl() {
+      return storageUrl;
+    }
+
+    public void setStorageUrl(String storageUrl) {
+      this.storageUrl = storageUrl;
     }
 
     @Override

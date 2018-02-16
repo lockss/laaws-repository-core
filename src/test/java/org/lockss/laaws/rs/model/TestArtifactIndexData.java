@@ -47,8 +47,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 	  "Cannot create ArtifactIndexData with null or empty id";
 
       try {
-	new ArtifactIndexData(null, null, null, null, null, null, null, null,
-	    0);
+	new ArtifactIndexData(null, null, null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -56,8 +55,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("", null, null, null, null, null, null, null,
-	    0);
+	new ArtifactIndexData("", null, null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -68,8 +66,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 	  "Cannot create ArtifactIndexData with null or empty collection";
 
       try {
-	new ArtifactIndexData("aidid", null, null, null, null, null, null, null,
-	    0);
+	new ArtifactIndexData("aidid", null, null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -77,8 +74,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "", null, null, null, null, null, null,
-	    0);
+	new ArtifactIndexData("aidid", "", null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -89,8 +85,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 	  "Cannot create ArtifactIndexData with null or empty auid";
 
       try {
-	new ArtifactIndexData("aidid", "coll", null, null, null, null, null,
-	    null, 0);
+	new ArtifactIndexData("aidid", "coll", null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -98,8 +93,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "coll", "", null, null, null, null,
-	    null, 0);
+	new ArtifactIndexData("aidid", "coll", "", null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -110,8 +104,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 	  "Cannot create ArtifactIndexData with null or empty URI";
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", null, null, null, null,
-	    null, 0);
+	new ArtifactIndexData("aidid", "coll", "auid", null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -119,8 +112,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "", null, null, null,
-	    null, 0);
+	new ArtifactIndexData("aidid", "coll", "auid", "", null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -131,8 +123,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 	  "Cannot create ArtifactIndexData with null or empty version";
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", null, null, null,
-	    null, 0);
+	new ArtifactIndexData("aidid", "coll", "auid", "uri", null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -140,8 +131,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "", null, null,
-	    null, 0);
+	new ArtifactIndexData("aidid", "coll", "auid", "uri", "", null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -153,7 +143,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 
       try {
 	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver", null,
-	    null, null, 0);
+	    null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -161,11 +151,11 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty warcRecordId";
+	  "Cannot create ArtifactIndexData with null or empty storageUrl";
 
       try {
 	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver",
-	    Boolean.FALSE, null, null, 0);
+	    Boolean.FALSE, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -174,28 +164,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 
       try {
 	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver",
-	    Boolean.FALSE, "", null, 0);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty warcFilePath";
-
-      try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver",
-	    Boolean.TRUE, "wri", null, 0);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver",
-	    Boolean.TRUE, "wri", "", 0);
+	    Boolean.FALSE, "");
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -203,22 +172,20 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       ArtifactIndexData aidata = new ArtifactIndexData("aidid", "coll", "auid",
-	  "uri", "ver", Boolean.TRUE, "wri", "wfp", 1);
+	  "uri", "ver", Boolean.TRUE, "surl");
       assertEquals("aidid", aidata.getId());
       assertEquals("coll", aidata.getCollection());
       assertEquals("auid", aidata.getAuid());
       assertEquals("uri", aidata.getUri());
       assertEquals("ver", aidata.getVersion());
       assertTrue(aidata.getCommitted());
-      assertEquals("wri", aidata.getWarcRecordId());
-      assertEquals("wfp", aidata.getWarcFilePath());
-      assertEquals(1, aidata.getWarcRecordOffset());
+      assertEquals("surl", aidata.getStorageUrl());
     }
 
     @Test
     public void testSetters() {
       ArtifactIndexData aidata = new ArtifactIndexData("aidid", "coll", "auid",
-	  "uri", "ver", Boolean.TRUE, "wri", "wfp", 1);
+	  "uri", "ver", Boolean.TRUE, "surl");
 
       String expectedMessage = "Cannot set null or empty collection";
 
@@ -317,10 +284,10 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       aidata.setCommitted(Boolean.FALSE);
       assertEquals(Boolean.FALSE, aidata.getCommitted());
 
-      expectedMessage = "Cannot set null or empty warcRecordId";
+      expectedMessage = "Cannot set null or empty storageUrl";
 
       try {
-	aidata.setWarcRecordId(null);
+	aidata.setStorageUrl(null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -328,38 +295,14 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	aidata.setWarcRecordId("");
+	aidata.setStorageUrl("");
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
         assertEquals(expectedMessage, iae.getMessage());
       }
 
-      aidata.setWarcRecordId("newWri");
-      assertEquals("newWri", aidata.getWarcRecordId());
-
-      expectedMessage = "Cannot set null or empty warcFilePath";
-
-      try {
-	aidata.setWarcFilePath(null);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      try {
-	aidata.setWarcFilePath("");
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      aidata.setWarcFilePath("newWfp");
-      assertEquals("newWfp", aidata.getWarcFilePath());
-
-      aidata.setWarcRecordOffset(123);
-      assertEquals(123, aidata.getWarcRecordOffset());
+      aidata.setStorageUrl("newSurl");
+      assertEquals("newSurl", aidata.getStorageUrl());
     }
 }

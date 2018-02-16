@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,17 +30,24 @@
 
 package org.lockss.laaws.rs.model;
 
+import org.json.JSONObject;
+
 /**
  * This class represents the LOCKSS Repository -specific metadata of an artifact, implemented as a JSON object.
  *
  * E.g., whether an artifact is committed.
  *
  */
-public class RepositoryArtifactMetadata extends ArtifactMetadata {
+public class RepositoryArtifactMetadata {
     public static String LOCKSS_METADATA_ID = "lockss-repo";
 
-    public static String REPOSITORY_COMMITTED_KEY = "committed";
-    public static String REPOSITORY_DELETED_KEY = "deleted";
+    public static final String LOCKSS_MD_ARTIFACTID_KEY = "artifactId";
+    public static final String REPOSITORY_COMMITTED_KEY = "committed";
+    public static final String REPOSITORY_DELETED_KEY = "deleted";
+
+    private String artifactId;
+    private boolean committed;
+    private boolean deleted;
 
     /**
      * Constructor that takes JSON formatted as a String object.
@@ -48,29 +55,25 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
      * @param s JSON string
      */
     public RepositoryArtifactMetadata(String s) {
-        super(s);
+      JSONObject json = new JSONObject(s);
 
-        // Set defaults if they do not exist
-//        if (!this.has(REPOSITORY_COMMITTED_KEY))
-//            setCommitted(false);
-//        if (!this.has(REPOSITORY_DELETED_KEY))
-//            setDeleted(false);
+      artifactId = (String)json.get(LOCKSS_MD_ARTIFACTID_KEY);
+      committed = json.has(REPOSITORY_COMMITTED_KEY);
+      deleted = json.has(REPOSITORY_DELETED_KEY);
     }
 
-    @Override
     public String getMetadataId() {
-        return this.LOCKSS_METADATA_ID;
+        return LOCKSS_METADATA_ID;
     }
 
     /**
-     * No-parameter constructor that uses default values.
+     * Constructor that uses default values.
+     * 
+     * @param artifactId
+     *          An ArtifactIdentifier with the artifact identifying information.
      */
     public RepositoryArtifactMetadata(ArtifactIdentifier artifactId) {
-        super(artifactId);
-
-        // Set defaults
-        setCommitted(false);
-        setDeleted(false);
+        this.artifactId = artifactId.getId();
     }
 
     /**
@@ -83,8 +86,17 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
     public RepositoryArtifactMetadata(ArtifactIdentifier artifactId, boolean committed, boolean deleted) {
         this(artifactId);
 
-        setCommitted(committed);
-        setDeleted(deleted);
+        this.committed = committed;
+        this.deleted = deleted;
+    }
+
+    /**
+     * Returns the artifact ID this metadata belongs to.
+     *
+     * @return Artifact ID
+     */
+    public String getArtifactId() {
+        return artifactId;
     }
 
     /**
@@ -102,7 +114,7 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
      * @return boolean
      */
     public boolean getCommitted() {
-        return this.getBoolean(REPOSITORY_COMMITTED_KEY);
+        return committed;
     }
 
     /**
@@ -111,7 +123,7 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
      * @param committed Committed status of the artifact this metadata is associated to.
      */
     public void setCommitted(boolean committed) {
-        this.put(REPOSITORY_COMMITTED_KEY, committed);
+        this.committed = committed;
     }
 
     /**
@@ -129,7 +141,7 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
      * @return boolean
      */
     public boolean getDeleted() {
-        return this.getBoolean(REPOSITORY_DELETED_KEY);
+        return deleted;
     }
 
     /**
@@ -138,7 +150,20 @@ public class RepositoryArtifactMetadata extends ArtifactMetadata {
      * @param deleted Deleted status of the artifact this metadata is associated to.
      */
     public void setDeleted(boolean deleted) {
-        this.put(REPOSITORY_DELETED_KEY, deleted);
+        this.deleted = deleted;
     }
 
+    /**
+     * Provides this object as a JSON object.
+     * 
+     * @return a JSONObject with the JSON version of this object.
+     */
+    public JSONObject toJson() {
+      JSONObject json = new JSONObject();
+      json.put(LOCKSS_MD_ARTIFACTID_KEY, artifactId);
+      json.put(REPOSITORY_COMMITTED_KEY, committed);
+      json.put(REPOSITORY_DELETED_KEY, deleted);
+
+      return json;
+    }
 }
