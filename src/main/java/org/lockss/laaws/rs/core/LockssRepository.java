@@ -37,7 +37,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.util.Iterator;
 
-public interface LockssRepositoryClient {
+public interface LockssRepository {
     // Artifact operations
     String addArtifact(Artifact artifact) throws IOException;
     Artifact getArtifact(String collection, String artifactId) throws IOException;

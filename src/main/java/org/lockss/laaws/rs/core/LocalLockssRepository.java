@@ -45,16 +45,16 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Iterator;
 
-public class LocalLockssRepositoryClient implements LockssRepositoryClient {
-    private final static Log log = LogFactory.getLog(LocalLockssRepositoryClient.class);
+public class LocalLockssRepository implements LockssRepository {
+    private final static Log log = LogFactory.getLog(LocalLockssRepository.class);
     private ArtifactStore store = null;
     private ArtifactIndex index = null;
 
-    public LocalLockssRepositoryClient() {
+    public LocalLockssRepository() {
         this(new VolatileArtifactIndex(), new VolatileWarcArtifactStore());
     }
 
-    public LocalLockssRepositoryClient(ArtifactIndex index, ArtifactStore store) {
+    public LocalLockssRepository(ArtifactIndex index, ArtifactStore store) {
         this.index = index;
         this.store = store;
     }

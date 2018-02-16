@@ -53,8 +53,8 @@ import java.util.Iterator;
 import java.util.List;
 
 
-public class RestLockssRepositoryClient implements LockssRepositoryClient {
-    private final static Log log = LogFactory.getLog(RestLockssRepositoryClient.class);
+public class RestLockssRepository implements LockssRepository {
+    private final static Log log = LogFactory.getLog(RestLockssRepository.class);
 
     private final String SEPERATOR = "/";
     private final String COLLECTION_BASE = SEPERATOR + "repos";
@@ -63,11 +63,11 @@ public class RestLockssRepositoryClient implements LockssRepositoryClient {
     private RestTemplate restTemplate;
     private URL repositoryUrl;
 
-    public RestLockssRepositoryClient(URL repositoryUrl) {
+    public RestLockssRepository(URL repositoryUrl) {
         this(repositoryUrl, new RestTemplate());
     }
 
-    public RestLockssRepositoryClient(URL repositoryUrl, RestTemplate restTemplate) {
+    public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
         this.repositoryUrl = repositoryUrl;
 
