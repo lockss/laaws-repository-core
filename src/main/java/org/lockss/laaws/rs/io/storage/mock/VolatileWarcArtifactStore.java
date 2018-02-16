@@ -42,6 +42,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.util.*;
 
 public class VolatileWarcArtifactStore extends WarcArtifactStore {
@@ -89,6 +90,16 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
         // Store artifact
         collection.put(artifactId.getAuid(), au);
         repository.put(artifactId.getCollection(), collection);
+
+        // Set the artifact's storage URL
+        artifact.setStorageUrl("volatile://" + String.format(
+                "/%s/%s/%s/%s/%s",
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                URLEncoder.encode(artifactId.getUri(), "UTF-8"),
+                artifactId.getVersion(),
+                artifactId.getId()
+        ));
 
         return artifact;
     }
