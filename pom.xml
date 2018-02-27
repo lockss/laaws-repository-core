@@ -43,11 +43,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   </parent>
 
   <groupId>org.lockss.laaws</groupId>
-  <artifactId>laaws-repository-common</artifactId>
+  <artifactId>laaws-repository-core</artifactId>
   <version>1.2.0-SNAPSHOT</version>
   <packaging>jar</packaging>
-  <name>laaws-repository-common</name>
-  <description>LOCKSS repository common infrastructure</description>
+  <name>laaws-repository-core</name>
+  <description>LOCKSS repository core infrastructure</description>
 
   <!-- Needs to be repeated from parent -->
   <scm>
