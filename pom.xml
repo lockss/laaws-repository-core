@@ -43,11 +43,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   </parent>
 
   <groupId>org.lockss.laaws</groupId>
-  <artifactId>laaws-repository-common</artifactId>
-  <version>1.1.0</version>
+  <artifactId>laaws-repository-core</artifactId>
+  <version>1.2.0</version>
   <packaging>jar</packaging>
-  <name>laaws-repository-common</name>
-  <description>LOCKSS repository common infrastructure</description>
+  <name>laaws-repository-core</name>
+  <description>LOCKSS repository core infrastructure</description>
 
   <!-- Needs to be repeated from parent -->
   <scm>
@@ -145,7 +145,45 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <artifactId>webarchive-commons</artifactId>
       <version>1.1.8</version>
     </dependency>
-
+ 
+    <!-- LOCKSS daemon -->
+    <dependency>
+      <groupId>org.lockss.laaws</groupId>
+      <artifactId>lockss-core</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.lockss.laaws</groupId>
+      <artifactId>lockss-core</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+      <classifier>tests</classifier>
+    </dependency>
   </dependencies>
+
+  <profiles>
+  
+    <!-- 
+    Enable this profile if using Eclipse to do development on this project
+    (right-click project -> Properties -> Maven -> add lockss-eclipse to list)
+    -->
+    <profile>
+      <id>lockss-eclipse</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.skyscreamer</groupId>
+          <artifactId>jsonassert</artifactId>
+          <version>1.4.0</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>com.vaadin.external.google</groupId>
+              <artifactId>android-json</artifactId>
+            </exclusion>
+          </exclusions> 
+        </dependency>
+      </dependencies>
+    </profile>
+  
+  </profiles>
 
 </project>

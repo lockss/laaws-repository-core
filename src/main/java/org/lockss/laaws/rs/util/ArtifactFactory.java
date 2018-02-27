@@ -112,10 +112,23 @@ public class ArtifactFactory {
 
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
         return new ArtifactIdentifier(
-                getHeaderValue(headers, "X-Lockss-Collection"),
-                getHeaderValue(headers, "X-Lockss-AuId"),
-                getHeaderValue(headers, "X-Lockss-Uri"),
-                getHeaderValue(headers, "X-Lockss-Version")
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY)
+        );
+    }
+
+   private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
+        return new ArtifactIdentifier(
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
+//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
+//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY)
         );
     }
 
@@ -160,11 +173,14 @@ public class ArtifactFactory {
     }
 
     public static Artifact fromArchiveRecord(ArchiveRecord record) throws IOException {
+        // Get WARC record header
         ArchiveRecordHeader headers = record.getHeader();
         String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
-        HttpHeaders metadata = new HttpHeaders();
 
-        // Only import response and resource type records
+        // Create an ArtifactIdentifier object from the WARC record headers
+        ArtifactIdentifier artifactId = buildArtifactIdentifier(headers);
+
+        // Artifacts can only be read out of WARC response and resource type records
         if (recordType.equals(RESPONSE_TYPE)) {
             if (!headers.getMimetype().startsWith("application/http")) {
                 log.warn(String.format(
@@ -176,9 +192,14 @@ public class ArtifactFactory {
             }
 
             // Parse the ArchiveRecord into an artifact and return it
-                return ArtifactFactory.fromHttpResponseStream(metadata, record);
+            Artifact artifact = ArtifactFactory.fromHttpResponseStream(record);
+            artifact.setIdentifier(artifactId);
+            return artifact;
 
         } else if (recordType.equals(RESOURCE_TYPE)) {
+            // Holds optional HTTP headers for metadata
+            HttpHeaders metadata = new HttpHeaders();
+
             // Setup artifact headers from WARC record headers
             metadata.setContentLength((int) headers.getContentLength());
             metadata.setContentType(MediaType.valueOf(headers.getMimetype()));
@@ -199,7 +220,7 @@ public class ArtifactFactory {
 
         } else {
             log.warn(String.format(
-                    "Skipped WARC record %s because it was of type %s",
+                    "Skipped WARC record %s of type %s; artifacts can only be created from response or resource types",
                     record.getHeader().getHeaderValue("WARC-Record-ID"),
                     recordType
             ));
