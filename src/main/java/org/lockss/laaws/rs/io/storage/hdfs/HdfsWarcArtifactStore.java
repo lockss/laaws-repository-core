@@ -64,11 +64,8 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
     private Path basePath;
     private FileSystem fs;
 
-    private ArtifactIndex index;
-
-    public HdfsWarcArtifactStore(Configuration config, Path basePath, ArtifactIndex index) {
+    public HdfsWarcArtifactStore(Configuration config, Path basePath) {
         this.config = config;
-        this.index = index;
         this.basePath = basePath;
 
         try {
@@ -80,11 +77,13 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
 
         // Make sure the base path directory exists
         mkdirIfNotExist(basePath);
+    }
 
+    public void rebuildIndex(ArtifactIndex index) throws IOException {
         // Rebuild the index if using volatile index
         if (index.getClass() == VolatileArtifactIndex.class) {
             try {
-                rebuildIndex(this.basePath);
+                rebuildIndex(index, this.basePath);
             } catch (IOException e) {
                 throw new RuntimeException(String.format(
                         "IOException caught while trying to rebuild index from %s",
@@ -100,7 +99,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
      * @param basePath The base path of the local repository.
      * @throws IOException
      */
-    public void rebuildIndex(Path basePath) throws IOException {
+    public void rebuildIndex(ArtifactIndex index, Path basePath) throws IOException {
         Collection<Path> warcs = scanDirectories(basePath);
 
         Collection<Path> artifactWarcFiles = warcs
@@ -304,11 +303,11 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
      */
     @Override
     public Artifact addArtifact(Artifact artifact) throws IOException {
-        if (index == null) {
+//        if (index == null) {
             // YES: Cannot proceed without an artifact index - throw RuntimeException
-            throw new RuntimeException("No artifact index configured!");
+//            throw new RuntimeException("No artifact index configured!");
 
-        } else {
+//        } else {
             // NO: Add the Artifact to the index
             ArtifactIdentifier artifactId = artifact.getIdentifier();
 
@@ -364,8 +363,8 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
             updateArtifactMetadata(artifactId, artifact.getRepositoryMetadata());
 
             // Add the artifact to the index
-            index.indexArtifact(artifact);
-        }
+//            index.indexArtifact(artifact);
+//        }
 
         // Return the artifact
         return artifact;
@@ -374,23 +373,20 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
     /**
      * Retrieves an artifact from the repository storage.
      *
-     * @param artifactId The artifact identifier of artifact to retrieve.
+     * @param indexData The artifact identifier of artifact to retrieve.
      * @return An artifact.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public Artifact getArtifact(ArtifactIdentifier artifactId)
+    public Artifact getArtifact(ArtifactIndexData indexData)
 	throws IOException, URISyntaxException {
-        log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifactId.toString()));
+        log.info(String.format("Retrieving artifact from store (artifactId: %s)", indexData.toString()));
 
         // Get details from the artifact index service
-        ArtifactIndexData indexedData = index.getArtifactIndexData(artifactId.getId());
+//        ArtifactIndexData indexedData = index.getArtifactIndexData(indexData.getId());
 
-        // TODO: Remove - only for debugging
-        log.info(indexedData.toString());
-
-        URI uri = new URI(indexedData.getStorageUrl());
+        URI uri = new URI(indexData.getStorageUrl());
 
         // Get InputStream to WARC file
         String warcFilePath =
@@ -413,8 +409,8 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
 
         // Set artifact's repository metadata
         RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(
-                artifactId,
-                indexedData.getCommitted(),
+                indexData.getIdentifier(),
+                indexData.getCommitted(),
                 false
         );
 
@@ -466,23 +462,23 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
      * Marks the artifact as committed in the repository by updating the repository metadata for this artifact, and the
      * committed status in the artifact index.
      *
-     * @param artifactId The artifact identifier of the artifact to commit.
+     * @param indexData The artifact identifier of the artifact to commit.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifact(ArtifactIdentifier artifactId)
+    public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData indexData)
 	throws IOException, URISyntaxException {
-        Artifact artifact = getArtifact(artifactId);
+        Artifact artifact = getArtifact(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
         // Set the commit flag and write the metadata to disk
         if (!repoMetadata.isDeleted()) {
             repoMetadata.setCommitted(true);
-            updateArtifactMetadata(artifactId, repoMetadata);
+            updateArtifactMetadata(indexData.getIdentifier(), repoMetadata);
 
             // Update the committed flag in the index
-            index.commitArtifact(artifactId.getId());
+//            index.commitArtifact(indexData.getId());
         }
 
         return repoMetadata;
@@ -491,14 +487,14 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
     /**
      * Marks the artifact as deleted in the repository by updating the repository metadata for this artifact.
      *
-     * @param artifactId The artifact identifier of the artifact to mark as deleted.
+     * @param indexData The artifact identifier of the artifact to mark as deleted.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(ArtifactIdentifier artifactId)
+    public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData indexData)
 	throws IOException, URISyntaxException {
-        Artifact artifact = getArtifact(artifactId);
+        Artifact artifact = getArtifact(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
         if (!repoMetadata.isDeleted()) {
@@ -507,10 +503,10 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
             repoMetadata.setDeleted(true);
 
             // Write to disk
-            updateArtifactMetadata(artifactId, repoMetadata);
+            updateArtifactMetadata(indexData.getIdentifier(), repoMetadata);
 
             // Update the committed flag in the index
-            index.commitArtifact(artifactId.getId());
+//            index.commitArtifact(indexData.getId());
         }
 
         return repoMetadata;
