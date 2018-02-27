@@ -48,14 +48,14 @@ import java.util.UUID;
 
 import static org.junit.Assert.*;
 
-public class TestLocalLockssRepository {
-    private final static Log log = LogFactory.getLog(TestLocalLockssRepository.class);
+public class TestBaseLockssRepository {
+    private final static Log log = LogFactory.getLog(TestBaseLockssRepository.class);
     private static final byte[] TEST1_BYTES = "hi".getBytes();
     private LockssRepository repo = null;
 
     @Before
     public void setUp() throws Exception {
-        this.repo = new LocalLockssRepository();
+        this.repo = new BaseLockssRepository();
     }
 
     private Artifact createRandomArtifact(String collection, String auid) {
@@ -128,8 +128,8 @@ public class TestLocalLockssRepository {
         }
 
         // Make sure there are ten collections and each begins with TestCollection
-        assertEquals(10, Iterators.size(repo.getCollections()));
-        repo.getCollections().forEachRemaining(x -> assertTrue(x.startsWith("TestCollection")));
+        assertEquals(10, Iterators.size(repo.getCollectionIds()));
+        repo.getCollectionIds().forEachRemaining(x -> assertTrue(x.startsWith("TestCollection")));
     }
 
     @Test
