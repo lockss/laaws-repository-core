@@ -34,6 +34,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactFactory;
 
@@ -100,20 +101,18 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
                 artifactId.getId()
         ));
 
+        // Index artifact
+//        index.indexArtifact(artifact);
+
         return artifact;
     }
 
     @Override
-    public Artifact getArtifact(ArtifactIdentifier artifactId) throws IOException {
-        ArtifactIndexData indexedData = index.getArtifactIndexData(artifactId.getId());
-        return getVolatileArtifact(indexedData.getCollection(), indexedData.getAuid(), indexedData.getUri(), indexedData.getVersion());
-    }
-
-    public Artifact getVolatileArtifact(String collectionId, String auid, String uri, String version) throws IOException {
+    public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException {
         // Use identifier to get artifact byte stream
-        Map<String, Map<String, byte[]>> collection = repository.get(collectionId);
-        Map<String, byte[]> au = collection.get(auid);
-        InputStream warcRecordStream = new ByteArrayInputStream(au.get(uri + version));
+        Map<String, Map<String, byte[]>> collection = repository.get(indexedData.getCollection());
+        Map<String, byte[]> au = collection.get(indexedData.getAuid());
+        InputStream warcRecordStream = new ByteArrayInputStream(au.get(indexedData.getId()));
 
         // Assemble a WARCRecord object using the WARC record bytestream in memory
         WARCRecord record = new WARCRecord(
@@ -129,11 +128,7 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
 
         // TODO: ArtifactFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers are in the
         // HTTP response but since we can't guarantee that yet, we set it explicitly here.
-        ArtifactIdentifier artifactId = new ArtifactIdentifier(collectionId, auid, uri, version);
-        artifact.setIdentifier(artifactId);
-
-        // Set repository metadata for this artifact
-        RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId);
+        artifact.setIdentifier(indexedData.getIdentifier());
 
         return artifact;
     }
@@ -144,18 +139,16 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
     }
 
     @Override
-    public RepositoryArtifactMetadata commitArtifact(ArtifactIdentifier artifactId) {
+    public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData indexData) {
        // TODO
         return null;
     }
 
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(ArtifactIdentifier artifactId) {
-        ArtifactIndexData indexedData = index.getArtifactIndexData(artifactId.getId());
-
-        Map<String, Map<String, byte[]>> collection = repository.get(indexedData.getCollection());
-        Map<String, byte[]> au = collection.get(indexedData.getAuid());
-        au.remove(indexedData.getUri() + indexedData.getVersion());
+    public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData artifactInfo) {
+        Map<String, Map<String, byte[]>> collection = repository.get(artifactInfo.getCollection());
+        Map<String, byte[]> au = collection.get(artifactInfo.getAuid());
+        au.remove(artifactInfo.getUri() + artifactInfo.getVersion());
 
         return null;
     }
