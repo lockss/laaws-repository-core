@@ -71,7 +71,7 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
     public static byte[] CRLF_BYTES;
     public static String SEPARATOR = "/";
 
-    protected ArtifactIndex index;
+//    protected ArtifactIndex index;
     public File repositoryBasePath;
 
     static {
@@ -297,4 +297,6 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
             throw new RuntimeException(e);
         }
     }
+
+    public abstract Artifact getArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException;
 }
