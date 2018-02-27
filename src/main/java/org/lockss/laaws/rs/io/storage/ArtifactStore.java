@@ -37,9 +37,9 @@ import java.net.URISyntaxException;
 
 public interface ArtifactStore<ID extends ArtifactIdentifier, A extends Artifact, MD extends RepositoryArtifactMetadata> {
     A addArtifact(Artifact artifact) throws IOException;
-    A getArtifact(ID artifactId) throws IOException, URISyntaxException;
+    A getArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException;
     MD updateArtifactMetadata(ID artifactId, MD metadata) throws IOException;
-    RepositoryArtifactMetadata commitArtifact(ID artifactId) throws IOException, URISyntaxException;
-    RepositoryArtifactMetadata deleteArtifact(ID artifactId) throws IOException, URISyntaxException;
+    RepositoryArtifactMetadata commitArtifact(ArtifactIndexData artifactId) throws IOException, URISyntaxException;
+    RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException;
 }
 
