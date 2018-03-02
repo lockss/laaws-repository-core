@@ -32,7 +32,7 @@ package org.lockss.laaws.rs.model;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.lockss.util.StringUtil;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Data associated with an artifact in the index.
@@ -50,31 +50,31 @@ public class ArtifactIndexData {
 
     public ArtifactIndexData(String id, String collection, String auid, String uri, String version, Boolean committed,
                              String storageUrl) {
-        if (StringUtil.isNullString(id)) {
+        if (StringUtils.isEmpty(id)) {
           throw new IllegalArgumentException(
               "Cannot create ArtifactIndexData with null or empty id");
         }
         this.id = id;
 
-        if (StringUtil.isNullString(collection)) {
+        if (StringUtils.isEmpty(collection)) {
           throw new IllegalArgumentException(
               "Cannot create ArtifactIndexData with null or empty collection");
         }
         this.collection = collection;
 
-        if (StringUtil.isNullString(auid)) {
+        if (StringUtils.isEmpty(auid)) {
           throw new IllegalArgumentException(
               "Cannot create ArtifactIndexData with null or empty auid");
         }
         this.auid = auid;
 
-        if (StringUtil.isNullString(uri)) {
+        if (StringUtils.isEmpty(uri)) {
           throw new IllegalArgumentException(
               "Cannot create ArtifactIndexData with null or empty URI");
         }
         this.uri = uri;
 
-        if (StringUtil.isNullString(version)) {
+        if (StringUtils.isEmpty(version)) {
           throw new IllegalArgumentException(
               "Cannot create ArtifactIndexData with null or empty version");
         }
@@ -86,7 +86,7 @@ public class ArtifactIndexData {
         }
         this.committed = committed;
 
-        if (StringUtil.isNullString(storageUrl)) {
+        if (StringUtils.isEmpty(storageUrl)) {
           throw new IllegalArgumentException("Cannot create "
               + "ArtifactIndexData with null or empty storageUrl");
         }
@@ -102,7 +102,7 @@ public class ArtifactIndexData {
     }
 
     public void setCollection(String collection) {
-        if (StringUtil.isNullString(collection)) {
+        if (StringUtils.isEmpty(collection)) {
           throw new IllegalArgumentException(
               "Cannot set null or empty collection");
         }
@@ -114,7 +114,7 @@ public class ArtifactIndexData {
     }
 
     public void setAuid(String auid) {
-        if (StringUtil.isNullString(auid)) {
+        if (StringUtils.isEmpty(auid)) {
           throw new IllegalArgumentException("Cannot set null or empty auid");
         }
         this.auid = auid;
@@ -125,7 +125,7 @@ public class ArtifactIndexData {
     }
 
     public void setUri(String uri) {
-        if (StringUtil.isNullString(uri)) {
+        if (StringUtils.isEmpty(uri)) {
           throw new IllegalArgumentException("Cannot set null or empty URI");
         }
         this.uri = uri;
@@ -136,7 +136,7 @@ public class ArtifactIndexData {
     }
 
     public void setVersion(String version) {
-        if (StringUtil.isNullString(version)) {
+        if (StringUtils.isEmpty(version)) {
           throw new IllegalArgumentException(
               "Cannot set null or empty version");
         }
@@ -163,7 +163,7 @@ public class ArtifactIndexData {
     }
 
     public void setStorageUrl(String storageUrl) {
-        if (StringUtil.isNullString(storageUrl)) {
+        if (StringUtils.isEmpty(storageUrl)) {
           throw new IllegalArgumentException(
               "Cannot set null or empty storageUrl");
         }
