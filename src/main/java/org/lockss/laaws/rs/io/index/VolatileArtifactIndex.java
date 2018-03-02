@@ -35,7 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIndexData;
-import org.lockss.util.StringUtil;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -71,7 +71,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         String id = artifactId.getId();
 
-        if (StringUtil.isNullString(id)) {
+        if (StringUtils.isEmpty(id)) {
           throw new IllegalArgumentException(
               "ArtifactIdentifier has null or empty id");
         }
@@ -101,7 +101,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public ArtifactIndexData getArtifactIndexData(String indexDataId) {
-        if (StringUtil.isNullString(indexDataId)) {
+        if (StringUtils.isEmpty(indexDataId)) {
           throw new IllegalArgumentException("Null or empty identifier");
         }
         return index.get(indexDataId);
@@ -132,7 +132,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public ArtifactIndexData commitArtifact(String indexDataId) {
-        if (StringUtil.isNullString(indexDataId)) {
+        if (StringUtils.isEmpty(indexDataId)) {
           throw new IllegalArgumentException("Null or empty identifier");
         }
         ArtifactIndexData indexedData = index.get(indexDataId);
@@ -169,7 +169,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean deleteArtifact(String indexDataId) {
-      if (StringUtil.isNullString(indexDataId)) {
+      if (StringUtils.isEmpty(indexDataId)) {
         throw new IllegalArgumentException("Null or empty identifier");
       }
       boolean result = false;
@@ -210,7 +210,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean artifactExists(String artifactId) {
-        if (StringUtil.isNullString(artifactId)) {
+        if (StringUtils.isEmpty(artifactId)) {
           throw new IllegalArgumentException("Null or empty identifier");
         }
         return index.containsKey(artifactId);
