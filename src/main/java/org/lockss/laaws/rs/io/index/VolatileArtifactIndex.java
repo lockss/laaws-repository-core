@@ -390,7 +390,6 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @return an {@code Iterator<ArtifactIndexData>} with the artifacts
      *         resulting from the query.
      */
-    @Override
     public Iterator<ArtifactIndexData> query(ArtifactPredicateBuilder query) {
         return index.values().stream().filter(query.build()).iterator();
     }
