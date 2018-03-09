@@ -36,16 +36,12 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.request.schema.AnalyzerDefinition;
-import org.apache.solr.client.solrj.request.schema.FieldTypeDefinition;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.params.MapSolrParams;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.ArtifactPredicateBuilder;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.ArtifactIndexData;
@@ -64,7 +60,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Constructor.
      *
      * @param solrCollectionUrl
-     *
+     *          A {@code String} containing the URL to a Solr collection or core.
      */
     public SolrArtifactIndex(String solrCollectionUrl) {
         // Get a handle to the Solr collection
@@ -105,10 +101,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Creates a
+     * Creates a Solr field of the given name and type, that is indexed, stored, required but not multivalued.
      *
-     * @param fieldName
      * @param solr
+     *          A {@code SolrClient} that points to a Solr core or collection to add the field to.
+     * @param fieldName
+     *          A {@code String} containing the name of the new field.
+     * @param fieldType
+     *          A {@code String} containing the name of the type of the new field.
      * @throws IOException
      * @throws SolrServerException
      */
@@ -117,11 +117,18 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
+     * Creates a Solr field of the given name and type, that is indexed, stored, required but not multivalued.
+     *
+     * Additional field attributes can be provided, or default attributes can be overridden, by passing field attributes.
      *
      * @param solr
+     *          A {@code SolrClient} that points to a Solr core or collection to add the field to.
      * @param fieldName
+     *          A {@code String} containing the name of the new field.
      * @param fieldType
+                A {@code String} containing the name of the type of the new field.
      * @param fieldAttributes
+     *          A {@code Map<String, Object>} containing additional field attributes, and/or a map of fields to override.
      * @throws IOException
      * @throws SolrServerException
      */
@@ -183,6 +190,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
     public ArtifactIndexData indexArtifact(Artifact artifact) throws IOException {
         ArtifactIdentifier artifactId = artifact.getIdentifier();
 
+        // Create an instance of ArtifactIndexData to represent the artifact
         ArtifactIndexData indexData = new ArtifactIndexData(
                 artifactId.getId(),
                 artifactId.getCollection(),
@@ -194,6 +202,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifact.getStorageUrl()
         );
 
+        // Add the ArtifactIndexData to Solr as a bean
         try {
             this.solr.addBean(indexData);
             this.solr.commit();
@@ -201,6 +210,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             throw new IOException(e);
         }
 
+        // Return the ArtifactIndexData added to the Solr collection
         return indexData;
     }
 
@@ -217,19 +227,21 @@ public class SolrArtifactIndex implements ArtifactIndex {
         queryParamMap.put("q", String.format("id:%s", indexDataId));
         MapSolrParams queryParams = new MapSolrParams(queryParamMap);
 
-        // ArtifactIndexData to return
+        // ArtifactIndexData to eventually return
         ArtifactIndexData indexData = null;
 
         try {
+            // Query the Solr index and get results as ArtifactIndexData
             final QueryResponse response = solr.query(queryParams);
             final List<ArtifactIndexData> documents = response.getBeans(ArtifactIndexData.class);
 
+            // Run some checks against the results of the query
             if (!documents.isEmpty()) {
                 if (documents.size() > 1) {
-                    // This should never happen
+                    // This should never happen; id field should be unique
                     throw new RuntimeException(String.format("Multiple Solr documents found for id: %s!", indexDataId));
                 } else {
-                    // Return the only document
+                    // Set indexData to the single result to return
                     indexData = documents.get(0);
                 }
             }
@@ -237,6 +249,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             throw new IOException(e);
         }
 
+        // TODO: Should we throw an exception instead?
         if (indexData == null)
             log.warn(String.format("No Solr documents found with artifact ID: %s", indexDataId));
 
@@ -267,18 +280,20 @@ public class SolrArtifactIndex implements ArtifactIndex {
         SolrInputDocument document = new SolrInputDocument();
         document.addField("id", indexDataId);
 
-        //
+        // Setup type of field modification, and replacement value
         Map<String, Object> fieldModifier = new HashMap<>();
         fieldModifier.put("set", true);
         document.addField("committed", fieldModifier);
 
         try {
+            // Update the field
             this.solr.add(document);
             this.solr.commit();
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
 
+        // Return updated ArtifactIndexData
         return getArtifactIndexData(indexDataId);
     }
 
@@ -526,9 +541,18 @@ public class SolrArtifactIndex implements ArtifactIndex {
         return query(q);
     }
 
+    /**
+     * Executes a Solr query and returns an interator of ArtifactIndexData.
+     *
+     * @param q
+     *          An instance of {@code SolrQuery} containing the query to submit.
+     * @return An {@code Iterator<ArtifactIndexData} containing the matched ArtifactIndexData from the query.
+     * @throws IOException
+     */
     private Iterator<ArtifactIndexData> query(SolrQuery q) throws IOException {
         try {
             QueryResponse response = solr.query(q);
+            // TODO: Potential to exhaust memory for large enough query results; find a better way to do this
             List<ArtifactIndexData> documents = response.getBeans(ArtifactIndexData.class);
             return documents.iterator();
         } catch (SolrServerException e) {
