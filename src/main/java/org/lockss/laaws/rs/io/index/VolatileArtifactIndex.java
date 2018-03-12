@@ -37,6 +37,7 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIndexData;
 import org.lockss.util.StringUtil;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -233,18 +234,15 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the committed artifacts in a collection grouped by the
-     * identifier of the Archival Unit to which they belong.
-     * 
-     * @param collection
-     *          A String with the collection identifier.
-     * @return a {@code Map<String, List<ArtifactIndexData>>} with the committed
-     *         artifacts in the collection grouped by the identifier of the
-     *         Archival Unit to which they belong.
+     * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+     *
+     * @param collection A {@code String} containing the LOCKSS repository collection ID.
+     * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+     * @throws IOException
      */
     @Override
-    public Map<String, List<ArtifactIndexData>> getAus(String collection) {
-        return getCommittedArtifacts(collection).collect(Collectors.groupingBy(ArtifactIndexData::getAuid));
+    public Iterator<String> getAuIds(String collection) throws IOException {
+        return getCommittedArtifacts(collection).map(x -> x.getAuid()).iterator();
     }
 
     /**

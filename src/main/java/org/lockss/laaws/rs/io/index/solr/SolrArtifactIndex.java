@@ -40,7 +40,6 @@ import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.MapSolrParams;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -158,28 +157,6 @@ public class SolrArtifactIndex implements ArtifactIndex {
         addFieldReq.process(solr);
     }
 
-//    public static void createFieldType() {
-//         New field type definition
-//        FieldTypeDefinition typeDefinition = new FieldTypeDefinition();
-//
-//         Set new field type attributes
-//        Map<String, Object> newFieldTypeAttributes = new HashMap<>();
-//        newFieldTypeAttributes.put("name", "string_prefixable");
-//        newFieldTypeAttributes.put("class", "solr.StrField");
-//        typeDefinition.setAttributes(newFieldTypeAttributes);
-//
-//         Set the query analyzer to use KeywordTokenizerFactory
-//        Map<String, Object> tokenizerDefinition = new HashMap<>();
-//        tokenizerDefinition.put("class", "solr.KeywordTokenizerFactory");
-//        AnalyzerDefinition analyzerDefinition = new AnalyzerDefinition();
-//        analyzerDefinition.setTokenizer(tokenizerDefinition);
-//        typeDefinition.setQueryAnalyzer(analyzerDefinition);
-//
-//         Create and submit add field type request
-//        SchemaRequest.AddFieldType addFieldTypeReq = new SchemaRequest.AddFieldType(typeDefinition);
-//        addFieldTypeReq.process(solr);
-//    }
-
     /**
      * Adds an artifact to the index.
      *
@@ -196,6 +173,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifactId.getCollection(),
                 artifactId.getAuid(),
                 artifactId.getUri(),
+                // TODO: Support for artifact version
 //                artifactId.getVersion(),
                 "2018-10-10T13:00:00Z",
                 false,
@@ -223,16 +201,16 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public ArtifactIndexData getArtifactIndexData(String indexDataId) throws IOException {
-        final Map<String, String> queryParamMap = new HashMap<>();
-        queryParamMap.put("q", String.format("id:%s", indexDataId));
-        MapSolrParams queryParams = new MapSolrParams(queryParamMap);
+        SolrQuery q = new SolrQuery();
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=id}%s", indexDataId));
 
         // ArtifactIndexData to eventually return
         ArtifactIndexData indexData = null;
 
         try {
             // Query the Solr index and get results as ArtifactIndexData
-            final QueryResponse response = solr.query(queryParams);
+            final QueryResponse response = solr.query(q);
             final List<ArtifactIndexData> documents = response.getBeans(ArtifactIndexData.class);
 
             // Run some checks against the results of the query
@@ -382,43 +360,28 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the committed artifacts in a collection grouped by the
-     * identifier of the Archival Unit to which they belong.
+     * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
      *
-     * @param collection A String with the collection identifier.
-     * @return a {@code Map<String, List<ArtifactIndexData>>} with the committed
-     * artifacts in the collection grouped by the identifier of the
-     * Archival Unit to which they belong.
+     * @param collection A {@code String} containing the LOCKSS repository collection ID.
+     * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+     * @throws IOException
      */
     @Override
-    public Map<String, List<ArtifactIndexData>> getAus(String collection) throws IOException {
+    public Iterator<String> getAuIds(String collection) throws IOException {
+        // We use a Solr facet query but another option is Solr groups. I believe faceting is better in this case,
+        // because we are not actually interested in the Solr documents - only aggregate information about them.
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.setParam("group", true);
-        q.setParam("group.field", "auid");
-//        q.addFacetQuery("committed:true");
-//        q.addFacetField("auid");
+        q.setFields("auid");
+        q.setRows(0);
+        q.addFacetField("auid");
 
         try {
             QueryResponse response = solr.query(q);
-
-            Map<String, List<ArtifactIndexData>> aus = new HashMap<>();
-
-            response.getGroupResponse().getValues().stream().forEach(
-                    x -> x.getValues().stream().forEach(
-                            y -> log.info(String.format("%s: %s", y.getGroupValue(), y.getResult().size()))
-                    ));
-
-//            ff.getValues().stream().forEach(x -> x.getFacetField().);
-
-//            for (FacetField.Count fc : ff.getValues()) {
-//            }
-
+            return response.getFacetField("auid").getValues().stream().map(x -> x.getName()).iterator();
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
-
-        return null;
     }
 
     /**
