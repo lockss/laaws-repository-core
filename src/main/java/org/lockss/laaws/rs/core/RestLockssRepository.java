@@ -307,17 +307,14 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the committed artifacts in a collection grouped by the
-     * identifier of the Archival Unit to which they belong.
+     * Returns an interator over the Archival Unit IDs (AUIDs) in this collection.
      *
-     * @param collection
-     *          A String with the collection identifier.
-     * @return a {@code Map<String, List<ArtifactIndexData>>} with the committed
-     *         artifacts in the collection grouped by the identifier of the
-     *         Archival Unit to which they belong.
+     * @param collection A String with the collection identifier.
+     * @return A {@code Iterator<String>} with the AUIDs in the collection.
      */
     @Override
-    public Map<String, List<ArtifactIndexData>> getAus(String collection) {
+    public Iterator<String> getAuIds(String collection) throws IOException {
+        // TODO: Need to create an appropriate REST endpoint
         return null;
     }
 
