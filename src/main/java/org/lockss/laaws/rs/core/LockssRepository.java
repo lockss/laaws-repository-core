@@ -35,8 +35,6 @@ import org.lockss.laaws.rs.model.ArtifactIndexData;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 /**
  * The LOCKSS Repository API:
@@ -111,16 +109,13 @@ public interface LockssRepository {
     Iterator<String> getCollectionIds() throws IOException;
 
     /**
-     * Provides the committed artifacts in a collection grouped by the
-     * identifier of the Archival Unit to which they belong.
+     * Returns an interator over the Archival Unit IDs (AUIDs) in this collection.
      *
      * @param collection
      *          A String with the collection identifier.
-     * @return a {@code Map<String, List<ArtifactIndexData>>} with the committed
-     *         artifacts in the collection grouped by the identifier of the
-     *         Archival Unit to which they belong.
+     * @return A {@code Iterator<String>} with the AUIDs in the collection.
      */
-    Map<String, List<ArtifactIndexData>> getAus(String collection) throws IOException;
+    Iterator<String> getAuIds(String collection) throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
