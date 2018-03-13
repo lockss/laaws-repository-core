@@ -307,7 +307,7 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     /**
-     * Returns an interator over the Archival Unit IDs (AUIDs) in this collection.
+     * Returns an iterator over the Archival Unit IDs (AUIDs) in this collection.
      *
      * @param collection A String with the collection identifier.
      * @return A {@code Iterator<String>} with the AUIDs in the collection.

@@ -109,7 +109,7 @@ public interface LockssRepository {
     Iterator<String> getCollectionIds() throws IOException;
 
     /**
-     * Returns an interator over the Archival Unit IDs (AUIDs) in this collection.
+     * Returns an iterator over the Archival Unit IDs (AUIDs) in this collection.
      *
      * @param collection
      *          A String with the collection identifier.
