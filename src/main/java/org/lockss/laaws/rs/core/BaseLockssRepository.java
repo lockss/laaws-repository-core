@@ -52,8 +52,8 @@ import java.util.Map;
 public class BaseLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
 
-    private ArtifactStore store = null;
-    private ArtifactIndex index = null;
+    protected ArtifactStore store = null;
+    protected ArtifactIndex index = null;
 
     /**
      * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
@@ -87,6 +87,9 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public String addArtifact(Artifact artifact) throws IOException {
+        if (artifact == null)
+            throw new IllegalArgumentException("Cannot add a null artifact to the repository");
+
         Artifact a = store.addArtifact(artifact);
         ArtifactIndexData indexData = index.indexArtifact(a);
         return indexData.getId();
@@ -123,6 +126,9 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public ArtifactIndexData commitArtifact(String collection, String artifactId) throws IOException {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection or artifactId");
+
         // Get artifact as it is currently
         ArtifactIndexData indexData = index.getArtifactIndexData(artifactId);
         Artifact artifact = null;
@@ -153,6 +159,9 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public void deleteArtifact(String collection, String artifactId) throws IOException {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection or artifactId");
+
         try {
             store.deleteArtifact(index.getArtifactIndexData(artifactId));
             index.deleteArtifact(artifactId);
@@ -199,17 +208,14 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the committed artifacts in a collection grouped by the
-     * identifier of the Archival Unit to which they belong.
+     * Returns an interator over the Archival Unit IDs (AUIDs) in this collection.
      *
      * @param collection A String with the collection identifier.
-     * @return a {@code Map<String, List<ArtifactIndexData>>} with the committed
-     * artifacts in the collection grouped by the identifier of the
-     * Archival Unit to which they belong.
+     * @return A {@code Iterator<String>} with the AUIDs in the collection.
      */
     @Override
-    public Map<String, List<ArtifactIndexData>> getAus(String collection) throws IOException {
-        return index.getAus(collection);
+    public Iterator<String> getAuIds(String collection) throws IOException {
+        return index.getAuIds(collection);
     }
 
     /**
