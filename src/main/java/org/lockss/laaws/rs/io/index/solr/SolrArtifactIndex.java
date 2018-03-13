@@ -56,17 +56,26 @@ public class SolrArtifactIndex implements ArtifactIndex {
     private final SolrClient solr;
 
     /**
-     * Constructor.
+     * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
      *
      * @param solrCollectionUrl
      *          A {@code String} containing the URL to a Solr collection or core.
      */
     public SolrArtifactIndex(String solrCollectionUrl) {
         // Get a handle to the Solr collection
-        this.solr = new HttpSolrClient.Builder(solrCollectionUrl).build();
+        this(new HttpSolrClient.Builder(solrCollectionUrl).build());
+    }
 
+    /**
+     * Constructor that uses a given SolrClient.
+     *
+     * @param client
+     *          A {@code SolrClient} to use to index artifacts.
+     */
+    public SolrArtifactIndex(SolrClient client) {
         // Modify the schema to support an artifact index
-        createArtifactSchema(this.solr);
+        createArtifactSchema(client);
+        this.solr = client;
     }
 
     /**
