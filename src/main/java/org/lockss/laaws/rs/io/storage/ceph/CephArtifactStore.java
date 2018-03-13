@@ -30,7 +30,42 @@
 
 package org.lockss.laaws.rs.io.storage.ceph;
 
-/*
-public class CephArtifactStore implements ArtifactStore<CephArtifactInfo, CephArtifactEntity> {
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
+
+/**
+ * CephFS implementation of WarcArtifactStore.
+ */
+public class CephArtifactStore extends WarcArtifactStore {
+
+    @Override
+    public Artifact addArtifact(Artifact artifact) throws IOException {
+        return null;
+    }
+
+    @Override
+    public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException {
+        return null;
+    }
+
+    @Override
+    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
+        return null;
+    }
+
+    @Override
+    public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData artifactId) throws IOException, URISyntaxException {
+        return null;
+    }
+
+    @Override
+    public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException {
+        return null;
+    }
 }
-*/
