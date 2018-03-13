@@ -76,16 +76,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <scope>provided</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-solr</artifactId>
-    </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.springframework.boot</groupId>-->
+      <!--<artifactId>spring-boot-starter-data-solr</artifactId>-->
+    <!--</dependency>-->
 
-    <dependency>
-      <groupId>org.springframework.data</groupId>
-      <artifactId>spring-data-solr</artifactId>
-      <version>${spring-data-solr.version}</version>
-    </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.springframework.data</groupId>-->
+      <!--<artifactId>spring-data-solr</artifactId>-->
+      <!--<version>${spring-data-solr.version}</version>-->
+    <!--</dependency>-->
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -165,6 +165,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <version>1.0.0-SNAPSHOT</version>
       <type>test-jar</type>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.solr</groupId>
+      <artifactId>solr-solrj</artifactId>
+      <version>6.6.0</version>
     </dependency>
   </dependencies>
 

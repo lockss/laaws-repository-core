@@ -55,6 +55,9 @@ import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactStore.
+ */
 public class HdfsWarcArtifactStore extends WarcArtifactStore {
     private final static Log log = LogFactory.getLog(HdfsWarcArtifactStore.class);
     private static final String WARC_FILE_SUFFIX = ".warc";
@@ -64,6 +67,14 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
     private Path basePath;
     private FileSystem fs;
 
+    /**
+     * Constructor.
+     *
+     * @param config
+     *          A Apache Hadoop {@code Configuration}.
+     * @param basePath
+     *          A {@code Path} to the base directory of the LOCKSS Repository under HDFS.
+     */
     public HdfsWarcArtifactStore(Configuration config, Path basePath) {
         this.config = config;
         this.basePath = basePath;
@@ -79,6 +90,13 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
         mkdirIfNotExist(basePath);
     }
 
+    /**
+     * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
+     *
+     * @param index
+     *          An ArtifactIndex to rebuild and populate from WARCs.
+     * @throws IOException
+     */
     public void rebuildIndex(ArtifactIndex index) throws IOException {
         // Rebuild the index if using volatile index
         if (index.getClass() == VolatileArtifactIndex.class) {
@@ -280,6 +298,13 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
         }
     }
 
+    /**
+     * Creates a new WARC file, and begins it with a warcinfo WARC record.
+     *
+     * @param warcFilePath
+     *          A {@code Path} to the new WARC file to create.
+     * @throws IOException
+     */
     public void createWarcFile(Path warcFilePath) throws IOException {
         if (!fs.exists(warcFilePath)) {
             // Create a new WARC file

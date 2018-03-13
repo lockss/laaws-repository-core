@@ -44,7 +44,6 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
@@ -61,18 +60,20 @@ import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.UUID;
 
+/**
+ * An abstract class that implements methods common to WARC implementations of ArtifactStore.
+ */
 public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants {
     private final static Log log = LogFactory.getLog(WarcArtifactStore.class);
 
-    public static final String AU_DIR_PREFIX = "au-";
-    private static final String SCHEME = "urn:uuid";
-    private static final String SCHEME_COLON = SCHEME + ":";
-    public static final String CRLF = "\r\n";
-    public static byte[] CRLF_BYTES;
-    public static String SEPARATOR = "/";
+    protected static final String AU_DIR_PREFIX = "au-";
+    protected static final String SCHEME = "urn:uuid";
+    protected static final String SCHEME_COLON = SCHEME + ":";
+    protected static final String CRLF = "\r\n";
+    protected static byte[] CRLF_BYTES;
+    protected static String SEPARATOR = "/";
 
-//    protected ArtifactIndex index;
-    public File repositoryBasePath;
+    protected File repositoryBasePath;
 
     static {
         try {
@@ -297,6 +298,4 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
             throw new RuntimeException(e);
         }
     }
-
-    public abstract Artifact getArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException;
 }

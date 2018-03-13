@@ -30,14 +30,24 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
-import org.springframework.data.repository.NoRepositoryBean;
-import org.springframework.data.solr.repository.SolrCrudRepository;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.Before;
+import org.junit.Test;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
-import java.util.List;
+import static org.junit.Assert.*;
 
-@NoRepositoryBean
-public interface SolrArtifactIndexRepository<A extends SolrArtifactIndexData> extends SolrCrudRepository<SolrArtifactIndexData, String> {
-    public A findById(String id);
-    public List<A> findByAuid(String auid);
-    public void deleteById(String id);
+public class TestSolrArtifactIndex {
+    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
+    private ArtifactIndex index;
+
+    @Before
+    public void setUp() throws Exception {
+        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
+    }
+
+    @Test
+    public void performTests() throws Exception {
+    }
 }

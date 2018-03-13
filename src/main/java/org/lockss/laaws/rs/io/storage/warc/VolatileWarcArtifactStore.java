@@ -34,7 +34,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactFactory;
 
@@ -45,16 +44,33 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.util.*;
 
+/**
+ * A volatile ("in-memory") implementation of WarcArtifactStore.
+ */
 public class VolatileWarcArtifactStore extends WarcArtifactStore {
     private final static Log log = LogFactory.getLog(VolatileWarcArtifactStore.class);
     private Map<String, Map<String, Map<String, byte[]>>> repository;
 
+    /**
+     * Constructor.
+     */
     public VolatileWarcArtifactStore() {
         this.repository = new HashMap<>();
     }
 
+    /**
+     * Adds an artifact to this artifact store.
+     *
+     * @param artifact
+     *          The {@code Artifact} to add to this artifact store.
+     * @return A representation of the artifact as it is now stored.
+     * @throws IOException
+     */
     @Override
     public Artifact addArtifact(Artifact artifact) throws IOException {
+        if (artifact == null)
+            throw new IllegalArgumentException("Cannot add a null artifact");
+
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifact.getIdentifier();
 
@@ -107,6 +123,14 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
         return artifact;
     }
 
+    /**
+     * Retrieves an artifact from this artifact store.
+     *
+     * @param indexedData
+     *          An ArtifactIndex that encodes information about the artifact to retrieve from this store.
+     * @return The {@code Artifact} referred to by the ArtifactIndexData.
+     * @throws IOException
+     */
     @Override
     public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException {
         // Use identifier to get artifact byte stream
@@ -133,17 +157,40 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
         return artifact;
     }
 
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifact) {
+    /**
+     * Updates and writes associated metadata of an artifact to this store.
+     *
+     * @param artifactId
+     *          A (@code ArtifactIdentifier) that identifies the artifact to update.
+     * @param artifactMetadata
+     *          RepositoryArtifactMetadata update the artifact with, and write to the store.
+     * @return A representation of the RepositoryArtifactMetadata as it is now stored.
+     */
+    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
         // TODO
         return null;
     }
 
+    /**
+     * Commits an artifact to this artifact store.
+     *
+     * @param indexData
+     *          A (@code ArtifactIdentifier) that identifies the artifact to commit and store permanently.
+     * @return A {@code RepositoryArtifactMetadata} updated to indicate the new commit status as it is now stored.
+     */
     @Override
     public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData indexData) {
        // TODO
         return null;
     }
 
+    /**
+     * Removes an artifact from this store.
+     *
+     * @param artifactInfo
+     *          A {@code ArtifactIndexData} referring to the artifact to remove from this store.
+     * @return A {@code RepositoryArtifactMetadata} updated to indicate the deleted status of this artifact.
+     */
     @Override
     public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData artifactInfo) {
         Map<String, Map<String, byte[]>> collection = repository.get(artifactInfo.getCollection());
@@ -152,5 +199,4 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
 
         return null;
     }
-
 }

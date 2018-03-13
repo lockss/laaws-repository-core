@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.solr.client.solrj.beans.Field;
 
 /**
  * Data associated with an artifact in the index.
@@ -40,13 +41,35 @@ import org.apache.commons.lang3.StringUtils;
 public class ArtifactIndexData {
     private static final Log log = LogFactory.getLog(ArtifactIndexData.class);
 
+    @Field("id")
     private String id;
+
+    @Field("collection")
     private String collection;
+
+    @Field("auid")
     private String auid;
+
+    @Field("uri")
     private String uri;
+
+    @Field("version")
     private String version;
+
+    @Field("committed")
     private Boolean committed;
+
+    @Field("storageUrl")
     private String storageUrl;
+
+    /**
+     * Constructor. Needed by Solrj for getBeans() support.
+     *
+     * TODO: Reconcile difference with constructor below, which checks parameters for illegal arguments.
+     */
+    public ArtifactIndexData() {
+        // Intentionally left blank
+    }
 
     public ArtifactIndexData(String id, String collection, String auid, String uri, String version, Boolean committed,
                              String storageUrl) {

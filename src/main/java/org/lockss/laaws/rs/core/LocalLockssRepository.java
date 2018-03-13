@@ -28,57 +28,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.domain;
+package org.lockss.laaws.rs.core;
 
-import org.apache.commons.lang.NotImplementedException;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactStore;
 
-public class ArtifactPageRequest implements Pageable {
-    private String artifact;
-    private int size;
+import java.io.File;
 
-    public ArtifactPageRequest() {
+/**
+ * Local filesystem implementation of LOCKSS Repository that uses a volatile artifact index.
+ */
+public class LocalLockssRepository extends BaseLockssRepository {
 
-    }
-
-    @Override
-    public int getPageNumber() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public int getPageSize() {
-        return this.size;
-    }
-
-    @Override
-    public int getOffset() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public Sort getSort() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public Pageable next() {
-        return null;
-    }
-
-    @Override
-    public Pageable previousOrFirst() {
-        return null;
-    }
-
-    @Override
-    public Pageable first() {
-        return null;
-    }
-
-    @Override
-    public boolean hasPrevious() {
-        return false;
+    /**
+     * Constructor. Automatically rebuilds the index from the local filesystem path.
+     *
+     * @param basePath
+     *          A File containing the base path of this LOCKSS Repository.
+     */
+    public LocalLockssRepository(File basePath) {
+        super(new VolatileArtifactIndex(), new LocalWarcArtifactStore(basePath));
+        ((LocalWarcArtifactStore)store).rebuildIndex(index);
     }
 }

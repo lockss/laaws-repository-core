@@ -52,8 +52,8 @@ import java.util.Map;
 public class BaseLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
 
-    private ArtifactStore store = null;
-    private ArtifactIndex index = null;
+    protected ArtifactStore store = null;
+    protected ArtifactIndex index = null;
 
     /**
      * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
@@ -87,6 +87,9 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public String addArtifact(Artifact artifact) throws IOException {
+        if (artifact == null)
+            throw new IllegalArgumentException("Cannot add a null artifact to the repository");
+
         Artifact a = store.addArtifact(artifact);
         ArtifactIndexData indexData = index.indexArtifact(a);
         return indexData.getId();
@@ -123,6 +126,9 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public ArtifactIndexData commitArtifact(String collection, String artifactId) throws IOException {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection or artifactId");
+
         // Get artifact as it is currently
         ArtifactIndexData indexData = index.getArtifactIndexData(artifactId);
         Artifact artifact = null;
@@ -153,6 +159,9 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public void deleteArtifact(String collection, String artifactId) throws IOException {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection or artifactId");
+
         try {
             store.deleteArtifact(index.getArtifactIndexData(artifactId));
             index.deleteArtifact(artifactId);
@@ -169,7 +178,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return A boolean indicating whether an artifact exists in this repository.
      */
     @Override
-    public boolean artifactExists(String artifactId) {
+    public boolean artifactExists(String artifactId) throws IOException {
         return index.artifactExists(artifactId);
     }
 
@@ -181,7 +190,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return A boolean indicating whether the artifact is committed.
      */
     @Override
-    public boolean isArtifactCommitted(String artifactId) {
+    public boolean isArtifactCommitted(String artifactId) throws IOException {
         ArtifactIndexData data = index.getArtifactIndexData(artifactId);
         return data.getCommitted();
     }
@@ -194,22 +203,19 @@ public class BaseLockssRepository implements LockssRepository {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() {
+    public Iterator<String> getCollectionIds() throws IOException {
         return index.getCollectionIds();
     }
 
     /**
-     * Provides the committed artifacts in a collection grouped by the
-     * identifier of the Archival Unit to which they belong.
+     * Returns an iterator over the Archival Unit IDs (AUIDs) in this collection.
      *
      * @param collection A String with the collection identifier.
-     * @return a {@code Map<String, List<ArtifactIndexData>>} with the committed
-     * artifacts in the collection grouped by the identifier of the
-     * Archival Unit to which they belong.
+     * @return A {@code Iterator<String>} with the AUIDs in the collection.
      */
     @Override
-    public Map<String, List<ArtifactIndexData>> getAus(String collection) {
-        return index.getAus(collection);
+    public Iterator<String> getAuIds(String collection) throws IOException {
+        return index.getAuIds(collection);
     }
 
     /**
@@ -224,7 +230,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         artifacts in the collection that belong to the Archival Unit.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAU(String collection, String auid) {
+    public Iterator<ArtifactIndexData> getArtifactsInAU(String collection, String auid) throws IOException {
         return index.getArtifactsInAU(collection, auid);
     }
 
@@ -243,7 +249,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         that contain a URL with the given prefix.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix) {
+    public Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException {
         return index.getArtifactsInAUWithURL(collection, auid, prefix);
     }
 
@@ -262,7 +268,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         that contain an exact match of a URL.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection, String auid, String url) {
+    public Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection, String auid, String url) throws IOException {
         return index.getArtifactsInAUWithURLMatch(collection, auid, url);
     }
 
@@ -285,7 +291,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         version.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix, String version) {
+    public Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix, String version) throws IOException {
         return index.getArtifactsInAUWithURL(collection, auid, prefix, version);
     }
 
@@ -308,7 +314,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         version.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection, String auid, String url, String version) {
+    public Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection, String auid, String url, String version) throws IOException {
         return index.getArtifactsInAUWithURLMatch(collection, auid, url, version);
     }
 }
