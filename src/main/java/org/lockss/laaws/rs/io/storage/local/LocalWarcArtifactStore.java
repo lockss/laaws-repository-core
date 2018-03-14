@@ -58,11 +58,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Local filesystem implementation of WarcArtifactStore.
+ */
 public class LocalWarcArtifactStore extends WarcArtifactStore {
     private static final Log log = LogFactory.getLog(LocalWarcArtifactStore.class);
 
     private static final String WARC_FILE_SUFFIX = ".warc";
-    public static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
+    private static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
 
     /**
      * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
