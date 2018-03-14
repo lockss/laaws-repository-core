@@ -50,6 +50,7 @@ import org.springframework.data.hadoop.store.support.StreamsHolder;
 
 import java.io.*;
 
+@Deprecated
 public class HdfsWarcFileWriter extends AbstractDataStreamWriter implements DataStoreWriter<WARCRecordInfo>, WARCConstants {
     private final static Log log = LogFactory.getLog(HdfsWarcFileWriter.class);
 
