@@ -38,7 +38,7 @@ import static org.junit.Assert.*;
 /**
  * Test class for the Artifact factory {@code org.lockss.laaws.rs.util.ArtifactFactory}.
  */
-public class ArtifactFactoryTest {
+public class TestArtifactFactory {
 
     @Before
     public void setUp() throws Exception {
