@@ -35,6 +35,9 @@ import org.springframework.http.HttpHeaders;
 
 import java.io.*;
 
+/**
+ * An {@code Artifact} serves as an atomic unit of data archived in the LOCKSS Repository.
+ */
 public class Artifact implements Comparable<Artifact> {
     // Core artifact attributes
     private ArtifactIdentifier identifier;
@@ -46,14 +49,53 @@ public class Artifact implements Comparable<Artifact> {
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
 
+    /**
+     * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
+     *
+     * @param artifactMetadata
+     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+     * @param inputStream
+     *          An {@code InputStream} containing the byte stream of this artifact.
+     * @param responseStatus
+     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+     */
     public Artifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
         this(null, artifactMetadata, inputStream, responseStatus, null, null);
     }
 
+    /**
+     * Constructor for artifact data that has an identity relative to a LOCKSS repository, but has not yet been added to
+     * an artifact store.
+     *
+     * @param identifier
+     *          An {@code ArtifactIdentifier} for this artifact data.
+     * @param artifactMetadata
+     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+     * @param inputStream
+     *          An {@code InputStream} containing the byte stream of this artifact.
+     * @param httpStatus
+     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+     */
     public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
         this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
     }
 
+    /**
+     * Full constructor for artifact data.
+     *
+     * @param identifier
+     *          An {@code ArtifactIdentifier} for this artifact data.
+     * @param artifactMetadata
+     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+     * @param inputStream
+     *          An {@code InputStream} containing the byte stream of this artifact.
+     * @param httpStatus
+     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+     * @param storageUrl
+     *          A {@code String} URL pointing to the storage of this artifact data.
+     * @param repoMetadata
+     *          A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
+     */
     public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, String storageUrl, RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
         this.artifactMetadata = artifactMetadata;
@@ -63,47 +105,104 @@ public class Artifact implements Comparable<Artifact> {
         this.repositoryMetadata = repoMetadata;
     }
 
+    /**
+     * Returns additional key-value properties associated with this artifact.
+     *
+     * @return A {@code HttpHeaders} containing this artifact's additional properties.
+     */
     public HttpHeaders getMetadata() {
         return artifactMetadata;
     }
 
+    /**
+     * Returns this artifact's byte stream in a one-time use {@code InputStream}.
+     *
+     * @return An {@code InputStream} containing this artifact's byte stream.
+     */
     public InputStream getInputStream() {
         return artifactStream;
     }
 
+    /**
+     * Returns this artifact's HTTP response status if it originated from a web server.
+     *
+     * @return A {@code StatusLine} containing this artifact's HTTP response status.
+     */
     public StatusLine getHttpStatus() {
         return this.httpStatus;
     }
 
+    /**
+     * Return this artifact data's artifact identifier.
+     *
+     * @return An {@code ArtifactIdentifier}.
+     */
     public ArtifactIdentifier getIdentifier() {
         return this.identifier;
     }
 
+    /**
+     * Sets an artifact identifier for this artifact data.
+     *
+     * @param identifier
+     *          An {@code ArtifactIdentifier} for this artifact data.
+     * @return This {@code Artifact} with its identifier set to the one provided.
+     */
     public Artifact setIdentifier(ArtifactIdentifier identifier) {
         this.identifier = identifier;
         return this;
     }
 
+    /**
+     * Returns the repository state information for this artifact data.
+     *
+     * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
+     */
     public RepositoryArtifactMetadata getRepositoryMetadata() {
         return repositoryMetadata;
     }
 
+    /**
+     * Sets the repository state information for this artifact data.
+     *
+     * @param metadata
+     *          A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
+     * @return
+     */
     public Artifact setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
         this.repositoryMetadata = metadata;
         return this;
     }
 
+    /**
+     * Returns the location where the byte stream for this artifact data can be found.
+     *
+     * @return A {@code String} containing the storage of this artifact data.
+     */
     public String getStorageUrl() {
       return storageUrl;
     }
 
+    /**
+     * Sets the location where the byte stream for this artifact data can be found.
+     * @param storageUrl
+     *          A {@code String} containing the location of this artifact data.
+     */
     public void setStorageUrl(String storageUrl) {
       this.storageUrl = storageUrl;
     }
 
+    /**
+     * Implements {@code Comparable<Artifact>} so that sets of {@code Artifact} can be ordered.
+     *
+     * There may be a better canonical order but for now, this defers to implementations of ArtifactIdentifier.
+     *
+     * @param other
+     *          Another {@code Artifact} to compare against.
+     * @return An {@code int} denoting the order of this artifact, relative to another.
+     */
     @Override
     public int compareTo(Artifact other) {
-        // TODO: Need to discuss a canonical order with team - for now, defer to artifacts identifiers
         return this.getIdentifier().compareTo(other.getIdentifier());
     }
 }
