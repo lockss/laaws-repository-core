@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage;
+package org.lockss.laaws.rs.io.storage.hdfs;
 
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;

@@ -28,26 +28,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
 import static org.junit.Assert.*;
 
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
-    private ArtifactIndex index;
+public class TestHdfsWarcFileWriter {
 
     @Before
     public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }
 
     @Test
-    public void performTests() throws Exception {
+    public void close() {
+    }
+
+    @Test
+    public void flush() {
+    }
+
+    @Test
+    public void hflush() {
+    }
+
+    @Test
+    public void handleTimeout() {
+    }
+
+    @Test
+    public void getOutput() {
+    }
+
+    @Test
+    public void getPosition() {
+    }
+
+    @Test
+    public void write() {
     }
 }
