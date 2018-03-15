@@ -30,15 +30,16 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactIndexData;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.ByteArrayInputStream;
@@ -52,13 +53,17 @@ import static org.junit.Assert.*;
  * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
  */
 public class TestVolatileLockssRepository {
+    private final static Log log = LogFactory.getLog(TestVolatileLockssRepository.class);
 
     private ArtifactIdentifier aid1;
     private ArtifactIdentifier aid2;
+    private ArtifactIdentifier aid3;
     private RepositoryArtifactMetadata md1;
     private RepositoryArtifactMetadata md2;
+    private RepositoryArtifactMetadata md3;
     private Artifact artifact1;
     private Artifact artifact2;
+    private Artifact artifact3;
 
     private UUID uuid;
     private VolatileLockssRepository repo;
@@ -76,12 +81,15 @@ public class TestVolatileLockssRepository {
 
         aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", "v1");
         aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", "v2");
+        aid3 = new ArtifactIdentifier("id3", "coll1", "auid1", "uri2", "v1");
 
         md1 = new RepositoryArtifactMetadata(aid1, false, false);
         md2 = new RepositoryArtifactMetadata(aid2, true, false);
+        md3 = new RepositoryArtifactMetadata(aid1, false, false);
 
         artifact1 = new Artifact(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
         artifact2 = new Artifact(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
+        artifact3 = new Artifact(aid3, null, new ByteArrayInputStream("bytes3".getBytes()), httpStatus, "surl3", md3);
 
         repo = new VolatileLockssRepository();
     }
@@ -364,26 +372,132 @@ public class TestVolatileLockssRepository {
 
     @Test
     public void getArtifactsInAU() {
-//        repo.getArtifactsInAU(null, null);
-//        repo.getArtifactsInAU(null, "doesntMatter");
-//        repo.getArtifactsInAU("doesntMatter", null);
-//
-//        repo.addArtifact(artifact1);
+        try {
+            Iterator<ArtifactIndexData> result = null;
+
+            result = repo.getArtifactsInAU(null, null);
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAU(null, "unknown");
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            repo.getArtifactsInAU("unknown", null);
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            repo.getArtifactsInAU("unknown", "unknown");
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+        } catch (IOException e) {
+            fail(String.format("Unexpected IOException thrown: %s", e));
+        }
+
+        try {
+            assertNotNull(repo.addArtifact(artifact1));
+            assertNotNull(repo.addArtifact(artifact2));
+
+            Iterator<ArtifactIndexData> result = null;
+
+            result = repo.getArtifactsInAU(aid1.getCollection(), aid1.getAuid());
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            repo.commitArtifact(aid1.getCollection(), aid1.getId());
+
+            result = repo.getArtifactsInAU(aid1.getCollection(), aid1.getAuid());
+            assertNotNull(result);
+            assertTrue(result.hasNext());
+
+            ArtifactIndexData indexData = result.next();
+            assertNotNull(indexData);
+            assertFalse(result.hasNext());
+            assertEquals(aid1.getId(), indexData.getIdentifier().getId());
+
+        } catch (IOException e) {
+            fail(String.format("Unexpected IOException thrown: %s", e));
+        }
     }
 
     @Test
     public void getArtifactsInAUWithURL() {
+
+        try {
+            assertNotNull(repo.addArtifact(artifact1));
+            assertNotNull(repo.addArtifact(artifact2));
+            assertNotNull(repo.addArtifact(artifact3));
+
+            Iterator<ArtifactIndexData> result = null;
+
+//            repo.commitArtifact(aid1.getCollection(), aid1.getId());
+
+            result = repo.getArtifactsInAUWithURL(null, null, null);
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), null, null);
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(null, aid1.getAuid(), null);
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(null, null, "url");
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), null);
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), null,  "url");
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(null, aid1.getAuid(),  "url");
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(),  "url");
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+        } catch (IOException e) {
+            fail(String.format("Unexpected IOException thrown: %s", e));
+        }
+
+        try {
+            assertNotNull(repo.addArtifact(artifact1));
+            assertNotNull(repo.addArtifact(artifact2));
+            assertNotNull(repo.addArtifact(artifact3));
+
+            Iterator<ArtifactIndexData> result = null;
+
+            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
+            assertNotNull(result);
+            assertFalse(result.hasNext());
+
+            repo.commitArtifact(aid1.getCollection(), aid1.getId());
+
+            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
+            assertNotNull(result);
+            assertTrue(result.hasNext());
+
+            ArtifactIndexData indexData = result.next();
+            assertNotNull(indexData);
+            assertFalse(result.hasNext());
+            assertEquals(aid1.getId(), indexData.getIdentifier().getId());
+            assertEquals(aid1.getUri(), indexData.getIdentifier().getUri());
+
+        } catch (IOException e) {
+            fail(String.format("Unexpected IOException thrown: %s", e));
+        }
     }
 
     @Test
     public void getArtifactsInAUWithURLMatch() {
     }
 
-    @Test
-    public void getArtifactsInAUWithURL1() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch1() {
-    }
 }
