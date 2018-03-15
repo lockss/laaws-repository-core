@@ -50,6 +50,7 @@ import java.util.*;
 public class VolatileWarcArtifactStore extends WarcArtifactStore {
     private final static Log log = LogFactory.getLog(VolatileWarcArtifactStore.class);
     private Map<String, Map<String, Map<String, byte[]>>> repository;
+    private Map<String, RepositoryArtifactMetadata> repositoryMetadata = new HashMap<>();
 
     /**
      * Constructor.
@@ -88,10 +89,8 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
             artifact.getIdentifier().setId(UUID.randomUUID().toString());
 
             // Create and set the artifact's repository metadata
-            RepositoryArtifactMetadata repoMetadata =
-        	new RepositoryArtifactMetadata(artifactId, false, false
-            );
-
+            RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
+            repositoryMetadata.put(artifactId.getId(), repoMetadata);
             artifact.setRepositoryMetadata(repoMetadata);
 
             // Write artifact as a WARC record stream to the OutputStream
@@ -133,26 +132,49 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      */
     @Override
     public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException {
-        // Use identifier to get artifact byte stream
-        Map<String, Map<String, byte[]>> collection = repository.get(indexedData.getCollection());
-        Map<String, byte[]> au = collection.get(indexedData.getAuid());
-        InputStream warcRecordStream = new ByteArrayInputStream(au.get(indexedData.getId()));
+        // Cannot work with a null ArtifactIndexData
+        if (indexedData == null)
+            throw new IllegalArgumentException("ArtifactIndexData used to reference artifact cannot be null");
 
-        // Assemble a WARCRecord object using the WARC record bytestream in memory
-        WARCRecord record = new WARCRecord(
-                warcRecordStream,
-                null,
-                0,
-                true,
-                true
-        );
+        // Artifact to return; defaults to null if one could not be found
+        Artifact artifact = null;
 
-        // Generate an artifact from the HTTP response stream
-        Artifact artifact = ArtifactFactory.fromHttpResponseStream(record);
+        // Get the map representing an artifact collection
+        if (repository.containsKey(indexedData.getCollection())) {
+            // Get the collection of artifacts
+            Map<String, Map<String, byte[]>> collection = repository.get(indexedData.getCollection());
 
-        // TODO: ArtifactFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers are in the
-        // HTTP response but since we can't guarantee that yet, we set it explicitly here.
-        artifact.setIdentifier(indexedData.getIdentifier());
+            // Get the map representing an AU from collection
+            if (collection.containsKey(indexedData.getAuid())) {
+                Map<String, byte[]> au = collection.getOrDefault(indexedData.getAuid(), new HashMap<>());
+
+                // Retrieve the artifact's byte stream (artifact is encoded as a WARC record stream here)
+                byte[] artifactBytes = au.get(indexedData.getId());
+
+                // Adapt byte array to Artifact
+                if (artifactBytes != null) {
+                    InputStream warcRecordStream = new ByteArrayInputStream(artifactBytes);
+
+                    // Assemble a WARCRecord object using the WARC record bytestream in memory
+                    WARCRecord record = new WARCRecord(
+                            warcRecordStream,
+                            null,
+                            0,
+                            true,
+                            true
+                    );
+
+                    // Generate an artifact from the HTTP response stream
+                    artifact = ArtifactFactory.fromHttpResponseStream(record);
+
+                    // TODO: ArtifactFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers
+                    // are in the HTTP response but since we can't guarantee that yet, we set it explicitly here.
+                    artifact.setIdentifier(indexedData.getIdentifier());
+
+                    artifact.setRepositoryMetadata(repositoryMetadata.get(indexedData.getId()));
+                }
+            }
+        }
 
         return artifact;
     }
@@ -167,8 +189,8 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      * @return A representation of the RepositoryArtifactMetadata as it is now stored.
      */
     public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
-        // TODO
-        return null;
+        repositoryMetadata.replace(artifactId.getId(), artifactMetadata);
+        return repositoryMetadata.get(artifactId.getId());
     }
 
     /**
@@ -180,8 +202,15 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      */
     @Override
     public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData indexData) {
-       // TODO
-        return null;
+        if (indexData == null)
+            throw new IllegalArgumentException("indexData cannot be null");
+
+        RepositoryArtifactMetadata metadata = repositoryMetadata.get(indexData.getId());
+        metadata.setCommitted(true);
+
+        // TODO: Use updateArtifactMetadata
+        repositoryMetadata.replace(indexData.getId(), metadata);
+        return metadata;
     }
 
     /**
@@ -193,10 +222,19 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      */
     @Override
     public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData artifactInfo) {
+        if (artifactInfo == null)
+            throw new IllegalArgumentException("artifactInfo cannot be null");
+
         Map<String, Map<String, byte[]>> collection = repository.get(artifactInfo.getCollection());
         Map<String, byte[]> au = collection.get(artifactInfo.getAuid());
-        au.remove(artifactInfo.getUri() + artifactInfo.getVersion());
+        au.remove(artifactInfo.getId());
 
-        return null;
+        // TODO: Use updateArtifactMetadata
+        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifactInfo.getId());
+        metadata.setDeleted(true);
+        repositoryMetadata.replace(artifactInfo.getId(), metadata);
+
+        repositoryMetadata.remove(artifactInfo.getId());
+        return metadata;
     }
 }
