@@ -9,4 +9,5 @@ public class ArtifactConstants {
     public static final String ARTIFACTID_AUID_KEY = "X-Lockss-AuId";
     public static final String ARTIFACTID_URI_KEY = "X-Lockss-Uri";
     public static final String ARTIFACTID_VERSION_KEY = "X-Lockss-Version";
+    public static final String ARTIFACTID_ORIGIN_KEY = "X-Lockss-Origin";
 }
