@@ -72,6 +72,9 @@ public class ArtifactFactory {
      * @throws IOException
      */
     public static Artifact fromHttpResponseStream(InputStream responseStream) throws IOException {
+        if (responseStream == null)
+            throw new IllegalArgumentException("InputStream is null");
+
         return fromHttpResponseStream(null, responseStream);
     }
 
@@ -90,20 +93,11 @@ public class ArtifactFactory {
     public static Artifact fromHttpResponseStream(HttpHeaders additionalMetadata, InputStream responseStream)
             throws IOException
     {
-        // Create a SessionInputBuffer from the InputStream containing a HTTP response
-        SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
-        buffer.bind(responseStream);
-
         // Attach remaining data in stream as the response entity. We cannot use InputStreamEntity directly because
         // it is now wrapped within a SessionInputBufferImpl so we instantiate a BasicHttpEntity and populate it an
         // IdentityInputStream. We could also have used StrictContentLengthStrategy and ContentLengthInputStream.
         try {
-            BasicHttpEntity responseEntity = new BasicHttpEntity();
-            HttpResponse response = (new DefaultHttpResponseParser(buffer)).parse();
-            long len = (new LaxContentLengthStrategy()).determineLength(response);
-            responseEntity.setContentLength(len);
-            responseEntity.setContent(new IdentityInputStream(buffer));
-            response.setEntity(responseEntity);
+            HttpResponse response = getHttpResponseFromStream(responseStream);
 
             // Merge additional artifact metadata into HTTP response header
             if (additionalMetadata != null) {
@@ -123,6 +117,33 @@ public class ArtifactFactory {
     }
 
     /**
+     * Adapts an {@code InputStream} with an HTTP response into an Apache {@code HttpResponse} object.
+     *
+     * @param inputStream
+     *          An {@code InputStream} containing an HTTP response to parse.
+     * @return A {@code HttpResponse} representing the HTTP response in the {@code InputStream}.
+     * @throws HttpException
+     * @throws IOException
+     */
+    public static HttpResponse getHttpResponseFromStream(InputStream inputStream) throws HttpException, IOException {
+        // Create a SessionInputBuffer from the InputStream containing a HTTP response
+        SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
+        buffer.bind(inputStream);
+
+        // Parse the InputStream to a HttpResponse object
+        HttpResponse response = (new DefaultHttpResponseParser(buffer)).parse();
+        long len = (new LaxContentLengthStrategy()).determineLength(response);
+
+        // Create and attach an HTTP entity to the HttpResponse
+        BasicHttpEntity responseEntity = new BasicHttpEntity();
+        responseEntity.setContentLength(len);
+        responseEntity.setContent(new IdentityInputStream(buffer));
+        response.setEntity(responseEntity);
+
+        return response;
+    }
+
+    /**
      * Instantiates an {@code Artifact} from a Apache {@code HttpResponse} object.
      *
      * @param response
@@ -131,6 +152,9 @@ public class ArtifactFactory {
      * @throws IOException
      */
     public static Artifact fromHttpResponse(HttpResponse response) throws IOException {
+        if (response == null)
+            throw new IllegalArgumentException("HttpResponse is null");
+
         HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
         return new Artifact(
@@ -315,7 +339,7 @@ public class ArtifactFactory {
             //));
 
             // Custom header to indicate the origin of this artifact
-            metadata.add("X-Lockss-Origin", "warc");
+            metadata.add(ArtifactConstants.ARTIFACTID_ORIGIN_KEY, "warc");
 
             // Parse the ArchiveRecord into an artifact and return it
             return ArtifactFactory.fromResourceStream(metadata, record);
