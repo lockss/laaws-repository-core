@@ -40,7 +40,7 @@ import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -55,23 +55,23 @@ import java.time.temporal.TemporalAccessor;
 import java.util.List;
 
 /**
- * Artifact factory: Instantiates Artifact objects from a variety of sources.
+ * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
  */
-public class ArtifactFactory {
-    private final static Log log = LogFactory.getLog(ArtifactFactory.class);
+public class ArtifactDataFactory {
+    private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
 
     private static final String RESPONSE_TYPE = WARCConstants.WARCRecordType.response.toString();
     private static final String RESOURCE_TYPE = WARCConstants.WARCRecordType.resource.toString();
 
     /**
-     * Instantiates an {@code Artifact} from an {@code InputStream} containing the byte stream of an HTTP response.
+     * Instantiates an {@code ArtifactData} from an {@code InputStream} containing the byte stream of an HTTP response.
      *
      * @param responseStream
      *          An {@code InputStream} containing an HTTP response byte stream which in turn encodes an artifact.
-     * @return An {@code Artifact} representing the artifact encoded in an HTTP response input stream.
+     * @return An {@code ArtifactData} representing the artifact encoded in an HTTP response input stream.
      * @throws IOException
      */
-    public static Artifact fromHttpResponseStream(InputStream responseStream) throws IOException {
+    public static ArtifactData fromHttpResponseStream(InputStream responseStream) throws IOException {
         if (responseStream == null)
             throw new IllegalArgumentException("InputStream is null");
 
@@ -79,7 +79,7 @@ public class ArtifactFactory {
     }
 
     /**
-     * Instantiates an {@code Artifact} from an {@code InputStream} containing the byte stream of an HTTP response.
+     * Instantiates an {@code ArtifactData} from an {@code InputStream} containing the byte stream of an HTTP response.
      *
      * Allows additional HTTP headers to be injected by passing a {@code HttpHeaders}.
      *
@@ -87,10 +87,10 @@ public class ArtifactFactory {
      *          A {@code HttpHeader} with additional headers.
      * @param responseStream
      *          An {@code InputStream} containing an HTTP response byte stream which in turn encodes an artifact.
-     * @return An {@code Artifact} representing the artifact encoded in an HTTP response input stream.
+     * @return An {@code ArtifactData} representing the artifact encoded in an HTTP response input stream.
      * @throws IOException
      */
-    public static Artifact fromHttpResponseStream(HttpHeaders additionalMetadata, InputStream responseStream)
+    public static ArtifactData fromHttpResponseStream(HttpHeaders additionalMetadata, InputStream responseStream)
             throws IOException
     {
         // Attach remaining data in stream as the response entity. We cannot use InputStreamEntity directly because
@@ -144,20 +144,20 @@ public class ArtifactFactory {
     }
 
     /**
-     * Instantiates an {@code Artifact} from a Apache {@code HttpResponse} object.
+     * Instantiates an {@code ArtifactData} from a Apache {@code HttpResponse} object.
      *
      * @param response
      *          A {@code HttpResponse} object containing an artifact.
-     * @return An {@code Artifact} representing the artifact encoded in the {@code HttpResponse} object.
+     * @return An {@code ArtifactData} representing the artifact encoded in the {@code HttpResponse} object.
      * @throws IOException
      */
-    public static Artifact fromHttpResponse(HttpResponse response) throws IOException {
+    public static ArtifactData fromHttpResponse(HttpResponse response) throws IOException {
         if (response == null)
             throw new IllegalArgumentException("HttpResponse is null");
 
         HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
-        return new Artifact(
+        return new ArtifactData(
                 buildArtifactIdentifier(headers),
                 headers,
                 response.getEntity().getContent(),
@@ -174,11 +174,11 @@ public class ArtifactFactory {
      */
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
         return new ArtifactIdentifier(
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY)
+                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_ID_KEY),
+                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_COLLECTION_KEY),
+                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_AUID_KEY),
+                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_URI_KEY),
+                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_VERSION_KEY)
         );
     }
 
@@ -191,13 +191,13 @@ public class ArtifactFactory {
      */
    private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
         return new ArtifactIdentifier(
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
+                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
+                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_COLLECTION_KEY),
+                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_AUID_KEY),
+                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY)
+                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_VERSION_KEY)
         );
     }
 
@@ -243,18 +243,18 @@ public class ArtifactFactory {
     }
 
     /**
-     * Instantiates an {@code Artifact} from an arbitrary byte stream in an {@code InputStream}.
+     * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
      * @param resourceStream
-     *          An {@code InputStream} containing the byte stream to encode into an {@code Artifact}.
-     * @return An {@code Artifact} wrapping the byte stream.
+     *          An {@code InputStream} containing the byte stream to encode into an {@code ArtifactData}.
+     * @return An {@code ArtifactData} wrapping the byte stream.
      */
-    public static Artifact fromResource(InputStream resourceStream) {
+    public static ArtifactData fromResource(InputStream resourceStream) {
         return fromResourceStream(null, resourceStream);
     }
 
     /**
-     * Instantiates an {@code Artifact} from an arbitrary byte stream in an {@code InputStream}.
+     * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
      * Uses a default HTTP response status of HTTP/1.1 200 OK.
      *
@@ -262,9 +262,9 @@ public class ArtifactFactory {
      *          A Spring {@code HttpHeaders} object containing optional artifact headers.
      * @param resourceStream
      *          An {@code InputStream} containing an arbitrary byte stream.
-     * @return An {@code Artifact} wrapping the byte stream.
+     * @return An {@code ArtifactData} wrapping the byte stream.
      */
-    public static Artifact fromResourceStream(HttpHeaders metadata, InputStream resourceStream) {
+    public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream) {
         StatusLine responseStatus = new BasicStatusLine(
                 new ProtocolVersion("HTTP", 1, 1),
                 200,
@@ -275,7 +275,7 @@ public class ArtifactFactory {
     }
 
     /**
-     * Instantiates an {@code Artifact} from an arbitrary byte stream in an {@code InputStream}.
+     * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
      * Takes a {@code StatusLine} with the HTTP response status associated with this byte stream.
      *
@@ -284,21 +284,21 @@ public class ArtifactFactory {
      * @param resourceStream
      *          An {@code InputStream} containing an arbitrary byte stream.
      * @param responseStatus
-     * @return An {@code Artifact} wrapping the byte stream.
+     * @return An {@code ArtifactData} wrapping the byte stream.
      */
-    public static Artifact fromResourceStream(HttpHeaders metadata, InputStream resourceStream, StatusLine responseStatus) {
-        return new Artifact(metadata, resourceStream, responseStatus);
+    public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream, StatusLine responseStatus) {
+        return new ArtifactData(metadata, resourceStream, responseStatus);
     }
 
     /**
-     * Instantiates an {@code Artifact} from an ARC / WARC {@code ArchiveRecord} object containing an artifact.
+     * Instantiates an {@code ArtifactData} from an ARC / WARC {@code ArchiveRecord} object containing an artifact.
      *
      * @param record
      *          An {@code ArchiveRecord} object containing an artifact.
-     * @return An {@code Artifact} representing the artifact contained in the {@code ArchiveRecord}.
+     * @return An {@code ArtifactData} representing the artifact contained in the {@code ArchiveRecord}.
      * @throws IOException
      */
-    public static Artifact fromArchiveRecord(ArchiveRecord record) throws IOException {
+    public static ArtifactData fromArchiveRecord(ArchiveRecord record) throws IOException {
         // Get WARC record header
         ArchiveRecordHeader headers = record.getHeader();
         String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
@@ -318,7 +318,7 @@ public class ArtifactFactory {
             }
 
             // Parse the ArchiveRecord into an artifact and return it
-            Artifact artifact = ArtifactFactory.fromHttpResponseStream(record);
+            ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(record);
             artifact.setIdentifier(artifactId);
             return artifact;
 
@@ -339,10 +339,10 @@ public class ArtifactFactory {
             //));
 
             // Custom header to indicate the origin of this artifact
-            metadata.add(ArtifactConstants.ARTIFACTID_ORIGIN_KEY, "warc");
+            metadata.add(ArtifactDataConstants.ARTIFACTID_ORIGIN_KEY, "warc");
 
             // Parse the ArchiveRecord into an artifact and return it
-            return ArtifactFactory.fromResourceStream(metadata, record);
+            return ArtifactDataFactory.fromResourceStream(metadata, record);
 
         } else {
             log.warn(String.format(

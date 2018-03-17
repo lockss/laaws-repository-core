@@ -35,7 +35,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class TestArtifactUtil {
+public class TestArtifactDataUtil {
 
     @Before
     public void setUp() throws Exception {

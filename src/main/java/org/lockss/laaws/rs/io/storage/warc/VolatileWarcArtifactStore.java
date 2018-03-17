@@ -35,7 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactFactory;
+import org.lockss.laaws.rs.util.ArtifactDataFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -63,12 +63,12 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      * Adds an artifact to this artifact store.
      *
      * @param artifact
-     *          The {@code Artifact} to add to this artifact store.
+     *          The {@code ArtifactData} to add to this artifact store.
      * @return A representation of the artifact as it is now stored.
      * @throws IOException
      */
     @Override
-    public Artifact addArtifact(Artifact artifact) throws IOException {
+    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
         if (artifact == null)
             throw new IllegalArgumentException("Cannot add a null artifact");
 
@@ -127,17 +127,17 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      *
      * @param indexedData
      *          An ArtifactIndex that encodes information about the artifact to retrieve from this store.
-     * @return The {@code Artifact} referred to by the ArtifactIndexData.
+     * @return The {@code ArtifactData} referred to by the Artifact.
      * @throws IOException
      */
     @Override
-    public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException {
-        // Cannot work with a null ArtifactIndexData
+    public ArtifactData getArtifact(Artifact indexedData) throws IOException {
+        // Cannot work with a null Artifact
         if (indexedData == null)
-            throw new IllegalArgumentException("ArtifactIndexData used to reference artifact cannot be null");
+            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
 
-        // Artifact to return; defaults to null if one could not be found
-        Artifact artifact = null;
+        // ArtifactData to return; defaults to null if one could not be found
+        ArtifactData artifact = null;
 
         // Get the map representing an artifact collection
         if (repository.containsKey(indexedData.getCollection())) {
@@ -151,7 +151,7 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
                 // Retrieve the artifact's byte stream (artifact is encoded as a WARC record stream here)
                 byte[] artifactBytes = au.get(indexedData.getId());
 
-                // Adapt byte array to Artifact
+                // Adapt byte array to ArtifactData
                 if (artifactBytes != null) {
                     InputStream warcRecordStream = new ByteArrayInputStream(artifactBytes);
 
@@ -165,9 +165,9 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
                     );
 
                     // Generate an artifact from the HTTP response stream
-                    artifact = ArtifactFactory.fromHttpResponseStream(record);
+                    artifact = ArtifactDataFactory.fromHttpResponseStream(record);
 
-                    // TODO: ArtifactFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers
+                    // TODO: ArtifactDataFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers
                     // are in the HTTP response but since we can't guarantee that yet, we set it explicitly here.
                     artifact.setIdentifier(indexedData.getIdentifier());
 
@@ -201,7 +201,7 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      * @return A {@code RepositoryArtifactMetadata} updated to indicate the new commit status as it is now stored.
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData indexData) {
+    public RepositoryArtifactMetadata commitArtifact(Artifact indexData) {
         if (indexData == null)
             throw new IllegalArgumentException("indexData cannot be null");
 
@@ -217,11 +217,11 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
      * Removes an artifact from this store.
      *
      * @param artifactInfo
-     *          A {@code ArtifactIndexData} referring to the artifact to remove from this store.
+     *          A {@code Artifact} referring to the artifact to remove from this store.
      * @return A {@code RepositoryArtifactMetadata} updated to indicate the deleted status of this artifact.
      */
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData artifactInfo) {
+    public RepositoryArtifactMetadata deleteArtifact(Artifact artifactInfo) {
         if (artifactInfo == null)
             throw new IllegalArgumentException("artifactInfo cannot be null");
 

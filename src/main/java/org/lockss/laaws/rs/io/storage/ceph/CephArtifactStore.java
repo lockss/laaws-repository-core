@@ -31,9 +31,9 @@
 package org.lockss.laaws.rs.io.storage.ceph;
 
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.IOException;
@@ -45,12 +45,12 @@ import java.net.URISyntaxException;
 public class CephArtifactStore extends WarcArtifactStore {
 
     @Override
-    public Artifact addArtifact(Artifact artifact) throws IOException {
+    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
         return null;
     }
 
     @Override
-    public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException {
+    public ArtifactData getArtifact(Artifact indexedData) throws IOException, URISyntaxException {
         return null;
     }
 
@@ -60,12 +60,12 @@ public class CephArtifactStore extends WarcArtifactStore {
     }
 
     @Override
-    public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData artifactId) throws IOException, URISyntaxException {
+    public RepositoryArtifactMetadata commitArtifact(Artifact artifactId) throws IOException, URISyntaxException {
         return null;
     }
 
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException {
+    public RepositoryArtifactMetadata deleteArtifact(Artifact indexedData) throws IOException, URISyntaxException {
         return null;
     }
 }

@@ -37,9 +37,9 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.test.LockssTestCase4;
 
@@ -53,8 +53,8 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
   private ArtifactIdentifier aid2;
   private RepositoryArtifactMetadata md1;
   private RepositoryArtifactMetadata md2;
-  private Artifact artifact1;
-  private Artifact artifact2;
+  private ArtifactData artifact1;
+  private ArtifactData artifact2;
   private VolatileArtifactIndex index;
 
   @Before
@@ -68,8 +68,8 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     md1 = new RepositoryArtifactMetadata(aid1, false, false);
     md2 = new RepositoryArtifactMetadata(aid2, true, false);
 
-    artifact1 = new Artifact(aid1, null, null, null, "surl1", md1);
-    artifact2 = new Artifact(aid2, null, null, null, "surl2", md2);
+    artifact1 = new ArtifactData(aid1, null, null, null, "surl1", md1);
+    artifact2 = new ArtifactData(aid2, null, null, null, "surl2", md2);
 
     index = new VolatileArtifactIndex();
   }
@@ -89,17 +89,17 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
       assertEquals(expectedMessage, iae.getMessage());
     }
 
-    expectedMessage = "Artifact has null identifier";
+    expectedMessage = "ArtifactData has null identifier";
 
     try {
-      index.indexArtifact(new Artifact(null, null, null, null, null, null));
+      index.indexArtifact(new ArtifactData(null, null, null, null, null, null));
       fail("Should have thrown IllegalArgumentException(" + expectedMessage
 	  + ")");
     } catch (IllegalArgumentException iae) {
       assertEquals(expectedMessage, iae.getMessage());
     }
 
-    ArtifactIndexData aidata = index.indexArtifact(artifact1);
+    Artifact aidata = index.indexArtifact(artifact1);
 
     assertEquals("id1", aidata.getId());
     assertEquals("coll1", aidata.getCollection());
@@ -158,11 +158,11 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     }
 
     assertNull(index.getArtifactIndexData("id1"));
-    ArtifactIndexData aidata1 = index.indexArtifact(artifact1);
+    Artifact aidata1 = index.indexArtifact(artifact1);
     assertEquals(aidata1, index.getArtifactIndexData("id1"));
 
     assertNull(index.getArtifactIndexData(uuid));
-    ArtifactIndexData aidata2 = index.indexArtifact(artifact2);
+    Artifact aidata2 = index.indexArtifact(artifact2);
     assertEquals(aidata2, index.getArtifactIndexData(uuid));
 
     aidata1 = index.indexArtifact(artifact1);
@@ -380,9 +380,9 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
 
     index.commitArtifact("id1");
 
-    Iterator<ArtifactIndexData> iter = index.getArtifactsInAU("coll1", "auid1");
+    Iterator<Artifact> iter = index.getArtifactsInAU("coll1", "auid1");
     assertTrue(iter.hasNext());
-    ArtifactIndexData aid = iter.next();
+    Artifact aid = iter.next();
     assertEquals("id1", aid.getId());
     assertEquals("coll1", aid.getCollection());
     assertEquals("auid1", aid.getAuid());
@@ -425,10 +425,10 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
 
     index.commitArtifact("id1");
 
-    Iterator<ArtifactIndexData> iter =
+    Iterator<Artifact> iter =
 	index.getArtifactsInAUWithURL("coll1", "auid1", "uri");
     assertTrue(iter.hasNext());
-    ArtifactIndexData aid = iter.next();
+    Artifact aid = iter.next();
     assertEquals("id1", aid.getId());
     assertEquals("coll1", aid.getCollection());
     assertEquals("auid1", aid.getAuid());
@@ -568,10 +568,10 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(index.getArtifactsInAUWithURLMatch("coll1", "auid1", "uri")
 	.hasNext());
 
-    Iterator<ArtifactIndexData> iter =
+    Iterator<Artifact> iter =
 	index.getArtifactsInAUWithURLMatch("coll1", "auid1", "uri1");
     assertTrue(iter.hasNext());
-    ArtifactIndexData aid = iter.next();
+    Artifact aid = iter.next();
     assertEquals("id1", aid.getId());
     assertEquals("coll1", aid.getCollection());
     assertEquals("auid1", aid.getAuid());

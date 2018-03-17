@@ -30,8 +30,8 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -46,37 +46,37 @@ public interface LockssRepository {
      * Adds an artifact to the LOCKSS repository.
      *
      * @param artifact
-     *          {@code Artifact} instance to add to the LOCKSS repository.
+     *          {@code ArtifactData} instance to add to the LOCKSS repository.
      * @return The artifact ID of the newly added artifact.
      * @throws IOException
      */
-    String addArtifact(Artifact artifact) throws IOException;
+    String addArtifact(ArtifactData artifact) throws IOException;
 
     /**
      * Retrieves an artifact from the LOCKSS repository.
      *
      * @param artifactId
-     *          A String with the Artifact ID of the artifact to retrieve from the repository.
-     * @return An {@code Artifact} referenced by this artifact ID.
+     *          A String with the ArtifactData ID of the artifact to retrieve from the repository.
+     * @return An {@code ArtifactData} referenced by this artifact ID.
      * @throws IOException
      */
-    Artifact getArtifact(String collection, String artifactId) throws IOException;
+    ArtifactData getArtifact(String collection, String artifactId) throws IOException;
 
     /**
      * Commits an artifact to the LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
      *
      * @param artifactId
-     *          A String with the Artifact ID of the artifact to commit to the repository.
+     *          A String with the ArtifactData ID of the artifact to commit to the repository.
      * @return TODO
      * @throws IOException
      */
-    ArtifactIndexData commitArtifact(String collection, String artifactId) throws IOException;
+    Artifact commitArtifact(String collection, String artifactId) throws IOException;
 
     /**
      * Permanently removes an artifact from the LOCKSS repository.
      *
      * @param artifactId
-     *          A String with the Artifact ID of the artifact to remove from the LOCKSS repository.
+     *          A String with the ArtifactData ID of the artifact to remove from the LOCKSS repository.
      * @throws IOException
      */
     void deleteArtifact(String collection, String artifactId) throws IOException;
@@ -85,7 +85,7 @@ public interface LockssRepository {
      * Returns a boolean indicating whether an artifact by an artifact ID exists in this LOCKSS repository.
      *
      * @param artifactId
-     *          A String with the Artifact ID of the artifact to check for existence.
+     *          A String with the ArtifactData ID of the artifact to check for existence.
      * @return A boolean indicating whether an artifact exists in this repository.
      */
     boolean artifactExists(String artifactId) throws IOException;
@@ -94,7 +94,7 @@ public interface LockssRepository {
      * Returns a boolean indicating whether an artifact is committed in this LOCKSS repository.
      *
      * @param artifactId
-     *          Artifact ID of the artifact to check committed status.
+     *          ArtifactData ID of the artifact to check committed status.
      * @return A boolean indicating whether the artifact is committed.
      */
     boolean isArtifactCommitted(String artifactId) throws IOException;
@@ -125,10 +125,10 @@ public interface LockssRepository {
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAU(String collection, String auid) throws IOException;
+    Iterator<Artifact> getArtifactsInAU(String collection, String auid) throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -140,11 +140,11 @@ public interface LockssRepository {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain a URL with the given prefix.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException;
+    Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -156,11 +156,11 @@ public interface LockssRepository {
      *          A String with the Archival Unit identifier.
      * @param url
      *          A String with the URL to be matched.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain an exact match of a URL.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection,
+    Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection,
                                                              String auid, String url) throws IOException;
 
     /**
@@ -176,12 +176,12 @@ public interface LockssRepository {
      *          A String with the URL prefix.
      * @param version
      *          A String with the version.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain a URL with the given prefix and that match the given
      *         version.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection,
+    Iterator<Artifact> getArtifactsInAUWithURL(String collection,
                                                         String auid, String prefix, String version) throws IOException;
 
     /**
@@ -197,11 +197,11 @@ public interface LockssRepository {
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain an exact match of a URL and that match the given
      *         version.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection,
+    Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection,
                                                              String auid, String url, String version) throws IOException;
 }

@@ -37,9 +37,9 @@ import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.ByteArrayInputStream;
@@ -61,9 +61,9 @@ public class TestVolatileLockssRepository {
     private RepositoryArtifactMetadata md1;
     private RepositoryArtifactMetadata md2;
     private RepositoryArtifactMetadata md3;
-    private Artifact artifact1;
-    private Artifact artifact2;
-    private Artifact artifact3;
+    private ArtifactData artifact1;
+    private ArtifactData artifact2;
+    private ArtifactData artifact3;
 
     private UUID uuid;
     private VolatileLockssRepository repo;
@@ -87,9 +87,9 @@ public class TestVolatileLockssRepository {
         md2 = new RepositoryArtifactMetadata(aid2, true, false);
         md3 = new RepositoryArtifactMetadata(aid1, false, false);
 
-        artifact1 = new Artifact(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
-        artifact2 = new Artifact(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
-        artifact3 = new Artifact(aid3, null, new ByteArrayInputStream("bytes3".getBytes()), httpStatus, "surl3", md3);
+        artifact1 = new ArtifactData(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
+        artifact2 = new ArtifactData(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
+        artifact3 = new ArtifactData(aid3, null, new ByteArrayInputStream("bytes3".getBytes()), httpStatus, "surl3", md3);
 
         repo = new VolatileLockssRepository();
     }
@@ -114,7 +114,7 @@ public class TestVolatileLockssRepository {
             assertFalse(repo.isArtifactCommitted(artifactId));
             assertTrue(repo.artifactExists(artifactId));
 
-//            Artifact artifact = repo.getArtifact("coll1", artifactId);
+//            ArtifactData artifact = repo.getArtifact("coll1", artifactId);
 //            assertNotNull(artifact);
 //            assertEquals(artifact1.getIdentifier().getId(), artifact.getIdentifier().getId());
 //
@@ -141,7 +141,7 @@ public class TestVolatileLockssRepository {
             assertTrue(repo.artifactExists(artifactId));
 
             // Retrieve the artifact and verify we get back the same artifact
-            Artifact artifact = repo.getArtifact("coll1", artifactId);
+            ArtifactData artifact = repo.getArtifact("coll1", artifactId);
             assertNotNull(artifact);
             assertEquals(artifact1.getIdentifier().getId(), artifact.getIdentifier().getId());
         } catch (IOException e) {
@@ -330,7 +330,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
 
-            // Artifact is uncommitted so getCollectionIds() should return nothing
+            // ArtifactData is uncommitted so getCollectionIds() should return nothing
             collectionIds = repo.getCollectionIds();
             assertNotNull(collectionIds);
             assertFalse(repo.getCollectionIds().hasNext());
@@ -373,7 +373,7 @@ public class TestVolatileLockssRepository {
     @Test
     public void getArtifactsInAU() {
         try {
-            Iterator<ArtifactIndexData> result = null;
+            Iterator<Artifact> result = null;
 
             result = repo.getArtifactsInAU(null, null);
             assertNotNull(result);
@@ -398,7 +398,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(repo.addArtifact(artifact1));
             assertNotNull(repo.addArtifact(artifact2));
 
-            Iterator<ArtifactIndexData> result = null;
+            Iterator<Artifact> result = null;
 
             result = repo.getArtifactsInAU(aid1.getCollection(), aid1.getAuid());
             assertNotNull(result);
@@ -410,7 +410,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(result);
             assertTrue(result.hasNext());
 
-            ArtifactIndexData indexData = result.next();
+            Artifact indexData = result.next();
             assertNotNull(indexData);
             assertFalse(result.hasNext());
             assertEquals(aid1.getId(), indexData.getIdentifier().getId());
@@ -428,7 +428,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(repo.addArtifact(artifact2));
             assertNotNull(repo.addArtifact(artifact3));
 
-            Iterator<ArtifactIndexData> result = null;
+            Iterator<Artifact> result = null;
 
 //            repo.commitArtifact(aid1.getCollection(), aid1.getId());
 
@@ -473,7 +473,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(repo.addArtifact(artifact2));
             assertNotNull(repo.addArtifact(artifact3));
 
-            Iterator<ArtifactIndexData> result = null;
+            Iterator<Artifact> result = null;
 
             result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
             assertNotNull(result);
@@ -485,7 +485,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(result);
             assertTrue(result.hasNext());
 
-            ArtifactIndexData indexData = result.next();
+            Artifact indexData = result.next();
             assertNotNull(indexData);
             assertFalse(result.hasNext());
             assertEquals(aid1.getId(), indexData.getIdentifier().getId());

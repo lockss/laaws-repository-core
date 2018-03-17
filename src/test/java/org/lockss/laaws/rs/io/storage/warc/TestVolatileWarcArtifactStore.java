@@ -39,11 +39,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.lockss.laaws.rs.core.VolatileLockssRepository;
 import org.lockss.laaws.rs.io.storage.ArtifactStore;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-import org.lockss.laaws.rs.util.ArtifactFactory;
+import org.lockss.laaws.rs.util.ArtifactDataFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -62,8 +62,8 @@ public class TestVolatileWarcArtifactStore {
     private ArtifactIdentifier aid2;
     private RepositoryArtifactMetadata md1;
     private RepositoryArtifactMetadata md2;
-    private Artifact artifact1;
-    private Artifact artifact2;
+    private ArtifactData artifact1;
+    private ArtifactData artifact2;
 
     private UUID uuid;
     private StatusLine httpStatus;
@@ -86,8 +86,8 @@ public class TestVolatileWarcArtifactStore {
         md1 = new RepositoryArtifactMetadata(aid1, false, false);
         md2 = new RepositoryArtifactMetadata(aid2, true, false);
 
-        artifact1 = new Artifact(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
-        artifact2 = new Artifact(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
+        artifact1 = new ArtifactData(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
+        artifact2 = new ArtifactData(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
 
         store = new VolatileWarcArtifactStore();
     }
@@ -106,7 +106,7 @@ public class TestVolatileWarcArtifactStore {
         }
 
         try {
-            Artifact artifact = store.addArtifact(artifact1);
+            ArtifactData artifact = store.addArtifact(artifact1);
             assertNotNull(artifact);
             assertEquals(artifact1, artifact);
         } catch (IOException e) {
@@ -116,7 +116,7 @@ public class TestVolatileWarcArtifactStore {
 
     @Test
     public void getArtifact() {
-        String errMsg = "ArtifactIndexData used to reference artifact cannot be null";
+        String errMsg = "Artifact used to reference artifact cannot be null";
 
         try {
             // Attempt retrieving the artifact with a null argument
@@ -132,7 +132,7 @@ public class TestVolatileWarcArtifactStore {
 
         try {
             // Attempt retrieving an artifact that doesn't exist
-            ArtifactIndexData indexData = new ArtifactIndexData(
+            Artifact indexData = new Artifact(
                     "badArtifactId",
                     "coll3",
                     "auid3",
@@ -142,7 +142,7 @@ public class TestVolatileWarcArtifactStore {
                     "fake"
             );
 
-            Artifact artifact = store.getArtifact(indexData);
+            ArtifactData artifact = store.getArtifact(indexData);
             assertNull(artifact);
         } catch (IOException e) {
             fail("Unexpected IOException caught");
@@ -152,11 +152,11 @@ public class TestVolatileWarcArtifactStore {
 
         try {
             // Attempt a successful retrieval
-            Artifact artifact = store.addArtifact(artifact1);
+            ArtifactData artifact = store.addArtifact(artifact1);
             assertNotNull(artifact);
             assertEquals(artifact1, artifact);
 
-            ArtifactIndexData indexData = new ArtifactIndexData(
+            Artifact indexData = new Artifact(
                     aid1.getId(),
                     aid1.getCollection(),
                     aid1.getAuid(),
@@ -209,12 +209,12 @@ public class TestVolatileWarcArtifactStore {
 
         try {
             // Add an uncommitted artifact
-            Artifact artifact = store.addArtifact(artifact1);
+            ArtifactData artifact = store.addArtifact(artifact1);
             assertNotNull(artifact);
             assertFalse(artifact.getRepositoryMetadata().isCommitted());
 
-            // Create an ArtifactIndexData to simulate one retrieved for this artifact from an artifact index
-            ArtifactIndexData indexData = new ArtifactIndexData(
+            // Create an Artifact to simulate one retrieved for this artifact from an artifact index
+            Artifact indexData = new Artifact(
                     aid1.getId(),
                     aid1.getCollection(),
                     aid1.getAuid(),
@@ -254,12 +254,12 @@ public class TestVolatileWarcArtifactStore {
 
         try {
             // Add an artifact
-            Artifact artifact = store.addArtifact(artifact1);
+            ArtifactData artifact = store.addArtifact(artifact1);
             assertNotNull(artifact);
             assertFalse(artifact.getRepositoryMetadata().isDeleted());
 
-            // Create an ArtifactIndexData to simulate one retrieved for this artifact from an artifact index
-            ArtifactIndexData indexData = new ArtifactIndexData(
+            // Create an Artifact to simulate one retrieved for this artifact from an artifact index
+            Artifact indexData = new Artifact(
                     aid1.getId(),
                     aid1.getCollection(),
                     aid1.getAuid(),

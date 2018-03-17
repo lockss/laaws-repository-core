@@ -43,7 +43,7 @@ import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.archive.io.warc.WARCRecord;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.springframework.http.HttpHeaders;
@@ -56,10 +56,10 @@ import java.io.InputStream;
 import static org.junit.Assert.*;
 
 /**
- * Test class for the Artifact factory {@code org.lockss.laaws.rs.util.ArtifactFactory}.
+ * Test class for the ArtifactData factory {@code org.lockss.laaws.rs.util.ArtifactDataFactory}.
  */
-public class TestArtifactFactory {
-    private final static Log log = LogFactory.getLog(ArtifactFactory.class);
+public class TestArtifactDataFactory {
+    private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
 
     private static final String ARTIFACT_BYTES = "If kittens could talk, they would whisper soft riddles into my ear," +
             " tickling me with their whiskers, making me laugh.";
@@ -109,7 +109,7 @@ public class TestArtifactFactory {
 
         try {
             // Attempt with null InputStream
-            Artifact artifact = ArtifactFactory.fromHttpResponseStream(null);
+            ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(null);
             fail(String.format("Expected IllegalArgumentException (%s) to be thrown", expectedErrMsg));
         } catch (IllegalArgumentException e) {
             assertEquals(expectedErrMsg, e.getMessage());
@@ -126,7 +126,7 @@ public class TestArtifactFactory {
                     malformedResponse
             );
 
-            ArtifactFactory.fromHttpResponseStream(new ByteArrayInputStream(malformedResponse.getBytes()));
+            ArtifactDataFactory.fromHttpResponseStream(new ByteArrayInputStream(malformedResponse.getBytes()));
             fail(String.format("Expected IllegalArgumentException (%s) to be thrown", expectedErrMsg));
         } catch (IOException e) {
             assertEquals(expectedErrMsg, e.getMessage());
@@ -134,7 +134,7 @@ public class TestArtifactFactory {
 
         try {
             // Attempt successful
-            Artifact artifact = ArtifactFactory.fromHttpResponseStream(new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes()));
+            ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes()));
             assertNotNull(artifact);
 
             ArtifactIdentifier identifier = artifact.getIdentifier();
@@ -176,8 +176,8 @@ public class TestArtifactFactory {
         String expectedErrMsg = "HttpResponse is null";
 
         try {
-            // Attempt parsing an Artifact out of a null HttpResponse
-            ArtifactFactory.fromHttpResponse(null);
+            // Attempt parsing an ArtifactData out of a null HttpResponse
+            ArtifactDataFactory.fromHttpResponse(null);
             fail(String.format("Expected IllegalArgumentException (%s) to be thrown", expectedErrMsg));
         } catch (IllegalArgumentException e) {
             assertEquals(expectedErrMsg, e.getMessage());
@@ -186,11 +186,11 @@ public class TestArtifactFactory {
         }
 
         try {
-            HttpResponse response = ArtifactFactory.getHttpResponseFromStream(
+            HttpResponse response = ArtifactDataFactory.getHttpResponseFromStream(
                     new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes())
             );
 
-            Artifact artifact = ArtifactFactory.fromHttpResponse(response);
+            ArtifactData artifact = ArtifactDataFactory.fromHttpResponse(response);
             assertNotNull(artifact);
 
             ArtifactIdentifier identifier = artifact.getIdentifier();
@@ -244,10 +244,10 @@ public class TestArtifactFactory {
                 log.info("Attempt test fromArchiveRecord()");
                 InputStream warcStream = new ByteArrayInputStream(ARTIFACT_WARC_ENCODED.getBytes());
 
-                WARCRecord record = new WARCRecord(warcStream, "TestArtifactFactory", 0);
+                WARCRecord record = new WARCRecord(warcStream, "TestArtifactDataFactory", 0);
                 assertNotNull(record);
 
-                Artifact artifact = ArtifactFactory.fromArchiveRecord(record);
+                ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
                 assertNotNull(artifact);
 
                 ArtifactIdentifier identifier = artifact.getIdentifier();

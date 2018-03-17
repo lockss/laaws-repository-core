@@ -79,7 +79,7 @@ public class RepositoryArtifactMetadata {
     /**
      * Parameterized constructor.
      *
-     * @param artifactId Artifact identifier for this metadata
+     * @param artifactId ArtifactData identifier for this metadata
      * @param committed Boolean indicating whether this artifact is committed
      * @param deleted Boolean indicating whether this artifact is deleted
      */
@@ -93,7 +93,7 @@ public class RepositoryArtifactMetadata {
     /**
      * Returns the artifact ID this metadata belongs to.
      *
-     * @return Artifact ID
+     * @return ArtifactData ID
      */
     public String getArtifactId() {
         return artifactId;

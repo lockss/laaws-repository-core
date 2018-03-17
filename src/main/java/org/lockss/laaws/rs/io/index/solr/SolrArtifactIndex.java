@@ -41,9 +41,9 @@ import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrInputDocument;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 
 import java.io.IOException;
 import java.util.*;
@@ -52,7 +52,7 @@ import java.util.*;
  * An Apache Solr implementation of ArtifactIndex.
  */
 public class SolrArtifactIndex implements ArtifactIndex {
-    private static final Log log = LogFactory.getLog(ArtifactIndexData.class);
+    private static final Log log = LogFactory.getLog(Artifact.class);
     private final SolrClient solr;
 
     /**
@@ -169,15 +169,15 @@ public class SolrArtifactIndex implements ArtifactIndex {
     /**
      * Adds an artifact to the index.
      *
-     * @param artifact An Artifact with the artifact to be added to the index,.
-     * @return an ArtifactIndexData with the artifact indexing data.
+     * @param artifact An ArtifactData with the artifact to be added to the index,.
+     * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public ArtifactIndexData indexArtifact(Artifact artifact) throws IOException {
+    public Artifact indexArtifact(ArtifactData artifact) throws IOException {
         ArtifactIdentifier artifactId = artifact.getIdentifier();
 
-        // Create an instance of ArtifactIndexData to represent the artifact
-        ArtifactIndexData indexData = new ArtifactIndexData(
+        // Create an instance of Artifact to represent the artifact
+        Artifact indexData = new Artifact(
                 artifactId.getId(),
                 artifactId.getCollection(),
                 artifactId.getAuid(),
@@ -189,7 +189,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifact.getStorageUrl()
         );
 
-        // Add the ArtifactIndexData to Solr as a bean
+        // Add the Artifact to Solr as a bean
         try {
             this.solr.addBean(indexData);
             this.solr.commit();
@@ -197,7 +197,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             throw new IOException(e);
         }
 
-        // Return the ArtifactIndexData added to the Solr collection
+        // Return the Artifact added to the Solr collection
         return indexData;
     }
 
@@ -206,21 +206,21 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * identifier.
      *
      * @param indexDataId A String with the artifact index identifier.
-     * @return an ArtifactIndexData with the artifact indexing data.
+     * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public ArtifactIndexData getArtifactIndexData(String indexDataId) throws IOException {
+    public Artifact getArtifactIndexData(String indexDataId) throws IOException {
         SolrQuery q = new SolrQuery();
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=id}%s", indexDataId));
 
-        // ArtifactIndexData to eventually return
-        ArtifactIndexData indexData = null;
+        // Artifact to eventually return
+        Artifact indexData = null;
 
         try {
-            // Query the Solr index and get results as ArtifactIndexData
+            // Query the Solr index and get results as Artifact
             final QueryResponse response = solr.query(q);
-            final List<ArtifactIndexData> documents = response.getBeans(ArtifactIndexData.class);
+            final List<Artifact> documents = response.getBeans(Artifact.class);
 
             // Run some checks against the results of the query
             if (!documents.isEmpty()) {
@@ -248,10 +248,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * UUID.
      *
      * @param indexDataId An UUID with the artifact index identifier.
-     * @return an ArtifactIndexData with the artifact indexing data.
+     * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public ArtifactIndexData getArtifactIndexData(UUID indexDataId) throws IOException {
+    public Artifact getArtifactIndexData(UUID indexDataId) throws IOException {
         return this.getArtifactIndexData(indexDataId.toString());
     }
 
@@ -259,10 +259,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Commits to the index an artifact with a given text index identifier.
      *
      * @param indexDataId A String with the artifact index identifier.
-     * @return an ArtifactIndexData with the committed artifact indexing data.
+     * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public ArtifactIndexData commitArtifact(String indexDataId) throws IOException {
+    public Artifact commitArtifact(String indexDataId) throws IOException {
         // Perform an atomic update
         SolrInputDocument document = new SolrInputDocument();
         document.addField("id", indexDataId);
@@ -280,7 +280,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             throw new IOException(e);
         }
 
-        // Return updated ArtifactIndexData
+        // Return updated Artifact
         return getArtifactIndexData(indexDataId);
     }
 
@@ -288,10 +288,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Commits to the index an artifact with a given index identifier UUID.
      *
      * @param indexDataId An UUID with the artifact index identifier.
-     * @return an ArtifactIndexData with the committed artifact indexing data.
+     * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public ArtifactIndexData commitArtifact(UUID indexDataId) throws IOException {
+    public Artifact commitArtifact(UUID indexDataId) throws IOException {
         return commitArtifact(indexDataId.toString());
     }
 
@@ -399,11 +399,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *
      * @param collection A String with the collection identifier.
      * @param auid       A String with the Archival Unit identifier.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      * artifacts in the collection that belong to the Archival Unit.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAU(String collection, String auid) throws IOException {
+    public Iterator<Artifact> getArtifactsInAU(String collection, String auid) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -420,12 +420,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @param collection A String with the collection identifier.
      * @param auid       A String with the Archival Unit identifier.
      * @param prefix     A String with the URL prefix.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      * artifacts in the collection that belong to the Archival Unit and
      * that contain a URL with the given prefix.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException {
+    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -443,12 +443,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @param collection A String with the collection identifier.
      * @param auid       A String with the Archival Unit identifier.
      * @param url        A String with the URL to be matched.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      * artifacts in the collection that belong to the Archival Unit and
      * that contain an exact match of a URL.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection, String auid, String url) throws IOException {
+    public Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection, String auid, String url) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -468,13 +468,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @param auid       A String with the Archival Unit identifier.
      * @param prefix     A String with the URL prefix.
      * @param version    A String with the version.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      * artifacts in the collection that belong to the Archival Unit and
      * that contain a URL with the given prefix and that match the given
      * version.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix, String version) throws IOException {
+    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix, String version) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -495,13 +495,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @param auid       A String with the Archival Unit identifier.
      * @param url        A String with the URL to be matched.
      * @param version    A String with the version.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      * artifacts in the collection that belong to the Archival Unit and
      * that contain an exact match of a URL and that match the given
      * version.
      */
     @Override
-    public Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection, String auid, String url, String version) throws IOException {
+    public Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection, String auid, String url, String version) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -514,18 +514,18 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Executes a Solr query and returns an interator of ArtifactIndexData.
+     * Executes a Solr query and returns an interator of Artifact.
      *
      * @param q
      *          An instance of {@code SolrQuery} containing the query to submit.
-     * @return An {@code Iterator<ArtifactIndexData} containing the matched ArtifactIndexData from the query.
+     * @return An {@code Iterator<Artifact} containing the matched Artifact from the query.
      * @throws IOException
      */
-    private Iterator<ArtifactIndexData> query(SolrQuery q) throws IOException {
+    private Iterator<Artifact> query(SolrQuery q) throws IOException {
         try {
             QueryResponse response = solr.query(q);
             // TODO: Potential to exhaust memory for large enough query results; find a better way to do this
-            List<ArtifactIndexData> documents = response.getBeans(ArtifactIndexData.class);
+            List<Artifact> documents = response.getBeans(Artifact.class);
             return documents.iterator();
         } catch (SolrServerException e) {
             throw new IOException(e);

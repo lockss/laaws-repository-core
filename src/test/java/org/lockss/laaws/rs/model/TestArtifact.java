@@ -36,18 +36,18 @@ import org.junit.Test;
 import org.lockss.test.LockssTestCase4;
 
 /**
- * Test class for {@code org.lockss.laaws.rs.model.ArtifactIndexData}
+ * Test class for {@code org.lockss.laaws.rs.model.Artifact}
  */
-public class TestArtifactIndexData extends LockssTestCase4 {
-    private static final Log log = LogFactory.getLog(TestArtifactIndexData.class);
+public class TestArtifact extends LockssTestCase4 {
+    private static final Log log = LogFactory.getLog(TestArtifact.class);
 
     @Test
     public void testConstructor() {
       String expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty id";
+	  "Cannot create Artifact with null or empty id";
 
       try {
-	new ArtifactIndexData(null, null, null, null, null, null, null);
+	new Artifact(null, null, null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -55,26 +55,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("", null, null, null, null, null, null);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty collection";
-
-      try {
-	new ArtifactIndexData("aidid", null, null, null, null, null, null);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      try {
-	new ArtifactIndexData("aidid", "", null, null, null, null, null);
+	new Artifact("", null, null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -82,10 +63,10 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty auid";
+	  "Cannot create Artifact with null or empty collection";
 
       try {
-	new ArtifactIndexData("aidid", "coll", null, null, null, null, null);
+	new Artifact("aidid", null, null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -93,26 +74,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "coll", "", null, null, null, null);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty URI";
-
-      try {
-	new ArtifactIndexData("aidid", "coll", "auid", null, null, null, null);
-        fail("Should have thrown IllegalArgumentException(" + expectedMessage
-  	  + ")");
-      } catch (IllegalArgumentException iae) {
-        assertEquals(expectedMessage, iae.getMessage());
-      }
-
-      try {
-	new ArtifactIndexData("aidid", "coll", "auid", "", null, null, null);
+	new Artifact("aidid", "", null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -120,10 +82,10 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty version";
+	  "Cannot create Artifact with null or empty auid";
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", null, null, null);
+	new Artifact("aidid", "coll", null, null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -131,7 +93,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "", null, null);
+	new Artifact("aidid", "coll", "", null, null, null, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -139,10 +101,48 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       expectedMessage =
-	  "Cannot create ArtifactIndexData with null commit status";
+	  "Cannot create Artifact with null or empty URI";
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver", null,
+	new Artifact("aidid", "coll", "auid", null, null, null, null);
+        fail("Should have thrown IllegalArgumentException(" + expectedMessage
+  	  + ")");
+      } catch (IllegalArgumentException iae) {
+        assertEquals(expectedMessage, iae.getMessage());
+      }
+
+      try {
+	new Artifact("aidid", "coll", "auid", "", null, null, null);
+        fail("Should have thrown IllegalArgumentException(" + expectedMessage
+  	  + ")");
+      } catch (IllegalArgumentException iae) {
+        assertEquals(expectedMessage, iae.getMessage());
+      }
+
+      expectedMessage =
+	  "Cannot create Artifact with null or empty version";
+
+      try {
+	new Artifact("aidid", "coll", "auid", "uri", null, null, null);
+        fail("Should have thrown IllegalArgumentException(" + expectedMessage
+  	  + ")");
+      } catch (IllegalArgumentException iae) {
+        assertEquals(expectedMessage, iae.getMessage());
+      }
+
+      try {
+	new Artifact("aidid", "coll", "auid", "uri", "", null, null);
+        fail("Should have thrown IllegalArgumentException(" + expectedMessage
+  	  + ")");
+      } catch (IllegalArgumentException iae) {
+        assertEquals(expectedMessage, iae.getMessage());
+      }
+
+      expectedMessage =
+	  "Cannot create Artifact with null commit status";
+
+      try {
+	new Artifact("aidid", "coll", "auid", "uri", "ver", null,
 	    null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
@@ -151,10 +151,10 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       expectedMessage =
-	  "Cannot create ArtifactIndexData with null or empty storageUrl";
+	  "Cannot create Artifact with null or empty storageUrl";
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver",
+	new Artifact("aidid", "coll", "auid", "uri", "ver",
 	    Boolean.FALSE, null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
@@ -163,7 +163,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
       }
 
       try {
-	new ArtifactIndexData("aidid", "coll", "auid", "uri", "ver",
+	new Artifact("aidid", "coll", "auid", "uri", "ver",
 	    Boolean.FALSE, "");
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
@@ -171,7 +171,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
         assertEquals(expectedMessage, iae.getMessage());
       }
 
-      ArtifactIndexData aidata = new ArtifactIndexData("aidid", "coll", "auid",
+      Artifact aidata = new Artifact("aidid", "coll", "auid",
 	  "uri", "ver", Boolean.TRUE, "surl");
       assertEquals("aidid", aidata.getId());
       assertEquals("coll", aidata.getCollection());
@@ -184,7 +184,7 @@ public class TestArtifactIndexData extends LockssTestCase4 {
 
     @Test
     public void testSetters() {
-      ArtifactIndexData aidata = new ArtifactIndexData("aidid", "coll", "auid",
+      Artifact aidata = new Artifact("aidid", "coll", "auid",
 	  "uri", "ver", Boolean.TRUE, "surl");
 
       String expectedMessage = "Cannot set null or empty collection";

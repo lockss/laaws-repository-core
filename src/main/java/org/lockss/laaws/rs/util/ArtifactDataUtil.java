@@ -40,7 +40,7 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.*;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 
 import java.io.*;
@@ -48,39 +48,39 @@ import java.util.Collection;
 import java.util.HashSet;
 
 /**
- * Common utilities and adapters for LOCKSS Repository Artifact objects.
+ * Common utilities and adapters for LOCKSS Repository ArtifactData objects.
  */
-public class ArtifactUtil {
-    private final static Log log = LogFactory.getLog(ArtifactUtil.class);
+public class ArtifactDataUtil {
+    private final static Log log = LogFactory.getLog(ArtifactDataUtil.class);
 
     /**
-     * Adapter that takes an {@code Artifact} and returns an InputStream containing an HTTP response stream
+     * Adapter that takes an {@code ArtifactData} and returns an InputStream containing an HTTP response stream
      * representation of the artifact.
      *
      * @param artifact
-     *          An {@code Artifact} to to transform.
+     *          An {@code ArtifactData} to to transform.
      * @return An {@code InputStream} containing an HTTP response stream representation of the artifact.
      * @throws IOException
      * @throws HttpException
      */
-    public static InputStream getHttpResponseStreamFromArtifact(Artifact artifact) throws IOException, HttpException {
+    public static InputStream getHttpResponseStreamFromArtifact(ArtifactData artifact) throws IOException, HttpException {
         return getHttpResponseStreamFromHttpResponse(getHttpResponseFromArtifact(artifact));
     }
 
 
     /**
-     * Adapter that takes an {@code Artifact} and returns an Apache {@code HttpResponse} object representation of the
+     * Adapter that takes an {@code ArtifactData} and returns an Apache {@code HttpResponse} object representation of the
      * artifact.
      *
-     * This is effectively the inverse operation of {@code ArtifactFactory#fromHttpResponse(HttpResponse)}.
+     * This is effectively the inverse operation of {@code ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
      *
      * @param artifact
-     *          An {@code Artifact} to to transform.
+     *          An {@code ArtifactData} to to transform.
      * @return An {@code HttpResponse} object containing a representation of the artifact.
      * @throws HttpException
      * @throws IOException
      */
-    public static HttpResponse getHttpResponseFromArtifact(Artifact artifact) throws HttpException, IOException {
+    public static HttpResponse getHttpResponseFromArtifact(ArtifactData artifact) throws HttpException, IOException {
         // Craft a new HTTP response object representation from the artifact
         BasicHttpResponse response = new BasicHttpResponse(artifact.getHttpStatus());
 
@@ -99,21 +99,21 @@ public class ArtifactUtil {
 
         // Embed artifact identifier into header if set
         if (artifact.getIdentifier() != null) {
-            response.setHeaders(ArtifactUtil.getArtifactIdentifierHeaders(artifact));
+            response.setHeaders(ArtifactDataUtil.getArtifactIdentifierHeaders(artifact));
         }
 
         return response;
     }
 
     /**
-     * Adapter that takes an Artifact's ArtifactIdentifier and returns an array of Apache Header objects representing
+     * Adapter that takes an ArtifactData's ArtifactIdentifier and returns an array of Apache Header objects representing
      * the ArtifactIdentifier.
      *
      * @param artifact
-     *          An {@code Artifact} whose {@code ArtifactIdentifier} will be adapted.
-     * @return An {@code Header[]} representing the {@code Artifact}'s {@code ArtifactIdentifier}.
+     *          An {@code ArtifactData} whose {@code ArtifactIdentifier} will be adapted.
+     * @return An {@code Header[]} representing the {@code ArtifactData}'s {@code ArtifactIdentifier}.
      */
-    private static Header[] getArtifactIdentifierHeaders(Artifact artifact) {
+    private static Header[] getArtifactIdentifierHeaders(ArtifactData artifact) {
         return getArtifactIdentifierHeaders(artifact.getIdentifier());
     }
 
@@ -127,10 +127,10 @@ public class ArtifactUtil {
      */
     private static Header[] getArtifactIdentifierHeaders(ArtifactIdentifier id) {
         Collection<Header> headers = new HashSet<>();
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, id.getCollection()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, id.getAuid()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_URI_KEY, id.getUri()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, id.getVersion()));
+        headers.add(new BasicHeader(ArtifactDataConstants.ARTIFACTID_COLLECTION_KEY, id.getCollection()));
+        headers.add(new BasicHeader(ArtifactDataConstants.ARTIFACTID_AUID_KEY, id.getAuid()));
+        headers.add(new BasicHeader(ArtifactDataConstants.ARTIFACTID_URI_KEY, id.getUri()));
+        headers.add(new BasicHeader(ArtifactDataConstants.ARTIFACTID_VERSION_KEY, id.getVersion()));
 
         return headers.toArray(new Header[headers.size()]);
     }
@@ -168,16 +168,16 @@ public class ArtifactUtil {
     }
 
     /**
-     * Writes an {@code Artifact} encoded as an HTTP response stream to an {@code OutputStream},
+     * Writes an {@code ArtifactData} encoded as an HTTP response stream to an {@code OutputStream},
      *
      * @param artifact
-     *          The {@code Artifact} to encode as an HTTP response stream to write to an {@code OutputStream}.
+     *          The {@code ArtifactData} to encode as an HTTP response stream to write to an {@code OutputStream}.
      * @param output
      *          The {@code OutputStream} to write to.
      * @throws IOException
      * @throws HttpException
      */
-    public static void writeHttpResponseStream(Artifact artifact, OutputStream output) throws IOException, HttpException {
+    public static void writeHttpResponseStream(ArtifactData artifact, OutputStream output) throws IOException, HttpException {
         writeHttpResponse(getHttpResponseFromArtifact(artifact), output);
     }
 

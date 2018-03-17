@@ -30,8 +30,8 @@
 
 package org.lockss.laaws.rs.io.index;
 
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -45,10 +45,10 @@ public interface ArtifactIndex {
      * Adds an artifact to the index.
      * 
      * @param artifact
-     *          An Artifact with the artifact to be added to the index,.
-     * @return an ArtifactIndexData with the artifact indexing data.
+     *          An ArtifactData with the artifact to be added to the index,.
+     * @return an Artifact with the artifact indexing data.
      */
-    ArtifactIndexData indexArtifact(Artifact artifact) throws IOException;
+    Artifact indexArtifact(ArtifactData artifact) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given text index
@@ -56,9 +56,9 @@ public interface ArtifactIndex {
      * 
      * @param indexDataId
      *          A String with the artifact index identifier.
-     * @return an ArtifactIndexData with the artifact indexing data.
+     * @return an Artifact with the artifact indexing data.
      */
-    ArtifactIndexData getArtifactIndexData(String indexDataId) throws IOException;
+    Artifact getArtifactIndexData(String indexDataId) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given index identifier
@@ -66,27 +66,27 @@ public interface ArtifactIndex {
      * 
      * @param indexDataId
      *          An UUID with the artifact index identifier.
-     * @return an ArtifactIndexData with the artifact indexing data.
+     * @return an Artifact with the artifact indexing data.
      */
-    ArtifactIndexData getArtifactIndexData(UUID indexDataId) throws IOException;
+    Artifact getArtifactIndexData(UUID indexDataId) throws IOException;
 
     /**
      * Commits to the index an artifact with a given text index identifier.
      * 
      * @param indexDataId
      *          A String with the artifact index identifier.
-     * @return an ArtifactIndexData with the committed artifact indexing data.
+     * @return an Artifact with the committed artifact indexing data.
      */
-    ArtifactIndexData commitArtifact(String indexDataId) throws IOException;
+    Artifact commitArtifact(String indexDataId) throws IOException;
 
     /**
      * Commits to the index an artifact with a given index identifier UUID.
      * 
      * @param indexDataId
      *          An UUID with the artifact index identifier.
-     * @return an ArtifactIndexData with the committed artifact indexing data.
+     * @return an Artifact with the committed artifact indexing data.
      */
-    ArtifactIndexData commitArtifact(UUID indexDataId) throws IOException;
+    Artifact commitArtifact(UUID indexDataId) throws IOException;
 
     /**
      * Removes from the index an artifact with a given text index identifier.
@@ -146,10 +146,10 @@ public interface ArtifactIndex {
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAU(String collection, String auid) throws IOException;
+    Iterator<Artifact> getArtifactsInAU(String collection, String auid) throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -161,11 +161,11 @@ public interface ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain a URL with the given prefix.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException;
+    Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -177,11 +177,11 @@ public interface ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param url
      *          A String with the URL to be matched.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain an exact match of a URL.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection,
+    Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection,
 	String auid, String url) throws IOException;
 
     /**
@@ -197,12 +197,12 @@ public interface ArtifactIndex {
      *          A String with the URL prefix.
      * @param version
      *          A String with the version.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain a URL with the given prefix and that match the given
      *         version.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURL(String collection,
+    Iterator<Artifact> getArtifactsInAUWithURL(String collection,
 	String auid, String prefix, String version) throws IOException;
 
     /**
@@ -218,21 +218,21 @@ public interface ArtifactIndex {
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
-     * @return an {@code Iterator<ArtifactIndexData>} with the committed
+     * @return an {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain an exact match of a URL and that match the given
      *         version.
      */
-    Iterator<ArtifactIndexData> getArtifactsInAUWithURLMatch(String collection,
+    Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection,
 	String auid, String url, String version) throws IOException;
 
     /**
      * Provides the artifacts in the index that result from a given query.
      * 
      * @param query
-     *          An {@code Iterator<ArtifactIndexData>} with the query.
-     * @return an {@code Iterator<ArtifactIndexData>} with the artifacts
+     *          An {@code Iterator<Artifact>} with the query.
+     * @return an {@code Iterator<Artifact>} with the artifacts
      *         resulting from the query.
      */
-//    Iterator<ArtifactIndexData> query(ArtifactPredicateBuilder query);
+//    Iterator<Artifact> query(ArtifactPredicateBuilder query);
 }

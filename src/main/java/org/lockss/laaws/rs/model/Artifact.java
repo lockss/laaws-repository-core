@@ -30,179 +30,179 @@
 
 package org.lockss.laaws.rs.model;
 
-import org.apache.http.StatusLine;
-import org.springframework.http.HttpHeaders;
-
-import java.io.*;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.solr.client.solrj.beans.Field;
 
 /**
- * An {@code Artifact} serves as an atomic unit of data archived in the LOCKSS Repository.
+ * Data associated with an artifact in the index.
  */
-public class Artifact implements Comparable<Artifact> {
-    // Core artifact attributes
-    private ArtifactIdentifier identifier;
-    private InputStream artifactStream;
+public class Artifact {
+    private static final Log log = LogFactory.getLog(Artifact.class);
 
-    // Metadata
-    private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
-    private StatusLine httpStatus;
-    private RepositoryArtifactMetadata repositoryMetadata;
+    @Field("id")
+    private String id;
+
+    @Field("collection")
+    private String collection;
+
+    @Field("auid")
+    private String auid;
+
+    @Field("uri")
+    private String uri;
+
+    @Field("version")
+    private String version;
+
+    @Field("committed")
+    private Boolean committed;
+
+    @Field("storageUrl")
     private String storageUrl;
 
     /**
-     * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
+     * Constructor. Needed by Solrj for getBeans() support.
      *
-     * @param artifactMetadata
-     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
-     * @param inputStream
-     *          An {@code InputStream} containing the byte stream of this artifact.
-     * @param responseStatus
-     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+     * TODO: Reconcile difference with constructor below, which checks parameters for illegal arguments.
      */
-    public Artifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
-        this(null, artifactMetadata, inputStream, responseStatus, null, null);
+    public Artifact() {
+        // Intentionally left blank
     }
 
-    /**
-     * Constructor for artifact data that has an identity relative to a LOCKSS repository, but has not yet been added to
-     * an artifact store.
-     *
-     * @param identifier
-     *          An {@code ArtifactIdentifier} for this artifact data.
-     * @param artifactMetadata
-     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
-     * @param inputStream
-     *          An {@code InputStream} containing the byte stream of this artifact.
-     * @param httpStatus
-     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
-     */
-    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
-        this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
-    }
+    public Artifact(String id, String collection, String auid, String uri, String version, Boolean committed,
+                             String storageUrl) {
+        if (StringUtils.isEmpty(id)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty id");
+        }
+        this.id = id;
 
-    /**
-     * Full constructor for artifact data.
-     *
-     * @param identifier
-     *          An {@code ArtifactIdentifier} for this artifact data.
-     * @param artifactMetadata
-     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
-     * @param inputStream
-     *          An {@code InputStream} containing the byte stream of this artifact.
-     * @param httpStatus
-     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
-     * @param storageUrl
-     *          A {@code String} URL pointing to the storage of this artifact data.
-     * @param repoMetadata
-     *          A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
-     */
-    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, String storageUrl, RepositoryArtifactMetadata repoMetadata) {
-        this.identifier = identifier;
-        this.artifactMetadata = artifactMetadata;
-        this.artifactStream = inputStream;
-        this.httpStatus = httpStatus;
+        if (StringUtils.isEmpty(collection)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty collection");
+        }
+        this.collection = collection;
+
+        if (StringUtils.isEmpty(auid)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty auid");
+        }
+        this.auid = auid;
+
+        if (StringUtils.isEmpty(uri)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty URI");
+        }
+        this.uri = uri;
+
+        if (StringUtils.isEmpty(version)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty version");
+        }
+        this.version = version;
+
+        if (committed == null) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null commit status");
+        }
+        this.committed = committed;
+
+        if (StringUtils.isEmpty(storageUrl)) {
+          throw new IllegalArgumentException("Cannot create "
+              + "Artifact with null or empty storageUrl");
+        }
         this.storageUrl = storageUrl;
-        this.repositoryMetadata = repoMetadata;
     }
 
-    /**
-     * Returns additional key-value properties associated with this artifact.
-     *
-     * @return A {@code HttpHeaders} containing this artifact's additional properties.
-     */
-    public HttpHeaders getMetadata() {
-        return artifactMetadata;
-    }
-
-    /**
-     * Returns this artifact's byte stream in a one-time use {@code InputStream}.
-     *
-     * @return An {@code InputStream} containing this artifact's byte stream.
-     */
-    public InputStream getInputStream() {
-        return artifactStream;
-    }
-
-    /**
-     * Returns this artifact's HTTP response status if it originated from a web server.
-     *
-     * @return A {@code StatusLine} containing this artifact's HTTP response status.
-     */
-    public StatusLine getHttpStatus() {
-        return this.httpStatus;
-    }
-
-    /**
-     * Return this artifact data's artifact identifier.
-     *
-     * @return An {@code ArtifactIdentifier}.
-     */
     public ArtifactIdentifier getIdentifier() {
-        return this.identifier;
+        return new ArtifactIdentifier(id, collection, auid, uri, version);
     }
 
-    /**
-     * Sets an artifact identifier for this artifact data.
-     *
-     * @param identifier
-     *          An {@code ArtifactIdentifier} for this artifact data.
-     * @return This {@code Artifact} with its identifier set to the one provided.
-     */
-    public Artifact setIdentifier(ArtifactIdentifier identifier) {
-        this.identifier = identifier;
-        return this;
+    public String getCollection() {
+        return collection;
     }
 
-    /**
-     * Returns the repository state information for this artifact data.
-     *
-     * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
-     */
-    public RepositoryArtifactMetadata getRepositoryMetadata() {
-        return repositoryMetadata;
+    public void setCollection(String collection) {
+        if (StringUtils.isEmpty(collection)) {
+          throw new IllegalArgumentException(
+              "Cannot set null or empty collection");
+        }
+        this.collection = collection;
     }
 
-    /**
-     * Sets the repository state information for this artifact data.
-     *
-     * @param metadata
-     *          A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
-     * @return
-     */
-    public Artifact setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
-        this.repositoryMetadata = metadata;
-        return this;
+    public String getAuid() {
+        return auid;
     }
 
-    /**
-     * Returns the location where the byte stream for this artifact data can be found.
-     *
-     * @return A {@code String} containing the storage of this artifact data.
-     */
+    public void setAuid(String auid) {
+        if (StringUtils.isEmpty(auid)) {
+          throw new IllegalArgumentException("Cannot set null or empty auid");
+        }
+        this.auid = auid;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        if (StringUtils.isEmpty(uri)) {
+          throw new IllegalArgumentException("Cannot set null or empty URI");
+        }
+        this.uri = uri;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        if (StringUtils.isEmpty(version)) {
+          throw new IllegalArgumentException(
+              "Cannot set null or empty version");
+        }
+        this.version = version;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public Boolean getCommitted() {
+        return committed;
+    }
+
+    public void setCommitted(Boolean committed) {
+        if (committed == null) {
+          throw new IllegalArgumentException("Cannot set null commit status");
+        }
+        this.committed = committed;
+    }
+
     public String getStorageUrl() {
-      return storageUrl;
+        return storageUrl;
     }
 
-    /**
-     * Sets the location where the byte stream for this artifact data can be found.
-     * @param storageUrl
-     *          A {@code String} containing the location of this artifact data.
-     */
     public void setStorageUrl(String storageUrl) {
-      this.storageUrl = storageUrl;
+        if (StringUtils.isEmpty(storageUrl)) {
+          throw new IllegalArgumentException(
+              "Cannot set null or empty storageUrl");
+        }
+        this.storageUrl = storageUrl;
     }
 
-    /**
-     * Implements {@code Comparable<Artifact>} so that sets of {@code Artifact} can be ordered.
-     *
-     * There may be a better canonical order but for now, this defers to implementations of ArtifactIdentifier.
-     *
-     * @param other
-     *          Another {@code Artifact} to compare against.
-     * @return An {@code int} denoting the order of this artifact, relative to another.
-     */
     @Override
-    public int compareTo(Artifact other) {
-        return this.getIdentifier().compareTo(other.getIdentifier());
+    public String toString() {
+        return "Artifact{" +
+                "id='" + id + '\'' +
+                ", collection='" + collection + '\'' +
+                ", auid='" + auid + '\'' +
+                ", uri='" + uri + '\'' +
+                ", version='" + version + '\'' +
+                ", committed=" + committed +
+                ", storageUrl='" + storageUrl + '\'' +
+                '}';
     }
 }

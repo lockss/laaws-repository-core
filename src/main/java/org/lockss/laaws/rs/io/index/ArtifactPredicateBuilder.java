@@ -30,7 +30,7 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -41,7 +41,7 @@ import java.util.function.Predicate;
  */
 public class ArtifactPredicateBuilder {
     // The individual filtering predicates.
-    private Set<Predicate<ArtifactIndexData>> predicates = new HashSet<>();
+    private Set<Predicate<Artifact>> predicates = new HashSet<>();
 
     /**
      * Adds a filtering predicate by Archival Unit identifier.
@@ -124,10 +124,10 @@ public class ArtifactPredicateBuilder {
     /**
      * Builds the full artifact filtering predicate.
      * 
-     * @return a {@code Predicate<ArtifactIndexData>} with the full artifact
+     * @return a {@code Predicate<Artifact>} with the full artifact
      *         filtering predicate.
      */
-    public Predicate<ArtifactIndexData> build() {
+    public Predicate<Artifact> build() {
         return predicates.stream().reduce(Predicate::and).orElse(include -> false);
     }
 }
