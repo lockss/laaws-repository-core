@@ -174,11 +174,11 @@ public class ArtifactDataFactory {
      */
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
         return new ArtifactIdentifier(
-                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_ID_KEY),
-                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_COLLECTION_KEY),
-                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_AUID_KEY),
-                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_URI_KEY),
-                getHeaderValue(headers, ArtifactDataConstants.ARTIFACTID_VERSION_KEY)
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY)
         );
     }
 
@@ -191,13 +191,13 @@ public class ArtifactDataFactory {
      */
    private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
         return new ArtifactIdentifier(
-                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_ID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_COLLECTION_KEY),
-                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_AUID_KEY),
-                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_URI_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-                (String)headers.getHeaderValue(ArtifactDataConstants.ARTIFACTID_VERSION_KEY)
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY)
         );
     }
 
@@ -339,7 +339,7 @@ public class ArtifactDataFactory {
             //));
 
             // Custom header to indicate the origin of this artifact
-            metadata.add(ArtifactDataConstants.ARTIFACTID_ORIGIN_KEY, "warc");
+            metadata.add(ArtifactConstants.ARTIFACTID_ORIGIN_KEY, "warc");
 
             // Parse the ArchiveRecord into an artifact and return it
             return ArtifactDataFactory.fromResourceStream(metadata, record);

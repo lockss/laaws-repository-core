@@ -46,7 +46,7 @@ import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
 import org.lockss.laaws.rs.io.storage.ArtifactStore;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactDataConstants;
+import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.springframework.util.MultiValueMap;
 
@@ -170,11 +170,11 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
 
         // Add LOCKSS-specific WARC headers to record (Note: X-Lockss-ArtifactId and X-Lockss-Uri are redundant because
         // the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
-        record.addExtraHeader(ArtifactDataConstants.ARTIFACTID_ID_KEY, artifactId.getId());
-        record.addExtraHeader(ArtifactDataConstants.ARTIFACTID_COLLECTION_KEY, artifactId.getCollection());
-        record.addExtraHeader(ArtifactDataConstants.ARTIFACTID_AUID_KEY, artifactId.getAuid());
-        record.addExtraHeader(ArtifactDataConstants.ARTIFACTID_URI_KEY, artifactId.getUri());
-        record.addExtraHeader(ArtifactDataConstants.ARTIFACTID_VERSION_KEY, artifactId.getVersion());
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_ID_KEY, artifactId.getId());
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, artifactId.getCollection());
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, artifactId.getAuid());
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_URI_KEY, artifactId.getUri());
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, artifactId.getVersion());
 
         // We must determine the size of the WARC payload (which is an artifact encoded as an HTTP response stream)
         // but it is not possible to determine the final size without reading the InputStream entirely, so we use a
