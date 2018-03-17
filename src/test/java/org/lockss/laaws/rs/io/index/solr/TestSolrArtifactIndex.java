@@ -44,7 +44,7 @@ public class TestSolrArtifactIndex {
 
     @Before
     public void setUp() throws Exception {
-        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
+//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }
 
     @Test
