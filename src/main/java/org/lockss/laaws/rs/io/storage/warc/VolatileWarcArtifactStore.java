@@ -34,9 +34,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactFactory;
+import org.lockss.laaws.rs.util.ArtifactDataFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,16 +44,34 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.util.*;
 
+/**
+ * A volatile ("in-memory") implementation of WarcArtifactStore.
+ */
 public class VolatileWarcArtifactStore extends WarcArtifactStore {
     private final static Log log = LogFactory.getLog(VolatileWarcArtifactStore.class);
     private Map<String, Map<String, Map<String, byte[]>>> repository;
+    private Map<String, RepositoryArtifactMetadata> repositoryMetadata = new HashMap<>();
 
+    /**
+     * Constructor.
+     */
     public VolatileWarcArtifactStore() {
         this.repository = new HashMap<>();
     }
 
+    /**
+     * Adds an artifact to this artifact store.
+     *
+     * @param artifact
+     *          The {@code ArtifactData} to add to this artifact store.
+     * @return A representation of the artifact as it is now stored.
+     * @throws IOException
+     */
     @Override
-    public Artifact addArtifact(Artifact artifact) throws IOException {
+    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
+        if (artifact == null)
+            throw new IllegalArgumentException("Cannot add a null artifact");
+
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifact.getIdentifier();
 
@@ -72,10 +89,8 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
             artifact.getIdentifier().setId(UUID.randomUUID().toString());
 
             // Create and set the artifact's repository metadata
-            RepositoryArtifactMetadata repoMetadata =
-        	new RepositoryArtifactMetadata(artifactId, false, false
-            );
-
+            RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
+            repositoryMetadata.put(artifactId.getId(), repoMetadata);
             artifact.setRepositoryMetadata(repoMetadata);
 
             // Write artifact as a WARC record stream to the OutputStream
@@ -107,50 +122,119 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore {
         return artifact;
     }
 
+    /**
+     * Retrieves an artifact from this artifact store.
+     *
+     * @param indexedData
+     *          An ArtifactIndex that encodes information about the artifact to retrieve from this store.
+     * @return The {@code ArtifactData} referred to by the Artifact.
+     * @throws IOException
+     */
     @Override
-    public Artifact getArtifact(ArtifactIndexData indexedData) throws IOException {
-        // Use identifier to get artifact byte stream
-        Map<String, Map<String, byte[]>> collection = repository.get(indexedData.getCollection());
-        Map<String, byte[]> au = collection.get(indexedData.getAuid());
-        InputStream warcRecordStream = new ByteArrayInputStream(au.get(indexedData.getId()));
+    public ArtifactData getArtifact(Artifact indexedData) throws IOException {
+        // Cannot work with a null Artifact
+        if (indexedData == null)
+            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
 
-        // Assemble a WARCRecord object using the WARC record bytestream in memory
-        WARCRecord record = new WARCRecord(
-                warcRecordStream,
-                null,
-                0,
-                true,
-                true
-        );
+        // ArtifactData to return; defaults to null if one could not be found
+        ArtifactData artifact = null;
 
-        // Generate an artifact from the HTTP response stream
-        Artifact artifact = ArtifactFactory.fromHttpResponseStream(record);
+        // Get the map representing an artifact collection
+        if (repository.containsKey(indexedData.getCollection())) {
+            // Get the collection of artifacts
+            Map<String, Map<String, byte[]>> collection = repository.get(indexedData.getCollection());
 
-        // TODO: ArtifactFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers are in the
-        // HTTP response but since we can't guarantee that yet, we set it explicitly here.
-        artifact.setIdentifier(indexedData.getIdentifier());
+            // Get the map representing an AU from collection
+            if (collection.containsKey(indexedData.getAuid())) {
+                Map<String, byte[]> au = collection.getOrDefault(indexedData.getAuid(), new HashMap<>());
+
+                // Retrieve the artifact's byte stream (artifact is encoded as a WARC record stream here)
+                byte[] artifactBytes = au.get(indexedData.getId());
+
+                // Adapt byte array to ArtifactData
+                if (artifactBytes != null) {
+                    InputStream warcRecordStream = new ByteArrayInputStream(artifactBytes);
+
+                    // Assemble a WARCRecord object using the WARC record bytestream in memory
+                    WARCRecord record = new WARCRecord(
+                            warcRecordStream,
+                            null,
+                            0,
+                            true,
+                            true
+                    );
+
+                    // Generate an artifact from the HTTP response stream
+                    artifact = ArtifactDataFactory.fromHttpResponseStream(record);
+
+                    // TODO: ArtifactDataFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers
+                    // are in the HTTP response but since we can't guarantee that yet, we set it explicitly here.
+                    artifact.setIdentifier(indexedData.getIdentifier());
+
+                    artifact.setRepositoryMetadata(repositoryMetadata.get(indexedData.getId()));
+                }
+            }
+        }
 
         return artifact;
     }
 
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifact) {
-        // TODO
-        return null;
+    /**
+     * Updates and writes associated metadata of an artifact to this store.
+     *
+     * @param artifactId
+     *          A (@code ArtifactIdentifier) that identifies the artifact to update.
+     * @param artifactMetadata
+     *          RepositoryArtifactMetadata update the artifact with, and write to the store.
+     * @return A representation of the RepositoryArtifactMetadata as it is now stored.
+     */
+    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
+        repositoryMetadata.replace(artifactId.getId(), artifactMetadata);
+        return repositoryMetadata.get(artifactId.getId());
     }
 
+    /**
+     * Commits an artifact to this artifact store.
+     *
+     * @param indexData
+     *          A (@code ArtifactIdentifier) that identifies the artifact to commit and store permanently.
+     * @return A {@code RepositoryArtifactMetadata} updated to indicate the new commit status as it is now stored.
+     */
     @Override
-    public RepositoryArtifactMetadata commitArtifact(ArtifactIndexData indexData) {
-       // TODO
-        return null;
+    public RepositoryArtifactMetadata commitArtifact(Artifact indexData) {
+        if (indexData == null)
+            throw new IllegalArgumentException("indexData cannot be null");
+
+        RepositoryArtifactMetadata metadata = repositoryMetadata.get(indexData.getId());
+        metadata.setCommitted(true);
+
+        // TODO: Use updateArtifactMetadata
+        repositoryMetadata.replace(indexData.getId(), metadata);
+        return metadata;
     }
 
+    /**
+     * Removes an artifact from this store.
+     *
+     * @param artifactInfo
+     *          A {@code Artifact} referring to the artifact to remove from this store.
+     * @return A {@code RepositoryArtifactMetadata} updated to indicate the deleted status of this artifact.
+     */
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(ArtifactIndexData artifactInfo) {
+    public RepositoryArtifactMetadata deleteArtifact(Artifact artifactInfo) {
+        if (artifactInfo == null)
+            throw new IllegalArgumentException("artifactInfo cannot be null");
+
         Map<String, Map<String, byte[]>> collection = repository.get(artifactInfo.getCollection());
         Map<String, byte[]> au = collection.get(artifactInfo.getAuid());
-        au.remove(artifactInfo.getUri() + artifactInfo.getVersion());
+        au.remove(artifactInfo.getId());
 
-        return null;
+        // TODO: Use updateArtifactMetadata
+        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifactInfo.getId());
+        metadata.setDeleted(true);
+        repositoryMetadata.replace(artifactInfo.getId(), metadata);
+
+        repositoryMetadata.remove(artifactInfo.getId());
+        return metadata;
     }
-
 }

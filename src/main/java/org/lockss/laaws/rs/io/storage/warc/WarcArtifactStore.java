@@ -44,11 +44,10 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
-import org.lockss.laaws.rs.util.ArtifactUtil;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.springframework.util.MultiValueMap;
 
 import java.io.*;
@@ -61,18 +60,20 @@ import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.UUID;
 
+/**
+ * An abstract class that implements methods common to WARC implementations of ArtifactStore.
+ */
 public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants {
     private final static Log log = LogFactory.getLog(WarcArtifactStore.class);
 
-    public static final String AU_DIR_PREFIX = "au-";
-    private static final String SCHEME = "urn:uuid";
-    private static final String SCHEME_COLON = SCHEME + ":";
-    public static final String CRLF = "\r\n";
-    public static byte[] CRLF_BYTES;
-    public static String SEPARATOR = "/";
+    protected static final String AU_DIR_PREFIX = "au-";
+    protected static final String SCHEME = "urn:uuid";
+    protected static final String SCHEME_COLON = SCHEME + ":";
+    protected static final String CRLF = "\r\n";
+    protected static byte[] CRLF_BYTES;
+    protected static String SEPARATOR = "/";
 
-//    protected ArtifactIndex index;
-    public File repositoryBasePath;
+    protected File repositoryBasePath;
 
     static {
         try {
@@ -83,7 +84,7 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
     }
 
     /**
-     * Returns the WARC-Record-Id of the WARC record backing a given Artifact.
+     * Returns the WARC-Record-Id of the WARC record backing a given ArtifactData.
      *
      * @param file URL to a WARC file.
      * @param offset Absolute byte offset of WARC record in WARC file.
@@ -144,13 +145,13 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
     /**
      * Writes an artifact as a WARC record to a given OutputStream.
      *
-     * @param artifact Artifact to add to the repository.
+     * @param artifact ArtifactData to add to the repository.
      * @param outputStream OutputStream to write the WARC record representing this artifact.
      * @return The number of bytes written to the WARC file for this record.
      * @throws IOException
      * @throws HttpException
      */
-    public static long writeArtifact(Artifact artifact, OutputStream outputStream) throws IOException, HttpException {
+    public static long writeArtifact(ArtifactData artifact, OutputStream outputStream) throws IOException, HttpException {
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifact.getIdentifier();
 
@@ -179,7 +180,7 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
         // but it is not possible to determine the final size without reading the InputStream entirely, so we use a
         // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
         DeferredFileOutputStream dfos = new DeferredFileOutputStream(1048576, "writeArtifactDfos", null, new File("/tmp"));
-        IOUtils.copy(ArtifactUtil.getHttpResponseStreamFromArtifact(artifact), dfos);
+        IOUtils.copy(ArtifactDataUtil.getHttpResponseStreamFromArtifact(artifact), dfos);
         dfos.close();
 
         // Attach WARC record payload
@@ -297,6 +298,4 @@ public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants 
             throw new RuntimeException(e);
         }
     }
-
-    public abstract Artifact getArtifact(ArtifactIndexData indexedData) throws IOException, URISyntaxException;
 }

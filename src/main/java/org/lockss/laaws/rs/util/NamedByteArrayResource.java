@@ -42,16 +42,33 @@ import org.springframework.core.io.ByteArrayResource;
 public class NamedByteArrayResource extends ByteArrayResource {
     private String name;
 
+    /**
+     * Constructor.
+     * @param name
+     *          A {@code String} containing the name of this resource.
+     * @param byteArray
+     *          The {@code byte[]} of this resource.
+     */
     public NamedByteArrayResource(String name, byte[] byteArray) {
         super(byteArray);
         this.name = name;
     }
 
+    /**
+     * Returns the filename of this resource.
+     *
+     * @return A {@code String} containing the filename of this resource.
+     */
     @Override
     public String getFilename() {
         return this.name;
     }
 
+    /**
+     * Returns a description of this resource.
+     *
+     * @return A {@code String} containing a description of this resource.
+     */
     @Override
     public String getDescription() {
         return "Named byte array resource [" + this.getFilename() + ", bytes: " + getByteArray().length + "]";

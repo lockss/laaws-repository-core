@@ -28,57 +28,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.domain;
+package org.lockss.laaws.rs.io.index.solr;
 
-import org.apache.commons.lang.NotImplementedException;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.Before;
+import org.junit.Test;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
-public class ArtifactPageRequest implements Pageable {
-    private String artifact;
-    private int size;
+import static org.junit.Assert.*;
 
-    public ArtifactPageRequest() {
+public class TestSolrArtifactIndex {
+    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
+    private ArtifactIndex index;
 
+    @Before
+    public void setUp() throws Exception {
+//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }
 
-    @Override
-    public int getPageNumber() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public int getPageSize() {
-        return this.size;
-    }
-
-    @Override
-    public int getOffset() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public Sort getSort() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public Pageable next() {
-        return null;
-    }
-
-    @Override
-    public Pageable previousOrFirst() {
-        return null;
-    }
-
-    @Override
-    public Pageable first() {
-        return null;
-    }
-
-    @Override
-    public boolean hasPrevious() {
-        return false;
+    @Test
+    public void performTests() throws Exception {
     }
 }

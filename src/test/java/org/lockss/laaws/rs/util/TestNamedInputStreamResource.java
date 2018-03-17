@@ -28,44 +28,37 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.ceph;
+package org.lockss.laaws.rs.util;
 
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.junit.Before;
+import org.junit.Test;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
+import java.io.ByteArrayInputStream;
+
+import static org.junit.Assert.*;
 
 /**
- * CephFS implementation of WarcArtifactStore.
+ * Test class for {@code org.lockss.laaws.rs.util.NamedInputStreamResource}.
  */
-public class CephArtifactStore extends WarcArtifactStore {
+public class TestNamedInputStreamResource {
+    private static final String RESOURCE_BYTES = "foobar";
+    private static final String RESOURCE_NAME = "xyzzy";
+    private static final String RESOURCE_DESC = "Named InputStream resource [resource loaded through InputStream]";
 
-    @Override
-    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
-        return null;
+    private NamedInputStreamResource namedResource;
+
+    @Before
+    public void setUp() throws Exception {
+       namedResource = new NamedInputStreamResource(RESOURCE_NAME, new ByteArrayInputStream(RESOURCE_BYTES.getBytes()));
     }
 
-    @Override
-    public ArtifactData getArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void getFilename() {
+        assertEquals(RESOURCE_NAME, namedResource.getFilename());
     }
 
-    @Override
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
-        return null;
-    }
-
-    @Override
-    public RepositoryArtifactMetadata commitArtifact(Artifact artifactId) throws IOException, URISyntaxException {
-        return null;
-    }
-
-    @Override
-    public RepositoryArtifactMetadata deleteArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void getDescription() {
+        assertEquals(RESOURCE_DESC, namedResource.getDescription());
     }
 }

@@ -28,7 +28,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.model;
+package org.lockss.laaws.rs.core;
 
-public class WARCArtifact {
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactStore;
+
+import java.io.File;
+
+/**
+ * Local filesystem implementation of LOCKSS Repository that uses a volatile artifact index.
+ */
+public class LocalLockssRepository extends BaseLockssRepository {
+
+    /**
+     * Constructor the takes a base path and uses a volatile artifact index implementation. It automatically invokes a
+     * rebuild of the index from the local filesystem base path.
+     *
+     * @param basePath
+     *          A {@code File} containing the base path of this LOCKSS Repository.
+     */
+    public LocalLockssRepository(File basePath) {
+        super(new VolatileArtifactIndex(), new LocalWarcArtifactStore(basePath));
+        ((LocalWarcArtifactStore)store).rebuildIndex(index);
+    }
+
+    /**
+     * Constructor that takes a local filesystem base path, and an instance of an ArtifactIndex implementation.
+     *
+     * @param basePath
+     *          A {@code File} containing the base path of this LOCKSS Repository.
+     * @param index
+     *          An {@code ArtifactIndex} to use as this repository's artifact index.
+     */
+    public LocalLockssRepository(File basePath, ArtifactIndex index) {
+        super(index, new LocalWarcArtifactStore(basePath));
+    }
 }

@@ -28,44 +28,64 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.ceph;
+package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.junit.Before;
+import org.junit.Test;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
+import static org.junit.Assert.*;
 
-/**
- * CephFS implementation of WarcArtifactStore.
- */
-public class CephArtifactStore extends WarcArtifactStore {
+public class TestHdfsWarcArtifactStore {
 
-    @Override
-    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
-        return null;
+    @Before
+    public void setUp() throws Exception {
     }
 
-    @Override
-    public ArtifactData getArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void rebuildIndex() {
     }
 
-    @Override
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
-        return null;
+    @Test
+    public void rebuildIndex1() {
     }
 
-    @Override
-    public RepositoryArtifactMetadata commitArtifact(Artifact artifactId) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void scanDirectories() {
     }
 
-    @Override
-    public RepositoryArtifactMetadata deleteArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void getArchicalUnitBasePath() {
+    }
+
+    @Test
+    public void getCollectionBasePath() {
+    }
+
+    @Test
+    public void mkdirIfNotExist() {
+    }
+
+    @Test
+    public void createWarcFile() {
+    }
+
+    @Test
+    public void addArtifact() {
+    }
+
+    @Test
+    public void getArtifact() {
+    }
+
+    @Test
+    public void updateArtifactMetadata() {
+    }
+
+    @Test
+    public void commitArtifact() {
+    }
+
+    @Test
+    public void deleteArtifact() {
     }
 }

@@ -30,80 +30,179 @@
 
 package org.lockss.laaws.rs.model;
 
-import org.apache.http.StatusLine;
-import org.springframework.http.HttpHeaders;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.solr.client.solrj.beans.Field;
 
-import java.io.*;
+/**
+ * Data associated with an artifact in the index.
+ */
+public class Artifact {
+    private static final Log log = LogFactory.getLog(Artifact.class);
 
-public class Artifact implements Comparable<Artifact> {
-    // Core artifact attributes
-    private ArtifactIdentifier identifier;
-    private InputStream artifactStream;
+    @Field("id")
+    private String id;
 
-    // Metadata
-    private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
-    private StatusLine httpStatus;
-    private RepositoryArtifactMetadata repositoryMetadata;
+    @Field("collection")
+    private String collection;
+
+    @Field("auid")
+    private String auid;
+
+    @Field("uri")
+    private String uri;
+
+    @Field("version")
+    private String version;
+
+    @Field("committed")
+    private Boolean committed;
+
+    @Field("storageUrl")
     private String storageUrl;
 
-    public Artifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
-        this(null, artifactMetadata, inputStream, responseStatus, null, null);
+    /**
+     * Constructor. Needed by Solrj for getBeans() support.
+     *
+     * TODO: Reconcile difference with constructor below, which checks parameters for illegal arguments.
+     */
+    public Artifact() {
+        // Intentionally left blank
     }
 
-    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
-        this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
-    }
+    public Artifact(String id, String collection, String auid, String uri, String version, Boolean committed,
+                             String storageUrl) {
+        if (StringUtils.isEmpty(id)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty id");
+        }
+        this.id = id;
 
-    public Artifact(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, String storageUrl, RepositoryArtifactMetadata repoMetadata) {
-        this.identifier = identifier;
-        this.artifactMetadata = artifactMetadata;
-        this.artifactStream = inputStream;
-        this.httpStatus = httpStatus;
+        if (StringUtils.isEmpty(collection)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty collection");
+        }
+        this.collection = collection;
+
+        if (StringUtils.isEmpty(auid)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty auid");
+        }
+        this.auid = auid;
+
+        if (StringUtils.isEmpty(uri)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty URI");
+        }
+        this.uri = uri;
+
+        if (StringUtils.isEmpty(version)) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null or empty version");
+        }
+        this.version = version;
+
+        if (committed == null) {
+          throw new IllegalArgumentException(
+              "Cannot create Artifact with null commit status");
+        }
+        this.committed = committed;
+
+        if (StringUtils.isEmpty(storageUrl)) {
+          throw new IllegalArgumentException("Cannot create "
+              + "Artifact with null or empty storageUrl");
+        }
         this.storageUrl = storageUrl;
-        this.repositoryMetadata = repoMetadata;
-    }
-
-    public HttpHeaders getMetadata() {
-        return artifactMetadata;
-    }
-
-    public InputStream getInputStream() {
-        return artifactStream;
-    }
-
-    public StatusLine getHttpStatus() {
-        return this.httpStatus;
     }
 
     public ArtifactIdentifier getIdentifier() {
-        return this.identifier;
+        return new ArtifactIdentifier(id, collection, auid, uri, version);
     }
 
-    public Artifact setIdentifier(ArtifactIdentifier identifier) {
-        this.identifier = identifier;
-        return this;
+    public String getCollection() {
+        return collection;
     }
 
-    public RepositoryArtifactMetadata getRepositoryMetadata() {
-        return repositoryMetadata;
+    public void setCollection(String collection) {
+        if (StringUtils.isEmpty(collection)) {
+          throw new IllegalArgumentException(
+              "Cannot set null or empty collection");
+        }
+        this.collection = collection;
     }
 
-    public Artifact setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
-        this.repositoryMetadata = metadata;
-        return this;
+    public String getAuid() {
+        return auid;
+    }
+
+    public void setAuid(String auid) {
+        if (StringUtils.isEmpty(auid)) {
+          throw new IllegalArgumentException("Cannot set null or empty auid");
+        }
+        this.auid = auid;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        if (StringUtils.isEmpty(uri)) {
+          throw new IllegalArgumentException("Cannot set null or empty URI");
+        }
+        this.uri = uri;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        if (StringUtils.isEmpty(version)) {
+          throw new IllegalArgumentException(
+              "Cannot set null or empty version");
+        }
+        this.version = version;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public Boolean getCommitted() {
+        return committed;
+    }
+
+    public void setCommitted(Boolean committed) {
+        if (committed == null) {
+          throw new IllegalArgumentException("Cannot set null commit status");
+        }
+        this.committed = committed;
     }
 
     public String getStorageUrl() {
-      return storageUrl;
+        return storageUrl;
     }
 
     public void setStorageUrl(String storageUrl) {
-      this.storageUrl = storageUrl;
+        if (StringUtils.isEmpty(storageUrl)) {
+          throw new IllegalArgumentException(
+              "Cannot set null or empty storageUrl");
+        }
+        this.storageUrl = storageUrl;
     }
 
     @Override
-    public int compareTo(Artifact other) {
-        // TODO: Need to discuss a canonical order with team - for now, defer to artifacts identifiers
-        return this.getIdentifier().compareTo(other.getIdentifier());
+    public String toString() {
+        return "Artifact{" +
+                "id='" + id + '\'' +
+                ", collection='" + collection + '\'' +
+                ", auid='" + auid + '\'' +
+                ", uri='" + uri + '\'' +
+                ", version='" + version + '\'' +
+                ", committed=" + committed +
+                ", storageUrl='" + storageUrl + '\'' +
+                '}';
     }
 }

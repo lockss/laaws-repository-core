@@ -31,7 +31,7 @@
 package org.lockss.laaws.rs.model;
 
 import org.apache.http.StatusLine;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.springframework.http.HttpHeaders;
 
 import java.io.InputStream;
@@ -39,7 +39,7 @@ import java.io.InputStream;
 /**
  * TODO: Remote representations of artifacts - for lazy fetching and caching
  */
-public class RemoteArtifact extends Artifact {
+public class RemoteArtifact extends ArtifactData {
     public RemoteArtifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
         super(artifactMetadata, inputStream, httpStatus);
     }

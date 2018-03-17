@@ -28,16 +28,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.springframework.data.repository.NoRepositoryBean;
-import org.springframework.data.solr.repository.SolrCrudRepository;
+import org.apache.hadoop.fs.Path;
+import org.junit.Test;
+import org.lockss.laaws.rs.io.storage.hdfs.RollingUuidFileNamingStrategy;
+import org.springframework.data.hadoop.store.strategy.naming.FileNamingStrategy;
+import org.springframework.data.hadoop.store.strategy.naming.UuidFileNamingStrategy;
 
-import java.util.List;
+import static org.junit.Assert.*;
 
-@NoRepositoryBean
-public interface SolrArtifactIndexRepository<A extends SolrArtifactIndexData> extends SolrCrudRepository<SolrArtifactIndexData, String> {
-    public A findById(String id);
-    public List<A> findByAuid(String auid);
-    public void deleteById(String id);
+/**
+ * Test for RollingUuidFileNamingStrategy
+ */
+public class TestRollingUuidFileNamingStrategy {
+    private FileNamingStrategy namingStrategy = new RollingUuidFileNamingStrategy();
+
+    @Test
+    public void nextResolvePath() throws Exception {
+        // Resolve a path
+        Path path = namingStrategy.resolve(null);
+
+        // Iterate to the next name in the strategy
+        namingStrategy.next();
+
+        // Check that the naming strategy resolves to something different
+        assertNotEquals(path, namingStrategy.resolve(null));
+    }
+
+    @Test
+    public void nextUuid() throws Exception {
+        // Get the current UUID
+        String uuid = ((UuidFileNamingStrategy)namingStrategy).getUuid();
+
+        // Set strategy to the next UUID
+        namingStrategy.next();
+
+        // Assert the UUIDs are not equal
+        assertNotEquals(uuid, ((UuidFileNamingStrategy)namingStrategy).getUuid());
+    }
+
 }

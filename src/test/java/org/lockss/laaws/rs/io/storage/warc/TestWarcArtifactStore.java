@@ -28,44 +28,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.ceph;
+package org.lockss.laaws.rs.io.storage.warc;
 
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.junit.Before;
+import org.junit.Test;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
+import static org.junit.Assert.*;
 
-/**
- * CephFS implementation of WarcArtifactStore.
- */
-public class CephArtifactStore extends WarcArtifactStore {
+public class TestWarcArtifactStore {
 
-    @Override
-    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
-        return null;
+    @Before
+    public void setUp() throws Exception {
     }
 
-    @Override
-    public ArtifactData getArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void getWarcRecordId() {
     }
 
-    @Override
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
-        return null;
+    @Test
+    public void getWarcRecord() {
     }
 
-    @Override
-    public RepositoryArtifactMetadata commitArtifact(Artifact artifactId) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void createWarcMetadataRecord() {
     }
 
-    @Override
-    public RepositoryArtifactMetadata deleteArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        return null;
+    @Test
+    public void writeArtifact() {
+    }
+
+    @Test
+    public void writeWarcRecord() {
+    }
+
+    @Test
+    public void createRecordHeader() {
+    }
+
+    @Test
+    public void createWARCInfoRecord() {
     }
 }

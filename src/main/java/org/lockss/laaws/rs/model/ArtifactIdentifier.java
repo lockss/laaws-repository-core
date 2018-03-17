@@ -74,7 +74,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     /**
      * Returns the URI component in this artifact identifier.
      *
-     * @return Artifact URI
+     * @return ArtifactData URI
      */
     public String getUri() {
         return uri;
@@ -83,7 +83,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     /**
      * Returns the version component encoded in this artifact identifier.
      *
-     * @return Artifact version
+     * @return ArtifactData version
      */
     public String getVersion() {
         return version;

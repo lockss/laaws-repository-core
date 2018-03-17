@@ -41,19 +41,58 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Locale;
 
+/**
+ * Experimental implementation of StreamingResponseBody to allow Spring to stream a response.
+ */
+@Deprecated
 public class StreamingHttpResponse extends BasicHttpResponse implements StreamingResponseBody {
+    /**
+     * Creates a streaming response from a status line.
+     * The response will not have a reason phrase catalog and
+     * use the system default locale.
+     *
+     * @param statusline        the status line
+     */
     public StreamingHttpResponse(StatusLine statusline) {
         super(statusline);
     }
 
+    /**
+     * Creates a new streaming response.
+     *
+     * @param statusline        the status line
+     * @param catalog           the reason phrase catalog, or
+     *                          {@code null} to disable automatic
+     *                          reason phrase lookup
+     * @param locale            the locale for looking up reason phrases, or
+     *                          {@code null} for the system locale
+     */
     public StreamingHttpResponse(StatusLine statusline, ReasonPhraseCatalog catalog, Locale locale) {
         super(statusline, catalog, locale);
     }
 
+    /**
+     * Creates a streaming response from elements of a status line.
+     *
+     * The response will not have a reason phrase catalog and
+     * use the system default locale.
+     *
+     * @param ver       the protocol version of the response
+     * @param code      the status code of the response
+     * @param reason    the reason phrase to the status code, or
+     *                  {@code null}
+     */
     public StreamingHttpResponse(ProtocolVersion ver, int code, String reason) {
         super(ver, code, reason);
     }
 
+    /**
+     * Writes an HTTP response to an {@code OutputStream}.
+     *
+     * @param outputStream
+     *          An {@code OutputStream} to write to.
+     * @throws IOException
+     */
     @Override
     public void writeTo(OutputStream outputStream) throws IOException {
         outputStream.write(this.getStatusLine().toString().getBytes());

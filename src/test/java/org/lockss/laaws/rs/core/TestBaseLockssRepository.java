@@ -37,9 +37,9 @@ import org.apache.http.ProtocolVersion;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactIndexData;
+import org.lockss.laaws.rs.model.Artifact;
 import org.springframework.http.HttpHeaders;
 
 import java.io.ByteArrayInputStream;
@@ -58,7 +58,7 @@ public class TestBaseLockssRepository {
         this.repo = new BaseLockssRepository();
     }
 
-    private Artifact createRandomArtifact(String collection, String auid) {
+    private ArtifactData createRandomArtifact(String collection, String auid) {
         // Generate an artifact identifier
         ArtifactIdentifier id = new ArtifactIdentifier(
                 collection,
@@ -81,7 +81,7 @@ public class TestBaseLockssRepository {
         );
 
         // Assemble and return artifact
-        return new Artifact(id, metadata, inputStream, statusLine);
+        return new ArtifactData(id, metadata, inputStream, statusLine);
     }
 
     @Test
@@ -95,7 +95,7 @@ public class TestBaseLockssRepository {
     public void getArtifact() throws IOException {
         String artifactId = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
         assertNotNull(artifactId);
-        Artifact artifact = repo.getArtifact("test", artifactId);
+        ArtifactData artifact = repo.getArtifact("test", artifactId);
         assertNotNull(artifact);
     }
 
@@ -103,7 +103,7 @@ public class TestBaseLockssRepository {
     public void commitArtifact() throws IOException {
         String artifactId = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
         assertNotNull(artifactId);
-        ArtifactIndexData data = repo.commitArtifact("test", artifactId);
+        Artifact data = repo.commitArtifact("test", artifactId);
         assertTrue(data.getCommitted());
     }
 
