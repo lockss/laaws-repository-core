@@ -28,26 +28,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
 import static org.junit.Assert.*;
 
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
-    private ArtifactIndex index;
+public class TestWarcArtifactStore {
 
     @Before
     public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }
 
     @Test
-    public void performTests() throws Exception {
+    public void getWarcRecordId() {
+    }
+
+    @Test
+    public void getWarcRecord() {
+    }
+
+    @Test
+    public void createWarcMetadataRecord() {
+    }
+
+    @Test
+    public void writeArtifact() {
+    }
+
+    @Test
+    public void writeWarcRecord() {
+    }
+
+    @Test
+    public void createRecordHeader() {
+    }
+
+    @Test
+    public void createWARCInfoRecord() {
     }
 }

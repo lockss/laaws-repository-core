@@ -34,6 +34,7 @@ import org.springframework.data.hadoop.store.strategy.naming.UuidFileNamingStrat
 
 import java.util.UUID;
 
+@Deprecated
 public class RollingUuidFileNamingStrategy extends UuidFileNamingStrategy{
     public RollingUuidFileNamingStrategy() {
         super();

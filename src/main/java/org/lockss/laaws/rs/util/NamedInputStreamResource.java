@@ -34,26 +34,60 @@ import org.springframework.core.io.InputStreamResource;
 
 import java.io.InputStream;
 
+/**
+ * Extends InputStreamResource and implements getFilename().
+ *
+ * The method is necessary in order for {@code HttpHeaders#setContentDispositionFormData} to include a
+ * "Content-Disposition" header when this resource is written as a multipart.
+ */
 public class NamedInputStreamResource extends InputStreamResource {
-        private String name;
+    private String name;
 
-        public NamedInputStreamResource(String name, InputStream stream) {
-            super(stream);
-            this.name = name;
-        }
+    /**
+     * Constructor.
+     *
+     * @param name
+     *          A {@code String} containing the name of this resource.
+     * @param stream
+     *          The {@code InputStream} of this resource.
+     */
+    public NamedInputStreamResource(String name, InputStream stream) {
+        super(stream);
+        this.name = name;
+    }
 
-        public NamedInputStreamResource(String name, InputStream stream, String description) {
-            super(stream, description);
-            this.name = name;
-        }
+    /**
+     * Constructor.
+     *
+     * @param name
+     *          A {@code String} containing the name of this resource.
+     * @param stream
+     *          The {@code InputStream} of this resource.
+     * @param description
+     *          A {@code String} containing a description for this resource.
+     */
+    public NamedInputStreamResource(String name, InputStream stream, String description) {
+        super(stream, description);
+        this.name = name;
+    }
 
-        @Override
-        public String getFilename() {
-            return this.name;
-        }
+    /**
+     * Returns the filename of this resource.
+     *
+     * @return A {@code String} containing the filename of this resource.
+     */
+    @Override
+    public String getFilename() {
+        return this.name;
+    }
 
-        @Override
-        public String getDescription() {
-            return "Named " + super.getDescription();
-        }
+    /**
+     * Returns a description of this resource.
+     *
+     * @return A {@code String} containing a description of this resource.
+     */
+    @Override
+    public String getDescription() {
+        return "Named " + super.getDescription();
+    }
 }

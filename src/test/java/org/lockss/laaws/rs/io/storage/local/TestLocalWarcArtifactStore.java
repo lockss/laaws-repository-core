@@ -28,26 +28,96 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.io.storage.local;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
 import static org.junit.Assert.*;
 
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
-    private ArtifactIndex index;
+public class TestLocalWarcArtifactStore {
 
     @Before
     public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }
 
     @Test
-    public void performTests() throws Exception {
+    public void rebuildIndex() {
+    }
+
+    @Test
+    public void rebuildIndex1() {
+    }
+
+    @Test
+    public void scanDirectories() {
+    }
+
+    @Test
+    public void getArchicalUnitBasePath() {
+    }
+
+    @Test
+    public void getCollectionBasePath() {
+    }
+
+    @Test
+    public void mkdirIfNotExist() {
+    }
+
+    @Test
+    public void addArtifact() {
+    }
+
+    @Test
+    public void getArtifact() {
+    }
+
+    @Test
+    public void updateArtifactMetadata() {
+    }
+
+    @Test
+    public void commitArtifact() {
+    }
+
+    @Test
+    public void isDeleted() {
+    }
+
+    @Test
+    public void isCommitted() {
+    }
+
+    @Test
+    public void deleteArtifact() {
+    }
+
+    @Test
+    public void getWarcRecordId() {
+    }
+
+    @Test
+    public void getWarcRecord() {
+    }
+
+    @Test
+    public void createWarcMetadataRecord() {
+    }
+
+    @Test
+    public void writeArtifact() {
+    }
+
+    @Test
+    public void writeWarcRecord() {
+    }
+
+    @Test
+    public void createRecordHeader() {
+    }
+
+    @Test
+    public void createWARCInfoRecord() {
     }
 }

@@ -28,26 +28,37 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
+
+import java.io.ByteArrayInputStream;
 
 import static org.junit.Assert.*;
 
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
-    private ArtifactIndex index;
+/**
+ * Test class for {@code org.lockss.laaws.rs.util.NamedInputStreamResource}.
+ */
+public class TestNamedInputStreamResource {
+    private static final String RESOURCE_BYTES = "foobar";
+    private static final String RESOURCE_NAME = "xyzzy";
+    private static final String RESOURCE_DESC = "Named InputStream resource [resource loaded through InputStream]";
+
+    private NamedInputStreamResource namedResource;
 
     @Before
     public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
+       namedResource = new NamedInputStreamResource(RESOURCE_NAME, new ByteArrayInputStream(RESOURCE_BYTES.getBytes()));
     }
 
     @Test
-    public void performTests() throws Exception {
+    public void getFilename() {
+        assertEquals(RESOURCE_NAME, namedResource.getFilename());
+    }
+
+    @Test
+    public void getDescription() {
+        assertEquals(RESOURCE_DESC, namedResource.getDescription());
     }
 }

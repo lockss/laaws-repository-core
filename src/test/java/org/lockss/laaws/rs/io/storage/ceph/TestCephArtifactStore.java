@@ -28,26 +28,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.io.storage.ceph;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
 import static org.junit.Assert.*;
 
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
-    private ArtifactIndex index;
+public class TestCephArtifactStore {
 
-    @Before
-    public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
+    @Test
+    public void addArtifact() {
     }
 
     @Test
-    public void performTests() throws Exception {
+    public void getArtifact() {
+    }
+
+    @Test
+    public void updateArtifactMetadata() {
+    }
+
+    @Test
+    public void commitArtifact() {
+    }
+
+    @Test
+    public void deleteArtifact() {
     }
 }

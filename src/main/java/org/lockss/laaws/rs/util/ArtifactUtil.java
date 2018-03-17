@@ -47,14 +47,39 @@ import java.io.*;
 import java.util.Collection;
 import java.util.HashSet;
 
+/**
+ * Common utilities and adapters for LOCKSS Repository Artifact objects.
+ */
 public class ArtifactUtil {
     private final static Log log = LogFactory.getLog(ArtifactUtil.class);
 
+    /**
+     * Adapter that takes an {@code Artifact} and returns an InputStream containing an HTTP response stream
+     * representation of the artifact.
+     *
+     * @param artifact
+     *          An {@code Artifact} to to transform.
+     * @return An {@code InputStream} containing an HTTP response stream representation of the artifact.
+     * @throws IOException
+     * @throws HttpException
+     */
     public static InputStream getHttpResponseStreamFromArtifact(Artifact artifact) throws IOException, HttpException {
         return getHttpResponseStreamFromHttpResponse(getHttpResponseFromArtifact(artifact));
     }
 
-    // This is the inverse of ArtifactFactory#fromHttpResponse(HttpResponse)
+
+    /**
+     * Adapter that takes an {@code Artifact} and returns an Apache {@code HttpResponse} object representation of the
+     * artifact.
+     *
+     * This is effectively the inverse operation of {@code ArtifactFactory#fromHttpResponse(HttpResponse)}.
+     *
+     * @param artifact
+     *          An {@code Artifact} to to transform.
+     * @return An {@code HttpResponse} object containing a representation of the artifact.
+     * @throws HttpException
+     * @throws IOException
+     */
     public static HttpResponse getHttpResponseFromArtifact(Artifact artifact) throws HttpException, IOException {
         // Craft a new HTTP response object representation from the artifact
         BasicHttpResponse response = new BasicHttpResponse(artifact.getHttpStatus());
@@ -80,18 +105,45 @@ public class ArtifactUtil {
         return response;
     }
 
+    /**
+     * Adapter that takes an Artifact's ArtifactIdentifier and returns an array of Apache Header objects representing
+     * the ArtifactIdentifier.
+     *
+     * @param artifact
+     *          An {@code Artifact} whose {@code ArtifactIdentifier} will be adapted.
+     * @return An {@code Header[]} representing the {@code Artifact}'s {@code ArtifactIdentifier}.
+     */
     private static Header[] getArtifactIdentifierHeaders(Artifact artifact) {
-        ArtifactIdentifier id = artifact.getIdentifier();
+        return getArtifactIdentifierHeaders(artifact.getIdentifier());
+    }
 
+    /**
+     * Adapter that takes an {@code ArtifactIdentifier} and returns an array of Apache Header objects representing the
+     * ArtifactIdentifier.
+     *
+     * @param id
+     *          An {@code ArtifactIdentifier} to adapt.
+     * @return A {@code Header[]} representing the {@code ArtifactIdentifier}.
+     */
+    private static Header[] getArtifactIdentifierHeaders(ArtifactIdentifier id) {
         Collection<Header> headers = new HashSet<>();
-        headers.add(new BasicHeader("X-Lockss-Collection", id.getCollection()));
-        headers.add(new BasicHeader("X-Lockss-AuId", id.getAuid()));
-        headers.add(new BasicHeader("X-Lockss-Uri", id.getUri()));
-        headers.add(new BasicHeader("X-Lockss-Version", id.getVersion()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, id.getCollection()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, id.getAuid()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_URI_KEY, id.getUri()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, id.getVersion()));
 
         return headers.toArray(new Header[headers.size()]);
     }
 
+    /**
+     * Adapts an {@code HttpResponse} object to an InputStream containing a HTTP response stream representation of the
+     * {@code HttpResponse} object.
+     *
+     * @param response
+     *          A {@code HttpResponse} to adapt.
+     * @return An {@code InputStream} containing a HTTP response stream representation of this {@code HttpResponse}.
+     * @throws IOException
+     */
     public static InputStream getHttpResponseStreamFromHttpResponse(HttpResponse response) throws IOException {
         // Using DeferredFileOutputStream for this stage over ByteArrayOutputStream is probably overkill but whatever
         DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifact-dfos", null, new File("/tmp"));
@@ -115,21 +167,28 @@ public class ArtifactUtil {
         return new SequenceInputStream(headerStream, response.getEntity().getContent());
     }
 
+    /**
+     * Writes an {@code Artifact} encoded as an HTTP response stream to an {@code OutputStream},
+     *
+     * @param artifact
+     *          The {@code Artifact} to encode as an HTTP response stream to write to an {@code OutputStream}.
+     * @param output
+     *          The {@code OutputStream} to write to.
+     * @throws IOException
+     * @throws HttpException
+     */
     public static void writeHttpResponseStream(Artifact artifact, OutputStream output) throws IOException, HttpException {
         writeHttpResponse(getHttpResponseFromArtifact(artifact), output);
     }
 
-    public static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
-        try {
-            // Write the HTTP response header
-            DefaultHttpResponseWriter responseWriter = new DefaultHttpResponseWriter(outputBuffer);
-            responseWriter.write(response);
-        } catch (HttpException e) {
-            log.error("Caught HttpException while attempting to write the headers of an HttpResponse using DefaultHttpResponseWriter");
-            throw new IOException(e);
-        }
-    }
-
+    /**
+     * Writes a HTTP response stream representation of a {@code HttpResponse} to an {@code OutputStream}.
+     * @param response
+     *          A {@code HttpResponse} to convert to an HTTP response stream and write to the {@code OutputStream}.
+     * @param output
+     *          The {@code OutputStream} to write to.
+     * @throws IOException
+     */
     public static void writeHttpResponse(HttpResponse response, OutputStream output) throws IOException {
         // Create a new SessionOutputBuffer from the OutputStream
         SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
@@ -140,5 +199,24 @@ public class ArtifactUtil {
         outputBuffer.flush();
         response.getEntity().writeTo(output);
         output.flush();
+    }
+
+    /**
+     * Writes a {@code HttpResponse} object's HTTP status and headers to an {@code OuptutStream}.
+     * @param response
+     *          A {@code HttpResponse} whose HTTP status and headers will be written to the {@code OutputStream}.
+     * @param outputBuffer
+     *          The {@code OutputStream} to write to.
+     * @throws IOException
+     */
+    public static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
+        try {
+            // Write the HTTP response header
+            DefaultHttpResponseWriter responseWriter = new DefaultHttpResponseWriter(outputBuffer);
+            responseWriter.write(response);
+        } catch (HttpException e) {
+            log.error("Caught HttpException while attempting to write the headers of an HttpResponse using DefaultHttpResponseWriter");
+            throw new IOException(e);
+        }
     }
 }

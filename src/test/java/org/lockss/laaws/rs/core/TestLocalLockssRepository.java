@@ -28,26 +28,71 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.index.solr;
+package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 
 import static org.junit.Assert.*;
 
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
-    private ArtifactIndex index;
+/**
+ * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
+ */
+public class TestLocalLockssRepository {
 
     @Before
     public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }
 
     @Test
-    public void performTests() throws Exception {
+    public void addArtifact() {
+    }
+
+    @Test
+    public void getArtifact() {
+    }
+
+    @Test
+    public void commitArtifact() {
+    }
+
+    @Test
+    public void deleteArtifact() {
+    }
+
+    @Test
+    public void artifactExists() {
+    }
+
+    @Test
+    public void isArtifactCommitted() {
+    }
+
+    @Test
+    public void getCollectionIds() {
+    }
+
+    @Test
+    public void getAuIds() {
+    }
+
+    @Test
+    public void getArtifactsInAU() {
+    }
+
+    @Test
+    public void getArtifactsInAUWithURL() {
+    }
+
+    @Test
+    public void getArtifactsInAUWithURLMatch() {
+    }
+
+    @Test
+    public void getArtifactsInAUWithURL1() {
+    }
+
+    @Test
+    public void getArtifactsInAUWithURLMatch1() {
     }
 }
