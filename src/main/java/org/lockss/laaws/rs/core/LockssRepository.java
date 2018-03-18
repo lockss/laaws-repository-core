@@ -50,7 +50,7 @@ public interface LockssRepository {
      * @return The artifact ID of the newly added artifact.
      * @throws IOException
      */
-    String addArtifactData(ArtifactData artifactData) throws IOException;
+    Artifact addArtifact(ArtifactData artifactData) throws IOException;
 
     /**
      * Retrieves an artifact from this LOCKSS repository.

@@ -87,13 +87,13 @@ public class TestBaseLockssRepository {
     @Test
     public void addArtifact() throws IOException {
         // Add an artifact
-        String artifactId = repo.addArtifactData(createRandomArtifact("test", "testAuid1"));
+        String artifactId = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
         assertNotNull(artifactId);
     }
 
     @Test
     public void getArtifact() throws IOException {
-        String artifactId = repo.addArtifactData(createRandomArtifact("test", "testAuid1"));
+        String artifactId = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
         assertNotNull(artifactId);
         ArtifactData artifact = repo.getArtifactData("test", artifactId);
         assertNotNull(artifact);
@@ -101,7 +101,7 @@ public class TestBaseLockssRepository {
 
     @Test
     public void commitArtifact() throws IOException {
-        String artifactId = repo.addArtifactData(createRandomArtifact("test", "testAuid1"));
+        String artifactId = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
         assertNotNull(artifactId);
         Artifact data = repo.commitArtifact("test", artifactId);
         assertTrue(data.getCommitted());
@@ -109,7 +109,7 @@ public class TestBaseLockssRepository {
 
     @Test
     public void deleteArtifact() throws IOException {
-        String artifactId = repo.addArtifactData(createRandomArtifact("test", "testAuid1"));
+        String artifactId = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
         assertNotNull(artifactId);
         repo.deleteArtifact("test", artifactId);
         assertNull(repo.getArtifactData("test", artifactId));
@@ -121,7 +121,7 @@ public class TestBaseLockssRepository {
             for (Integer j = 0; j < 10; j++) {
                 String collectionId = String.format("TestCollection-%d", i);
                 String auid = String.format("TestAuid-%d", j);
-                String artifactId = repo.addArtifactData(createRandomArtifact(collectionId, auid));
+                String artifactId = repo.addArtifact(createRandomArtifact(collectionId, auid));
                 assertNotNull(artifactId);
                 assertNotNull(repo.commitArtifact(collectionId, artifactId));
             }

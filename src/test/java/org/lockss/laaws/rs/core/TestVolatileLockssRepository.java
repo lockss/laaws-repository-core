@@ -98,7 +98,7 @@ public class TestVolatileLockssRepository {
     public void addArtifact() {
         try {
             // Attempt adding a null artifact and expect IllegalArgumentException to the thrown
-            repo.addArtifactData(null);
+            repo.addArtifact(null);
             fail("Attempted to add a null artifact and was expecting IllegalArgumentException to be thrown");
         } catch (IllegalArgumentException e) {
             String expectedErrMsg = "ArtifactData is null";
@@ -109,7 +109,7 @@ public class TestVolatileLockssRepository {
 
         try {
             // Add an artifact to the repository
-            String artifactId = repo.addArtifactData(artifact1);
+            String artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertFalse(repo.isArtifactCommitted(artifactId));
             assertTrue(repo.artifactExists(artifactId));
@@ -136,7 +136,7 @@ public class TestVolatileLockssRepository {
     public void getArtifact() {
         try {
             // Add the artifact and verify we get back an artifact ID
-            String artifactId = repo.addArtifactData(artifact1);
+            String artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
 
@@ -183,7 +183,7 @@ public class TestVolatileLockssRepository {
 
         try {
             // Add an artifact and verify that it is not committed
-            String artifactId = repo.addArtifactData(artifact1);
+            String artifactId = repo.addArtifact(artifact1);
             assertFalse(repo.isArtifactCommitted(artifactId));
 
             // Commit the artifact and verify that it is committed
@@ -220,7 +220,7 @@ public class TestVolatileLockssRepository {
 
         try {
             // Attempt to add an artifact and verify it exists
-            artifactId = repo.addArtifactData(artifact1);
+            artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
         } catch (IOException e) {
@@ -274,7 +274,7 @@ public class TestVolatileLockssRepository {
             assertFalse(repo.artifactExists("nonExistentId"));
 
             // Add an artifact and verify it exists
-            String artifactId = repo.addArtifactData(artifact1);
+            String artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
         } catch (IOException e) {
@@ -305,7 +305,7 @@ public class TestVolatileLockssRepository {
         String artifactId = null;
 
         try {
-            artifactId = repo.addArtifactData(artifact1);
+            artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
             assertFalse(repo.isArtifactCommitted(artifactId));
@@ -326,7 +326,7 @@ public class TestVolatileLockssRepository {
             assertFalse(collectionIds.hasNext());
 
             // Add an artifact
-            String artifactId = repo.addArtifactData(artifact1);
+            String artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
 
@@ -351,7 +351,7 @@ public class TestVolatileLockssRepository {
             assertNotNull(auids);
             assertFalse(auids.hasNext());
 
-            String artifactId = repo.addArtifactData(artifact1);
+            String artifactId = repo.addArtifact(artifact1);
             assertNotNull(artifactId);
             assertTrue(repo.artifactExists(artifactId));
             assertFalse(repo.isArtifactCommitted(artifactId));
@@ -395,8 +395,8 @@ public class TestVolatileLockssRepository {
         }
 
         try {
-            assertNotNull(repo.addArtifactData(artifact1));
-            assertNotNull(repo.addArtifactData(artifact2));
+            assertNotNull(repo.addArtifact(artifact1));
+            assertNotNull(repo.addArtifact(artifact2));
 
             Iterator<Artifact> result = null;
 
@@ -424,9 +424,9 @@ public class TestVolatileLockssRepository {
     public void getArtifactsInAUWithURL() {
 
         try {
-            assertNotNull(repo.addArtifactData(artifact1));
-            assertNotNull(repo.addArtifactData(artifact2));
-            assertNotNull(repo.addArtifactData(artifact3));
+            assertNotNull(repo.addArtifact(artifact1));
+            assertNotNull(repo.addArtifact(artifact2));
+            assertNotNull(repo.addArtifact(artifact3));
 
             Iterator<Artifact> result = null;
 
@@ -469,9 +469,9 @@ public class TestVolatileLockssRepository {
         }
 
         try {
-            assertNotNull(repo.addArtifactData(artifact1));
-            assertNotNull(repo.addArtifactData(artifact2));
-            assertNotNull(repo.addArtifactData(artifact3));
+            assertNotNull(repo.addArtifact(artifact1));
+            assertNotNull(repo.addArtifact(artifact2));
+            assertNotNull(repo.addArtifact(artifact3));
 
             Iterator<Artifact> result = null;
 

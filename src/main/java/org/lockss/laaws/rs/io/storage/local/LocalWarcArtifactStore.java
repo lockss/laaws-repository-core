@@ -260,7 +260,7 @@ public class LocalWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier
      * @throws IOException
      */
     @Override
-    public ArtifactData addArtifactData(ArtifactData artifactData) throws IOException {
+    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
 //        if (index == null) {
 //             YES: Cannot proceed without an artifact index - throw RuntimeException
 //            throw new RuntimeException("No artifact index configured!");

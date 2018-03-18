@@ -45,7 +45,7 @@ import java.net.URISyntaxException;
 public class CephArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends WarcArtifactStore<ID, AD, MD> {
 
     @Override
-    public AD addArtifactData(ArtifactData artifactData) throws IOException {
+    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
         return null;
     }
 

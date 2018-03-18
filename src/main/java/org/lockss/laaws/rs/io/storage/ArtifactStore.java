@@ -54,7 +54,7 @@ public interface ArtifactStore<ID extends ArtifactIdentifier, AD extends Artifac
      * @return Returns the {@code ArtifactData} as it is now recorded in this artifact store.
      * @throws IOException
      */
-    AD addArtifactData(ArtifactData artifactData) throws IOException;
+    Artifact addArtifactData(ArtifactData artifactData) throws IOException;
 
     /**
      * Retrieves an artifact from this artifact store.

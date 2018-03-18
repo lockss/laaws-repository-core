@@ -68,7 +68,7 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore<ArtifactIdentif
      * @throws IOException
      */
     @Override
-    public ArtifactData addArtifactData(ArtifactData artifactData) throws IOException {
+    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
         if (artifactData == null)
             throw new IllegalArgumentException("Cannot add a null artifact");
 

@@ -84,12 +84,12 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public String addArtifactData(ArtifactData artifactData) throws IOException {
+    public Artifact addArtifact(ArtifactData artifactData) throws IOException {
         if (artifactData == null)
             throw new IllegalArgumentException("ArtifactData is null");
 
-        ArtifactData storedArtifactData = store.addArtifactData(artifactData);
-        Artifact artifact = index.indexArtifact(storedArtifactData);
+        Artifact storedArtifact = store.addArtifactData(artifactData);
+        Artifact artifact = index.indexArtifact(storedArtifact);
         return artifact.getId();
     }
 
