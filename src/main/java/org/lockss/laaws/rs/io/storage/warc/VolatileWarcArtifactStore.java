@@ -107,19 +107,28 @@ public class VolatileWarcArtifactStore extends WarcArtifactStore<ArtifactIdentif
         repository.put(artifactId.getCollection(), collection);
 
         // Set the artifact's storage URL
-        artifactData.setStorageUrl("volatile://" + String.format(
-                "/%s/%s/%s/%s/%s",
+        String storageUrl = String.format(
+                "volatile:///%s/%s/%s/%s/%s",
                 artifactId.getCollection(),
                 artifactId.getAuid(),
                 URLEncoder.encode(artifactId.getUri(), "UTF-8"),
                 artifactId.getVersion(),
                 artifactId.getId()
-        ));
+        );
 
-        // Index artifact
-//        index.indexArtifact(artifact);
+        artifactData.setStorageUrl(storageUrl);
 
-        return artifactData;
+        Artifact artifact = new Artifact(
+                artifactId.getId(),
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri(),
+                artifactId.getVersion(),
+                false,
+                storageUrl
+        );
+
+        return artifact;
     }
 
     /**

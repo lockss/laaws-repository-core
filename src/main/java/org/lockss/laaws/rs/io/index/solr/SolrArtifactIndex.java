@@ -211,8 +211,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     @Override
     public Artifact getArtifact(String artifactId) throws IOException {
         SolrQuery q = new SolrQuery();
-        q.addFilterQuery(String.format("committed:%s", true));
-        q.addFilterQuery(String.format("{!term f=id}%s", artifactId));
+//        q.addFilterQuery(String.format("committed:%s", true));
+//        q.addFilterQuery(String.format("{!term f=id}%s", artifactId));
+        q.setQuery(String.format("id:%s", artifactId));
 
         // Artifact to eventually return
         Artifact indexData = null;

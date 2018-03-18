@@ -387,12 +387,22 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier,
             // TODO: Generalize this to write all of an artifact's metadata
             updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
-            // Add the artifact to the index
-//            index.indexArtifact(artifact);
-//        }
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + auArtifactsWarcPath);
+        uriBuilder.queryParam("offset", offset);
+        String storageUrl = uriBuilder.toUriString();
+
+        Artifact artifact = new Artifact(
+                artifactId.getId(),
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri(),
+                artifactId.getVersion(),
+                false,
+                storageUrl
+        );
 
         // Return the artifact
-        return artifactData;
+        return artifact;
     }
 
     /**

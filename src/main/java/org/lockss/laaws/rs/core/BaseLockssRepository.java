@@ -88,9 +88,11 @@ public class BaseLockssRepository implements LockssRepository {
         if (artifactData == null)
             throw new IllegalArgumentException("ArtifactData is null");
 
+        //
+
         Artifact storedArtifact = store.addArtifactData(artifactData);
-        Artifact artifact = index.indexArtifact(storedArtifact);
-        return artifact.getId();
+        Artifact artifact = index.indexArtifact(artifactData);
+        return artifact;
     }
 
     /**

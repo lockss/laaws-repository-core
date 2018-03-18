@@ -324,9 +324,18 @@ public class LocalWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier
 //             Add the artifact to the index
 //            index.indexArtifact(artifact);
 //        }
+        Artifact artifact = new Artifact(
+                artifactId.getId(),
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri(),
+                artifactId.getVersion(),
+                false,
+                artifactData.getStorageUrl()
+        );
 
         // Return the artifact
-        return artifactData;
+        return artifact;
     }
 
     /**

@@ -182,7 +182,7 @@ public class RestLockssRepository implements LockssRepository {
                 buildEndpoint(identifier.getCollection()),
                 HttpMethod.POST,
                 multipartEntity,
-                String.class
+                Artifact.class
         ).getBody();
     }
 
