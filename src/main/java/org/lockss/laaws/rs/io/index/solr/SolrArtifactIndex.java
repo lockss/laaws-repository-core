@@ -205,14 +205,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Provides the index data of an artifact with a given text index
      * identifier.
      *
-     * @param indexDataId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact getArtifactIndexData(String indexDataId) throws IOException {
+    public Artifact getArtifact(String artifactId) throws IOException {
         SolrQuery q = new SolrQuery();
         q.addFilterQuery(String.format("committed:%s", true));
-        q.addFilterQuery(String.format("{!term f=id}%s", indexDataId));
+        q.addFilterQuery(String.format("{!term f=id}%s", artifactId));
 
         // Artifact to eventually return
         Artifact indexData = null;
@@ -226,7 +226,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             if (!documents.isEmpty()) {
                 if (documents.size() > 1) {
                     // This should never happen; id field should be unique
-                    throw new RuntimeException(String.format("Multiple Solr documents found for id: %s!", indexDataId));
+                    throw new RuntimeException(String.format("Multiple Solr documents found for id: %s!", artifactId));
                 } else {
                     // Set indexData to the single result to return
                     indexData = documents.get(0);
@@ -238,7 +238,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         // TODO: Should we throw an exception instead?
         if (indexData == null)
-            log.warn(String.format("No Solr documents found with artifact ID: %s", indexDataId));
+            log.warn(String.format("No Solr documents found with artifact ID: %s", artifactId));
 
         return indexData;
     }
@@ -247,12 +247,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Provides the index data of an artifact with a given index identifier
      * UUID.
      *
-     * @param indexDataId An UUID with the artifact index identifier.
+     * @param artifactId An UUID with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact getArtifactIndexData(UUID indexDataId) throws IOException {
-        return this.getArtifactIndexData(indexDataId.toString());
+    public Artifact getArtifact(UUID artifactId) throws IOException {
+        return this.getArtifact(artifactId.toString());
     }
 
     /**
@@ -281,7 +281,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         // Return updated Artifact
-        return getArtifactIndexData(artifactId);
+        return getArtifact(artifactId);
     }
 
     /**
@@ -314,13 +314,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
     /**
      * Removes from the index an artifact with a given index identifier UUID.
      *
-     * @param indexDataId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
     @Override
-    public boolean deleteArtifact(UUID indexDataId) throws IOException {
-        return deleteArtifact(indexDataId.toString());
+    public boolean deleteArtifact(UUID artifactId) throws IOException {
+        return deleteArtifact(artifactId.toString());
     }
 
     /**
@@ -333,7 +333,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean artifactExists(String artifactId) throws IOException {
-        return getArtifactIndexData(artifactId) != null;
+        return getArtifact(artifactId) != null;
     }
 
     /**

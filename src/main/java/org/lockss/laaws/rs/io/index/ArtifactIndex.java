@@ -58,7 +58,7 @@ public interface ArtifactIndex {
      *          A {@code String} with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
-    Artifact getArtifactIndexData(String indexDataId) throws IOException;
+    Artifact getArtifact(String artifactId) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given index identifier
@@ -68,7 +68,7 @@ public interface ArtifactIndex {
      *          An {@code UUID} with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
-    Artifact getArtifactIndexData(UUID indexDataId) throws IOException;
+    Artifact getArtifact(UUID artifactId) throws IOException;
 
     /**
      * Commits to the index an artifact with a given text index identifier.
@@ -77,7 +77,7 @@ public interface ArtifactIndex {
      *          A {@code String} with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
-    Artifact commitArtifact(String indexDataId) throws IOException;
+    Artifact commitArtifact(String artifactId) throws IOException;
 
     /**
      * Commits to the index an artifact with a given index identifier UUID.
@@ -86,7 +86,7 @@ public interface ArtifactIndex {
      *          An {@code UUID} with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
-    Artifact commitArtifact(UUID indexDataId) throws IOException;
+    Artifact commitArtifact(UUID artifactId) throws IOException;
 
     /**
      * Removes from the index an artifact with a given text index identifier.
@@ -96,17 +96,17 @@ public interface ArtifactIndex {
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
-    boolean deleteArtifact(String indexDataId) throws IOException;
+    boolean deleteArtifact(String artifactId) throws IOException;
 
     /**
      * Removes from the index an artifact with a given index identifier UUID.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
-    boolean deleteArtifact(UUID indexDataId) throws IOException;
+    boolean deleteArtifact(UUID artifactId) throws IOException;
 
     /**
      * Provides an indication of whether an artifact with a given text index

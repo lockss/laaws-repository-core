@@ -108,7 +108,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertEquals("v1", aidata.getVersion());
     assertEquals("surl1", aidata.getStorageUrl());
     assertEquals(false, aidata.getCommitted());
-    assertEquals(aidata, index.getArtifactIndexData("id1"));
+    assertEquals(aidata, index.getArtifact("id1"));
 
     aidata = index.indexArtifact(artifact2);
 
@@ -119,7 +119,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertEquals("v2", aidata.getVersion());
     assertEquals("surl2", aidata.getStorageUrl());
     assertEquals(false, aidata.getCommitted());
-    assertEquals(aidata, index.getArtifactIndexData(uuid.toString()));
+    assertEquals(aidata, index.getArtifact(uuid.toString()));
 
     aidata = index.indexArtifact(artifact2);
 
@@ -130,7 +130,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertEquals("v2", aidata.getVersion());
     assertEquals("surl2", aidata.getStorageUrl());
     assertEquals(false, aidata.getCommitted());
-    assertEquals(aidata, index.getArtifactIndexData(uuid.toString()));
+    assertEquals(aidata, index.getArtifact(uuid.toString()));
   }
 
   @Test
@@ -140,7 +140,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     try {
       String stringId = null;
       expectedMessage = "Null or empty identifier";
-      index.getArtifactIndexData(stringId);
+      index.getArtifact(stringId);
       fail("Should have thrown IllegalArgumentException(" + expectedMessage
 	  + ")");
     } catch (IllegalArgumentException iae) {
@@ -150,23 +150,23 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     try {
       UUID nullIdUuid = null;
       expectedMessage = "Null UUID";
-      index.getArtifactIndexData(nullIdUuid);
+      index.getArtifact(nullIdUuid);
       fail("Should have thrown IllegalArgumentException(" + expectedMessage
 	  + ")");
     } catch (IllegalArgumentException iae) {
       assertEquals(expectedMessage, iae.getMessage());
     }
 
-    assertNull(index.getArtifactIndexData("id1"));
+    assertNull(index.getArtifact("id1"));
     Artifact aidata1 = index.indexArtifact(artifact1);
-    assertEquals(aidata1, index.getArtifactIndexData("id1"));
+    assertEquals(aidata1, index.getArtifact("id1"));
 
-    assertNull(index.getArtifactIndexData(uuid));
+    assertNull(index.getArtifact(uuid));
     Artifact aidata2 = index.indexArtifact(artifact2);
-    assertEquals(aidata2, index.getArtifactIndexData(uuid));
+    assertEquals(aidata2, index.getArtifact(uuid));
 
     aidata1 = index.indexArtifact(artifact1);
-    assertEquals(aidata1, index.getArtifactIndexData("id1"));
+    assertEquals(aidata1, index.getArtifact("id1"));
   }
 
   @Test
@@ -199,23 +199,23 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     index.indexArtifact(artifact1);
     index.indexArtifact(artifact2);
 
-    assertFalse(index.getArtifactIndexData("id1").getCommitted());
-    assertFalse(index.getArtifactIndexData(uuid).getCommitted());
+    assertFalse(index.getArtifact("id1").getCommitted());
+    assertFalse(index.getArtifact(uuid).getCommitted());
 
     index.commitArtifact("id1");
 
-    assertTrue(index.getArtifactIndexData("id1").getCommitted());
-    assertFalse(index.getArtifactIndexData(uuid).getCommitted());
+    assertTrue(index.getArtifact("id1").getCommitted());
+    assertFalse(index.getArtifact(uuid).getCommitted());
 
     index.commitArtifact(uuid);
 
-    assertTrue(index.getArtifactIndexData("id1").getCommitted());
-    assertTrue(index.getArtifactIndexData(uuid).getCommitted());
+    assertTrue(index.getArtifact("id1").getCommitted());
+    assertTrue(index.getArtifact(uuid).getCommitted());
 
     index.commitArtifact("id1");
 
-    assertTrue(index.getArtifactIndexData("id1").getCommitted());
-    assertTrue(index.getArtifactIndexData(uuid).getCommitted());
+    assertTrue(index.getArtifact("id1").getCommitted());
+    assertTrue(index.getArtifact(uuid).getCommitted());
   }
 
   @Test
@@ -245,35 +245,35 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(index.deleteArtifact("unknown"));
     assertFalse(index.deleteArtifact(UUID.randomUUID()));
 
-    assertNull(index.getArtifactIndexData("id1"));
-    assertNull(index.getArtifactIndexData(uuid.toString()));
+    assertNull(index.getArtifact("id1"));
+    assertNull(index.getArtifact(uuid.toString()));
 
     index.indexArtifact(artifact1);
 
-    assertEquals("id1", index.getArtifactIndexData("id1").getId());
-    assertNull(index.getArtifactIndexData(uuid.toString()));
+    assertEquals("id1", index.getArtifact("id1").getId());
+    assertNull(index.getArtifact(uuid.toString()));
 
     index.indexArtifact(artifact2);
 
-    assertEquals("id1", index.getArtifactIndexData("id1").getId());
+    assertEquals("id1", index.getArtifact("id1").getId());
     assertEquals(uuid.toString(),
-	index.getArtifactIndexData(uuid.toString()).getId());
+	index.getArtifact(uuid.toString()).getId());
 
     assertTrue(index.deleteArtifact("id1"));
 
-    assertNull(index.getArtifactIndexData("id1"));
+    assertNull(index.getArtifact("id1"));
     assertEquals(uuid.toString(),
-	index.getArtifactIndexData(uuid.toString()).getId());
+	index.getArtifact(uuid.toString()).getId());
 
     assertTrue(index.deleteArtifact(uuid));
 
-    assertNull(index.getArtifactIndexData("id1"));
-    assertNull(index.getArtifactIndexData(uuid.toString()));
+    assertNull(index.getArtifact("id1"));
+    assertNull(index.getArtifact(uuid.toString()));
 
     assertFalse(index.deleteArtifact(uuid));
 
-    assertNull(index.getArtifactIndexData("id1"));
-    assertNull(index.getArtifactIndexData(uuid.toString()));
+    assertNull(index.getArtifact("id1"));
+    assertNull(index.getArtifact(uuid.toString()));
   }
 
   @Test

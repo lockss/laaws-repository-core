@@ -96,32 +96,32 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * Provides the index data of an artifact with a given text index
      * identifier.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          A String with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact getArtifactIndexData(String indexDataId) {
-        if (StringUtils.isEmpty(indexDataId)) {
+    public Artifact getArtifact(String artifactId) {
+        if (StringUtils.isEmpty(artifactId)) {
           throw new IllegalArgumentException("Null or empty identifier");
         }
-        return index.get(indexDataId);
+        return index.get(artifactId);
     }
 
     /**
      * Provides the index data of an artifact with a given index identifier
      * UUID.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          An UUID with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact getArtifactIndexData(UUID indexDataId) {
-        if (indexDataId == null) {
+    public Artifact getArtifact(UUID artifactId) {
+        if (artifactId == null) {
           throw new IllegalArgumentException("Null UUID");
         }
-        return getArtifactIndexData(indexDataId.toString());
+        return getArtifact(artifactId.toString());
     }
 
     /**
@@ -187,17 +187,17 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     /**
      * Removes from the index an artifact with a given index identifier UUID.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
     @Override
-    public boolean deleteArtifact(UUID indexDataId) {
-        if (indexDataId == null) {
+    public boolean deleteArtifact(UUID artifactId) {
+        if (artifactId == null) {
           throw new IllegalArgumentException("Null UUID");
         }
-        return deleteArtifact(indexDataId.toString());
+        return deleteArtifact(artifactId.toString());
     }
 
     /**

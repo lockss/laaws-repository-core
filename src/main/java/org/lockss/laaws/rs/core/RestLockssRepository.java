@@ -138,7 +138,7 @@ public class RestLockssRepository implements LockssRepository {
      * @return A {@code String} containing the artifact ID of the newly added artifact.
      */
     @Override
-    public String addArtifact(ArtifactData artifactData) throws IOException {
+    public String addArtifactData(ArtifactData artifactData) throws IOException {
         // Get artifact identifier
         ArtifactIdentifier identifier = artifactData.getIdentifier();
 
@@ -197,7 +197,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public ArtifactData getArtifact(String collection, String artifactId) throws IOException {
+    public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
         ResponseEntity<Resource> response = restTemplate.exchange(
                 buildEndpoint(collection, artifactId),
                 HttpMethod.GET,

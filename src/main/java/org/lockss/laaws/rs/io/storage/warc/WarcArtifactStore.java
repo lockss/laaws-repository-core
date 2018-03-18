@@ -63,7 +63,8 @@ import java.util.UUID;
 /**
  * An abstract class that implements methods common to WARC implementations of ArtifactStore.
  */
-public abstract class WarcArtifactStore implements ArtifactStore, WARCConstants {
+public abstract class WarcArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata>
+        implements ArtifactStore<ID, AD, MD>, WARCConstants {
     private final static Log log = LogFactory.getLog(WarcArtifactStore.class);
 
     protected static final String AU_DIR_PREFIX = "au-";

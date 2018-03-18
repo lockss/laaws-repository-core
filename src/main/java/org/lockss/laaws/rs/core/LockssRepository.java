@@ -50,7 +50,7 @@ public interface LockssRepository {
      * @return The artifact ID of the newly added artifact.
      * @throws IOException
      */
-    String addArtifact(ArtifactData artifact) throws IOException;
+    String addArtifactData(ArtifactData artifactData) throws IOException;
 
     /**
      * Retrieves an artifact from this LOCKSS repository.
@@ -60,7 +60,7 @@ public interface LockssRepository {
      * @return The {@code ArtifactData} referenced by this artifact ID.
      * @throws IOException
      */
-    ArtifactData getArtifact(String collection, String artifactId) throws IOException;
+    ArtifactData getArtifactData(String collection, String artifactId) throws IOException;
 
     /**
      * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.

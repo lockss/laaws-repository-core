@@ -84,11 +84,11 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public String addArtifact(ArtifactData artifactData) throws IOException {
+    public String addArtifactData(ArtifactData artifactData) throws IOException {
         if (artifactData == null)
             throw new IllegalArgumentException("ArtifactData is null");
 
-        ArtifactData storedArtifactData = store.addArtifact(artifactData);
+        ArtifactData storedArtifactData = store.addArtifactData(artifactData);
         Artifact artifact = index.indexArtifact(storedArtifactData);
         return artifact.getId();
     }
@@ -102,13 +102,13 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public ArtifactData getArtifact(String collection, String artifactId) throws IOException {
+    public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
         try {
-            Artifact artifact = index.getArtifactIndexData(artifactId);
+            Artifact artifact = index.getArtifact(artifactId);
             if (artifact == null)
                 return null;
 
-            return store.getArtifact(index.getArtifactIndexData(artifactId));
+            return store.getArtifactData(index.getArtifact(artifactId));
         } catch (URISyntaxException e) {
             throw new IOException(e);
         }
@@ -130,7 +130,7 @@ public class BaseLockssRepository implements LockssRepository {
             throw new IllegalArgumentException("Null collection or artifactId");
 
         // Get artifact as it is currently
-        Artifact artifact = index.getArtifactIndexData(artifactId);
+        Artifact artifact = index.getArtifact(artifactId);
         ArtifactData artifactData = null;
 
         // Record the changed status in store
@@ -157,7 +157,7 @@ public class BaseLockssRepository implements LockssRepository {
             throw new IllegalArgumentException("Null collection ID or artifact ID");
 
         try {
-            store.deleteArtifact(index.getArtifactIndexData(artifactId));
+            store.deleteArtifactData(index.getArtifact(artifactId));
             index.deleteArtifact(artifactId);
         } catch (URISyntaxException e) {
             throw new IOException(e);
@@ -185,7 +185,7 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public boolean isArtifactCommitted(String artifactId) throws IOException {
-        Artifact artifact = index.getArtifactIndexData(artifactId);
+        Artifact artifact = index.getArtifact(artifactId);
         return artifact.getCommitted();
     }
 
