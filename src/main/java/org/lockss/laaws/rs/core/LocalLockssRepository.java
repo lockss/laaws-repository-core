@@ -37,7 +37,7 @@ import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactStore;
 import java.io.File;
 
 /**
- * Local filesystem implementation of LOCKSS Repository that uses a volatile artifact index.
+ * Local filesystem implementation of the LOCKSS Repository API that uses a volatile artifact index.
  */
 public class LocalLockssRepository extends BaseLockssRepository {
 
@@ -46,7 +46,7 @@ public class LocalLockssRepository extends BaseLockssRepository {
      * rebuild of the index from the local filesystem base path.
      *
      * @param basePath
-     *          A {@code File} containing the base path of this LOCKSS Repository.
+     *          A {@code File} containing the base path of this LOCKSS repository.
      */
     public LocalLockssRepository(File basePath) {
         super(new VolatileArtifactIndex(), new LocalWarcArtifactStore(basePath));
@@ -57,7 +57,7 @@ public class LocalLockssRepository extends BaseLockssRepository {
      * Constructor that takes a local filesystem base path, and an instance of an ArtifactIndex implementation.
      *
      * @param basePath
-     *          A {@code File} containing the base path of this LOCKSS Repository.
+     *          A {@code File} containing the base path of this LOCKSS repository.
      * @param index
      *          An {@code ArtifactIndex} to use as this repository's artifact index.
      */

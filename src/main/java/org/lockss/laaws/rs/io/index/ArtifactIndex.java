@@ -44,59 +44,59 @@ public interface ArtifactIndex {
     /**
      * Adds an artifact to the index.
      * 
-     * @param artifact
-     *          An ArtifactData with the artifact to be added to the index,.
-     * @return an Artifact with the artifact indexing data.
+     * @param artifactData
+     *          An {@code ArtifactData} with the artifact to be indexed.
+     * @return An {@code Artifact} with the artifact indexing data.
      */
-    Artifact indexArtifact(ArtifactData artifact) throws IOException;
+    Artifact indexArtifact(ArtifactData artifactData) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given text index
      * identifier.
      * 
-     * @param indexDataId
-     *          A String with the artifact index identifier.
+     * @param artifactId
+     *          A {@code String} with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
-    Artifact getArtifactIndexData(String indexDataId) throws IOException;
+    Artifact getArtifact(String artifactId) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given index identifier
      * UUID.
      * 
-     * @param indexDataId
-     *          An UUID with the artifact index identifier.
+     * @param artifactId
+     *          An {@code UUID} with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
-    Artifact getArtifactIndexData(UUID indexDataId) throws IOException;
+    Artifact getArtifact(UUID artifactId) throws IOException;
 
     /**
      * Commits to the index an artifact with a given text index identifier.
      * 
-     * @param indexDataId
-     *          A String with the artifact index identifier.
+     * @param artifactId
+     *          A {@code String} with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
-    Artifact commitArtifact(String indexDataId) throws IOException;
+    Artifact commitArtifact(String artifactId) throws IOException;
 
     /**
      * Commits to the index an artifact with a given index identifier UUID.
      * 
-     * @param indexDataId
-     *          An UUID with the artifact index identifier.
+     * @param artifactId
+     *          An {@code UUID} with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
-    Artifact commitArtifact(UUID indexDataId) throws IOException;
+    Artifact commitArtifact(UUID artifactId) throws IOException;
 
     /**
      * Removes from the index an artifact with a given text index identifier.
      * 
-     * @param indexDataId
-     *          A String with the artifact index identifier.
+     * @param artifactId
+     *          A {@code String} with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
-    boolean deleteArtifact(String indexDataId) throws IOException;
+    boolean deleteArtifact(String artifactId) throws IOException;
 
     /**
      * Removes from the index an artifact with a given index identifier UUID.

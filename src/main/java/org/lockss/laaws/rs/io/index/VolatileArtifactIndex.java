@@ -54,17 +54,17 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     /**
      * Adds an artifact to the index.
      * 
-     * @param artifact
+     * @param artifactData
      *          An ArtifactData with the artifact to be added to the index,.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact indexArtifact(ArtifactData artifact) {
-        if (artifact == null) {
+    public Artifact indexArtifact(ArtifactData artifactData) {
+        if (artifactData == null) {
           throw new IllegalArgumentException("Null artifact");
         }
 
-        ArtifactIdentifier artifactId = artifact.getIdentifier();
+        ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         if (artifactId == null) {
           throw new IllegalArgumentException("ArtifactData has null identifier");
@@ -84,7 +84,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
                 artifactId.getUri(),
                 artifactId.getVersion(),
                 false,
-                artifact.getStorageUrl()
+                artifactData.getStorageUrl()
         );
 
         index.put(id, indexData);
@@ -127,16 +127,16 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     /**
      * Commits to the index an artifact with a given text index identifier.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          A String with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(String indexDataId) {
-        if (StringUtils.isEmpty(indexDataId)) {
+    public Artifact commitArtifact(String artifactId) {
+        if (StringUtils.isEmpty(artifactId)) {
           throw new IllegalArgumentException("Null or empty identifier");
         }
-        Artifact indexedData = index.get(indexDataId);
+        Artifact indexedData = index.get(artifactId);
 
         if (indexedData != null) {
           indexedData.setCommitted(true);
@@ -148,36 +148,36 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     /**
      * Commits to the index an artifact with a given index identifier UUID.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          An UUID with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(UUID indexDataId) {
-        if (indexDataId == null) {
+    public Artifact commitArtifact(UUID artifactId) {
+        if (artifactId == null) {
           throw new IllegalArgumentException("Null UUID");
         }
-        return commitArtifact(indexDataId.toString());
+        return commitArtifact(artifactId.toString());
     }
 
     /**
      * Removes from the index an artifact with a given text index identifier.
      * 
-     * @param indexDataId
+     * @param artifactId
      *          A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
     @Override
-    public boolean deleteArtifact(String indexDataId) {
-      if (StringUtils.isEmpty(indexDataId)) {
+    public boolean deleteArtifact(String artifactId) {
+      if (StringUtils.isEmpty(artifactId)) {
         throw new IllegalArgumentException("Null or empty identifier");
       }
       boolean result = false;
 
       synchronized (this) {
-        if (index.remove(indexDataId) != null) {
-          result = index.get(indexDataId) == null;
+        if (index.remove(artifactId) != null) {
+          result = index.get(artifactId) == null;
         }
       }
 

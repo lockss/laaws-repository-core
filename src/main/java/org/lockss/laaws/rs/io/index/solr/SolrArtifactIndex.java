@@ -169,12 +169,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
     /**
      * Adds an artifact to the index.
      *
-     * @param artifact An ArtifactData with the artifact to be added to the index,.
+     * @param artifactData An ArtifactData with the artifact to be added to the index,.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact indexArtifact(ArtifactData artifact) throws IOException {
-        ArtifactIdentifier artifactId = artifact.getIdentifier();
+    public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
+        ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create an instance of Artifact to represent the artifact
         Artifact indexData = new Artifact(
@@ -186,7 +186,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 //                artifactId.getVersion(),
                 "2018-10-10T13:00:00Z",
                 false,
-                artifact.getStorageUrl()
+                artifactData.getStorageUrl()
         );
 
         // Add the Artifact to Solr as a bean
@@ -258,14 +258,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
     /**
      * Commits to the index an artifact with a given text index identifier.
      *
-     * @param indexDataId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(String indexDataId) throws IOException {
+    public Artifact commitArtifact(String artifactId) throws IOException {
         // Perform an atomic update
         SolrInputDocument document = new SolrInputDocument();
-        document.addField("id", indexDataId);
+        document.addField("id", artifactId);
 
         // Setup type of field modification, and replacement value
         Map<String, Object> fieldModifier = new HashMap<>();
@@ -281,30 +281,30 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         // Return updated Artifact
-        return getArtifactIndexData(indexDataId);
+        return getArtifactIndexData(artifactId);
     }
 
     /**
      * Commits to the index an artifact with a given index identifier UUID.
      *
-     * @param indexDataId An UUID with the artifact index identifier.
+     * @param artifactId An UUID with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(UUID indexDataId) throws IOException {
-        return commitArtifact(indexDataId.toString());
+    public Artifact commitArtifact(UUID artifactId) throws IOException {
+        return commitArtifact(artifactId.toString());
     }
 
     /**
      * Removes from the index an artifact with a given text index identifier.
      *
-     * @param indexDataId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact index identifier.
      * @throws IOException
      */
     @Override
-    public boolean deleteArtifact(String indexDataId) throws IOException {
+    public boolean deleteArtifact(String artifactId) throws IOException {
         try {
-            solr.deleteById(indexDataId);
+            solr.deleteById(artifactId);
             return true;
         } catch (SolrServerException e) {
             throw new IOException(e);
