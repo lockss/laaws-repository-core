@@ -48,7 +48,7 @@ import java.util.Collection;
 import java.util.HashSet;
 
 /**
- * Common utilities and adapters for LOCKSS Repository ArtifactData objects.
+ * Common utilities and adapters for LOCKSS repository ArtifactData objects.
  */
 public class ArtifactDataUtil {
     private final static Log log = LogFactory.getLog(ArtifactDataUtil.class);
@@ -69,8 +69,8 @@ public class ArtifactDataUtil {
 
 
     /**
-     * Adapter that takes an {@code ArtifactData} and returns an Apache {@code HttpResponse} object representation of the
-     * artifact.
+     * Adapter that takes an {@code ArtifactData} and returns an Apache {@code HttpResponse} object representation of
+     * the artifact.
      *
      * This is effectively the inverse operation of {@code ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
      *
@@ -168,10 +168,10 @@ public class ArtifactDataUtil {
     }
 
     /**
-     * Writes an {@code ArtifactData} encoded as an HTTP response stream to an {@code OutputStream},
+     * Writes an {@code ArtifactData} to an {@code OutputStream} as a HTTP response stream.
      *
      * @param artifact
-     *          The {@code ArtifactData} to encode as an HTTP response stream to write to an {@code OutputStream}.
+     *          The {@code ArtifactData} to encode as an HTTP response stream and write to an {@code OutputStream}.
      * @param output
      *          The {@code OutputStream} to write to.
      * @throws IOException
@@ -202,7 +202,7 @@ public class ArtifactDataUtil {
     }
 
     /**
-     * Writes a {@code HttpResponse} object's HTTP status and headers to an {@code OuptutStream}.
+     * Writes a {@code HttpResponse} object's HTTP status and headers to an {@code OutputStream}.
      * @param response
      *          A {@code HttpResponse} whose HTTP status and headers will be written to the {@code OutputStream}.
      * @param outputBuffer

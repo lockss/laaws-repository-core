@@ -37,10 +37,12 @@ import org.springframework.http.HttpHeaders;
 import java.io.InputStream;
 
 /**
- * TODO: Remote representations of artifacts - for lazy fetching and caching
+ * Experimental remote artifact data to support the lazy fetching and caching of data from remote repositories.
+ *
+ * TODO: Implement
  */
-public class RemoteArtifact extends ArtifactData {
-    public RemoteArtifact(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
+public class RemoteArtifactData extends ArtifactData {
+    public RemoteArtifactData(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
         super(artifactMetadata, inputStream, httpStatus);
     }
 

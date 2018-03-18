@@ -33,9 +33,7 @@ package org.lockss.laaws.rs.model;
 import org.json.JSONObject;
 
 /**
- * This class represents the LOCKSS Repository -specific metadata of an artifact, implemented as a JSON object.
- *
- * E.g., whether an artifact is committed.
+ * Encapsulates the LOCKSS repository -specific metadata of an artifact. E.g., whether an artifact is committed.
  *
  */
 public class RepositoryArtifactMetadata {
@@ -62,6 +60,12 @@ public class RepositoryArtifactMetadata {
       deleted = json.has(REPOSITORY_DELETED_KEY);
     }
 
+    /**
+     * Returns the metadata ID for this class of metadata.
+     *
+     * @return A {@code String} containing the metadata ID.
+     */
+//    @Override
     public String getMetadataId() {
         return LOCKSS_METADATA_ID;
     }

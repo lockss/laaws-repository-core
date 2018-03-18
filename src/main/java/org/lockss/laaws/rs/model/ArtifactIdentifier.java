@@ -34,6 +34,14 @@ import com.google.common.collect.ComparisonChain;
 
 import java.io.Serializable;
 
+/**
+ * Class that serves as an identifier for artifacts.
+ *
+ * Artifacts are identified uniquely by the tuple of (CollectionID, AUID, URL, Version). Within the context of a LOCKSS
+ * repository, they are also uniquely identified by their artifact ID.
+ *
+ * Comparable is implemented to allow for an ordering of artifacts.
+ */
 public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIdentifier> {
     private String artifactId;
     private String collection;
@@ -126,6 +134,10 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
                 .result();
     }
 
+    /**
+     *
+     * @return
+     */
     @Override
     public String toString() {
         return "ArtifactIdentifier{" +

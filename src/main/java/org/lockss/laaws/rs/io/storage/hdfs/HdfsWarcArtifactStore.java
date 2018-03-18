@@ -466,12 +466,15 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier,
                 metadata
         );
 
-        // Get an OutputStream to the AU's metadata file
-        Path metadataFilePath = new Path(getArchicalUnitBasePath(artifactId) + SEPARATOR + metadata.getMetadataId() + WARC_FILE_SUFFIX);
+        // Assemble path to the metadata file
+        Path metadataFilePath = new Path(
+                getArchicalUnitBasePath(artifactId) + SEPARATOR + metadata.getMetadataId() + WARC_FILE_SUFFIX
+        );
 
         // Make sure the WARC file exists
         createWarcFile(metadataFilePath);
 
+        // Get an OutputStream to the AU's metadata file
         FSDataOutputStream fos = fs.append(metadataFilePath);
 
         // Append WARC metadata record to AU's repository metadata file

@@ -1,7 +1,7 @@
 package org.lockss.laaws.rs.util;
 
 /**
- * Class to hold constants related to ArtifactData objects.
+ * Class to hold constants related to artifacts.
  */
 public class ArtifactConstants {
     public static final String ARTIFACTID_ID_KEY = "X-Lockss-ArtifactId";

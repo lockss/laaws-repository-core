@@ -103,7 +103,7 @@ public class ArtifactDataFactory {
             if (additionalMetadata != null) {
                 additionalMetadata.forEach((headerName, headerValues) ->
                         headerValues.forEach((headerValue) -> response.setHeader(headerName, headerValue)
-                        ));
+                ));
             }
 
             return fromHttpResponse(response);
@@ -245,8 +245,10 @@ public class ArtifactDataFactory {
     /**
      * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
+     * Uses a default HTTP response status of HTTP/1.1 200 OK.
+     *
      * @param resourceStream
-     *          An {@code InputStream} containing the byte stream to encode into an {@code ArtifactData}.
+     *          An {@code InputStream} containing the byte stream to instantiate an {@code ArtifactData} from.
      * @return An {@code ArtifactData} wrapping the byte stream.
      */
     public static ArtifactData fromResource(InputStream resourceStream) {
@@ -277,7 +279,7 @@ public class ArtifactDataFactory {
     /**
      * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
-     * Takes a {@code StatusLine} with the HTTP response status associated with this byte stream.
+     * Takes a {@code StatusLine} containing the HTTP response status associated with this byte stream.
      *
      * @param metadata
      *          A Spring {@code HttpHeaders} object containing optional artifact headers.
@@ -314,6 +316,7 @@ public class ArtifactDataFactory {
                         headers.getMimetype()
                 ));
 
+                // TODO: Return null or throw?
                 return null;
             }
 
