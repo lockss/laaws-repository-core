@@ -101,7 +101,7 @@ public class TestVolatileLockssRepository {
             repo.addArtifact(null);
             fail("Attempted to add a null artifact and was expecting IllegalArgumentException to be thrown");
         } catch (IllegalArgumentException e) {
-            String expectedErrMsg = "Cannot add a null artifact to the repository";
+            String expectedErrMsg = "ArtifactData is null";
             assertEquals(expectedErrMsg, e.getMessage());
         } catch (IOException e) {
             fail("Expected IllegalArgumentException but got IOException");
@@ -196,7 +196,7 @@ public class TestVolatileLockssRepository {
 
     @Test
     public void deleteArtifact() {
-        final String expectedErrMsg = "Null collection or artifactId";
+        final String expectedErrMsg = "Null collection ID or artifact ID";
 
         try {
             repo.deleteArtifact(null, null);
