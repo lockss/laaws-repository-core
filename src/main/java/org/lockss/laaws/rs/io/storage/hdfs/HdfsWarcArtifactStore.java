@@ -58,7 +58,7 @@ import java.util.stream.Collectors;
 /**
  * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactStore.
  */
-public class HdfsWarcArtifactStore extends WarcArtifactStore {
+public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
     private final static Log log = LogFactory.getLog(HdfsWarcArtifactStore.class);
     private static final String WARC_FILE_SUFFIX = ".warc";
     public static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
@@ -322,19 +322,19 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
     /**
      * Adds an artifact to the repository.
      *
-     * @param artifact An artifact.
+     * @param artifactData An artifact.
      * @return An artifact identifier for artifact reference within this repository.
      * @throws IOException
      */
     @Override
-    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
+    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
 //        if (index == null) {
             // YES: Cannot proceed without an artifact index - throw RuntimeException
 //            throw new RuntimeException("No artifact index configured!");
 
 //        } else {
             // NO: Add the ArtifactData to the index
-            ArtifactIdentifier artifactId = artifact.getIdentifier();
+            ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
             // Set new artifactId - any existing artifactId is meaningless in this context and should be discarded
             artifactId.setId(UUID.randomUUID().toString());
@@ -363,7 +363,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
 
             try {
                 // Write artifact to WARC file
-                long bytesWritten = this.writeArtifact(artifact, fos);
+                long bytesWritten = this.writeArtifact(artifactData, fos);
 
                 // Calculate offset of next record
 //                offset += bytesWritten;
@@ -378,18 +378,28 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
             fos.close();
 
             // Attach the artifact's repository metadata
-            artifact.setRepositoryMetadata(new RepositoryArtifactMetadata(
+            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
                     artifactId,
                     false,
                     false
             ));
 
             // TODO: Generalize this to write all of an artifact's metadata
-            updateArtifactMetadata(artifactId, artifact.getRepositoryMetadata());
+            updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
-            // Add the artifact to the index
-//            index.indexArtifact(artifact);
-//        }
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + auArtifactsWarcPath);
+        uriBuilder.queryParam("offset", offset);
+        String storageUrl = uriBuilder.toUriString();
+
+        Artifact artifact = new Artifact(
+                artifactId.getId(),
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri(),
+                artifactId.getVersion(),
+                false,
+                storageUrl
+        );
 
         // Return the artifact
         return artifact;
@@ -404,7 +414,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
      * @throws URISyntaxException 
      */
     @Override
-    public ArtifactData getArtifact(Artifact indexData)
+    public ArtifactData getArtifactData(Artifact indexData)
 	throws IOException, URISyntaxException {
         log.info(String.format("Retrieving artifact from store (artifactId: %s)", indexData.toString()));
 
@@ -466,12 +476,15 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
                 metadata
         );
 
-        // Get an OutputStream to the AU's metadata file
-        Path metadataFilePath = new Path(getArchicalUnitBasePath(artifactId) + SEPARATOR + metadata.getMetadataId() + WARC_FILE_SUFFIX);
+        // Assemble path to the metadata file
+        Path metadataFilePath = new Path(
+                getArchicalUnitBasePath(artifactId) + SEPARATOR + metadata.getMetadataId() + WARC_FILE_SUFFIX
+        );
 
         // Make sure the WARC file exists
         createWarcFile(metadataFilePath);
 
+        // Get an OutputStream to the AU's metadata file
         FSDataOutputStream fos = fs.append(metadataFilePath);
 
         // Append WARC metadata record to AU's repository metadata file
@@ -492,9 +505,9 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifact(Artifact indexData)
+    public RepositoryArtifactMetadata commitArtifactData(Artifact indexData)
 	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifact(indexData);
+        ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
         // Set the commit flag and write the metadata to disk
@@ -517,9 +530,9 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore {
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(Artifact indexData)
+    public RepositoryArtifactMetadata deleteArtifactData(Artifact indexData)
 	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifact(indexData);
+        ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
         if (!repoMetadata.isDeleted()) {

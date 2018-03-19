@@ -77,7 +77,7 @@ public class TestArtifactDataFactory {
             "X-Lockss-Collection: coll1\n" +
             "X-Lockss-AuId: auid1\n" +
             "X-Lockss-Uri: url1\n" +
-            "X-Lockss-Version: v1\n" +
+            "X-Lockss-Version: 1\n" +
             "X-Lockss-Origin: warc\n" +
             "\n" +
             ARTIFACT_BYTES;
@@ -143,7 +143,7 @@ public class TestArtifactDataFactory {
             assertEquals("coll1", identifier.getCollection());
             assertEquals("auid1", identifier.getAuid());
             assertEquals("url1", identifier.getUri());
-            assertEquals("v1", identifier.getVersion());
+            assertEquals(1, (int)identifier.getVersion());
 
             HttpHeaders metadata = artifact.getMetadata();
             assertNotNull(metadata);
@@ -199,7 +199,7 @@ public class TestArtifactDataFactory {
             assertEquals("coll1", identifier.getCollection());
             assertEquals("auid1", identifier.getAuid());
             assertEquals("url1", identifier.getUri());
-            assertEquals("v1", identifier.getVersion());
+            assertEquals(1, (int)identifier.getVersion());
 
             HttpHeaders metadata = artifact.getMetadata();
             assertNotNull(metadata);

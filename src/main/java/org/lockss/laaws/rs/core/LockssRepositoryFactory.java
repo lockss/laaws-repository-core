@@ -90,7 +90,7 @@ public class LockssRepositoryFactory {
      *          An Apache Hadoop {@code Configuration} pointing to the HDFS cluster to use for artifact storage.
      * @param basePath
      *          A HDFS {@code Path} containing the base path under the HDFS cluster to use for the storage of artifacts.
-     * @return
+     * @return A {@code BaseLockssRepository} instance configured to use Solr and HDFS.
      */
     public static LockssRepository createLargeLockssRepository(SolrClient solrClient, Configuration hadoopConf, Path basePath) {
         ArtifactIndex index = new SolrArtifactIndex(solrClient);
@@ -103,8 +103,7 @@ public class LockssRepositoryFactory {
      *
      * @param repositoryServiceUrl
      *          Base {@code URL} of the remote LOCKSS Repository service.
-     * @return
-     * Base URL of the remote LOCKSS Repository service.
+     * @return A {@code RestLockssRepository}.
      */
     public static LockssRepository createRestLockssRepository(URL repositoryServiceUrl) {
         return new RestLockssRepository(repositoryServiceUrl);

@@ -103,7 +103,7 @@ public class ArtifactDataFactory {
             if (additionalMetadata != null) {
                 additionalMetadata.forEach((headerName, headerValues) ->
                         headerValues.forEach((headerValue) -> response.setHeader(headerName, headerValue)
-                        ));
+                ));
             }
 
             return fromHttpResponse(response);
@@ -173,12 +173,20 @@ public class ArtifactDataFactory {
      * @return An {@code ArtifactIdentifier}.
      */
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
+        Integer version = -1;
+
+        String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY);
+
+        if ((versionHeader != null) && (!versionHeader.isEmpty())) {
+            version = Integer.valueOf(versionHeader);
+        }
+
         return new ArtifactIdentifier(
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY)
+                version
         );
     }
 
@@ -190,6 +198,14 @@ public class ArtifactDataFactory {
      * @return An {@code ArtifactIdentifier}.
      */
    private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
+        Integer version = -1;
+
+        String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY);
+
+        if ((versionHeader != null) && (!versionHeader.isEmpty())) {
+            version = Integer.valueOf(versionHeader);
+        }
+
         return new ArtifactIdentifier(
                 (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
@@ -197,7 +213,7 @@ public class ArtifactDataFactory {
                 (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
                 (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY)
+                version
         );
     }
 
@@ -245,8 +261,10 @@ public class ArtifactDataFactory {
     /**
      * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
+     * Uses a default HTTP response status of HTTP/1.1 200 OK.
+     *
      * @param resourceStream
-     *          An {@code InputStream} containing the byte stream to encode into an {@code ArtifactData}.
+     *          An {@code InputStream} containing the byte stream to instantiate an {@code ArtifactData} from.
      * @return An {@code ArtifactData} wrapping the byte stream.
      */
     public static ArtifactData fromResource(InputStream resourceStream) {
@@ -277,7 +295,7 @@ public class ArtifactDataFactory {
     /**
      * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
      *
-     * Takes a {@code StatusLine} with the HTTP response status associated with this byte stream.
+     * Takes a {@code StatusLine} containing the HTTP response status associated with this byte stream.
      *
      * @param metadata
      *          A Spring {@code HttpHeaders} object containing optional artifact headers.
@@ -314,6 +332,7 @@ public class ArtifactDataFactory {
                         headers.getMimetype()
                 ));
 
+                // TODO: Return null or throw?
                 return null;
             }
 

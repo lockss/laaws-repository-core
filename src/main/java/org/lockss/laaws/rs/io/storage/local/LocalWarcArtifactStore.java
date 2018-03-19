@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
 /**
  * Local filesystem implementation of WarcArtifactStore.
  */
-public class LocalWarcArtifactStore extends WarcArtifactStore {
+public class LocalWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
     private static final Log log = LogFactory.getLog(LocalWarcArtifactStore.class);
 
     private static final String WARC_FILE_SUFFIX = ".warc";
@@ -255,19 +255,19 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
     /**
      * Adds an artifact to the repository.
      *
-     * @param artifact An artifact.
+     * @param artifactData An artifact.
      * @return An artifact identifier for artifact reference within this repository.
      * @throws IOException
      */
     @Override
-    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
+    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
 //        if (index == null) {
 //             YES: Cannot proceed without an artifact index - throw RuntimeException
 //            throw new RuntimeException("No artifact index configured!");
 //
 //        } else {
             // NO: Add the ArtifactData to the index
-            ArtifactIdentifier artifactId = artifact.getIdentifier();
+            ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
             // Set new artifactId - any existing artifactId is meaningless in this context and should be discarded
             artifactId.setId(UUID.randomUUID().toString());
@@ -290,14 +290,14 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
 
             UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + auArtifactsWarcPath.getAbsolutePath());
             uriBuilder.queryParam("offset", offset);
-            artifact.setStorageUrl(uriBuilder.toUriString());
+            artifactData.setStorageUrl(uriBuilder.toUriString());
 
             // Get an appending OutputStream to the WARC file
             FileOutputStream fos = new FileOutputStream(auArtifactsWarcPath, true);
 
             try {
                 // Write artifact to WARC file
-                long bytesWritten = this.writeArtifact(artifact, fos);
+                long bytesWritten = this.writeArtifact(artifactData, fos);
 
                 // Calculate offset of next record
 //                offset += bytesWritten;
@@ -312,18 +312,27 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
             fos.close();
 
             // Attach the artifact's repository metadata
-            artifact.setRepositoryMetadata(new RepositoryArtifactMetadata(
+            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
                     artifactId,
                     false,
                     false
             ));
 
             // TODO: Generalize this to write all of an artifact's metadata
-            updateArtifactMetadata(artifactId, artifact.getRepositoryMetadata());
+            updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
 //             Add the artifact to the index
 //            index.indexArtifact(artifact);
 //        }
+        Artifact artifact = new Artifact(
+                artifactId.getId(),
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri(),
+                artifactId.getVersion(),
+                false,
+                artifactData.getStorageUrl()
+        );
 
         // Return the artifact
         return artifact;
@@ -332,20 +341,20 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
     /**
      * Retrieves an artifact from the repository storage.
      *
-     * @param indexedData
+     * @param artifact
      * @return An artifact.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public ArtifactData getArtifact(Artifact indexedData) throws IOException, URISyntaxException {
-        log.info(String.format("Retrieving artifact from store (artifactId: %s)", indexedData.getId()));
+    public ArtifactData getArtifactData(Artifact artifact) throws IOException, URISyntaxException {
+        log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.getId()));
 
         // TODO: Remove - only for debugging
-        log.info(indexedData.toString());
+        log.info(artifact.toString());
 
         // Get InputStream to WARC file
-        URI uri = new URI(indexedData.getStorageUrl());
+        URI uri = new URI(artifact.getStorageUrl());
 //        String warcFilePath = uri.getScheme() + uri.getAuthority() + uri.getPath();
         String warcFilePath = uri.getPath();
         InputStream warcStream = new FileInputStream(warcFilePath);
@@ -361,19 +370,19 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
         WARCRecord record = new WARCRecord(warcStream, "LocalWarcArtifactStore#getArtifact", 0);
 
         // Convert the WARCRecord object to an ArtifactData
-        ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
+        ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
 
         // Set artifact's repository metadata
         RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(
-                indexedData.getIdentifier(),
-                indexedData.getCommitted(),
+                artifact.getIdentifier(),
+                artifact.getCommitted(),
                 false
         );
 
-        artifact.setRepositoryMetadata(repoMetadata);
+        artifactData.setRepositoryMetadata(repoMetadata);
 
         // Return an ArtifactData from the WARC record
-        return artifact;
+        return artifactData;
     }
 
     /**
@@ -416,9 +425,9 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifact(Artifact indexData)
+    public RepositoryArtifactMetadata commitArtifactData(Artifact indexData)
 	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifact(indexData);
+        ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
         // Set the commit flag and write the metadata to disk
@@ -443,7 +452,7 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
      */
     public boolean isDeleted(Artifact indexData)
 	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifact(indexData);
+        ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
         return metadata.isDeleted();
     }
@@ -458,7 +467,7 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
      */
     public boolean isCommitted(Artifact indexData)
 	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifact(indexData);
+        ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
         return metadata.isCommitted();
     }
@@ -471,9 +480,9 @@ public class LocalWarcArtifactStore extends WarcArtifactStore {
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(Artifact indexData)
+    public RepositoryArtifactMetadata deleteArtifactData(Artifact indexData)
 	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifact(indexData);
+        ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
         if (!repoMetadata.isDeleted()) {

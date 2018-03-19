@@ -115,7 +115,7 @@ public class ArtifactPredicateBuilder {
      *          A String with the version.
      * @return an ArtifactPredicateBuilder with this object.
      */
-    public ArtifactPredicateBuilder filterByVersion(String version) {
+    public ArtifactPredicateBuilder filterByVersion(Integer version) {
         if (version != null)
             predicates.add(artifact -> artifact.getVersion().equals(version));
         return this;
