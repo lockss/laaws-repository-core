@@ -47,13 +47,13 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     private String collection;
     private String auid;
     private String uri;
-    private String version;
+    private Integer version;
 
-    public ArtifactIdentifier(String collection, String auid, String uri, String version) {
+    public ArtifactIdentifier(String collection, String auid, String uri, Integer version) {
         this(null, collection, auid, uri, version);
     }
 
-    public ArtifactIdentifier(String id, String collection, String auid, String uri, String version) {
+    public ArtifactIdentifier(String id, String collection, String auid, String uri, Integer version) {
         this.artifactId = id;
         this.collection = collection;
         this.auid = auid;
@@ -93,7 +93,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
      *
      * @return ArtifactData version
      */
-    public String getVersion() {
+    public Integer getVersion() {
         return version;
     }
 

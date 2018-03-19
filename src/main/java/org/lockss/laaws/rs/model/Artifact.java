@@ -54,7 +54,7 @@ public class Artifact {
     private String uri;
 
     @Field("version")
-    private String version;
+    private Integer version;
 
     @Field("committed")
     private Boolean committed;
@@ -71,7 +71,7 @@ public class Artifact {
         // Intentionally left blank
     }
 
-    public Artifact(String id, String collection, String auid, String uri, String version, Boolean committed,
+    public Artifact(String id, String collection, String auid, String uri, Integer version, Boolean committed,
                              String storageUrl) {
         if (StringUtils.isEmpty(id)) {
           throw new IllegalArgumentException(
@@ -97,9 +97,9 @@ public class Artifact {
         }
         this.uri = uri;
 
-        if (StringUtils.isEmpty(version)) {
+        if (version == null) {
           throw new IllegalArgumentException(
-              "Cannot create Artifact with null or empty version");
+              "Cannot create Artifact with null version");
         }
         this.version = version;
 
@@ -154,15 +154,19 @@ public class Artifact {
         this.uri = uri;
     }
 
-    public String getVersion() {
+    public Integer getVersion() {
         return version;
     }
 
-    public void setVersion(String version) {
-        if (StringUtils.isEmpty(version)) {
-          throw new IllegalArgumentException(
-              "Cannot set null or empty version");
+    public void setVersion(Integer version) {
+//        if (StringUtils.isEmpty(version)) {
+//          throw new IllegalArgumentException(
+//              "Cannot set null or empty version");
+//        }
+        if (version == null) {
+            throw new IllegalArgumentException("Cannot set null version");
         }
+
         this.version = version;
     }
 
