@@ -40,32 +40,32 @@ import java.net.URISyntaxException;
  *
  * @param <ID> extends {@code ArtifactIdentifier}
  *            Implementation of ArtifactIdentifier to parameterize this interface with.
- * @param <A> extends {@code ArtifactData}
+ * @param <AD> extends {@code ArtifactData}
  *            Implementation of ArtifactData to parameterize this interfac with.
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
-public interface ArtifactStore<ID extends ArtifactIdentifier, A extends ArtifactData, MD extends RepositoryArtifactMetadata> {
+public interface ArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> {
     /**
      * Adds an artifact to this artifact store.
      *
-     * @param artifact
+     * @param artifactData
      *          An {@code ArtifactData} to add to this artifact store.
      * @return Returns the {@code ArtifactData} as it is now recorded in this artifact store.
      * @throws IOException
      */
-    A addArtifact(ArtifactData artifact) throws IOException;
+    Artifact addArtifactData(ArtifactData artifactData) throws IOException;
 
     /**
      * Retrieves an artifact from this artifact store.
      *
-     * @param indexedData
+     * @param artifact
      *          An {@code Artifact} containing a reference to the artifact to receive from storage.
      * @return An {@code ArtifactData} retrieved from this artifact store.
      * @throws IOException
      * @throws URISyntaxException
      */
-    A getArtifact(Artifact indexedData) throws IOException, URISyntaxException;
+    AD getArtifactData(Artifact artifact) throws IOException, URISyntaxException;
 
     /**
      * Updates an artifact's associated metadata in this artifact store.
@@ -82,23 +82,23 @@ public interface ArtifactStore<ID extends ArtifactIdentifier, A extends Artifact
     /**
      * Commits an artifact to this artifact store.
      *
-     * @param artifactId
+     * @param artifact
      *          An {@code Artifact} containing a reference to the artifact to update in storage.
      * @return A {@code RepositoryArtifactMetadata} representing the updated state of this artifact's repository metadata.
      * @throws IOException
      * @throws URISyntaxException
      */
-    RepositoryArtifactMetadata commitArtifact(Artifact artifactId) throws IOException, URISyntaxException;
+    MD commitArtifactData(Artifact artifact) throws IOException, URISyntaxException;
 
     /**
      * Permanently removes an artifact from this artifact store.
      *
-     * @param indexedData
+     * @param artifact
      *          An {@code Artifact} containing a reference to the artifact to remove from this artifact store.
      * @return A {@code RepositoryArtifactMetadata} with the final state of the removed artifact's repository metadata.
      * @throws IOException
      * @throws URISyntaxException
      */
-    RepositoryArtifactMetadata deleteArtifact(Artifact indexedData) throws IOException, URISyntaxException;
+    MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException;
 }
 

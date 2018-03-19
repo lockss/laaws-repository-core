@@ -39,7 +39,7 @@ public class TestArtifactIdentifier {
     private final static String ARTIFACT_COLLECTION = "collection123";
     private final static String ARTIFACT_AUID = "auid123";
     private final static String ARTIFACT_URI = "uri123";
-    private final static String ARTIFACT_VERSION = "version123";
+    private final static Integer ARTIFACT_VERSION = 1;
 
     private ArtifactIdentifier identifier;
 
@@ -81,7 +81,7 @@ public class TestArtifactIdentifier {
                 "c",
                 "a",
                 "u",
-                "v"
+                1
         );
 
         ArtifactIdentifier id2 = new ArtifactIdentifier(
@@ -89,7 +89,7 @@ public class TestArtifactIdentifier {
                 "c",
                 "a",
                 "u",
-                "v"
+                1
         );
 
         assertTrue(id1.compareTo(id2) == 0);
@@ -101,14 +101,14 @@ public class TestArtifactIdentifier {
                 "c",
                 "a",
                 "u2",
-                "v"
+                1
         );
 
         ArtifactIdentifier id2 = new ArtifactIdentifier(
                 "c",
                 "a",
                 "u1",
-                "v"
+                1
         );
 
         assertTrue(id1.compareTo(id2) >= 1);
@@ -120,14 +120,14 @@ public class TestArtifactIdentifier {
                 "b",
                 "a",
                 "u",
-                "v"
+                1
         );
 
         ArtifactIdentifier id2 = new ArtifactIdentifier(
                 "c",
                 "a",
                 "u",
-                "v"
+                1
         );
 
         assertTrue(id1.compareTo(id2) <= -1);

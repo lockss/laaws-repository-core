@@ -42,30 +42,30 @@ import java.net.URISyntaxException;
 /**
  * CephFS implementation of WarcArtifactStore.
  */
-public class CephArtifactStore extends WarcArtifactStore {
+public class CephArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends WarcArtifactStore<ID, AD, MD> {
 
     @Override
-    public ArtifactData addArtifact(ArtifactData artifact) throws IOException {
+    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
         return null;
     }
 
     @Override
-    public ArtifactData getArtifact(Artifact indexedData) throws IOException, URISyntaxException {
+    public AD getArtifactData(Artifact artifact) throws IOException, URISyntaxException {
         return null;
     }
 
     @Override
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
+    public MD updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
         return null;
     }
 
     @Override
-    public RepositoryArtifactMetadata commitArtifact(Artifact artifactId) throws IOException, URISyntaxException {
+    public MD commitArtifactData(Artifact artifact) throws IOException, URISyntaxException {
         return null;
     }
 
     @Override
-    public RepositoryArtifactMetadata deleteArtifact(Artifact indexedData) throws IOException, URISyntaxException {
+    public MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException {
         return null;
     }
 }

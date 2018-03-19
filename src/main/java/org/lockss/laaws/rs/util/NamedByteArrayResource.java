@@ -33,7 +33,7 @@ package org.lockss.laaws.rs.util;
 import org.springframework.core.io.ByteArrayResource;
 
 /**
- * Extends ByteArrayResource to implement getFilename so that it's possible to represent files with byte arrays.
+ * Extends ByteArrayResource to implement getFilename().
  *
  * This is necessary so that FormHttpMessageConverter#getFilename returns a String instead of null (which is the
  * default return of Resource#getFilename). Then HttpHeaders#setContentDispositionFormData correctly includes
