@@ -48,7 +48,7 @@ public interface ArtifactIndex {
      *          An {@code ArtifactData} with the artifact to be indexed.
      * @return An {@code Artifact} with the artifact indexing data.
      */
-    Artifact indexArtifact(ArtifactData artifact) throws IOException;
+    Artifact indexArtifact(ArtifactData artifactData) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given text index
@@ -120,10 +120,9 @@ public interface ArtifactIndex {
     boolean artifactExists(String artifactId) throws IOException;
 
     /**
-     * Provides the collection identifiers of the committed artifacts in the
-     * index.
-     * 
-     * @return an {@code Iterator<String>} with the index committed artifacts
+     * Provides the collection identifiers of the committed artifacts in the index.
+     *
+     * @return An {@code Iterator<String>} with the index committed artifacts
      * collection identifiers.
      */
     Iterator<String> getCollectionIds() throws IOException;
@@ -139,10 +138,13 @@ public interface ArtifactIndex {
     Iterator<String> getAuIds(String collection) throws IOException;
 
     /**
-     * 
+     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+     *
      * @param collection
+     *          A {@code String} containing the collection ID.
      * @param auid
-     * @return
+     *          A {@code String} containing the Archival Unit ID.
+     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
     Iterator<Artifact> getAllArtifacts(String collection,
@@ -150,26 +152,29 @@ public interface ArtifactIndex {
         throws IOException;
     
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit.
-     * 
+     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     Iterator<Artifact> getAllArtifactsAllVersions(String collection,
                                                   String auid)
         throws IOException;
 
     /**
-     * 
+     * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
+     * Unit and collection.
+     *
      * @param collection
+     *          A {@code String} containing the collection ID.
      * @param auid
+     *          A {@code String} containing the Archival Unit ID.
      * @param prefix
-     * @return
+     *          A {@code String} containing a URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
     Iterator<Artifact> getAllArtifactsWithPrefix(String collection,
@@ -178,18 +183,17 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain a URL with a given prefix.
-     * 
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
+     * collection.
+     *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain a URL with the given prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     *         prefix from an AU.
      */
     Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
                                                             String auid,
@@ -197,18 +201,16 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain an exact match of a URL.
-     * 
+     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+     *
      * @param collection
-     *          A String with the collection identifier.
+     *          A {@code String} with the collection identifier.
      * @param auid
-     *          A String with the Archival Unit identifier.
+     *          A {@code String} with the Archival Unit identifier.
      * @param url
-     *          A String with the URL to be matched.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain an exact match of a URL.
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
+     *         Archival Unit.
      */
     Iterator<Artifact> getArtifactAllVersions(String collection,
                                               String auid,
@@ -216,11 +218,15 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * 
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+     *
      * @param collection
+     *          A {@code String} containing the collection ID.
      * @param auid
+     *          A {@code String} containing the Archival Unit ID.
      * @param url
-     * @return
+     *          A {@code String} containing a URL.
+     * @return The {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     Artifact getArtifact(String collection,
@@ -229,10 +235,8 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain an exact match of a URL and that match a
-     * given version.
-     * 
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
@@ -241,24 +245,11 @@ public interface ArtifactIndex {
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain an exact match of a URL and that match the given
-     *         version.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     Artifact getArtifactVersion(String collection,
                                 String auid,
                                 String url,
                                 String version)
         throws IOException;
-
-    /**
-     * Provides the artifacts in the index that result from a given query.
-     * 
-     * @param query
-     *          An {@code Iterator<Artifact>} with the query.
-     * @return an {@code Iterator<Artifact>} with the artifacts
-     *         resulting from the query.
-     */
-//    Iterator<Artifact> query(ArtifactPredicateBuilder query);
 }

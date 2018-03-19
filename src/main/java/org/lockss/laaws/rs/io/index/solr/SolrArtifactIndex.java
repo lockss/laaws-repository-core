@@ -177,28 +177,26 @@ public class SolrArtifactIndex implements ArtifactIndex {
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create an instance of Artifact to represent the artifact
-        Artifact indexData = new Artifact(
+        Artifact artifact = new Artifact(
                 artifactId.getId(),
                 artifactId.getCollection(),
                 artifactId.getAuid(),
                 artifactId.getUri(),
-                // TODO: Support for artifact version
-//                artifactId.getVersion(),
-                "2018-10-10T13:00:00Z",
+                artifactId.getVersion(),
                 false,
                 artifactData.getStorageUrl()
         );
 
         // Add the Artifact to Solr as a bean
         try {
-            this.solr.addBean(indexData);
+            this.solr.addBean(artifact);
             this.solr.commit();
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
 
         // Return the Artifact added to the Solr collection
-        return indexData;
+        return artifact;
     }
 
     /**
@@ -338,10 +336,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the collection identifiers of the committed artifacts in the
-     * index.
+     * Provides the collection identifiers of the committed artifacts in the index.
      *
-     * @return an {@code Iterator<String>} with the index committed artifacts
+     * @return An {@code Iterator<String>} with the index committed artifacts
      * collection identifiers.
      */
     @Override
@@ -372,7 +369,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
     /**
      * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
      *
-     * @param collection A {@code String} containing the LOCKSS repository collection ID.
+     * @param collection
+     *          A {@code String} containing the LOCKSS repository collection ID.
      * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
      * @throws IOException
      */
@@ -395,13 +393,28 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit.
+     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
      *
-     * @param collection A String with the collection identifier.
-     * @param auid       A String with the Archival Unit identifier.
-     * @return an {@code Iterator<Artifact>} with the committed
-     * artifacts in the collection that belong to the Archival Unit.
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
+     * @throws IOException
+     */
+    @Override
+    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+        return null;
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
     public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
@@ -415,15 +428,35 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain a URL with a given prefix.
+     * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
+     * Unit and collection.
      *
-     * @param collection A String with the collection identifier.
-     * @param auid       A String with the Archival Unit identifier.
-     * @param prefix     A String with the URL prefix.
-     * @return an {@code Iterator<Artifact>} with the committed
-     * artifacts in the collection that belong to the Archival Unit and
-     * that contain a URL with the given prefix.
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @param prefix
+     *          A {@code String} containing a URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
+     * @throws IOException
+     */
+    @Override
+    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+        return null;
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
+     * collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     *         prefix from an AU.
      */
     @Override
     public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
@@ -438,15 +471,16 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain an exact match of a URL.
+     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
      *
-     * @param collection A String with the collection identifier.
-     * @param auid       A String with the Archival Unit identifier.
-     * @param url        A String with the URL to be matched.
-     * @return an {@code Iterator<Artifact>} with the committed
-     * artifacts in the collection that belong to the Archival Unit and
-     * that contain an exact match of a URL.
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param auid
+     *          A {@code String} with the Archival Unit identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
+     *         Archival Unit.
      */
     @Override
     public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
@@ -461,18 +495,34 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain an exact match of a URL and that match a
-     * given version.
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
      *
-     * @param collection A String with the collection identifier.
-     * @param auid       A String with the Archival Unit identifier.
-     * @param url        A String with the URL to be matched.
-     * @param version    A String with the version.
-     * @return an {@code Iterator<Artifact>} with the committed
-     * artifacts in the collection that belong to the Archival Unit and
-     * that contain an exact match of a URL and that match the given
-     * version.
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @param url
+     *          A {@code String} containing a URL.
+     * @return An {@code Artifact} representing the latest version of the URL in the AU.
+     * @throws IOException
+     */
+    @Override
+    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+        return null;
+    }
+
+    /**
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param url
+     *          A String with the URL to be matched.
+     * @param version
+     *          A String with the version.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
     public Artifact getArtifactVersion(String collection, String auid, String url, String version) throws IOException {
@@ -484,7 +534,17 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
         q.addFilterQuery(String.format("version:%s", version));
 
-        return query(q);
+        Iterator<Artifact> result = query(q);
+        if (result.hasNext()) {
+            Artifact artifact = result.next();
+            if (result.hasNext()) {
+                log.warn("More than one artifact found having same (Collection, AUID, URL, Version)");
+            }
+
+            return artifact;
+        }
+
+        return null;
     }
 
     /**
