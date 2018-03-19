@@ -452,7 +452,7 @@ public class RestLockssRepository implements LockssRepository {
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, String version) {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
         return null;
     }
 

@@ -78,8 +78,8 @@ public class TestVolatileWarcArtifactStore {
                 "OK"
         );
 
-        aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", "v1");
-        aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", "v2");
+        aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);
+        aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", 2);
 
         md1 = new RepositoryArtifactMetadata(aid1, false, false);
         md2 = new RepositoryArtifactMetadata(aid2, true, false);
@@ -140,7 +140,7 @@ public class TestVolatileWarcArtifactStore {
                     "coll3",
                     "auid3",
                     "uri",
-                    "1",
+                    1,
                     false,
                     "fake"
             );

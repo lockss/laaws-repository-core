@@ -162,7 +162,7 @@ public abstract class WarcArtifactStore<ID extends ArtifactIdentifier, AD extend
         // Mandatory WARC record headers
 //        record.setRecordId(URI.create(UUID.randomUUID().toString()));
         record.setRecordId(URI.create(artifactId.getId()));
-        record.setCreate14DigitDate(artifactId.getVersion());
+        record.setCreate14DigitDate("TODO"); // TODO
         record.setType(WARCRecordType.response);
 
         // Optional WARC record headers
@@ -175,7 +175,7 @@ public abstract class WarcArtifactStore<ID extends ArtifactIdentifier, AD extend
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, artifactId.getCollection());
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, artifactId.getAuid());
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_URI_KEY, artifactId.getUri());
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, artifactId.getVersion());
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
         // We must determine the size of the WARC payload (which is an artifact encoded as an HTTP response stream)
         // but it is not possible to determine the final size without reading the InputStream entirely, so we use a

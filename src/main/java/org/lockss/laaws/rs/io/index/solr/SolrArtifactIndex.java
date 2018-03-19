@@ -99,7 +99,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
             versionFieldAttributes.put("docValues", true);
 //            createSolrField(solr,"version", "pdate", versionFieldAttributes);
-            createSolrField(solr,"version", "string");
+            createSolrField(solr,"version", "pint");
 
         } catch (IOException e) {
             throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
@@ -525,7 +525,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, String version) throws IOException {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));

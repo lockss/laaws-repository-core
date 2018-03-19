@@ -234,7 +234,7 @@ public interface LockssRepository {
     Artifact getArtifactVersion(String collection,
                                 String auid,
                                 String url,
-                                String version)
+                                Integer version)
         throws IOException;
 
 }

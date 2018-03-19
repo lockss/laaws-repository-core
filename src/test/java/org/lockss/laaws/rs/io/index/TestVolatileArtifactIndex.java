@@ -60,9 +60,9 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", "v1");
+    aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);
     uuid = UUID.randomUUID();
-    aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", "v2");
+    aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", 2);
 
     md1 = new RepositoryArtifactMetadata(aid1, false, false);
     md2 = new RepositoryArtifactMetadata(aid2, true, false);
@@ -104,7 +104,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertEquals("coll1", aidata.getCollection());
     assertEquals("auid1", aidata.getAuid());
     assertEquals("uri1", aidata.getUri());
-    assertEquals("v1", aidata.getVersion());
+    assertEquals(1, (int)aidata.getVersion());
     assertEquals("surl1", aidata.getStorageUrl());
     assertEquals(false, aidata.getCommitted());
     assertEquals(aidata, index.getArtifact("id1"));
@@ -115,7 +115,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertEquals("coll2", aidata.getCollection());
     assertEquals("auid2", aidata.getAuid());
     assertEquals("uri2", aidata.getUri());
-    assertEquals("v2", aidata.getVersion());
+    assertEquals(2, (int)aidata.getVersion());
     assertEquals("surl2", aidata.getStorageUrl());
     assertEquals(false, aidata.getCommitted());
     assertEquals(aidata, index.getArtifact(uuid.toString()));
@@ -126,7 +126,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertEquals("coll2", aidata.getCollection());
     assertEquals("auid2", aidata.getAuid());
     assertEquals("uri2", aidata.getUri());
-    assertEquals("v2", aidata.getVersion());
+    assertEquals(2, (int)aidata.getVersion());
     assertEquals("surl2", aidata.getStorageUrl());
     assertEquals(false, aidata.getCommitted());
     assertEquals(aidata, index.getArtifact(uuid.toString()));
@@ -480,7 +480,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     // Prefix "uri" yields "uri2"
     Iterator<Artifact> iter3 = index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri");
     assertTrue(iter3.hasNext());
-    Artifact art3 = iter1.next();
+    Artifact art3 = iter3.next();
     assertEquals(uuid.toString(), art3.getId());
     assertEquals("coll2", art3.getCollection());
     assertEquals("auid2", art3.getAuid());
@@ -490,7 +490,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     // Prefix "uri2" yields "uri2"
     Iterator<Artifact> iter4 = index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2");
     assertTrue(iter4.hasNext());
-    Artifact art4 = iter1.next();
+    Artifact art4 = iter4.next();
     assertEquals(uuid.toString(), art4.getId());
     assertEquals("coll2", art4.getCollection());
     assertEquals("auid2", art4.getAuid());
@@ -569,31 +569,31 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(iter2.hasNext());
 
     // Failed retrievals
-    assertNull(index.getArtifactVersion("coll1", "auid1", "uri", "v2"));
-    assertNull(index.getArtifactVersion("coll1", "auid1", "uri1", "v2"));
-    assertNull(index.getArtifactVersion("coll1", "auid1", "uri", "v1"));
+    assertNull(index.getArtifactVersion("coll1", "auid1", "uri", 2));
+    assertNull(index.getArtifactVersion("coll1", "auid1", "uri1", 2));
+    assertNull(index.getArtifactVersion("coll1", "auid1", "uri", 1));
 
     // Successful retrieval
-    Artifact art3 = index.getArtifactVersion("coll1", "auid1", "uri1", "v1");
+    Artifact art3 = index.getArtifactVersion("coll1", "auid1", "uri1", 1);
     assertEquals("id1", art3.getId());
     assertEquals("coll1", art3.getCollection());
     assertEquals("auid1", art3.getAuid());
     assertEquals("uri1", art3.getUri());
-    assertEquals("v1", art3.getVersion());
+    assertEquals(1, (int)art3.getVersion());
 
     // Failed retrievals
-    assertNull(index.getArtifactVersion("coll2", "auid2", "uri", "v1"));
-    assertNull(index.getArtifactVersion("coll2", "auid2", "uri2", "v1"));
-    assertNull(index.getArtifactVersion("coll2", "auid2", "uri", "v2"));
+    assertNull(index.getArtifactVersion("coll2", "auid2", "uri", 1));
+    assertNull(index.getArtifactVersion("coll2", "auid2", "uri2", 1));
+    assertNull(index.getArtifactVersion("coll2", "auid2", "uri", 2));
 
     // Successful retrieval
-    Artifact art4 = index.getArtifactVersion("coll2", "auid2", "uri2", "v2");
+    Artifact art4 = index.getArtifactVersion("coll2", "auid2", "uri2", 2);
     assertNotNull(art4);
     assertEquals(uuid.toString(), art4.getId());
     assertEquals("coll2", art4.getCollection());
     assertEquals("auid2", art4.getAuid());
     assertEquals("uri2", art4.getUri());
-    assertEquals("v2", art4.getVersion());
+    assertEquals(2, (int)art4.getVersion());
   }
 
   @Test
@@ -636,7 +636,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     query.filterByURIMatch("uri1");
     assertTrue(index.query(query).hasNext());
 
-    query.filterByVersion("v1");
+    query.filterByVersion(1);
     assertTrue(index.query(query).hasNext());
 
     query = new ArtifactPredicateBuilder();
@@ -676,7 +676,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(index.query(query).hasNext());
 
     query = new ArtifactPredicateBuilder();
-    query.filterByVersion("unknown");
+    query.filterByVersion(123);
     assertFalse(index.query(query).hasNext());
 
     index.commitArtifact(artifact1.getIdentifier().getId());

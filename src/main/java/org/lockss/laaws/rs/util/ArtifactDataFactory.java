@@ -173,12 +173,20 @@ public class ArtifactDataFactory {
      * @return An {@code ArtifactIdentifier}.
      */
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
+        Integer version = -1;
+
+        String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY);
+
+        if ((versionHeader != null) && (!versionHeader.isEmpty())) {
+            version = Integer.valueOf(versionHeader);
+        }
+
         return new ArtifactIdentifier(
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
                 getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY)
+                version
         );
     }
 
@@ -190,6 +198,14 @@ public class ArtifactDataFactory {
      * @return An {@code ArtifactIdentifier}.
      */
    private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
+        Integer version = -1;
+
+        String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY);
+
+        if ((versionHeader != null) && (!versionHeader.isEmpty())) {
+            version = Integer.valueOf(versionHeader);
+        }
+
         return new ArtifactIdentifier(
                 (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
@@ -197,7 +213,7 @@ public class ArtifactDataFactory {
                 (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
                 (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY)
+                version
         );
     }
 

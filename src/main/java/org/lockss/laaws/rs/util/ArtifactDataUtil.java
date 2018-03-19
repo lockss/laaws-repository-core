@@ -130,7 +130,7 @@ public class ArtifactDataUtil {
         headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, id.getCollection()));
         headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, id.getAuid()));
         headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_URI_KEY, id.getUri()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, id.getVersion()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, String.valueOf(id.getVersion())));
 
         return headers.toArray(new Header[headers.size()]);
     }

@@ -79,9 +79,9 @@ public class TestVolatileLockssRepository {
                 "OK"
         );
 
-        aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", "v1");
-        aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", "v2");
-        aid3 = new ArtifactIdentifier("id3", "coll1", "auid1", "uri2", "v1");
+        aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);
+        aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", 2);
+        aid3 = new ArtifactIdentifier("id3", "coll1", "auid1", "uri2", 1);
 
         md1 = new RepositoryArtifactMetadata(aid1, false, false);
         md2 = new RepositoryArtifactMetadata(aid2, true, false);

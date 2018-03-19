@@ -64,7 +64,7 @@ public class TestBaseLockssRepository {
                 collection,
                 auid,
                 "http://localhost/" + UUID.randomUUID().toString(),
-                "0"
+                0
         );
 
         // Create an InputStream

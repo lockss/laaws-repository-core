@@ -328,7 +328,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, String version) throws IOException {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
         return index.getArtifactVersion(collection, auid, url, version);
     }
 }

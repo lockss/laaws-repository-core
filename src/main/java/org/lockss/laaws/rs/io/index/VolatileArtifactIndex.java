@@ -402,7 +402,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, String version) {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
         q.filterByCommitStatus(true);
         q.filterByCollection(collection);
