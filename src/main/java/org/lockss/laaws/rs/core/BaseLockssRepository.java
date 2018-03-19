@@ -192,8 +192,7 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the collection identifiers of the committed artifacts in the
-     * index.
+     * Provides the collection identifiers of the committed artifacts in the index.
      *
      * @return An {@code Iterator<String>} with the index committed artifacts
      * collection identifiers.
@@ -204,11 +203,12 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Returns an iterator over the Archival Unit IDs (AUIDs) in this collection.
+     * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
      *
      * @param collection
-     *          A {@code String} with the collection identifier.
-     * @return A {@code Iterator<String>} with the AUIDs in the collection.
+     *          A {@code String} containing the LOCKSS repository collection ID.
+     * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+     * @throws IOException
      */
     @Override
     public Iterator<String> getAuIds(String collection) throws IOException {
@@ -216,15 +216,28 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit.
+     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
-     *          A {@code String} with the collection identifier.
+     *          A {@code String} containing the collection ID.
      * @param auid
-     *          A {@code String} with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit.
+     *          A {@code String} containing the Archival Unit ID.
+     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
+     * @throws IOException
+     */
+    @Override
+    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+        return index.getAllArtifacts(collection, auid);
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
     public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
@@ -232,18 +245,35 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain a URL with a given prefix.
+     * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
+     * Unit and collection.
      *
      * @param collection
-     *          A {@code String} with the collection identifier.
+     *          A {@code String} containing the collection ID.
      * @param auid
-     *          A {@code String} with the Archival Unit identifier.
+     *          A {@code String} containing the Archival Unit ID.
      * @param prefix
-     *          A {@code String} with the URL prefix.
-     * @return An {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain a URL with the given prefix.
+     *          A {@code String} containing a URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
+     * @throws IOException
+     */
+    @Override
+    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+        return index.getAllArtifactsWithPrefix(collection, auid, prefix);
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
+     * collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     *         prefix from an AU.
      */
     @Override
     public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
@@ -251,8 +281,7 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain an exact match of a URL.
+     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A {@code String} with the collection identifier.
@@ -260,9 +289,8 @@ public class BaseLockssRepository implements LockssRepository {
      *          A {@code String} with the Archival Unit identifier.
      * @param url
      *          A {@code String} with the URL to be matched.
-     * @return An {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain an exact match of a URL.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
+     *         Archival Unit.
      */
     @Override
     public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
@@ -270,22 +298,34 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain an exact match of a URL and that match a
-     * given version.
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
      *
      * @param collection
-     *          A {@code String} with the collection identifier.
+     *          A {@code String} containing the collection ID.
      * @param auid
-     *          A {@code String} with the Archival Unit identifier.
+     *          A {@code String} containing the Archival Unit ID.
      * @param url
-     *          A {@code String} with the URL to be matched.
+     *          A {@code String} containing a URL.
+     * @return The {@code Artifact} representing the latest version of the URL in the AU.
+     * @throws IOException
+     */
+    @Override
+    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+        return index.getArtifact(collection, auid, url);
+    }
+
+    /**
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param url
+     *          A String with the URL to be matched.
      * @param version
-     *          A {@code String} with the version.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain an exact match of a URL and that match the given
-     *         version.
+     *          A String with the version.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
     public Artifact getArtifactVersion(String collection, String auid, String url, String version) throws IOException {
