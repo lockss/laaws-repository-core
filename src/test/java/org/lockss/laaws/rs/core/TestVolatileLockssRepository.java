@@ -392,19 +392,19 @@ public class TestVolatileLockssRepository {
         try {
             Iterator<Artifact> result = null;
 
-            result = repo.getArtifactsInAU(null, null);
+            result = repo.getAllArtifactsAllVersions(null, null);
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAU(null, "unknown");
+            result = repo.getAllArtifactsAllVersions(null, "unknown");
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            repo.getArtifactsInAU("unknown", null);
+            repo.getAllArtifactsAllVersions("unknown", null);
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            repo.getArtifactsInAU("unknown", "unknown");
+            repo.getAllArtifactsAllVersions("unknown", "unknown");
             assertNotNull(result);
             assertFalse(result.hasNext());
         } catch (IOException e) {
@@ -417,13 +417,13 @@ public class TestVolatileLockssRepository {
 
             Iterator<Artifact> result = null;
 
-            result = repo.getArtifactsInAU(aid1.getCollection(), aid1.getAuid());
+            result = repo.getAllArtifactsAllVersions(aid1.getCollection(), aid1.getAuid());
             assertNotNull(result);
             assertFalse(result.hasNext());
 
             repo.commitArtifact(aid1.getCollection(), aid1.getId());
 
-            result = repo.getArtifactsInAU(aid1.getCollection(), aid1.getAuid());
+            result = repo.getAllArtifactsAllVersions(aid1.getCollection(), aid1.getAuid());
             assertNotNull(result);
             assertTrue(result.hasNext());
 
@@ -449,35 +449,35 @@ public class TestVolatileLockssRepository {
 
 //            repo.commitArtifact(aid1.getCollection(), aid1.getId());
 
-            result = repo.getArtifactsInAUWithURL(null, null, null);
+            result = repo.getAllArtifactsWithPrefixAllVersions(null, null, null);
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), null, null);
+            result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), null, null);
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(null, aid1.getAuid(), null);
+            result = repo.getAllArtifactsWithPrefixAllVersions(null, aid1.getAuid(), null);
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(null, null, "url");
+            result = repo.getAllArtifactsWithPrefixAllVersions(null, null, "url");
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), null);
+            result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(), null);
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), null,  "url");
+            result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), null,  "url");
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(null, aid1.getAuid(),  "url");
+            result = repo.getAllArtifactsWithPrefixAllVersions(null, aid1.getAuid(),  "url");
             assertNotNull(result);
             assertFalse(result.hasNext());
 
-            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(),  "url");
+            result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(),  "url");
             assertNotNull(result);
             assertFalse(result.hasNext());
 
@@ -492,13 +492,13 @@ public class TestVolatileLockssRepository {
 
             Iterator<Artifact> result = null;
 
-            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
+            result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
             assertNotNull(result);
             assertFalse(result.hasNext());
 
             repo.commitArtifact(aid1.getCollection(), aid1.getId());
 
-            result = repo.getArtifactsInAUWithURL(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
+            result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(), aid1.getUri());
             assertNotNull(result);
             assertTrue(result.hasNext());
 

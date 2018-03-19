@@ -227,8 +227,8 @@ public class BaseLockssRepository implements LockssRepository {
      *         artifacts in the collection that belong to the Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAU(String collection, String auid) throws IOException {
-        return index.getArtifactsInAU(collection, auid);
+    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+        return index.getAllArtifactsAllVersions(collection, auid);
     }
 
     /**
@@ -246,8 +246,8 @@ public class BaseLockssRepository implements LockssRepository {
      *         that contain a URL with the given prefix.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException {
-        return index.getArtifactsInAUWithURL(collection, auid, prefix);
+    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+        return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
     }
 
     /**
@@ -265,31 +265,8 @@ public class BaseLockssRepository implements LockssRepository {
      *         that contain an exact match of a URL.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection, String auid, String url) throws IOException {
-        return index.getArtifactsInAUWithURLMatch(collection, auid, url);
-    }
-
-    /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain a URL with a given prefix and that match a
-     * given version.
-     *
-     * @param collection
-     *          A {@code String} with the collection identifier.
-     * @param auid
-     *          A {@code String} with the Archival Unit identifier.
-     * @param prefix
-     *          A {@code String} with the URL prefix.
-     * @param version
-     *          A {@code String} with the version.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain a URL with the given prefix and that match the given
-     *         version.
-     */
-    @Override
-    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix, String version) throws IOException {
-        return index.getArtifactsInAUWithURL(collection, auid, prefix, version);
+    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+        return index.getArtifactAllVersions(collection, auid, url);
     }
 
     /**
@@ -311,7 +288,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         version.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection, String auid, String url, String version) throws IOException {
-        return index.getArtifactsInAUWithURLMatch(collection, auid, url, version);
+    public Artifact getArtifactVersion(String collection, String auid, String url, String version) throws IOException {
+        return index.getArtifactVersion(collection, auid, url, version);
     }
 }

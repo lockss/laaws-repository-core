@@ -257,7 +257,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         artifacts in the collection that belong to the Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAU(String collection, String auid) {
+    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -281,7 +281,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         that contain a URL with the given prefix.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) {
+    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -306,7 +306,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         that contain an exact match of a URL.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURLMatch(
+    public Iterator<Artifact> getArtifactAllVersions(
 	String collection, String auid, String url) {
       ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
       query.filterByCommitStatus(true);
@@ -315,38 +315,6 @@ public class VolatileArtifactIndex implements ArtifactIndex {
       query.filterByURIMatch(url);
 
       return index.values().stream().filter(query.build()).iterator();
-    }
-
-    /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain a URL with a given prefix and that match a
-     * given version.
-     * 
-     * @param collection
-     *          A String with the collection identifier.
-     * @param auid
-     *          A String with the Archival Unit identifier.
-     * @param prefix
-     *          A String with the URL prefix.
-     * @param version
-     *          A String with the version.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain a URL with the given prefix and that match the given
-     *         version.
-     */
-    @Override
-    public Iterator<Artifact> getArtifactsInAUWithURL(
-	String collection, String auid, String prefix, String version) {
-      ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-      query.filterByCommitStatus(true);
-      query.filterByCollection(collection);
-      query.filterByAuid(auid);
-      query.filterByURIPrefix(prefix);
-      query.filterByVersion(version);
-
-      return index.values().stream().filter(query.build()).iterator();
-
     }
 
     /**
@@ -368,7 +336,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         version.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURLMatch(
+    public Artifact getArtifactVersion(
 	String collection, String auid, String url, String version) {
       ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
       query.filterByCommitStatus(true);

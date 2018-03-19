@@ -122,6 +122,17 @@ public interface LockssRepository {
     Iterator<String> getAuIds(String collection) throws IOException;
 
     /**
+     * 
+     * @param collection
+     * @param auid
+     * @return
+     * @throws IOException
+     */
+    Iterator<Artifact> getAllArtifacts(String collection,
+                                       String auid)
+        throws IOException;
+
+    /**
      * Provides the committed artifacts in a collection that belong to an
      * Archival Unit.
      *
@@ -132,7 +143,22 @@ public interface LockssRepository {
      * @return An {@code Iterator<Artifact>} with the committed
      *         artifacts in the collection that belong to the Archival Unit.
      */
-    Iterator<Artifact> getArtifactsInAU(String collection, String auid) throws IOException;
+    Iterator<Artifact> getAllArtifactsAllVersions(String collection,
+                                                  String auid)
+        throws IOException;
+
+    /**
+     * 
+     * @param collection
+     * @param auid
+     * @param prefix
+     * @return
+     * @throws IOException
+     */
+    Iterator<Artifact> getAllArtifactsWithPrefix(String collection,
+                                                 String auid,
+                                                 String prefix)
+        throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -148,7 +174,10 @@ public interface LockssRepository {
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain a URL with the given prefix.
      */
-    Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) throws IOException;
+    Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
+                                                            String auid,
+                                                            String prefix)
+        throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -164,29 +193,23 @@ public interface LockssRepository {
      *         artifacts in the collection that belong to the Archival Unit and
      *         that contain an exact match of a URL.
      */
-    Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection,
-                                                             String auid, String url) throws IOException;
+    Iterator<Artifact> getArtifactAllVersions(String collection,
+                                              String auid,
+                                              String url)
+        throws IOException;
 
     /**
-     * Provides the committed artifacts in a collection that belong to an
-     * Archival Unit and that contain a URL with a given prefix and that match a
-     * given version.
-     *
+     * 
      * @param collection
-     *          A {@code String} with the collection identifier.
      * @param auid
-     *          A {@code String} with the Archival Unit identifier.
-     * @param prefix
-     *          A {@code String} with the URL prefix.
-     * @param version
-     *          A {@code String} with the version.
-     * @return an {@code Iterator<Artifact>} with the committed
-     *         artifacts in the collection that belong to the Archival Unit and
-     *         that contain a URL with the given prefix and that match the given
-     *         version.
+     * @param url
+     * @return
+     * @throws IOException
      */
-    Iterator<Artifact> getArtifactsInAUWithURL(String collection,
-                                                        String auid, String prefix, String version) throws IOException;
+    Artifact getArtifact(String collection,
+                         String auid,
+                         String url)
+        throws IOException;
 
     /**
      * Provides the committed artifacts in a collection that belong to an
@@ -206,6 +229,10 @@ public interface LockssRepository {
      *         that contain an exact match of a URL and that match the given
      *         version.
      */
-    Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection,
-                                                             String auid, String url, String version) throws IOException;
+    Artifact getArtifactVersion(String collection,
+                                String auid,
+                                String url,
+                                String version)
+        throws IOException;
+
 }

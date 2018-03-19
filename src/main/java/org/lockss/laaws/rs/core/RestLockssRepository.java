@@ -347,7 +347,7 @@ public class RestLockssRepository implements LockssRepository {
      *         artifacts in the collection that belong to the Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAU(String collection, String auid) {
+    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(buildEndpoint(collection))
                 .queryParam("auid", auid);
 
@@ -369,22 +369,17 @@ public class RestLockssRepository implements LockssRepository {
      *         that contain a URL with the given prefix.
      */
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix) {
+    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         return null;
     }
 
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection, String auid, String url) {
+    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
         return null;
     }
 
     @Override
-    public Iterator<Artifact> getArtifactsInAUWithURL(String collection, String auid, String prefix, String version) {
-        return null;
-    }
-
-    @Override
-    public Iterator<Artifact> getArtifactsInAUWithURLMatch(String collection, String auid, String url, String version) {
+    public Artifact getArtifactVersion(String collection, String auid, String url, String version) {
         return null;
     }
 
