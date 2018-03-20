@@ -35,8 +35,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.solr.client.solrj.SolrClient;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
-import org.lockss.laaws.rs.io.storage.ArtifactStore;
-import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
 
 import java.io.File;
 import java.net.URL;
@@ -94,7 +94,7 @@ public class LockssRepositoryFactory {
      */
     public static LockssRepository createLargeLockssRepository(SolrClient solrClient, Configuration hadoopConf, Path basePath) {
         ArtifactIndex index = new SolrArtifactIndex(solrClient);
-        ArtifactStore store = new HdfsWarcArtifactStore(hadoopConf, basePath);
+        ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, basePath);
         return new BaseLockssRepository(index, store);
     }
 

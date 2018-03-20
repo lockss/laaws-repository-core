@@ -30,7 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage.ceph;
 
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
@@ -40,9 +40,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 /**
- * CephFS implementation of WarcArtifactStore.
+ * CephFS implementation of WarcArtifactDataStore.
  */
-public class CephArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends WarcArtifactStore<ID, AD, MD> {
+public class CephArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends WarcArtifactDataStore<ID, AD, MD> {
 
     @Override
     public Artifact addArtifactData(ArtifactData artifactData) throws IOException {

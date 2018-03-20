@@ -31,7 +31,7 @@
 package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 
 /**
  * Volatile ("in-memory") implementation of the LOCKSS Repository API.
@@ -42,6 +42,6 @@ public class VolatileLockssRepository extends BaseLockssRepository {
      * Constructor.
      */
     public VolatileLockssRepository() {
-        super(new VolatileArtifactIndex(), new VolatileWarcArtifactStore());
+        super(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
     }
 }

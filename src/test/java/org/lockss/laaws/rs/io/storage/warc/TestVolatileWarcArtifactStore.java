@@ -37,7 +37,7 @@ import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.storage.ArtifactStore;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
@@ -51,7 +51,7 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 /**
- * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore}.
+ * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
  */
 public class TestVolatileWarcArtifactStore {
     private final static Log log = LogFactory.getLog(TestVolatileWarcArtifactStore.class);
@@ -66,7 +66,7 @@ public class TestVolatileWarcArtifactStore {
     private UUID uuid;
     private StatusLine httpStatus;
 
-    private ArtifactStore store;
+    private ArtifactDataStore store;
 
     @Before
     public void setUp() throws Exception {
@@ -87,7 +87,7 @@ public class TestVolatileWarcArtifactStore {
         artifactData1 = new ArtifactData(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
         artifactData2 = new ArtifactData(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
 
-        store = new VolatileWarcArtifactStore();
+        store = new VolatileWarcArtifactDataStore();
     }
 
     @Test

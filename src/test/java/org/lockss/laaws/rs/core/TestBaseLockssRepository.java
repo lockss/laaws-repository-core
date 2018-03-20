@@ -128,8 +128,8 @@ public class TestBaseLockssRepository {
         }
 
         // Make sure there are ten collections and each begins with TestCollection
-        assertEquals(10, Iterators.size(repo.getCollectionIds()));
-        repo.getCollectionIds().forEachRemaining(x -> assertTrue(x.startsWith("TestCollection")));
+        assertEquals(10, Iterators.size(repo.getCollectionIds().iterator()));
+        repo.getCollectionIds().forEach(x -> assertTrue(x.startsWith("TestCollection")));
     }
 
     @Test

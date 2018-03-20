@@ -39,7 +39,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Syncable;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.springframework.data.hadoop.store.DataStoreWriter;
 import org.springframework.data.hadoop.store.codec.CodecInfo;
 import org.springframework.data.hadoop.store.event.FileWrittenEvent;
@@ -145,8 +145,8 @@ public class HdfsWarcFileWriter extends AbstractDataStreamWriter implements Data
                 HttpHeaders headers = createWARCInfoRecord();
                 writeRecord(streamsHolder.getStream(), headers, "PLACEHOLDER".getBytes());
                 */
-                WarcArtifactStore.writeWarcRecord(
-                        WarcArtifactStore.createWARCInfoRecord(null),
+                WarcArtifactDataStore.writeWarcRecord(
+                        WarcArtifactDataStore.createWARCInfoRecord(null),
                         streamsHolder.getStream()
                 );
             }
@@ -172,7 +172,7 @@ public class HdfsWarcFileWriter extends AbstractDataStreamWriter implements Data
         OutputStream out = streamsHolder.getStream();
 
         // Write the WARC record
-        WarcArtifactStore.writeWarcRecord(record, out);
+        WarcArtifactDataStore.writeWarcRecord(record, out);
 
         // Update the writer's position with the position of the output stream
         setWritePosition(getPosition(streamsHolder));

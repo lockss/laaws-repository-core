@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
@@ -59,9 +60,9 @@ import java.util.Map;
 public class RestLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(RestLockssRepository.class);
 
-    private final String SEPERATOR = "/";
-    private final String COLLECTION_BASE = SEPERATOR + "repos";
-    private final String ARTIFACT_BASE = SEPERATOR + "artifacts";
+    private static final String SEPARATOR = "/";
+    private static final String COLLECTION_BASE = SEPARATOR + "repos";
+    private static final String ARTIFACT_BASE = SEPARATOR + "artifacts";
 
     private RestTemplate restTemplate;
     private URL repositoryUrl;
@@ -105,7 +106,7 @@ public class RestLockssRepository implements LockssRepository {
     private String buildEndpoint(String collectionId) {
         StringBuilder endpoint = new StringBuilder();
         endpoint.append(repositoryUrl);
-        endpoint.append(COLLECTION_BASE).append(SEPERATOR).append(collectionId).append(ARTIFACT_BASE);
+        endpoint.append(COLLECTION_BASE).append(SEPARATOR).append(collectionId).append(ARTIFACT_BASE);
 
         return endpoint.toString();
     }
@@ -122,7 +123,7 @@ public class RestLockssRepository implements LockssRepository {
     private String buildEndpoint(String collectionId, String artifactId) {
         StringBuilder endpoint = new StringBuilder();
         endpoint.append(buildEndpoint(collectionId));
-        endpoint.append(SEPERATOR).append(artifactId);
+        endpoint.append(SEPARATOR).append(artifactId);
 
         return endpoint.toString();
     }
@@ -253,7 +254,7 @@ public class RestLockssRepository implements LockssRepository {
      * @param parts
      * @return
      */
-    private Artifact updateArtifact(String collection, String artifactId, MultiValueMap parts) {
+    private Artifact updateArtifact(String collection, String artifactId, MultiValueMap<String, Object> parts) {
         // Create PUT request entity
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(parts, null);
 
@@ -297,15 +298,15 @@ public class RestLockssRepository implements LockssRepository {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() {
-        ResponseEntity<List> response = restTemplate.exchange(
+    public Iterable<String> getCollectionIds() {
+        ResponseEntity<List<String>> response = restTemplate.exchange(
                 repositoryUrl.toString() + "/repos",
                 HttpMethod.GET,
                 null,
-                List.class
+                new ParameterizedTypeReference<List<String>>() {}
         );
 
-        return response.getBody().iterator();
+        return IteratorUtils.asIterable(response.getBody().iterator());
     }
 
     /**
@@ -317,7 +318,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         // TODO: Need to create an appropriate REST endpoint
         return null;
     }
@@ -333,7 +334,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
         return null;
     }
 
@@ -361,11 +362,11 @@ public class RestLockssRepository implements LockssRepository {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(buildEndpoint(collection))
                 .queryParam("auid", auid);
 
-        return queryArtifacts(builder);
+        return IteratorUtils.asIterable(queryArtifacts(builder));
     }
 
     /**
@@ -382,7 +383,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         return null;
     }
 
@@ -400,7 +401,7 @@ public class RestLockssRepository implements LockssRepository {
      *         prefix from an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         return null;
     }
 
@@ -417,7 +418,7 @@ public class RestLockssRepository implements LockssRepository {
      *         Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
         return null;
     }
 

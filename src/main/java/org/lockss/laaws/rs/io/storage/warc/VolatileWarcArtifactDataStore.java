@@ -45,17 +45,17 @@ import java.net.URLEncoder;
 import java.util.*;
 
 /**
- * A volatile ("in-memory") implementation of WarcArtifactStore.
+ * A volatile ("in-memory") implementation of WarcArtifactDataStore.
  */
-public class VolatileWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
-    private final static Log log = LogFactory.getLog(VolatileWarcArtifactStore.class);
+public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+    private final static Log log = LogFactory.getLog(VolatileWarcArtifactDataStore.class);
     private Map<String, Map<String, Map<String, byte[]>>> repository;
     private Map<String, RepositoryArtifactMetadata> repositoryMetadata = new HashMap<>();
 
     /**
      * Constructor.
      */
-    public VolatileWarcArtifactStore() {
+    public VolatileWarcArtifactDataStore() {
         this.repository = new HashMap<>();
     }
 
