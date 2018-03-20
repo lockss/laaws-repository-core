@@ -247,7 +247,11 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Iterator<String> getAuIds(String collection) throws IOException {
-        return getCommittedArtifacts(collection).map(x -> x.getAuid()).sorted().iterator();
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
+
+        return index.values().stream().filter(query.build()).map(x -> x.getAuid()).sorted().iterator();
     }
 
     /**
@@ -439,7 +443,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Apply filter
         Stream<Artifact> result = index.values().stream().filter(q.build());
 
-        // There should be only one
+        // There should be only one matching artifact
         if (result.count() > 1) {
             log.error(
                 String.format("Found %s artifacts having the same (Collection, AUID, URL, Version)", result.count())
@@ -447,35 +451,6 @@ public class VolatileArtifactIndex implements ArtifactIndex {
             // TODO: Should we throw IllegalStateException?
         }
 
-        //
         return result.findFirst().orElse(null);
-    }
-
-    /**
-     * Provides the artifacts in the index that result from a given query.
-     * 
-     * @param query
-     *          An {@code Iterator<Artifact>} with the query.
-     * @return an {@code Iterator<Artifact>} with the artifacts
-     *         resulting from the query.
-     */
-    public Iterator<Artifact> query(ArtifactPredicateBuilder query) {
-        return index.values().stream().filter(query.build()).iterator();
-    }
-
-    /**
-     * Provides the committed artifacts in a collection.
-     * 
-     * @param collection
-     *          A String with the collection identifier.
-     * @return a {@code Stream<Artifact>} with the committed artifacts
-     *         in the collection.
-     */
-    private Stream<Artifact> getCommittedArtifacts(String collection) {
-        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
-        query.filterByCollection(collection);
-
-        return index.values().stream().filter(query.build());
     }
 }
