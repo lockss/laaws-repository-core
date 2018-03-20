@@ -138,7 +138,7 @@ public interface ArtifactIndex {
     Iterable<String> getAuIds(String collection) throws IOException;
 
     /**
-     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of the latest committed version of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
@@ -152,7 +152,7 @@ public interface ArtifactIndex {
         throws IOException;
     
     /**
-     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
@@ -183,7 +183,7 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified Archival Unit and
      * collection.
      *
      * @param collection
@@ -201,7 +201,7 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+     * Returns the artifacts of all committed versions of a given URL, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A {@code String} with the collection identifier.
@@ -218,7 +218,7 @@ public interface ArtifactIndex {
         throws IOException;
 
     /**
-     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+     * Returns the artifact of the latest committed version of given URL, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
