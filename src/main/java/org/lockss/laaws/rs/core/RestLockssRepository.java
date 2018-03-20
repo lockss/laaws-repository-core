@@ -59,9 +59,9 @@ import java.util.Map;
 public class RestLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(RestLockssRepository.class);
 
-    private final String SEPERATOR = "/";
-    private final String COLLECTION_BASE = SEPERATOR + "repos";
-    private final String ARTIFACT_BASE = SEPERATOR + "artifacts";
+    private static final String SEPARATOR = "/";
+    private static final String COLLECTION_BASE = SEPARATOR + "repos";
+    private static final String ARTIFACT_BASE = SEPARATOR + "artifacts";
 
     private RestTemplate restTemplate;
     private URL repositoryUrl;
@@ -105,7 +105,7 @@ public class RestLockssRepository implements LockssRepository {
     private String buildEndpoint(String collectionId) {
         StringBuilder endpoint = new StringBuilder();
         endpoint.append(repositoryUrl);
-        endpoint.append(COLLECTION_BASE).append(SEPERATOR).append(collectionId).append(ARTIFACT_BASE);
+        endpoint.append(COLLECTION_BASE).append(SEPARATOR).append(collectionId).append(ARTIFACT_BASE);
 
         return endpoint.toString();
     }
@@ -122,7 +122,7 @@ public class RestLockssRepository implements LockssRepository {
     private String buildEndpoint(String collectionId, String artifactId) {
         StringBuilder endpoint = new StringBuilder();
         endpoint.append(buildEndpoint(collectionId));
-        endpoint.append(SEPERATOR).append(artifactId);
+        endpoint.append(SEPARATOR).append(artifactId);
 
         return endpoint.toString();
     }
