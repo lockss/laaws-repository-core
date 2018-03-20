@@ -370,34 +370,34 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
 
   @Test
   public void testGetArtifactsInAU() {
-    assertFalse(index.getAllArtifactsAllVersions(null, null).hasNext());
-    assertFalse(index.getAllArtifactsAllVersions("coll1", null).hasNext());
-    assertFalse(index.getAllArtifactsAllVersions("coll1", "auid1").hasNext());
+    assertFalse(index.getAllArtifactsAllVersions(null, null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll1", null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll1", "auid1").iterator().hasNext());
 
     index.indexArtifact(artifact1);
-    assertFalse(index.getAllArtifactsAllVersions("coll1", "auid1").hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll1", "auid1").iterator().hasNext());
 
     index.commitArtifact("id1");
 
-    Iterator<Artifact> iter = index.getAllArtifactsAllVersions("coll1", "auid1");
+    Iterator<Artifact> iter = index.getAllArtifactsAllVersions("coll1", "auid1").iterator();
     assertTrue(iter.hasNext());
     Artifact aid = iter.next();
     assertEquals("id1", aid.getId());
     assertEquals("coll1", aid.getCollection());
     assertEquals("auid1", aid.getAuid());
 
-    assertFalse(index.getAllArtifactsAllVersions("coll2", null).hasNext());
-    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1").hasNext());
-    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid2").hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid2").iterator().hasNext());
 
     index.indexArtifact(artifact2);
-    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1").hasNext());
-    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid2").hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid2").iterator().hasNext());
 
     index.commitArtifact(uuid.toString());
-    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1").hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1").iterator().hasNext());
 
-    iter = index.getAllArtifactsAllVersions("coll2", "auid2");
+    iter = index.getAllArtifactsAllVersions("coll2", "auid2").iterator();
     assertTrue(iter.hasNext());
     aid = iter.next();
     assertEquals(uuid.toString(), aid.getId());
@@ -408,18 +408,18 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
   @Test
   public void getAllArtifactsWithPrefixAllVersions() {
     // Empty index
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions(null, null, null).hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", null, null).hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", null).hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri1").hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions(null, null, null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", null, null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri1").iterator().hasNext());
 
     // Index artifact1
     index.indexArtifact(artifact1);
     
     // Before committing artifact1
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri1").hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri1").iterator().hasNext());
 
     // Commit artifact1
     index.commitArtifact("id1");
@@ -427,7 +427,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     // After committing artifact1
     
     // Prefix "uri" yields "uri1"
-    Iterator<Artifact> iter1 = index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri");
+    Iterator<Artifact> iter1 = index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri").iterator();
     assertTrue(iter1.hasNext());
     Artifact art1 = iter1.next();
     assertEquals("id1", art1.getId());
@@ -437,7 +437,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(iter1.hasNext());
     
     // Prefix "uri1" yields "uri1"
-    Iterator<Artifact> iter2 = index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri1");
+    Iterator<Artifact> iter2 = index.getAllArtifactsWithPrefixAllVersions("coll1", "auid1", "uri1").iterator();
     assertTrue(iter2.hasNext());
     Artifact art2 = iter2.next();
     assertEquals("id1", art2.getId());
@@ -447,24 +447,24 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(iter2.hasNext());
 
     // Failed retrievals
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", null, null).hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", null).hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri1").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri1").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2").hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", null, null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", null).iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2").iterator().hasNext());
 
     // Index artifact2
     index.indexArtifact(artifact2);
     
     // Before committing artifact2
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri1").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri2").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri1").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2").hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri2").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2").iterator().hasNext());
 
     // Commit artifact2
     index.commitArtifact(uuid.toString());
@@ -472,13 +472,13 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     // After committing artifact2
     
     // Failed retrievals
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri1").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri2").hasNext());
-    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri1").hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri1").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid1", "uri2").iterator().hasNext());
+    assertFalse(index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri1").iterator().hasNext());
 
     // Prefix "uri" yields "uri2"
-    Iterator<Artifact> iter3 = index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri");
+    Iterator<Artifact> iter3 = index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri").iterator();
     assertTrue(iter3.hasNext());
     Artifact art3 = iter3.next();
     assertEquals(uuid.toString(), art3.getId());
@@ -488,7 +488,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(iter3.hasNext());
 
     // Prefix "uri2" yields "uri2"
-    Iterator<Artifact> iter4 = index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2");
+    Iterator<Artifact> iter4 = index.getAllArtifactsWithPrefixAllVersions("coll2", "auid2", "uri2").iterator();
     assertTrue(iter4.hasNext());
     Artifact art4 = iter4.next();
     assertEquals(uuid.toString(), art4.getId());
@@ -501,26 +501,26 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
   @Test
   public void getArtifactAllVersions() {
     // Empty index
-    assertFalse(index.getArtifactAllVersions(null, null, null).hasNext());
-    assertFalse(index.getArtifactAllVersions("coll1", null, null).hasNext());
-    assertFalse(index.getArtifactAllVersions("coll1", "auid1", null).hasNext());
-    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri1").hasNext());
+    assertFalse(index.getArtifactAllVersions(null, null, null).iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", null, null).iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", "auid1", null).iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri1").iterator().hasNext());
 
     // Index artifact1
     index.indexArtifact(artifact1);
     
     // Before committing artfact1
-    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri1").hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri1").iterator().hasNext());
 
     // Commit artifact1
     index.commitArtifact("id1");
 
     // After committing artifact1
-    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri").hasNext());
+    assertFalse(index.getArtifactAllVersions("coll1", "auid1", "uri").iterator().hasNext());
 
-    Iterator<Artifact> iter1 = index.getArtifactAllVersions("coll1", "auid1", "uri1");
+    Iterator<Artifact> iter1 = index.getArtifactAllVersions("coll1", "auid1", "uri1").iterator();
     assertTrue(iter1.hasNext());
     Artifact art1 = iter1.next();
     assertEquals("id1", art1.getId());
@@ -530,36 +530,36 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     assertFalse(iter1.hasNext());
 
     // Before indexing artifact2
-    assertFalse(index.getArtifactAllVersions("coll2", null, null).hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", null).hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri1").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri1").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri2").hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", null, null).iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", null).iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri1").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri1").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri2").iterator().hasNext());
 
     // Index artifact2
     index.indexArtifact(artifact2);
 
     // Before committing artifact2
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri1").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri2").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri1").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri2").hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri1").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri2").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri1").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri2").iterator().hasNext());
 
     // Commit artifact2
     index.commitArtifact(uuid.toString());
 
     // After committing artifact2
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri1").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri2").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri").hasNext());
-    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri1").hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri1").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid1", "uri2").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri").iterator().hasNext());
+    assertFalse(index.getArtifactAllVersions("coll2", "auid2", "uri1").iterator().hasNext());
 
-    Iterator<Artifact> iter2 = index.getArtifactAllVersions("coll2", "auid2", "uri2");
+    Iterator<Artifact> iter2 = index.getArtifactAllVersions("coll2", "auid2", "uri2").iterator();
     assertTrue(iter2.hasNext());
     Artifact art2 = iter2.next();
     assertEquals(uuid.toString(), art2.getId());

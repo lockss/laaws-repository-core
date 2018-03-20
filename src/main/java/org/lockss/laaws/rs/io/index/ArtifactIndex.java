@@ -148,7 +148,7 @@ public interface ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-    Iterator<Artifact> getAllArtifacts(String collection,
+    Iterable<Artifact> getAllArtifacts(String collection,
                                        String auid)
         throws IOException;
     
@@ -161,7 +161,7 @@ public interface ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
-    Iterator<Artifact> getAllArtifactsAllVersions(String collection,
+    Iterable<Artifact> getAllArtifactsAllVersions(String collection,
                                                   String auid)
         throws IOException;
 
@@ -178,7 +178,7 @@ public interface ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
-    Iterator<Artifact> getAllArtifactsWithPrefix(String collection,
+    Iterable<Artifact> getAllArtifactsWithPrefix(String collection,
                                                  String auid,
                                                  String prefix)
         throws IOException;
@@ -196,7 +196,7 @@ public interface ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
      *         prefix from an AU.
      */
-    Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
+    Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
                                                             String auid,
                                                             String prefix)
         throws IOException;
@@ -213,7 +213,7 @@ public interface ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
      *         Archival Unit.
      */
-    Iterator<Artifact> getArtifactAllVersions(String collection,
+    Iterable<Artifact> getArtifactAllVersions(String collection,
                                               String auid,
                                               String url)
         throws IOException;

@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
@@ -333,7 +334,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
         return null;
     }
 
@@ -361,11 +362,11 @@ public class RestLockssRepository implements LockssRepository {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(buildEndpoint(collection))
                 .queryParam("auid", auid);
 
-        return queryArtifacts(builder);
+        return IteratorUtils.asIterable(queryArtifacts(builder));
     }
 
     /**
@@ -382,7 +383,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         return null;
     }
 
@@ -400,7 +401,7 @@ public class RestLockssRepository implements LockssRepository {
      *         prefix from an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         return null;
     }
 
@@ -417,7 +418,7 @@ public class RestLockssRepository implements LockssRepository {
      *         Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
         return null;
     }
 

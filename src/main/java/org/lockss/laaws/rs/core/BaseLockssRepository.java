@@ -226,7 +226,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
         return index.getAllArtifacts(collection, auid);
     }
 
@@ -240,7 +240,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
         return index.getAllArtifactsAllVersions(collection, auid);
     }
 
@@ -258,7 +258,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         return index.getAllArtifactsWithPrefix(collection, auid, prefix);
     }
 
@@ -276,7 +276,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         prefix from an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
         return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
     }
 
@@ -293,7 +293,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
         return index.getArtifactAllVersions(collection, auid, url);
     }
 
