@@ -254,7 +254,7 @@ public class RestLockssRepository implements LockssRepository {
      * @param parts
      * @return
      */
-    private Artifact updateArtifact(String collection, String artifactId, MultiValueMap parts) {
+    private Artifact updateArtifact(String collection, String artifactId, MultiValueMap<String, Object> parts) {
         // Create PUT request entity
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(parts, null);
 
@@ -298,15 +298,15 @@ public class RestLockssRepository implements LockssRepository {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() {
-        ResponseEntity<List> response = restTemplate.exchange(
+    public Iterable<String> getCollectionIds() {
+        ResponseEntity<List<String>> response = restTemplate.exchange(
                 repositoryUrl.toString() + "/repos",
                 HttpMethod.GET,
                 null,
-                List.class
+                new ParameterizedTypeReference<List<String>>() {}
         );
 
-        return response.getBody().iterator();
+        return IteratorUtils.asIterable(response.getBody().iterator());
     }
 
     /**
@@ -318,7 +318,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         // TODO: Need to create an appropriate REST endpoint
         return null;
     }

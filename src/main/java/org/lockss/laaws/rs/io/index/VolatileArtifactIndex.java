@@ -225,12 +225,12 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() {
+    public Iterable<String> getCollectionIds() {
         Stream<Artifact> artifactStream = index.values().stream();
         Stream<Artifact> committedArtifacts = artifactStream.filter(x -> x.getCommitted());
         Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
 
-        return collections.keySet().iterator();
+        return IteratorUtils.asIterable(collections.keySet().iterator());
     }
 
     /**
@@ -242,8 +242,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
-        return getCommittedArtifacts(collection).map(x -> x.getAuid()).iterator();
+    public Iterable<String> getAuIds(String collection) throws IOException {
+        return IteratorUtils.asIterable(getCommittedArtifacts(collection).map(x -> x.getAuid()).iterator());
     }
 
     /**

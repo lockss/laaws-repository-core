@@ -343,7 +343,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() throws IOException {
+    public Iterable<String> getCollectionIds() throws IOException {
         SolrQuery q = new SolrQuery();
         q.addFacetQuery("committed:true");
         q.addFacetField("collection");
@@ -360,7 +360,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                     ff.getValueCount()
             ));
 
-            return ff.getValues().stream().map(x -> x.getName()).iterator();
+            return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).iterator());
 
         } catch (SolrServerException e) {
             throw new IOException(e);
@@ -376,7 +376,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         // We use a Solr facet query but another option is Solr groups. I believe faceting is better in this case,
         // because we are not actually interested in the Solr documents - only aggregate information about them.
         SolrQuery q = new SolrQuery();
@@ -387,7 +387,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         try {
             QueryResponse response = solr.query(q);
-            return response.getFacetField("auid").getValues().stream().map(x -> x.getName()).iterator();
+            return IteratorUtils.asIterable(response.getFacetField("auid").getValues().stream().map(x -> x.getName()).iterator());
         } catch (SolrServerException e) {
             throw new IOException(e);
         }

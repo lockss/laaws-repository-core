@@ -42,9 +42,7 @@ import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -198,7 +196,7 @@ public class BaseLockssRepository implements LockssRepository {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() throws IOException {
+    public Iterable<String> getCollectionIds() throws IOException {
         return index.getCollectionIds();
     }
 
@@ -211,7 +209,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         return index.getAuIds(collection);
     }
 

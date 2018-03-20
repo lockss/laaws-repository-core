@@ -34,7 +34,6 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 /**
  * The LOCKSS Repository API:
@@ -152,20 +151,20 @@ public interface LockssRepository {
     /**
      * Provides the collection identifiers of the committed artifacts in the index.
      *
-     * @return An {@code Iterator<String>} with the index committed artifacts
+     * @return An {@code Iterable<String>} with the index committed artifacts
      * collection identifiers.
      */
-    Iterator<String> getCollectionIds() throws IOException;
+    Iterable<String> getCollectionIds() throws IOException;
 
     /**
      * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
      *
      * @param collection
      *          A {@code String} containing the LOCKSS repository collection ID.
-     * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+     * @return A {@code Iterable<String>} iterating over the AUIDs in this LOCKSS repository collection.
      * @throws IOException
      */
-    Iterator<String> getAuIds(String collection) throws IOException;
+    Iterable<String> getAuIds(String collection) throws IOException;
 
     /**
      * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
@@ -174,7 +173,7 @@ public interface LockssRepository {
      *          A {@code String} containing the collection ID.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
-     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
+     * @return An {@code Iterable<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
     Iterable<Artifact> getAllArtifacts(String collection,
@@ -188,7 +187,7 @@ public interface LockssRepository {
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     Iterable<Artifact> getAllArtifactsAllVersions(String collection,
                                                   String auid)
@@ -204,7 +203,7 @@ public interface LockssRepository {
      *          A {@code String} containing the Archival Unit ID.
      * @param prefix
      *          A {@code String} containing a URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
+     * @return An {@code Iterable<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
     Iterable<Artifact> getAllArtifactsWithPrefix(String collection,
@@ -222,7 +221,7 @@ public interface LockssRepository {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
      *         prefix from an AU.
      */
     Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
@@ -239,7 +238,7 @@ public interface LockssRepository {
      *          A {@code String} with the Archival Unit identifier.
      * @param url
      *          A {@code String} with the URL to be matched.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL from an
      *         Archival Unit.
      */
     Iterable<Artifact> getArtifactAllVersions(String collection,

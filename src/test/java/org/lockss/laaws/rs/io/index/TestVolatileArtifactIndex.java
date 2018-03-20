@@ -306,28 +306,28 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
 
   @Test
   public void testGetCollectionIds() {
-    assertFalse(index.getCollectionIds().hasNext());
+    assertFalse(index.getCollectionIds().iterator().hasNext());
 
     index.indexArtifact(artifact1);
-    assertFalse(index.getCollectionIds().hasNext());
+    assertFalse(index.getCollectionIds().iterator().hasNext());
 
     index.commitArtifact("id1");
 
-    Iterator<String> iter = index.getCollectionIds();
+    Iterator<String> iter = index.getCollectionIds().iterator();
     assertTrue(iter.hasNext());
     assertEquals("coll1", iter.next());
     assertFalse(iter.hasNext());
 
     index.indexArtifact(artifact2);
 
-    iter = index.getCollectionIds();
+    iter = index.getCollectionIds().iterator();
     assertTrue(iter.hasNext());
     assertEquals("coll1", iter.next());
     assertFalse(iter.hasNext());
     
     index.commitArtifact(uuid.toString());
 
-    iter = index.getCollectionIds();
+    iter = index.getCollectionIds().iterator();
     assertTrue(iter.hasNext());
 
     Set<String> collections = new HashSet<>();
@@ -342,28 +342,28 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
 
   @Test
   public void testGetAuIds() throws IOException {
-    assertFalse(index.getAuIds(null).hasNext());
-    assertFalse(index.getAuIds("coll1").hasNext());
+    assertFalse(index.getAuIds(null).iterator().hasNext());
+    assertFalse(index.getAuIds("coll1").iterator().hasNext());
 
     index.indexArtifact(artifact1);
-    assertFalse(index.getAuIds("coll1").hasNext());
+    assertFalse(index.getAuIds("coll1").iterator().hasNext());
 
     index.commitArtifact("id1");
-    assertTrue(index.getAuIds("coll1").hasNext());
+    assertTrue(index.getAuIds("coll1").iterator().hasNext());
 
-    Iterator<String> auIds = index.getAuIds("coll1");
+    Iterator<String> auIds = index.getAuIds("coll1").iterator();
     assertEquals("auid1", auIds.next());
     assertFalse(auIds.hasNext());
 
-    assertFalse(index.getAuIds("coll2").hasNext());
+    assertFalse(index.getAuIds("coll2").iterator().hasNext());
 
     index.indexArtifact(artifact2);
-    assertFalse(index.getAuIds("coll2").hasNext());
+    assertFalse(index.getAuIds("coll2").iterator().hasNext());
 
     index.commitArtifact(uuid.toString());
-    assertTrue(index.getAuIds("coll2").hasNext());
 
-    auIds = index.getAuIds("coll2");
+    auIds = index.getAuIds("coll2").iterator();
+    assertTrue(auIds.hasNext());
     assertEquals("auid2", auIds.next());
     assertFalse(auIds.hasNext());
   }

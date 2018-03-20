@@ -334,7 +334,7 @@ public class TestVolatileLockssRepository {
     public void getCollectionIds() {
         try {
             // Nothing added yet
-            Iterator<String> collectionIds = repo.getCollectionIds();
+            Iterator<String> collectionIds = repo.getCollectionIds().iterator();
             assertNotNull(collectionIds);
             assertFalse(collectionIds.hasNext());
 
@@ -346,14 +346,14 @@ public class TestVolatileLockssRepository {
             assertTrue(repo.artifactExists(artifactId));
 
             // ArtifactData is uncommitted so getCollectionIds() should return nothing
-            collectionIds = repo.getCollectionIds();
+            collectionIds = repo.getCollectionIds().iterator();
             assertNotNull(collectionIds);
-            assertFalse(repo.getCollectionIds().hasNext());
+            assertFalse(repo.getCollectionIds().iterator().hasNext());
 
             // Commit artifact and check again
             repo.commitArtifact(artifactData1.getIdentifier().getCollection(), artifactId);
             assertTrue(repo.isArtifactCommitted(artifactId));
-            assertTrue(repo.getCollectionIds().hasNext());
+            assertTrue(repo.getCollectionIds().iterator().hasNext());
         } catch (IOException e) {
             fail(String.format("Unexpected IOException thrown: %s", e));
         }
@@ -362,7 +362,7 @@ public class TestVolatileLockssRepository {
     @Test
     public void getAuIds() {
         try {
-            Iterator<String> auids = repo.getAuIds(null);
+            Iterator<String> auids = repo.getAuIds(null).iterator();
             assertNotNull(auids);
             assertFalse(auids.hasNext());
 
@@ -373,13 +373,13 @@ public class TestVolatileLockssRepository {
             assertTrue(repo.artifactExists(artifactId));
             assertFalse(repo.isArtifactCommitted(artifactId));
 
-            auids = repo.getAuIds(artifactData1.getIdentifier().getCollection());
+            auids = repo.getAuIds(artifactData1.getIdentifier().getCollection()).iterator();
             assertNotNull(auids);
             assertFalse(auids.hasNext());
 
             repo.commitArtifact(artifactData1.getIdentifier().getCollection(), artifactId);
 
-            auids = repo.getAuIds(artifactData1.getIdentifier().getCollection());
+            auids = repo.getAuIds(artifactData1.getIdentifier().getCollection()).iterator();
             assertNotNull(auids);
             assertTrue(auids.hasNext());
         } catch (IOException e) {
