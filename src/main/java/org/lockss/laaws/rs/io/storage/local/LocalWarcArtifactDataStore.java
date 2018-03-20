@@ -40,7 +40,7 @@ import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -59,10 +59,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Local filesystem implementation of WarcArtifactStore.
+ * Local filesystem implementation of WarcArtifactDataStore.
  */
-public class LocalWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
-    private static final Log log = LogFactory.getLog(LocalWarcArtifactStore.class);
+public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+    private static final Log log = LogFactory.getLog(LocalWarcArtifactDataStore.class);
 
     private static final String WARC_FILE_SUFFIX = ".warc";
     private static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
@@ -72,7 +72,7 @@ public class LocalWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier
      *
      * @param repositoryBasePath The base path of the local repository.
      */
-    public LocalWarcArtifactStore(File repositoryBasePath) {
+    public LocalWarcArtifactDataStore(File repositoryBasePath) {
         log.info(String.format("Loading all WARCs under %s", repositoryBasePath.getAbsolutePath()));
 
         this.repositoryBasePath = repositoryBasePath;
@@ -367,7 +367,7 @@ public class LocalWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier
         }
 
         // Get a WARCRecord object
-        WARCRecord record = new WARCRecord(warcStream, "LocalWarcArtifactStore#getArtifact", 0);
+        WARCRecord record = new WARCRecord(warcStream, "LocalWarcArtifactDataStore#getArtifact", 0);
 
         // Convert the WARCRecord object to an ArtifactData
         ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);

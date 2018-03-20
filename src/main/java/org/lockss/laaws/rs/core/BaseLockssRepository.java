@@ -35,7 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
@@ -57,7 +57,7 @@ public class BaseLockssRepository implements LockssRepository {
      * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
      */
     public BaseLockssRepository() {
-        this(new VolatileArtifactIndex(), new VolatileWarcArtifactStore());
+        this(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
     }
 
     /**

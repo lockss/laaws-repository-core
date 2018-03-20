@@ -63,9 +63,9 @@ import java.util.UUID;
 /**
  * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
  */
-public abstract class WarcArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata>
+public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata>
         implements ArtifactDataStore<ID, AD, MD>, WARCConstants {
-    private final static Log log = LogFactory.getLog(WarcArtifactStore.class);
+    private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
 
     protected static final String AU_DIR_PREFIX = "au-";
     protected static final String SCHEME = "urn:uuid";
@@ -112,7 +112,7 @@ public abstract class WarcArtifactStore<ID extends ArtifactIdentifier, AD extend
     public static WARCRecord getWarcRecord(URL file, long offset) throws IOException {
         InputStream warcStream = file.openStream();
         warcStream.skip(offset);
-        return new WARCRecord(file.openStream(), "WarcArtifactStore", 0);
+        return new WARCRecord(file.openStream(), "WarcArtifactDataStore", 0);
     }
 
     /**

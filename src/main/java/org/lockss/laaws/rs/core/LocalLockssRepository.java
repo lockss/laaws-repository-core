@@ -32,7 +32,7 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 
 import java.io.File;
 
@@ -49,8 +49,8 @@ public class LocalLockssRepository extends BaseLockssRepository {
      *          A {@code File} containing the base path of this LOCKSS repository.
      */
     public LocalLockssRepository(File basePath) {
-        super(new VolatileArtifactIndex(), new LocalWarcArtifactStore(basePath));
-        ((LocalWarcArtifactStore)store).rebuildIndex(index);
+        super(new VolatileArtifactIndex(), new LocalWarcArtifactDataStore(basePath));
+        ((LocalWarcArtifactDataStore)store).rebuildIndex(index);
     }
 
     /**
@@ -62,6 +62,6 @@ public class LocalLockssRepository extends BaseLockssRepository {
      *          An {@code ArtifactIndex} to use as this repository's artifact index.
      */
     public LocalLockssRepository(File basePath, ArtifactIndex index) {
-        super(index, new LocalWarcArtifactStore(basePath));
+        super(index, new LocalWarcArtifactDataStore(basePath));
     }
 }

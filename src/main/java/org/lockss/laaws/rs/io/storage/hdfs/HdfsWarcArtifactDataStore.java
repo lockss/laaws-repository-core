@@ -43,7 +43,7 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.springframework.util.DigestUtils;
@@ -56,10 +56,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactStore.
+ * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
  */
-public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
-    private final static Log log = LogFactory.getLog(HdfsWarcArtifactStore.class);
+public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+    private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
     private static final String WARC_FILE_SUFFIX = ".warc";
     public static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
 
@@ -75,7 +75,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier,
      * @param basePath
      *          A {@code Path} to the base directory of the LOCKSS Repository under HDFS.
      */
-    public HdfsWarcArtifactStore(Configuration config, Path basePath) {
+    public HdfsWarcArtifactDataStore(Configuration config, Path basePath) {
         this.config = config;
         this.basePath = basePath;
 
@@ -129,7 +129,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier,
         for (Path warcFile : artifactWarcFiles) {
             try {
                 BufferedInputStream bufferedStream = new BufferedInputStream(fs.open(warcFile));
-                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactStore", bufferedStream, true)) {
+                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
                     log.info(String.format(
                             "Re-indexing artifact from WARC %s record %s from %s",
                             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
@@ -177,7 +177,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier,
         for (Path metadataFile : repoMetadataWarcFiles) {
             try {
                 BufferedInputStream bufferedStream = new BufferedInputStream(fs.open(metadataFile));
-                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactStore", bufferedStream, true)) {
+                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
                     log.info(String.format(
                             "Re-indexing artifact metadata from WARC %s record %s from %s",
                             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
@@ -437,7 +437,7 @@ public class HdfsWarcArtifactStore extends WarcArtifactStore<ArtifactIdentifier,
         }
 
         // Get a WARCRecord object
-        WARCRecord record = new WARCRecord(warcStream, "HdfsWarcArtifactStore#getArtifact", 0);
+        WARCRecord record = new WARCRecord(warcStream, "HdfsWarcArtifactDataStore#getArtifact", 0);
 
         // Convert the WARCRecord object to an ArtifactData
         ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
