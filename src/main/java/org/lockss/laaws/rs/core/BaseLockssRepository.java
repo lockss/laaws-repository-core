@@ -34,7 +34,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.ArtifactStore;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
@@ -42,9 +42,7 @@ import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -52,7 +50,7 @@ import java.util.Map;
 public class BaseLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
 
-    protected ArtifactStore store = null;
+    protected ArtifactDataStore store = null;
     protected ArtifactIndex index = null;
 
     /**
@@ -68,9 +66,9 @@ public class BaseLockssRepository implements LockssRepository {
      * @param index
      *          An instance of {@code ArtifactIndex}.
      * @param store
-     *          An instance of {@code ArtifactStore}.
+     *          An instance of {@code ArtifactDataStore}.
      */
-    public BaseLockssRepository(ArtifactIndex index, ArtifactStore store) {
+    public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) {
         this.index = index;
         this.store = store;
     }
@@ -198,7 +196,7 @@ public class BaseLockssRepository implements LockssRepository {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() throws IOException {
+    public Iterable<String> getCollectionIds() throws IOException {
         return index.getCollectionIds();
     }
 
@@ -211,7 +209,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         return index.getAuIds(collection);
     }
 
@@ -226,7 +224,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
         return index.getAllArtifacts(collection, auid);
     }
 
@@ -240,7 +238,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
         return index.getAllArtifactsAllVersions(collection, auid);
     }
 
@@ -258,7 +256,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         return index.getAllArtifactsWithPrefix(collection, auid, prefix);
     }
 
@@ -276,7 +274,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         prefix from an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
         return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
     }
 
@@ -293,7 +291,7 @@ public class BaseLockssRepository implements LockssRepository {
      *         Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
         return index.getArtifactAllVersions(collection, auid, url);
     }
 

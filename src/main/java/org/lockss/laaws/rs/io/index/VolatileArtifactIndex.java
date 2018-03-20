@@ -35,6 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -224,7 +225,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() {
+    public Iterable<String> getCollectionIds() {
         Stream<Artifact> artifactStream = index.values().stream();
         Stream<Artifact> committedArtifacts = artifactStream.filter(x -> x.getCommitted());
         Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
@@ -234,7 +235,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         Collections.sort(collectionIds);
 
         // Interface requires an iterator since this list could be very large in other implementations
-        return collectionIds.iterator();
+        return IteratorUtils.asIterable(collectionIds.iterator());
+
     }
 
     /**
@@ -246,16 +248,16 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
-        return index.values().stream().filter(query.build()).map(x -> x.getAuid()).sorted().iterator();
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).map(x -> x.getAuid()).sorted().iterator());
     }
 
     /**
-     * Returns the artifacts of the latest committed version of all URLs, from a specified Archival Unit and collection.
+     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
@@ -265,7 +267,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
         q.filterByCommitStatus(true);
         q.filterByCollection(collection);
@@ -278,9 +280,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
-        return result.values().stream().map(x -> x.get()).sorted(
+        return IteratorUtils.asIterable(result.values().stream().map(x -> x.get()).sorted(
                 Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator();
+        ).iterator());
     }
 
     /**
@@ -293,16 +295,16 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByAuid(auid);
 
         // Apply the filter, sort by artifact URL then descending version, and return an iterator over the Artifacts
-        return index.values().stream().filter(query.build()).sorted(
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).sorted(
                 Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator();
+        ).iterator());
     }
 
     /**
@@ -319,7 +321,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
         q.filterByCommitStatus(true);
         q.filterByCollection(collection);
@@ -333,9 +335,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
-        return result.values().stream().map(x -> x.get()).sorted(
+        return IteratorUtils.asIterable(result.values().stream().map(x -> x.get()).sorted(
                 Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator();
+        ).iterator());
     }
 
     /**
@@ -352,7 +354,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         prefix from an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -360,9 +362,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIPrefix(prefix);
 
         // Apply filter then sort the resulting Artifacts by URL and descending version
-        return index.values().stream().filter(query.build()).sorted(
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).sorted(
                 Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator();
+        ).iterator());
     }
 
     /**
@@ -378,7 +380,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -386,9 +388,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIMatch(url);
 
         // Apply filter then sort the resulting Artifacts by URL and descending version
-        return index.values().stream().filter(query.build()).sorted(
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).sorted(
                 Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator();
+        ).iterator());
     }
 
     /**
@@ -441,16 +443,23 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         q.filterByVersion(version);
 
         // Apply filter
-        Stream<Artifact> result = index.values().stream().filter(q.build());
+        Iterator<Artifact> result = index.values().stream().filter(q.build()).iterator();
 
+        if (!result.hasNext()) {
+          return null;
+        }
+        Artifact ret = result.next();
+        
         // There should be only one matching artifact
-        if (result.count() > 1) {
+        if (result.hasNext()) { // awful hack
+          int i = 1;
+          while (result.hasNext()) { ++i; result.next(); }
             log.error(
-                String.format("Found %s artifacts having the same (Collection, AUID, URL, Version)", result.count())
+                String.format("Found %d artifacts having the same (Collection, AUID, URL, Version)", i)
             );
             // TODO: Should we throw IllegalStateException?
         }
 
-        return result.findFirst().orElse(null);
+        return ret;
     }
 }

@@ -37,7 +37,7 @@ import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
-import org.lockss.laaws.rs.io.storage.ArtifactStore;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
@@ -66,7 +66,7 @@ public class TestVolatileWarcArtifactStore {
     private UUID uuid;
     private StatusLine httpStatus;
 
-    private ArtifactStore store;
+    private ArtifactDataStore store;
 
     @Before
     public void setUp() throws Exception {

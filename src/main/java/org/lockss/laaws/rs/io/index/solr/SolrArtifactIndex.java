@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.solr.client.solrj.SolrClient;
@@ -342,7 +343,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * collection identifiers.
      */
     @Override
-    public Iterator<String> getCollectionIds() throws IOException {
+    public Iterable<String> getCollectionIds() throws IOException {
         SolrQuery q = new SolrQuery();
         q.addFacetQuery("committed:true");
         q.addFacetField("collection");
@@ -359,7 +360,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                     ff.getValueCount()
             ));
 
-            return ff.getValues().stream().map(x -> x.getName()).iterator();
+            return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).iterator());
 
         } catch (SolrServerException e) {
             throw new IOException(e);
@@ -375,7 +376,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String collection) throws IOException {
         // We use a Solr facet query but another option is Solr groups. I believe faceting is better in this case,
         // because we are not actually interested in the Solr documents - only aggregate information about them.
         SolrQuery q = new SolrQuery();
@@ -386,7 +387,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         try {
             QueryResponse response = solr.query(q);
-            return response.getFacetField("auid").getValues().stream().map(x -> x.getName()).iterator();
+            return IteratorUtils.asIterable(response.getFacetField("auid").getValues().stream().map(x -> x.getName()).iterator());
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
@@ -403,7 +404,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
         return null;
     }
 
@@ -417,14 +418,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
 
-        return query(q);
+        return IteratorUtils.asIterable(query(q));
     }
 
     /**
@@ -441,7 +442,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         return null;
     }
 
@@ -459,7 +460,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *         prefix from an AU.
      */
     @Override
-    public Iterator<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -467,7 +468,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
 
-        return query(q);
+        return IteratorUtils.asIterable(query(q));
     }
 
     /**
@@ -483,7 +484,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterator<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -491,7 +492,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
-        return query(q);
+        return IteratorUtils.asIterable(query(q));
     }
 
     /**
