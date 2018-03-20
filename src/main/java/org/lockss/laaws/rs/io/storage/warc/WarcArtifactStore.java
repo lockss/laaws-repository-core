@@ -44,7 +44,7 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
-import org.lockss.laaws.rs.io.storage.ArtifactStore;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -61,10 +61,10 @@ import java.util.Iterator;
 import java.util.UUID;
 
 /**
- * An abstract class that implements methods common to WARC implementations of ArtifactStore.
+ * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
  */
 public abstract class WarcArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata>
-        implements ArtifactStore<ID, AD, MD>, WARCConstants {
+        implements ArtifactDataStore<ID, AD, MD>, WARCConstants {
     private final static Log log = LogFactory.getLog(WarcArtifactStore.class);
 
     protected static final String AU_DIR_PREFIX = "au-";

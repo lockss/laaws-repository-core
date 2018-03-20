@@ -41,6 +41,7 @@ import java.util.UUID;
  * Interface of the artifact index.
  */
 public interface ArtifactIndex {
+
     /**
      * Adds an artifact to the index.
      * 
@@ -252,4 +253,5 @@ public interface ArtifactIndex {
                                 String url,
                                 Integer version)
         throws IOException;
+
 }

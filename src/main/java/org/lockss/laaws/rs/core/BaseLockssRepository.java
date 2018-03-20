@@ -34,7 +34,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.ArtifactStore;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
@@ -52,7 +52,7 @@ import java.util.Map;
 public class BaseLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
 
-    protected ArtifactStore store = null;
+    protected ArtifactDataStore store = null;
     protected ArtifactIndex index = null;
 
     /**
@@ -68,9 +68,9 @@ public class BaseLockssRepository implements LockssRepository {
      * @param index
      *          An instance of {@code ArtifactIndex}.
      * @param store
-     *          An instance of {@code ArtifactStore}.
+     *          An instance of {@code ArtifactDataStore}.
      */
-    public BaseLockssRepository(ArtifactIndex index, ArtifactStore store) {
+    public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) {
         this.index = index;
         this.store = store;
     }

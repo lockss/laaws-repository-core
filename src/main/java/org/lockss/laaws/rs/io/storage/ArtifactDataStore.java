@@ -45,7 +45,8 @@ import java.net.URISyntaxException;
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
-public interface ArtifactStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> {
+public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> {
+  
     /**
      * Adds an artifact to this artifact store.
      *
@@ -100,5 +101,5 @@ public interface ArtifactStore<ID extends ArtifactIdentifier, AD extends Artifac
      * @throws URISyntaxException
      */
     MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException;
-}
 
+}

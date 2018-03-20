@@ -42,6 +42,7 @@ import java.util.Iterator;
  * This is the interface of the abstract LOCKSS repository service.
  */
 public interface LockssRepository {
+  
     /**
      * Adds an artifact to this LOCKSS repository.
      *
@@ -55,12 +56,42 @@ public interface LockssRepository {
     /**
      * Retrieves an artifact from this LOCKSS repository.
      *
+     * @param artifact
+     *          An artifact to retrieve from this repository.
+     * @return The {@code ArtifactData} referenced by this artifact.
+     * @throws IOException
+     */
+    default ArtifactData getArtifactData(Artifact artifact) throws IOException {
+      return getArtifactData(artifact.getCollection(), artifact.getId());
+    }
+
+    /**
+     * Retrieves an artifact from this LOCKSS repository.
+     *
+     * @param collection
+     *          The collection ID of the artifact.
      * @param artifactId
      *          A {@code String} with the artifact ID of the artifact to retrieve from this repository.
      * @return The {@code ArtifactData} referenced by this artifact ID.
      * @throws IOException
      */
-    ArtifactData getArtifactData(String collection, String artifactId) throws IOException;
+    ArtifactData getArtifactData(String collection,
+                                 String artifactId)
+        throws IOException;
+
+    /**
+     * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
+     *
+     * @param artifact
+     *          A {code String} containing the collection ID of the collection containing the artifact to commit.
+     * @param artifactId
+     *          A {@code String} with the artifact ID of the artifact to commit to the repository.
+     * @return An {@code Artifact} containing the updated artifact state information.
+     * @throws IOException
+     */
+    default Artifact commitArtifact(Artifact artifact) throws IOException {
+      return commitArtifact(artifact.getCollection(), artifact.getId());
+    }
 
     /**
      * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
@@ -72,7 +103,20 @@ public interface LockssRepository {
      * @return An {@code Artifact} containing the updated artifact state information.
      * @throws IOException
      */
-    Artifact commitArtifact(String collection, String artifactId) throws IOException;
+    Artifact commitArtifact(String collection,
+                            String artifactId)
+        throws IOException;
+
+    /**
+     * Permanently removes an artifact from this LOCKSS repository.
+     *
+     * @param artifact
+     *          The artifact to remove from this LOCKSS repository.
+     * @throws IOException
+     */
+    default void deleteArtifact(Artifact artifact) throws IOException {
+      deleteArtifact(artifact.getCollection(), artifact.getId());
+    }
 
     /**
      * Permanently removes an artifact from this LOCKSS repository.
@@ -83,7 +127,9 @@ public interface LockssRepository {
      *          A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
      * @throws IOException
      */
-    void deleteArtifact(String collection, String artifactId) throws IOException;
+    void deleteArtifact(String collection,
+                        String artifactId)
+        throws IOException;
 
     /**
      * Checks whether an artifact exists in this LOCKSS repository.
