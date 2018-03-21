@@ -39,7 +39,6 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
@@ -50,7 +49,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -297,7 +295,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
             try {
                 // Write artifact to WARC file
-                long bytesWritten = this.writeArtifact(artifactData, fos);
+                long bytesWritten = this.writeArtifactData(artifactData, fos);
 
                 // Calculate offset of next record
 //                offset += bytesWritten;
@@ -325,13 +323,11 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 //            index.indexArtifact(artifact);
 //        }
         Artifact artifact = new Artifact(
-                artifactId.getId(),
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                artifactId.getVersion(),
+                artifactId,
                 false,
-                artifactData.getStorageUrl()
+                artifactData.getStorageUrl(),
+                artifactData.getContentLength(),
+                artifactData.getContentDigest()
         );
 
         // Return the artifact

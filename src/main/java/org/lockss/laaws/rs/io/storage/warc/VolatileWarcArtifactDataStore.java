@@ -30,6 +30,8 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
@@ -82,7 +84,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         Map<String, byte[]> au = collection.getOrDefault(artifactId.getAuid(), new HashMap<>());
 
         try {
-            // Convert artifact to WARC record stream
+            // ByteArrayOutputStream to capture the WARC record
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
             // Set unique artifactId
@@ -94,19 +96,18 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
             artifactData.setRepositoryMetadata(repoMetadata);
 
             // Write artifact as a WARC record stream to the OutputStream
-            writeArtifact(artifactData, baos);
+            long bytesWritten = writeArtifactData(artifactData, baos);
 
-            //au.put(artifactId.getUri() + String.valueOf(artifactId.getVersion()), baos.toByteArray());
+            // Store artifact
             au.put(artifactId.getId(), baos.toByteArray());
+            collection.put(artifactId.getAuid(), au);
+            repository.put(artifactId.getCollection(), collection);
         } catch (HttpException e) {
+            log.error(String.format("Caught an HttpException while attempt to write an ArtifactData to an OutputStream: %s", e.getMessage()));
             throw new IOException(e);
         }
 
-        // Store artifact
-        collection.put(artifactId.getAuid(), au);
-        repository.put(artifactId.getCollection(), collection);
-
-        // Set the artifact's storage URL
+        // Construct volatile storage URL for this WARC record
         String storageUrl = String.format(
                 "volatile:///%s/%s/%s/%s/%s",
                 artifactId.getCollection(),
@@ -116,16 +117,16 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
                 artifactId.getId()
         );
 
+        // Set the artifact's storage URL
         artifactData.setStorageUrl(storageUrl);
 
+        // Create an Artifact to return
         Artifact artifact = new Artifact(
-                artifactId.getId(),
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                artifactId.getVersion(),
+                artifactId,
                 false,
-                storageUrl
+                storageUrl,
+                artifactData.getContentLength(),
+                artifactData.getContentDigest()
         );
 
         return artifact;

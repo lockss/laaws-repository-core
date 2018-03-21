@@ -32,12 +32,14 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import com.google.common.io.CountingOutputStream;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
+import org.apache.http.HttpResponse;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.WARCRecord;
@@ -144,23 +146,22 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
     }
 
     /**
-     * Writes an artifact as a WARC record to a given OutputStream.
+     * Writes an artifact as a WARC response record to a given OutputStream.
      *
-     * @param artifact ArtifactData to add to the repository.
-     * @param outputStream OutputStream to write the WARC record representing this artifact.
+     * @param artifactData {@code ArtifactData} to write to the {@code OutputStream}.
+     * @param outputStream {@code OutputStream} to write the WARC record representing this artifact.
      * @return The number of bytes written to the WARC file for this record.
      * @throws IOException
      * @throws HttpException
      */
-    public static long writeArtifact(ArtifactData artifact, OutputStream outputStream) throws IOException, HttpException {
+    public static long writeArtifactData(ArtifactData artifactData, OutputStream outputStream) throws IOException, HttpException {
         // Get artifact identifier
-        ArtifactIdentifier artifactId = artifact.getIdentifier();
+        ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create a WARC record object
         WARCRecordInfo record = new WARCRecordInfo();
 
         // Mandatory WARC record headers
-//        record.setRecordId(URI.create(UUID.randomUUID().toString()));
         record.setRecordId(URI.create(artifactId.getId()));
         record.setCreate14DigitDate("TODO"); // TODO
         record.setType(WARCRecordType.response);
@@ -181,8 +182,23 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         // but it is not possible to determine the final size without reading the InputStream entirely, so we use a
         // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
         DeferredFileOutputStream dfos = new DeferredFileOutputStream(1048576, "writeArtifactDfos", null, new File("/tmp"));
-        IOUtils.copy(ArtifactDataUtil.getHttpResponseStreamFromArtifact(artifact), dfos);
+
+        // Wrap the artifact content stream in a CountingInputStream
+        CountingInputStream cis = new CountingInputStream(artifactData.getInputStream());
+
+        InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
+                ArtifactDataUtil.getHttpResponseFromArtifact(
+                        artifactData.getIdentifier(),
+                        artifactData.getHttpStatus(),
+                        artifactData.getMetadata(),
+                        cis
+                )
+        );
+
+        IOUtils.copy(httpResponse, dfos);
         dfos.close();
+
+        artifactData.setContentLength(cis.getByteCount());
 
         // Attach WARC record payload
         record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));

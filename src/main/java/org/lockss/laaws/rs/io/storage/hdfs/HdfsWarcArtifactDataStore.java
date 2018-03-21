@@ -363,7 +363,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
 
             try {
                 // Write artifact to WARC file
-                long bytesWritten = this.writeArtifact(artifactData, fos);
+                long bytesWritten = this.writeArtifactData(artifactData, fos);
 
                 // Calculate offset of next record
 //                offset += bytesWritten;
@@ -392,13 +392,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         String storageUrl = uriBuilder.toUriString();
 
         Artifact artifact = new Artifact(
-                artifactId.getId(),
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                artifactId.getVersion(),
+                artifactId,
                 false,
-                storageUrl
+                storageUrl,
+                artifactData.getContentLength(),
+                artifactData.getContentDigest()
         );
 
         // Return the artifact
