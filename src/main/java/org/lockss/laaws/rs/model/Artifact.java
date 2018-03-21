@@ -36,7 +36,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 
 /**
- * Data associated with an artifact in the index.
+ * LOCKSS repository Artifact
+ *
+ * Represents an atomic unit of data in a LOCKSS repository.
  */
 public class Artifact {
     private static final Log log = LogFactory.getLog(Artifact.class);
@@ -62,8 +64,14 @@ public class Artifact {
     @Field("storageUrl")
     private String storageUrl;
 
+    @Field("contentLength")
+    private long contentLength;
+
+    @Field("contentDigest")
+    private String contentDigest;
+
     /**
-     * Constructor. Needed by Solrj for getBeans() support.
+     * Constructor. Needed by SolrJ for getBeans() support. *
      *
      * TODO: Reconcile difference with constructor below, which checks parameters for illegal arguments.
      */
@@ -71,8 +79,18 @@ public class Artifact {
         // Intentionally left blank
     }
 
+    public Artifact(ArtifactIdentifier aid, Boolean committed, String storageUrl, long contentLength, String contentDigest) {
+        this(
+                aid.getId(), aid.getCollection(), aid.getAuid(), aid.getUri(), aid.getVersion(),
+                committed,
+                storageUrl,
+                contentLength,
+                contentDigest
+        );
+    }
+
     public Artifact(String id, String collection, String auid, String uri, Integer version, Boolean committed,
-                             String storageUrl) {
+                             String storageUrl, long contentLength, String contentDigest) {
         if (StringUtils.isEmpty(id)) {
           throw new IllegalArgumentException(
               "Cannot create Artifact with null or empty id");
@@ -114,6 +132,9 @@ public class Artifact {
               + "Artifact with null or empty storageUrl");
         }
         this.storageUrl = storageUrl;
+
+        this.contentLength = contentLength;
+        this.contentDigest = contentDigest;
     }
 
     public ArtifactIdentifier getIdentifier() {
@@ -197,6 +218,22 @@ public class Artifact {
         this.storageUrl = storageUrl;
     }
 
+    public long getContentLength() {
+        return contentLength;
+    }
+
+    public void setContentLength(long contentLength) {
+        this.contentLength = contentLength;
+    }
+
+    public String getContentDigest() {
+        return contentDigest;
+    }
+
+    public void setContentDigest(String contentDigest) {
+        this.contentDigest = contentDigest;
+    }
+
     @Override
     public String toString() {
         return "Artifact{" +
@@ -207,6 +244,8 @@ public class Artifact {
                 ", version='" + version + '\'' +
                 ", committed=" + committed +
                 ", storageUrl='" + storageUrl + '\'' +
+                ", contentLength='" + contentLength + '\'' +
+                ", contentDigest='" + contentDigest + '\'' +
                 '}';
     }
 }
