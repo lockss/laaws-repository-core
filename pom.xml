@@ -59,6 +59,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   <properties>
     <spring-data-solr.version>2.1.3.RELEASE</spring-data-solr.version>
+    <lockss.core.version>1.0.0</lockss.core.version>
   </properties>
 
   <dependencies>
@@ -121,13 +122,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.lockss.laaws</groupId>
       <artifactId>lockss-core</artifactId>
-      <version>1.0.0</version>
+      <version>${lockss.core.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.lockss.laaws</groupId>
       <artifactId>lockss-core</artifactId>
-      <version>1.0.0</version>
+      <version>${lockss.core.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
