@@ -62,6 +62,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
     /**
      * Adds an artifact to this artifact store.
      *
+     * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
+     * will exhaust the ArtifactData's InputStream, computes the length, digest of its stream, and sets a storage URL.
+     *
      * @param artifactData
      *          The {@code ArtifactData} to add to this artifact store.
      * @return A representation of the artifact as it is now stored.
@@ -84,9 +87,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         try {
             // ByteArrayOutputStream to capture the WARC record
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            // Set unique artifactId
-            artifactData.getIdentifier().setId(UUID.randomUUID().toString());
 
             // Create and set the artifact's repository metadata
             RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
