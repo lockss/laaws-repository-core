@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
@@ -177,10 +175,11 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
                     // Generate an artifact from the HTTP response stream
                     artifactData = ArtifactDataFactory.fromHttpResponseStream(record);
 
-                    // TODO: ArtifactDataFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers
-                    // are in the HTTP response but since we can't guarantee that yet, we set it explicitly here.
+                    // Set ArtifactData properties
                     artifactData.setIdentifier(artifact.getIdentifier());
-
+                    artifactData.setStorageUrl(artifact.getStorageUrl());
+                    artifactData.setContentLength(artifact.getContentLength());
+                    artifactData.setContentDigest(artifact.getContentDigest());
                     artifactData.setRepositoryMetadata(repositoryMetadata.get(artifact.getId()));
                 }
             }

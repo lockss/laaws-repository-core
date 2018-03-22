@@ -31,7 +31,6 @@
 package org.lockss.laaws.rs.util;
 
 import org.apache.commons.io.input.CountingInputStream;
-import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.Header;
@@ -114,10 +113,11 @@ public class ArtifactDataUtil {
             });
         }
 
-        // Embed artifact identifier into header if set
-        if (id != null) {
-            response.setHeaders(ArtifactDataUtil.getArtifactIdentifierHeaders(id));
-        }
+        // Embed artifact identifier into header if set - cannot use reponse.setHeaders() because it will replace the
+        // current set of headers entirely
+//        for (Header header : ArtifactDataUtil.getArtifactIdentifierHeaders(id)) {
+//            response.setHeader(header);
+//        }
 
         return response;
     }
