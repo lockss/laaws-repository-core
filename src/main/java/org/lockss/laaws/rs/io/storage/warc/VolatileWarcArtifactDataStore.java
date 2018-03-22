@@ -62,6 +62,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
     /**
      * Adds an artifact to this artifact store.
      *
+     * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
+     * will exhaust the ArtifactData's InputStream, computes the length, digest of its stream, and sets a storage URL.
+     *
      * @param artifactData
      *          The {@code ArtifactData} to add to this artifact store.
      * @return A representation of the artifact as it is now stored.
@@ -82,11 +85,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         Map<String, byte[]> au = collection.getOrDefault(artifactId.getAuid(), new HashMap<>());
 
         try {
-            // Convert artifact to WARC record stream
+            // ByteArrayOutputStream to capture the WARC record
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            // Set unique artifactId
-            artifactData.getIdentifier().setId(UUID.randomUUID().toString());
 
             // Create and set the artifact's repository metadata
             RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
@@ -94,19 +94,18 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
             artifactData.setRepositoryMetadata(repoMetadata);
 
             // Write artifact as a WARC record stream to the OutputStream
-            writeArtifact(artifactData, baos);
+            long bytesWritten = writeArtifactData(artifactData, baos);
 
-            //au.put(artifactId.getUri() + String.valueOf(artifactId.getVersion()), baos.toByteArray());
+            // Store artifact
             au.put(artifactId.getId(), baos.toByteArray());
+            collection.put(artifactId.getAuid(), au);
+            repository.put(artifactId.getCollection(), collection);
         } catch (HttpException e) {
+            log.error(String.format("Caught an HttpException while attempt to write an ArtifactData to an OutputStream: %s", e.getMessage()));
             throw new IOException(e);
         }
 
-        // Store artifact
-        collection.put(artifactId.getAuid(), au);
-        repository.put(artifactId.getCollection(), collection);
-
-        // Set the artifact's storage URL
+        // Construct volatile storage URL for this WARC record
         String storageUrl = String.format(
                 "volatile:///%s/%s/%s/%s/%s",
                 artifactId.getCollection(),
@@ -116,35 +115,27 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
                 artifactId.getId()
         );
 
+        // Set the artifact's storage URL
         artifactData.setStorageUrl(storageUrl);
 
+        // Create an Artifact to return
         Artifact artifact = new Artifact(
-                artifactId.getId(),
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                artifactId.getVersion(),
+                artifactId,
                 false,
-                storageUrl
+                storageUrl,
+                artifactData.getContentLength(),
+                artifactData.getContentDigest()
         );
 
         return artifact;
     }
 
-    /**
-     * Retrieves an artifact from this artifact store.
-     *
-     * @param artifact
-     *          An ArtifactIndex that encodes information about the artifact to retrieve from this store.
-     * @return The {@code ArtifactData} referred to by the Artifact.
-     * @throws IOException
-     */
     @Override
     public ArtifactData getArtifactData(Artifact artifact) throws IOException {
         // Cannot work with a null Artifact
-        if (artifact == null)
+        if (artifact == null) {
             throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
-
+        }
         // ArtifactData to return; defaults to null if one could not be found
         ArtifactData artifactData = null;
 
@@ -176,10 +167,11 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
                     // Generate an artifact from the HTTP response stream
                     artifactData = ArtifactDataFactory.fromHttpResponseStream(record);
 
-                    // TODO: ArtifactDataFactory#fromHttpResponseStream sets an ArtifactIdentifier if the correct headers
-                    // are in the HTTP response but since we can't guarantee that yet, we set it explicitly here.
+                    // Set ArtifactData properties
                     artifactData.setIdentifier(artifact.getIdentifier());
-
+                    artifactData.setStorageUrl(artifact.getStorageUrl());
+                    artifactData.setContentLength(artifact.getContentLength());
+                    artifactData.setContentDigest(artifact.getContentDigest());
                     artifactData.setRepositoryMetadata(repositoryMetadata.get(artifact.getId()));
                 }
             }

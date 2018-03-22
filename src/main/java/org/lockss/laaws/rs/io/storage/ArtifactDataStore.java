@@ -57,16 +57,19 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      */
     Artifact addArtifactData(ArtifactData artifactData) throws IOException;
 
-    /**
-     * Retrieves an artifact from this artifact store.
-     *
-     * @param artifact
-     *          An {@code Artifact} containing a reference to the artifact to receive from storage.
-     * @return An {@code ArtifactData} retrieved from this artifact store.
-     * @throws IOException
-     * @throws URISyntaxException
-     */
-    AD getArtifactData(Artifact artifact) throws IOException, URISyntaxException;
+  /**
+   * Retrieves an artifact from this artifact data store.
+   *
+   * @param artifact
+   *          An {@link Artifact} instance containing a reference to the
+   *          artifact to retrieve from storage.
+   * @return An {@link ArtifactData} instance retrieved from this artifact data
+   *         store.
+   * @throws IOException
+   * @throws IllegalArgumentException
+   *           if the given artifact is null
+   */
+  AD getArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Updates an artifact's associated metadata in this artifact store.

@@ -30,18 +30,20 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.apache.commons.io.output.DeferredFileOutputStream;
+import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.*;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.springframework.http.HttpHeaders;
 
 import java.io.*;
 import java.util.Collection;
@@ -57,14 +59,25 @@ public class ArtifactDataUtil {
      * Adapter that takes an {@code ArtifactData} and returns an InputStream containing an HTTP response stream
      * representation of the artifact.
      *
-     * @param artifact
+     * @param artifactData
      *          An {@code ArtifactData} to to transform.
      * @return An {@code InputStream} containing an HTTP response stream representation of the artifact.
      * @throws IOException
      * @throws HttpException
      */
-    public static InputStream getHttpResponseStreamFromArtifact(ArtifactData artifact) throws IOException, HttpException {
-        return getHttpResponseStreamFromHttpResponse(getHttpResponseFromArtifact(artifact));
+    public static InputStream getHttpResponseStreamFromArtifact(ArtifactData artifactData) throws IOException, HttpException {
+        CountingInputStream cis = new CountingInputStream(artifactData.getInputStream());
+
+        InputStream httpResponse = getHttpResponseStreamFromHttpResponse(getHttpResponseFromArtifact(
+                artifactData.getIdentifier(),
+                artifactData.getHttpStatus(),
+                artifactData.getMetadata(),
+                cis
+        ));
+
+        artifactData.setContentLength(cis.getByteCount());
+
+        return httpResponse;
     }
 
 
@@ -74,22 +87,25 @@ public class ArtifactDataUtil {
      *
      * This is effectively the inverse operation of {@code ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
      *
-     * @param artifact
+     * @param id
+     * @param statusLine
+     * @param headers
+     * @param inputStream
      *          An {@code ArtifactData} to to transform.
      * @return An {@code HttpResponse} object containing a representation of the artifact.
      * @throws HttpException
      * @throws IOException
      */
-    public static HttpResponse getHttpResponseFromArtifact(ArtifactData artifact) throws HttpException, IOException {
+    public static HttpResponse getHttpResponseFromArtifact(ArtifactIdentifier id, StatusLine statusLine, HttpHeaders headers, InputStream inputStream) throws HttpException, IOException {
         // Craft a new HTTP response object representation from the artifact
-        BasicHttpResponse response = new BasicHttpResponse(artifact.getHttpStatus());
+        BasicHttpResponse response = new BasicHttpResponse(statusLine);
 
         // Create an InputStreamEntity from artifact InputStream
-        response.setEntity(new InputStreamEntity(artifact.getInputStream()));
+        response.setEntity(new InputStreamEntity(inputStream));
 
         // Merge artifact metadata into HTTP response header
-        if (artifact.getMetadata() != null) {
-            artifact.getMetadata().forEach((headerName, headerValues) -> {
+        if (headers != null) {
+            headers.forEach((headerName, headerValues) -> {
                 headerValues.forEach((headerValue) -> {
                             response.setHeader(headerName, headerValue);
                         }
@@ -97,10 +113,11 @@ public class ArtifactDataUtil {
             });
         }
 
-        // Embed artifact identifier into header if set
-        if (artifact.getIdentifier() != null) {
-            response.setHeaders(ArtifactDataUtil.getArtifactIdentifierHeaders(artifact));
-        }
+        // Embed artifact identifier into header if set - cannot use reponse.setHeaders() because it will replace the
+        // current set of headers entirely
+//        for (Header header : ArtifactDataUtil.getArtifactIdentifierHeaders(id)) {
+//            response.setHeader(header);
+//        }
 
         return response;
     }
@@ -145,12 +162,19 @@ public class ArtifactDataUtil {
      * @throws IOException
      */
     public static InputStream getHttpResponseStreamFromHttpResponse(HttpResponse response) throws IOException {
-        // Using DeferredFileOutputStream for this stage over ByteArrayOutputStream is probably overkill but whatever
-        DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifact-dfos", null, new File("/tmp"));
+        // Return the concatenation of the header and content streams
+        return new SequenceInputStream(
+                new ByteArrayInputStream(getHttpResponseHeader(response)),
+                response.getEntity().getContent()
+        );
+    }
+
+    public static byte[] getHttpResponseHeader(HttpResponse response) throws IOException {
+        ByteArrayOutputStream headerStream = new ByteArrayOutputStream();
 
         // Create a new SessionOutputBuffer from the OutputStream
         SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
-        outputBuffer.bind(dfos);
+        outputBuffer.bind(headerStream);
 
         // Write the HTTP response header
         writeHttpResponseHeader(response, outputBuffer);
@@ -158,27 +182,29 @@ public class ArtifactDataUtil {
         // Flush anything remaining in the buffer
         outputBuffer.flush();
 
-        // Convert DFOS to InputStream
-        InputStream headerStream = dfos.isInMemory() ?
-                new ByteArrayInputStream(dfos.getData()) :
-                new FileInputStream(dfos.getFile());
-
-        // Return the concatenation of the header and content streams
-        return new SequenceInputStream(headerStream, response.getEntity().getContent());
+        return headerStream.toByteArray();
     }
 
     /**
      * Writes an {@code ArtifactData} to an {@code OutputStream} as a HTTP response stream.
      *
-     * @param artifact
+     * @param artifactData
      *          The {@code ArtifactData} to encode as an HTTP response stream and write to an {@code OutputStream}.
      * @param output
      *          The {@code OutputStream} to write to.
      * @throws IOException
      * @throws HttpException
      */
-    public static void writeHttpResponseStream(ArtifactData artifact, OutputStream output) throws IOException, HttpException {
-        writeHttpResponse(getHttpResponseFromArtifact(artifact), output);
+    public static void writeHttpResponseStream(ArtifactData artifactData, OutputStream output) throws IOException, HttpException {
+        writeHttpResponse(
+                getHttpResponseFromArtifact(
+                        artifactData.getIdentifier(),
+                        artifactData.getHttpStatus(),
+                        artifactData.getMetadata(),
+                        artifactData.getInputStream()
+                ),
+                output
+        );
     }
 
     /**

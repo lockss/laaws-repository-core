@@ -50,7 +50,7 @@ public class CephArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     }
 
     @Override
-    public AD getArtifactData(Artifact artifact) throws IOException, URISyntaxException {
+    public AD getArtifactData(Artifact artifact) throws IOException {
         return null;
     }
 

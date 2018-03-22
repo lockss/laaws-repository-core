@@ -38,6 +38,7 @@ import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.IOException;
@@ -86,10 +87,34 @@ public class BaseLockssRepository implements LockssRepository {
         if (artifactData == null)
             throw new IllegalArgumentException("ArtifactData is null");
 
-        //
+        ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
+        //// Determine the next artifact version
+
+        // Retrieve latest version in this URL lineage
+        Artifact latestVersion = index.getArtifact(
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri()
+        );
+
+        // Create a new artifact identifier for this
+        ArtifactIdentifier newId = new ArtifactIdentifier(
+                // Assign a new artifact ID
+                UUID.randomUUID().toString(),
+                artifactId.getCollection(),
+                artifactId.getAuid(),
+                artifactId.getUri(),
+                // Set the next version
+                (latestVersion == null) ? 0 : latestVersion.getVersion() + 1
+        );
+
+        artifactData.setIdentifier(newId);
+
+        //// Add the ArtifactData to the repository
         Artifact storedArtifact = store.addArtifactData(artifactData);
         Artifact artifact = index.indexArtifact(artifactData);
+
         return artifact;
     }
 
@@ -103,15 +128,11 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-        try {
             Artifact artifact = index.getArtifact(artifactId);
             if (artifact == null)
                 return null;
 
             return store.getArtifactData(index.getArtifact(artifactId));
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
-        }
     }
 
     /**

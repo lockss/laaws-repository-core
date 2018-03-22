@@ -83,8 +83,6 @@ public interface LockssRepository {
      *
      * @param artifact
      *          A {code String} containing the collection ID of the collection containing the artifact to commit.
-     * @param artifactId
-     *          A {@code String} with the artifact ID of the artifact to commit to the repository.
      * @return An {@code Artifact} containing the updated artifact state information.
      * @throws IOException
      */

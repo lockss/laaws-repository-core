@@ -31,7 +31,9 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import com.google.common.io.CountingOutputStream;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
@@ -54,6 +56,9 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -73,6 +78,8 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
     protected static final String CRLF = "\r\n";
     protected static byte[] CRLF_BYTES;
     protected static String SEPARATOR = "/";
+
+    protected  static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
     protected File repositoryBasePath;
 
@@ -144,23 +151,22 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
     }
 
     /**
-     * Writes an artifact as a WARC record to a given OutputStream.
+     * Writes an artifact as a WARC response record to a given OutputStream.
      *
-     * @param artifact ArtifactData to add to the repository.
-     * @param outputStream OutputStream to write the WARC record representing this artifact.
+     * @param artifactData {@code ArtifactData} to write to the {@code OutputStream}.
+     * @param outputStream {@code OutputStream} to write the WARC record representing this artifact.
      * @return The number of bytes written to the WARC file for this record.
      * @throws IOException
      * @throws HttpException
      */
-    public static long writeArtifact(ArtifactData artifact, OutputStream outputStream) throws IOException, HttpException {
+    public static long writeArtifactData(ArtifactData artifactData, OutputStream outputStream) throws IOException, HttpException {
         // Get artifact identifier
-        ArtifactIdentifier artifactId = artifact.getIdentifier();
+        ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create a WARC record object
         WARCRecordInfo record = new WARCRecordInfo();
 
         // Mandatory WARC record headers
-//        record.setRecordId(URI.create(UUID.randomUUID().toString()));
         record.setRecordId(URI.create(artifactId.getId()));
         record.setCreate14DigitDate("TODO"); // TODO
         record.setType(WARCRecordType.response);
@@ -177,14 +183,47 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_URI_KEY, artifactId.getUri());
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
-        // We must determine the size of the WARC payload (which is an artifact encoded as an HTTP response stream)
-        // but it is not possible to determine the final size without reading the InputStream entirely, so we use a
+        // We're required to pre-compute the WARC payload (which is an artifact encoded as an HTTP response stream) but
+        // it is not possible to determine the final size without reading the InputStream entirely, so we use a
         // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
-        DeferredFileOutputStream dfos = new DeferredFileOutputStream(1048576, "writeArtifactDfos", null, new File("/tmp"));
-        IOUtils.copy(ArtifactDataUtil.getHttpResponseStreamFromArtifact(artifact), dfos);
+        DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifactData", null, new File("/tmp"));
+
+        // Wrap the artifact content stream in a CountingInputStream
+        CountingInputStream cis = new CountingInputStream(artifactData.getInputStream());
+
+        // Will hold a DigestInputStream to comptue the artifact data shortly
+        DigestInputStream dis = null;
+
+        try {
+            // Wrap the stream in a DigestInputStream
+            dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
+        } catch (NoSuchAlgorithmException e) {
+            String errMsg = String.format(
+                    "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
+            );
+
+            log.error(errMsg);
+            throw new RuntimeException(errMsg);
+        }
+
+        // Create a HTTP response stream from the ArtifactData
+        InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
+                ArtifactDataUtil.getHttpResponseFromArtifact(
+                        artifactData.getIdentifier(),
+                        artifactData.getHttpStatus(),
+                        artifactData.getMetadata(),
+                        dis
+                )
+        );
+
+        IOUtils.copy(httpResponse, dfos);
         dfos.close();
 
-        // Attach WARC record payload
+        // Set the length and digest of the artifact data
+        artifactData.setContentLength(cis.getByteCount());
+        artifactData.setContentDigest(new String(Hex.encodeHex(dis.getMessageDigest().digest())));
+
+        // Attach WARC record payload and set the payload length
         record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));
         record.setContentLength(dfos.getByteCount());
 
@@ -298,5 +337,14 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
             // This should never happen
             throw new RuntimeException(e);
         }
+    }
+    
+    public static URI urlToUri(String url) throws IllegalStateException {
+      try {
+        return new URI(url);
+      }
+      catch (URISyntaxException exc) {
+        throw new IllegalStateException("Internal error converting to URI: " + url, exc);
+      }
     }
 }

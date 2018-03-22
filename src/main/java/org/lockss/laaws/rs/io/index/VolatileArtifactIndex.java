@@ -78,19 +78,19 @@ public class VolatileArtifactIndex implements ArtifactIndex {
               "ArtifactIdentifier has null or empty id");
         }
 
-        Artifact indexData = new Artifact(
-                id,
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                artifactId.getVersion(),
+        // Create and populate an Artifact bean for this ArtifactData
+        Artifact artifact = new Artifact(
+                artifactId,
                 false,
-                artifactData.getStorageUrl()
+                artifactData.getStorageUrl(),
+                artifactData.getContentLength(),
+                artifactData.getContentDigest()
         );
 
-        index.put(id, indexData);
+        // Add Artifact to the index
+        index.put(id, artifact);
 
-        return indexData;
+        return artifact;
     }
 
     /**
