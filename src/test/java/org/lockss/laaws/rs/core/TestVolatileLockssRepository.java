@@ -396,12 +396,13 @@ public class TestVolatileLockssRepository {
             assertFalse(repo.getAllArtifactsAllVersions("unknown", null).iterator().hasNext());
             assertFalse(repo.getAllArtifactsAllVersions("unknown", "unknown").iterator().hasNext());
 
-            assertNotNull(repo.addArtifact(artifactData1));
+            Artifact addedArtifact = repo.addArtifact(artifactData1);
+            assertNotNull(addedArtifact);
             assertNotNull(repo.addArtifact(artifactData2));
 
             assertFalse(repo.getAllArtifactsAllVersions(aid1.getCollection(), aid1.getAuid()).iterator().hasNext());
 
-            repo.commitArtifact(aid1.getCollection(), aid1.getId());
+            repo.commitArtifact(aid1.getCollection(), addedArtifact.getId());
 
             result = repo.getAllArtifactsAllVersions(aid1.getCollection(), aid1.getAuid()).iterator();
             assertNotNull(result);
@@ -410,7 +411,7 @@ public class TestVolatileLockssRepository {
             Artifact indexData = result.next();
             assertNotNull(indexData);
             assertFalse(result.hasNext());
-            assertEquals(aid1.getId(), indexData.getIdentifier().getId());
+            assertNotEquals(aid1.getId(), indexData.getIdentifier().getId());
     }
 
     @Test
@@ -433,13 +434,14 @@ public class TestVolatileLockssRepository {
             assertFalse(repo.getAllArtifactsWithPrefixAllVersions(null, aid1.getAuid(),  "url").iterator().hasNext());
             assertFalse(repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(),  "url").iterator().hasNext());
 
-            assertNotNull(repo.addArtifact(artifactData1));
+            Artifact addedArtifact = repo.addArtifact(artifactData1);
+            assertNotNull(addedArtifact);
             assertNotNull(repo.addArtifact(artifactData2));
             assertNotNull(repo.addArtifact(artifactData3));
 
             assertFalse(repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(), aid1.getUri()).iterator().hasNext());
 
-            repo.commitArtifact(aid1.getCollection(), aid1.getId());
+            repo.commitArtifact(aid1.getCollection(), addedArtifact.getId());
 
             result = repo.getAllArtifactsWithPrefixAllVersions(aid1.getCollection(), aid1.getAuid(), aid1.getUri()).iterator();
             assertNotNull(result);
@@ -448,7 +450,7 @@ public class TestVolatileLockssRepository {
             Artifact indexData = result.next();
             assertNotNull(indexData);
             assertFalse(result.hasNext());
-            assertEquals(aid1.getId(), indexData.getIdentifier().getId());
+            assertNotEquals(aid1.getId(), indexData.getIdentifier().getId());
             assertEquals(aid1.getUri(), indexData.getIdentifier().getUri());
 
     }
