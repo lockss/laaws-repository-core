@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import com.google.common.io.CountingOutputStream;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.output.DeferredFileOutputStream;
@@ -39,7 +40,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.WARCRecord;
@@ -221,7 +221,7 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
 
         // Set the length and digest of the artifact data
         artifactData.setContentLength(cis.getByteCount());
-        artifactData.setContentDigest(String.format("%02x", dis.getMessageDigest().digest()));
+        artifactData.setContentDigest(new String(Hex.encodeHex(dis.getMessageDigest().digest())));
 
         // Attach WARC record payload and set the payload length
         record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));
