@@ -330,20 +330,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
         return artifact;
     }
 
-    /**
-     * Retrieves an artifact from the repository storage.
-     *
-     * @param artifact
-     * @return An artifact.
-     * @throws IOException
-     * @throws URISyntaxException 
-     */
     @Override
-    public ArtifactData getArtifactData(Artifact artifact) throws IOException, URISyntaxException {
+    public ArtifactData getArtifactData(Artifact artifact) throws IOException {
+        if (artifact == null) {
+            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
+        }
         log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.getId()));
 
         // Get InputStream to WARC file
-        URI uri = new URI(artifact.getStorageUrl());
+        URI uri = urlToUri(artifact.getStorageUrl());
 //        String warcFilePath = uri.getScheme() + uri.getAuthority() + uri.getPath();
         String warcFilePath = uri.getPath();
         InputStream warcStream = new FileInputStream(warcFilePath);

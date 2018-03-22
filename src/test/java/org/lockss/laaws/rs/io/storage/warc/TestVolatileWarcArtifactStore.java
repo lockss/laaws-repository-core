@@ -112,8 +112,6 @@ public class TestVolatileWarcArtifactStore {
             assertEquals(artifactData1.getIdentifier().getId(), artifactData.getIdentifier().getId());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
     }
 
@@ -129,8 +127,6 @@ public class TestVolatileWarcArtifactStore {
             assertEquals(errMsg, e.getMessage());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
 
         try {
@@ -151,8 +147,6 @@ public class TestVolatileWarcArtifactStore {
             assertNull(artifact);
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
 
         try {
@@ -165,8 +159,6 @@ public class TestVolatileWarcArtifactStore {
             assertEquals(artifactData1.getIdentifier().getId(), artifactData.getIdentifier().getId());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
     }
 

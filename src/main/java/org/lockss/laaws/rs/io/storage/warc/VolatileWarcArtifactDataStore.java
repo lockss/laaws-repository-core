@@ -130,20 +130,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         return artifact;
     }
 
-    /**
-     * Retrieves an artifact from this artifact store.
-     *
-     * @param artifact
-     *          An ArtifactIndex that encodes information about the artifact to retrieve from this store.
-     * @return The {@code ArtifactData} referred to by the Artifact.
-     * @throws IOException
-     */
     @Override
     public ArtifactData getArtifactData(Artifact artifact) throws IOException {
         // Cannot work with a null Artifact
-        if (artifact == null)
+        if (artifact == null) {
             throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
-
+        }
         // ArtifactData to return; defaults to null if one could not be found
         ArtifactData artifactData = null;
 

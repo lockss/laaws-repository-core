@@ -402,23 +402,18 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         return artifact;
     }
 
-    /**
-     * Retrieves an artifact from the repository storage.
-     *
-     * @param artifact The artifact identifier of artifact to retrieve.
-     * @return An artifact.
-     * @throws IOException
-     * @throws URISyntaxException 
-     */
     @Override
     public ArtifactData getArtifactData(Artifact artifact)
-	throws IOException, URISyntaxException {
+	throws IOException {
+        if (artifact == null) {
+            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
+        }
         log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.toString()));
 
         // Get details from the artifact index service
 //        Artifact indexedData = index.getArtifactIndexData(indexData.getId());
 
-        URI uri = new URI(artifact.getStorageUrl());
+        URI uri = urlToUri(artifact.getStorageUrl());
 
         // Get InputStream to WARC file
         String warcFilePath =

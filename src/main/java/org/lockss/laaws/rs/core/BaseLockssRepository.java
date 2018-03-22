@@ -128,15 +128,11 @@ public class BaseLockssRepository implements LockssRepository {
      */
     @Override
     public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-        try {
             Artifact artifact = index.getArtifact(artifactId);
             if (artifact == null)
                 return null;
 
             return store.getArtifactData(index.getArtifact(artifactId));
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
-        }
     }
 
     /**

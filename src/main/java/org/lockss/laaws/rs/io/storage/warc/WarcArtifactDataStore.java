@@ -338,4 +338,13 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
             throw new RuntimeException(e);
         }
     }
+    
+    public static URI urlToUri(String url) throws IllegalStateException {
+      try {
+        return new URI(url);
+      }
+      catch (URISyntaxException exc) {
+        throw new IllegalStateException("Internal error converting to URI: " + url, exc);
+      }
+    }
 }
