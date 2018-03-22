@@ -319,9 +319,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
             // TODO: Generalize this to write all of an artifact's metadata
             updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
-//             Add the artifact to the index
-//            index.indexArtifact(artifact);
-//        }
         Artifact artifact = new Artifact(
                 artifactId,
                 false,
@@ -330,7 +327,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                 artifactData.getContentDigest()
         );
 
-        // Return the artifact
         return artifact;
     }
 
@@ -345,9 +341,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
     @Override
     public ArtifactData getArtifactData(Artifact artifact) throws IOException, URISyntaxException {
         log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.getId()));
-
-        // TODO: Remove - only for debugging
-        log.info(artifact.toString());
 
         // Get InputStream to WARC file
         URI uri = new URI(artifact.getStorageUrl());
@@ -368,13 +361,18 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
         // Convert the WARCRecord object to an ArtifactData
         ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
 
-        // Set artifact's repository metadata
+        // Repository metadata for this artifact
         RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(
                 artifact.getIdentifier(),
                 artifact.getCommitted(),
                 false
         );
 
+        // Set ArtifactData properties
+        artifactData.setIdentifier(artifact.getIdentifier());
+        artifactData.setStorageUrl(artifact.getStorageUrl());
+        artifactData.setContentLength(artifact.getContentLength());
+        artifactData.setContentDigest(artifact.getContentDigest());
         artifactData.setRepositoryMetadata(repoMetadata);
 
         // Return an ArtifactData from the WARC record

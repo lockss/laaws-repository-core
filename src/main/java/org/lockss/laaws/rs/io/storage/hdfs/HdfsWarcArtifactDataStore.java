@@ -399,27 +399,26 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
                 artifactData.getContentDigest()
         );
 
-        // Return the artifact
         return artifact;
     }
 
     /**
      * Retrieves an artifact from the repository storage.
      *
-     * @param indexData The artifact identifier of artifact to retrieve.
+     * @param artifact The artifact identifier of artifact to retrieve.
      * @return An artifact.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public ArtifactData getArtifactData(Artifact indexData)
+    public ArtifactData getArtifactData(Artifact artifact)
 	throws IOException, URISyntaxException {
-        log.info(String.format("Retrieving artifact from store (artifactId: %s)", indexData.toString()));
+        log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.toString()));
 
         // Get details from the artifact index service
 //        Artifact indexedData = index.getArtifactIndexData(indexData.getId());
 
-        URI uri = new URI(indexData.getStorageUrl());
+        URI uri = new URI(artifact.getStorageUrl());
 
         // Get InputStream to WARC file
         String warcFilePath =
@@ -438,22 +437,27 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         WARCRecord record = new WARCRecord(warcStream, "HdfsWarcArtifactDataStore#getArtifact", 0);
 
         // Convert the WARCRecord object to an ArtifactData
-        ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
+        ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
 
-        // Set artifact's repository metadata
+        // Repository metadata for this artifact
         RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(
-                indexData.getIdentifier(),
-                indexData.getCommitted(),
+                artifact.getIdentifier(),
+                artifact.getCommitted(),
                 false
         );
 
-        artifact.setRepositoryMetadata(repoMetadata);
+        // Set ArtifactData properties
+        artifactData.setIdentifier(artifactData.getIdentifier());
+        artifactData.setStorageUrl(artifactData.getStorageUrl());
+        artifactData.setContentLength(artifactData.getContentLength());
+        artifactData.setContentDigest(artifactData.getContentDigest());
+        artifactData.setRepositoryMetadata(repoMetadata);
 
         // Close the stream
         warcStream.close();
 
         // Return an ArtifactData from the WARC record
-        return artifact;
+        return artifactData;
     }
 
     /**
