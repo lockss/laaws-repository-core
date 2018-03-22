@@ -48,6 +48,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
     private StatusLine httpStatus;
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
+    private String contentDigest;
+    private long contentLength;
 
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
@@ -204,5 +206,21 @@ public class ArtifactData implements Comparable<ArtifactData> {
     @Override
     public int compareTo(ArtifactData other) {
         return this.getIdentifier().compareTo(other.getIdentifier());
+    }
+
+    public String getContentDigest() {
+        return contentDigest;
+    }
+
+    public void setContentDigest(String contentDigest) {
+        this.contentDigest = contentDigest;
+    }
+
+    public long getContentLength() {
+        return contentLength;
+    }
+
+    public void setContentLength(long contentLength) {
+        this.contentLength = contentLength;
     }
 }

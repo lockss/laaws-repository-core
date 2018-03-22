@@ -179,13 +179,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         // Create an instance of Artifact to represent the artifact
         Artifact artifact = new Artifact(
-                artifactId.getId(),
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                artifactId.getVersion(),
+                artifactId,
                 false,
-                artifactData.getStorageUrl()
+                artifactData.getStorageUrl(),
+                artifactData.getContentLength(),
+                artifactData.getContentDigest()
         );
 
         // Add the Artifact to Solr as a bean

@@ -157,12 +157,16 @@ public class ArtifactDataFactory {
 
         HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
-        return new ArtifactData(
+        ArtifactData artifactData = new ArtifactData(
                 buildArtifactIdentifier(headers),
                 headers,
                 response.getEntity().getContent(),
                 response.getStatusLine()
         );
+
+        artifactData.setContentLength(response.getEntity().getContentLength());
+
+        return artifactData;
     }
 
     /**

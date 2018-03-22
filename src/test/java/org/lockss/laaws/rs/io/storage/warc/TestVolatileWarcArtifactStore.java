@@ -142,7 +142,9 @@ public class TestVolatileWarcArtifactStore {
                     "uri",
                     1,
                     false,
-                    "fake"
+                    "fake",
+                    0,
+                    "ok"
             );
 
             ArtifactData artifact = store.getArtifactData(indexData);
@@ -216,7 +218,9 @@ public class TestVolatileWarcArtifactStore {
                     aid1.getUri(),
                     aid1.getVersion(),
                     false,
-                    artifact.getStorageUrl()
+                    artifact.getStorageUrl(),
+                    0,
+                    "ok"
             );
 
             // Commit artifact
@@ -264,7 +268,9 @@ public class TestVolatileWarcArtifactStore {
                     aid1.getUri(),
                     aid1.getVersion(),
                     false,
-                    artifact.getStorageUrl()
+                    artifact.getStorageUrl(),
+                    0,
+                    "ok"
             );
 
             // Delete the artifact from the artifact store
