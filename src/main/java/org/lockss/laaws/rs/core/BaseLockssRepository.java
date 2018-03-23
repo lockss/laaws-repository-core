@@ -106,7 +106,7 @@ public class BaseLockssRepository implements LockssRepository {
                 artifactId.getAuid(),
                 artifactId.getUri(),
                 // Set the next version
-                (latestVersion == null) ? 0 : latestVersion.getVersion() + 1
+                (latestVersion == null) ? 1 : latestVersion.getVersion() + 1
         );
 
         artifactData.setIdentifier(newId);
