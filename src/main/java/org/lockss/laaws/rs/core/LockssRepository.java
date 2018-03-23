@@ -280,4 +280,15 @@ public interface LockssRepository {
                                 Integer version)
         throws IOException;
 
+
+    /**
+     * Returns the size, in bytes, of AU in a collection.
+     *
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @return A {@code Long} with the total size of the specified AU in bytes.
+     */
+    Long auSize(String collection, String auid) throws IOException;
 }

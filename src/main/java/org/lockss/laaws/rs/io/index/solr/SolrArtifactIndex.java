@@ -39,6 +39,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
+import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrInputDocument;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -93,6 +94,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
             createSolrField(solr,"uri", "string");
             createSolrField(solr,"committed", "boolean");
             createSolrField(solr,"storageUrl", "string");
+            createSolrField(solr, "contentLength", "plong");
+            createSolrField(solr, "contentDigest", "string");
 
             // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
             // sorting when the field is a single value field. See the link below for more information:
@@ -544,6 +547,35 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         return null;
+    }
+
+    /**
+     * Returns the size, in bytes, of AU in a collection.
+     *
+     * @param collection A {@code String} containing the collection ID.
+     * @param auid       A {@code String} containing the Archival Unit ID.
+     * @return A {@code Long} with the total size of the specified AU in bytes.
+     */
+    @Override
+    public Long auSize(String collection, String auid) throws IOException {
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+        q.setGetFieldStatistics(true);
+        q.setGetFieldStatistics("contentLength");
+        q.setRows(0);
+
+        try {
+            // Query Solr and get
+            QueryResponse response = solr.query(q);
+            FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
+
+            return (Long)contentLengthStats.getSum();
+        } catch (SolrServerException e) {
+            throw new IOException(e);
+        }
     }
 
     /**

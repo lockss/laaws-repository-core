@@ -462,4 +462,23 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         return ret;
     }
+
+    /**
+     * Returns the size, in bytes, of AU in a collection.
+     *
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @return A {@code Long} with the total size of the specified AU in bytes.
+     */
+    @Override
+    public Long auSize(String collection, String auid) {
+        ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
+        q.filterByCommitStatus(true);
+        q.filterByCollection(collection);
+        q.filterByAuid(auid);
+
+        return index.values().stream().filter(q.build()).mapToLong(artifact -> artifact.getContentLength()).sum();
+    }
 }
