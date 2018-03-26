@@ -406,7 +406,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
-        return null;
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+        q.addFilterQuery("{!collapse field=uri max=version");
+
+        return IteratorUtils.asIterable(query(q));
     }
 
     /**
@@ -444,7 +451,15 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
-        return null;
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+        q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+        q.addFilterQuery("{!collapse field=uri max=version");
+
+        return IteratorUtils.asIterable(query(q));
     }
 
     /**
@@ -510,6 +525,28 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+        q.addFilterQuery(String.format("{!term f=uri}%s", url));
+        q.addFilterQuery("{!collapse field=uri max=version");
+
+        Iterator<Artifact> result = query(q);
+        if (result.hasNext()) {
+            Artifact artifact = result.next();
+
+            if (result.hasNext()) {
+                // This should never happen if Solr is working correctly
+                String errMsg = "More than one artifact returned for the latest version of (Collection, AUID, URL)!";
+                log.error(errMsg);
+                throw new RuntimeException(errMsg);
+            }
+
+            return artifact;
+        }
+
         return null;
     }
 
