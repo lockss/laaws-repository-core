@@ -57,6 +57,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     private static final Log log = LogFactory.getLog(Artifact.class);
     private final SolrClient solr;
 
+    private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
+    private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
+
     /**
      * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
      *
@@ -361,7 +364,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                     ff.getValueCount()
             ));
 
-            return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).iterator());
+            return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).sorted().iterator());
 
         } catch (SolrServerException e) {
             throw new IOException(e);
@@ -388,7 +391,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         try {
             QueryResponse response = solr.query(q);
-            return IteratorUtils.asIterable(response.getFacetField("auid").getValues().stream().map(x -> x.getName()).iterator());
+            return IteratorUtils.asIterable(
+                    response.getFacetField("auid").getValues().stream().map(x -> x.getName()).sorted().iterator()
+            );
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
@@ -412,6 +417,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery("{!collapse field=uri max=version}");
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -432,6 +439,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -458,6 +467,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
         q.addFilterQuery("{!collapse field=uri max=version}");
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -483,6 +494,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -507,6 +520,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
     }
