@@ -33,6 +33,8 @@ package org.lockss.laaws.rs.io.index;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.util.ArtifactComparators;
+import org.lockss.util.SlashFirstComparator;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.apache.commons.collections4.IteratorUtils;
@@ -280,9 +282,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
-        return IteratorUtils.asIterable(result.values().stream().map(x -> x.get()).sorted(
-                Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator());
+        return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
+                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
     }
 
     /**
@@ -302,9 +303,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByAuid(auid);
 
         // Apply the filter, sort by artifact URL then descending version, and return an iterator over the Artifacts
-        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).sorted(
-                Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator());
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
     }
 
     /**
@@ -335,9 +335,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
-        return IteratorUtils.asIterable(result.values().stream().map(x -> x.get()).sorted(
-                Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator());
+        return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
+                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
     }
 
     /**
@@ -362,9 +361,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIPrefix(prefix);
 
         // Apply filter then sort the resulting Artifacts by URL and descending version
-        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).sorted(
-                Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator());
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
     }
 
     /**
@@ -388,9 +386,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIMatch(url);
 
         // Apply filter then sort the resulting Artifacts by URL and descending version
-        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).sorted(
-                Comparator.comparing(Artifact::getUri).thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-        ).iterator());
+        return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+                .sorted(ArtifactComparators.BY_DECREASING_VERSION).iterator());
     }
 
     /**
