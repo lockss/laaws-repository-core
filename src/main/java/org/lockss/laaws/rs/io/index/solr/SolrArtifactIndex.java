@@ -411,7 +411,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
-        q.addFilterQuery("{!collapse field=uri max=version");
+        q.addFilterQuery("{!collapse field=uri max=version}");
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -457,7 +457,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
-        q.addFilterQuery("{!collapse field=uri max=version");
+        q.addFilterQuery("{!collapse field=uri max=version}");
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -531,7 +531,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
-        q.addFilterQuery("{!collapse field=uri max=version");
+        q.addFilterQuery("{!collapse field=uri max=version}");
 
         Iterator<Artifact> result = query(q);
         if (result.hasNext()) {
