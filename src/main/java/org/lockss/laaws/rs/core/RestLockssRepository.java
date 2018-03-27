@@ -457,6 +457,18 @@ public class RestLockssRepository implements LockssRepository {
         return null;
     }
 
+    /**
+     * Returns the size, in bytes, of AU in a collection.
+     *
+     * @param collection A {@code String} containing the collection ID.
+     * @param auid       A {@code String} containing the Archival Unit ID.
+     * @return A {@code Long} with the total size of the specified AU in bytes.
+     */
+    @Override
+    public Long auSize(String collection, String auid) throws IOException {
+        return null;
+    }
+
     public Iterator<Artifact> getArtifactsWithUriPrefix(String collection, String uri) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(buildEndpoint(collection))
                 .queryParam("uri", uri);

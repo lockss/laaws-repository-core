@@ -219,9 +219,15 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         IOUtils.copy(httpResponse, dfos);
         dfos.close();
 
-        // Set the length and digest of the artifact data
+        // Set the length of the artifact data
         artifactData.setContentLength(cis.getByteCount());
-        artifactData.setContentDigest(new String(Hex.encodeHex(dis.getMessageDigest().digest())));
+
+        // Set content digest of artifact data
+        artifactData.setContentDigest(String.format(
+                "%s:%s",
+                dis.getMessageDigest().getAlgorithm(),
+                new String(Hex.encodeHex(dis.getMessageDigest().digest()))
+        ));
 
         // Attach WARC record payload and set the payload length
         record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));

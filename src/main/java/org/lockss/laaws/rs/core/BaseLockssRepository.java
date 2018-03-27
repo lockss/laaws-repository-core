@@ -106,7 +106,7 @@ public class BaseLockssRepository implements LockssRepository {
                 artifactId.getAuid(),
                 artifactId.getUri(),
                 // Set the next version
-                (latestVersion == null) ? 0 : latestVersion.getVersion() + 1
+                (latestVersion == null) ? 1 : latestVersion.getVersion() + 1
         );
 
         artifactData.setIdentifier(newId);
@@ -349,5 +349,19 @@ public class BaseLockssRepository implements LockssRepository {
     @Override
     public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
         return index.getArtifactVersion(collection, auid, url, version);
+    }
+
+    /**
+     * Returns the size, in bytes, of AU in a collection.
+     *
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @return A {@code Long} with the total size of the specified AU in bytes.
+     */
+    @Override
+    public Long auSize(String collection, String auid) throws IOException {
+        return index.auSize(collection, auid);
     }
 }

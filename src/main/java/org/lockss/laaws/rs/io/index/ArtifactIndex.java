@@ -1,36 +1,39 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2018, Board of Trustees of Leland Stanford Jr. University
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 package org.lockss.laaws.rs.io.index;
 
 import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.util.SlashFirstComparator;
 import org.lockss.laaws.rs.model.Artifact;
 
 import java.io.IOException;
@@ -139,6 +142,7 @@ public interface ArtifactIndex {
 
     /**
      * Returns the artifacts of the latest committed version of all URLs, from a specified Archival Unit and collection.
+     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator}.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
@@ -153,6 +157,8 @@ public interface ArtifactIndex {
     
     /**
      * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
+     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator},
+     * and for each URL, with version numbers in decreasing order.
      *
      * @param collection
      *          A String with the collection identifier.
@@ -167,6 +173,7 @@ public interface ArtifactIndex {
     /**
      * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
      * Unit and collection.
+     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator}.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
@@ -185,6 +192,8 @@ public interface ArtifactIndex {
     /**
      * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified Archival Unit and
      * collection.
+     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator},
+     * and for each URL, with version numbers in decreasing order.
      *
      * @param collection
      *          A String with the collection identifier.
@@ -202,6 +211,7 @@ public interface ArtifactIndex {
 
     /**
      * Returns the artifacts of all committed versions of a given URL, from a specified Archival Unit and collection.
+     * Returns artifacts ordered with version numbers in decreasing order.
      *
      * @param collection
      *          A {@code String} with the collection identifier.
@@ -253,4 +263,14 @@ public interface ArtifactIndex {
                                 Integer version)
         throws IOException;
 
+    /**
+     * Returns the size, in bytes, of AU in a collection.
+     *
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @return A {@code Long} with the total size of the specified AU in bytes.
+     */
+    Long auSize(String collection, String auid) throws IOException;
 }
