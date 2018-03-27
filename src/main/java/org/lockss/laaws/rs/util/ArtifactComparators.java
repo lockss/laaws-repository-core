@@ -35,18 +35,18 @@ package org.lockss.laaws.rs.util;
 import java.util.Comparator;
 
 import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.util.SlashFirstComparator;
+import org.lockss.util.PreOrderComparator;
 
 public class ArtifactComparators {
 
   public static final Comparator<Artifact> BY_URI_SLASH_FIRST =
-      Comparator.comparing(Artifact::getUri, SlashFirstComparator.INSTANCE);      
+      Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE);      
   
   public static final Comparator<Artifact> BY_DECREASING_VERSION =
       Comparator.comparingInt(Artifact::getVersion).reversed();      
   
   public static final Comparator<Artifact> BY_URI_SLASH_FIRST_BY_DECREASING_VERSION =
-      Comparator.comparing(Artifact::getUri, SlashFirstComparator.INSTANCE)
+      Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
   
 }

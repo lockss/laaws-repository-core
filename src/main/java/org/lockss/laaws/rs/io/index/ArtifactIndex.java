@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.io.index;
 
 import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.util.SlashFirstComparator;
+import org.lockss.util.PreOrderComparator;
 import org.lockss.laaws.rs.model.Artifact;
 
 import java.io.IOException;
@@ -142,7 +142,7 @@ public interface ArtifactIndex {
 
     /**
      * Returns the artifacts of the latest committed version of all URLs, from a specified Archival Unit and collection.
-     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator}.
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator}.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
@@ -157,7 +157,7 @@ public interface ArtifactIndex {
     
     /**
      * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
-     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator},
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
      * and for each URL, with version numbers in decreasing order.
      *
      * @param collection
@@ -173,7 +173,7 @@ public interface ArtifactIndex {
     /**
      * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
      * Unit and collection.
-     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator}.
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator}.
      *
      * @param collection
      *          A {@code String} containing the collection ID.
@@ -192,7 +192,7 @@ public interface ArtifactIndex {
     /**
      * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified Archival Unit and
      * collection.
-     * Returns artifacts with URLs ordered according to {@link SlashFirstComparator},
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
      * and for each URL, with version numbers in decreasing order.
      *
      * @param collection

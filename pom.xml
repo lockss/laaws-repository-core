@@ -38,13 +38,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   <parent>
     <groupId>org.lockss</groupId>
     <artifactId>lockss-spring-parent-pom</artifactId>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <relativePath />
   </parent>
 
   <groupId>org.lockss.laaws</groupId>
   <artifactId>laaws-repository-core</artifactId>
-  <version>1.10.0</version>
+  <version>1.11.0</version>
   <packaging>jar</packaging>
   
   <name>laaws-repository-core</name>
@@ -154,7 +154,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.lockss</groupId>
       <artifactId>lockss-util</artifactId>
-      <version>1.5.0</version>
+      <version>1.6.0</version>
     </dependency>
 
   </dependencies>
