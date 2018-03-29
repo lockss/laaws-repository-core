@@ -254,7 +254,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
-        return IteratorUtils.asIterable(index.values().stream().filter(query.build()).map(x -> x.getAuid()).sorted().iterator());
+        return IteratorUtils.asIterable(
+                index.values().stream().filter(query.build()).map(x -> x.getAuid()).distinct().sorted().iterator()
+        );
     }
 
     /**
