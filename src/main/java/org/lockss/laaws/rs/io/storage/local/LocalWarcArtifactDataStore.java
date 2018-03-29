@@ -98,6 +98,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
         // Re-index artifacts first
         for (File warcFile : artifactWarcFiles) {
+            log.info(String.format("Reading artifacts from %s", warcFile));
+
             try {
                 for (ArchiveRecord record : WARCReaderFactory.get(warcFile)) {
                     log.info(String.format(
@@ -108,18 +110,23 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                     ));
 
                     try {
-                        ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
+                        ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
 
-                        if (artifact != null) {
-                            // Attach repository metadata to artifact
-                            artifact.setRepositoryMetadata(new RepositoryArtifactMetadata(
-                                    artifact.getIdentifier(),
+                        if (artifactData != null) {
+                            // Set ArtifactData storage URL
+                            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + warcFile.getAbsolutePath());
+                            uriBuilder.queryParam("offset", record.getHeader().getOffset());
+                            artifactData.setStorageUrl(uriBuilder.toUriString());
+
+                            // Default repository metadata for all ArtifactData objects to be indexed
+                            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
+                                    artifactData.getIdentifier(),
                                     false,
                                     false
                             ));
 
                             // Add artifact to the index
-                            index.indexArtifact(artifact);
+                            index.indexArtifact(artifactData);
                         }
                     } catch (IOException e) {
                         log.error(String.format(
@@ -143,35 +150,42 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                 .filter(file -> file.getName().endsWith("lockss-repo" + WARC_FILE_SUFFIX))
                 .collect(Collectors.toList());
 
-        // Load repository artifact metadata by "replaying" them
+        // Update LOCKSS repository metadata for artifacts by "replaying" their changes
         for (File metadataFile : repoMetadataWarcFiles) {
+            log.info(String.format("Reading repository metadata journal from %s", metadataFile));
+
             try {
                 for (ArchiveRecord record : WARCReaderFactory.get(metadataFile)) {
+                    // Parse the JSON into a RepositoryArtifactMetadata object
+                    RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
+                            IOUtils.toString(record)
+                    );
+
+                    String artifactId = repoState.getArtifactId();
+
                     log.info(String.format(
-                            "Re-indexing artifact metadata from WARC %s record %s from %s",
+                            "Replaying repository metadata for artifact %s, from WARC %s record %s in %s",
+                            artifactId,
                             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
                             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
                             metadataFile
                     ));
 
-                    // Parse the JSON as a RepositoryArtifactMetadata object
-                    RepositoryArtifactMetadata repoStatus = new RepositoryArtifactMetadata(
-                            IOUtils.toString(record)
-                    );
-
-                    if (index.artifactExists(repoStatus.getArtifactId())) {
-                        if (repoStatus.isDeleted()) {
-                            log.info(String.format("Removing artifact %s from index", repoStatus.getArtifactId()));
-                            index.deleteArtifact(repoStatus.getArtifactId());
+                    if (index.artifactExists(artifactId)) {
+                        if (repoState.isDeleted()) {
+                            log.info(String.format("Removing artifact %s from index", artifactId));
+                            index.deleteArtifact(artifactId);
                             continue;
                         }
 
-                        if (repoStatus.isCommitted()) {
-                            log.info(String.format("Marking aritfact %s as committed in index", repoStatus.getArtifactId()));
-                            index.commitArtifact(repoStatus.getArtifactId());
+                        if (repoState.isCommitted()) {
+                            log.info(String.format("Marking aritfact %s as committed in index", artifactId));
+                            index.commitArtifact(artifactId);
                         }
                     } else {
-                        log.warn(String.format("ArtifactData %s not found in index", repoStatus.getArtifactId()));
+                        if (!repoState.isDeleted()) {
+                            log.warn(String.format("Artifact %s not found in index; skipped replay", artifactId));
+                        }
                     }
                 }
             } catch (IOException e) {
