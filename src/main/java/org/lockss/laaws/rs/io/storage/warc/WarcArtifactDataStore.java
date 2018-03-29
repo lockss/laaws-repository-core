@@ -168,7 +168,7 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
 
         // Mandatory WARC record headers
         record.setRecordId(URI.create(artifactId.getId()));
-        record.setCreate14DigitDate("TODO"); // TODO
+        record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
         record.setType(WARCRecordType.response);
 
         // Optional WARC record headers

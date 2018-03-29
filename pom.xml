@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   <groupId>org.lockss.laaws</groupId>
   <artifactId>laaws-repository-core</artifactId>
-  <version>1.11.2</version>
+  <version>1.11.3</version>
   <packaging>jar</packaging>
   
   <name>laaws-repository-core</name>
@@ -74,6 +74,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <groupId>org.springframework.data</groupId>
       <artifactId>spring-data-hadoop-store</artifactId>
       <version>2.4.0.RELEASE</version>
+      <!-- A variety of Spring components especially spring-test need the Servlet API 3.1 -->
+      <!-- hadoop-yarn-common brings in 2.5 -->
+      <exclusions>
+        <exclusion>
+          <groupId>javax.servlet</groupId>
+          <artifactId>servlet-api</artifactId>  
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!--SpringFox dependencies -->
