@@ -48,27 +48,35 @@ import org.lockss.test.LockssTestCase4;
  */
 public class TestVolatileArtifactIndex extends LockssTestCase4 {
 
-  private ArtifactIdentifier aid1;
   private UUID uuid;
+  private ArtifactIdentifier aid1;
   private ArtifactIdentifier aid2;
+  private ArtifactIdentifier aid3;
   private RepositoryArtifactMetadata md1;
   private RepositoryArtifactMetadata md2;
+  private RepositoryArtifactMetadata md3;
   private ArtifactData artifact1;
   private ArtifactData artifact2;
+  private ArtifactData artifact3;
   private VolatileArtifactIndex index;
 
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);
+
     uuid = UUID.randomUUID();
+
+    aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);
     aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", 2);
+    aid3 = new ArtifactIdentifier("id3", "coll1", "auid1", "uri3", 2);
 
     md1 = new RepositoryArtifactMetadata(aid1, false, false);
     md2 = new RepositoryArtifactMetadata(aid2, true, false);
+    md3 = new RepositoryArtifactMetadata(aid2, true, false);
 
     artifact1 = new ArtifactData(aid1, null, null, null, "surl1", md1);
     artifact2 = new ArtifactData(aid2, null, null, null, "surl2", md2);
+    artifact3 = new ArtifactData(aid3, null, null, null, "surl3", md3);
 
     index = new VolatileArtifactIndex();
   }
@@ -351,7 +359,14 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
     index.commitArtifact("id1");
     assertTrue(index.getAuIds("coll1").iterator().hasNext());
 
+    index.indexArtifact(artifact3);
+    index.commitArtifact(aid3.getId());
     Iterator<String> auIds = index.getAuIds("coll1").iterator();
+    assertTrue(auIds.hasNext());
+    assertNotNull(auIds.next());
+    assertFalse(auIds.hasNext());
+
+    auIds = index.getAuIds("coll1").iterator();
     assertEquals("auid1", auIds.next());
     assertFalse(auIds.hasNext());
 
