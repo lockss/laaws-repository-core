@@ -60,8 +60,23 @@ public abstract class AbstractArtifactDataStoreTest<ID extends ArtifactIdentifie
   }
   
   @Test
+  public void testCommitArtifactData() throws Exception {
+    assertThrows(NullPointerException.class, () -> store.commitArtifactData(null));
+  }
+  
+  @Test
   public void testGetArtifactData() throws Exception {
-    assertThrows(IllegalArgumentException.class, () -> store.getArtifactData(null));
+    assertThrows(NullPointerException.class, () -> store.getArtifactData(null));
+  }
+  
+  @Test
+  public void testUpdateArtifactData() throws Exception {
+    assertThrows(NullPointerException.class, () -> store.updateArtifactMetadata(null, null));
+  }
+  
+  @Test
+  public void testDeleteArtifactData() throws Exception {
+    assertThrows(NullPointerException.class, () -> store.deleteArtifactData(null));
   }
   
 }

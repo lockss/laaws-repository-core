@@ -45,7 +45,6 @@ import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -91,7 +90,7 @@ public class TestVolatileWarcArtifactStore {
     }
 
     @Test
-    public void addArtifact() throws Exception {
+    public void testAddArtifactData() throws Exception {
         String errorMsg = "artifactData is null";
 
         try {
@@ -114,15 +113,15 @@ public class TestVolatileWarcArtifactStore {
     }
 
     @Test
-    public void getArtifact() {
-        String errMsg = "Artifact used to reference artifact cannot be null";
+    public void testGetArtifactData() {
+        String errMsg = "artifact is null";
 
         try {
             // Attempt retrieving the artifact with a null argument
             store.getArtifactData(null);
-            fail("Expected IllegalArgumentException to be thrown");
-        } catch (IllegalArgumentException e) {
-            assertEquals(errMsg, e.getMessage());
+            fail("Expected NullPointerException to be thrown");
+        } catch (NullPointerException npe) {
+            assertEquals(errMsg, npe.getMessage());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
         }
@@ -161,7 +160,7 @@ public class TestVolatileWarcArtifactStore {
     }
 
     @Test
-    public void updateArtifactMetadata() {
+    public void testUpdateArtifactMetadata() {
         try {
             store.addArtifactData(artifactData1);
             RepositoryArtifactMetadata md1updated = new RepositoryArtifactMetadata(aid1, true, false);
@@ -177,18 +176,16 @@ public class TestVolatileWarcArtifactStore {
     }
 
     @Test
-    public void commitArtifact() {
-        String errMsg = "indexData cannot be null";
+    public void testCommitArtifact() {
+        String errMsg = "artifact is null";
 
         try {
             store.commitArtifactData(null);
-            fail("Expected IllegalArgumentException to be thrown");
-        } catch (IllegalArgumentException e) {
-            assertEquals(errMsg, e.getMessage());
+            fail("Expected NullPointerException to be thrown");
+        } catch (NullPointerException npe) {
+            assertEquals(errMsg, npe.getMessage());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
 
         try {
@@ -221,24 +218,20 @@ public class TestVolatileWarcArtifactStore {
             assertTrue(store.getArtifactData(indexData).getRepositoryMetadata().isCommitted());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
     }
 
     @Test
-    public void deleteArtifact() {
-        String errMsg = "artifactInfo cannot be null";
+    public void testDeleteArtifact() {
+        String errMsg = "artifact is null";
 
         try {
             store.deleteArtifactData(null);
-            fail("Expected IllegalArgumentException to be thrown");
-        } catch (IllegalArgumentException e) {
-            assertEquals(errMsg, e.getMessage());
+            fail("Expected NullPointerException to be thrown");
+        } catch (NullPointerException npe) {
+            assertEquals(errMsg, npe.getMessage());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
 
         try {
@@ -272,8 +265,6 @@ public class TestVolatileWarcArtifactStore {
             assertNull(store.getArtifactData(indexData));
         } catch (IOException e) {
             fail("Unexpected IOException caught");
-        } catch (URISyntaxException e) {
-            fail("Unexpected URISyntaxException caught");
         }
     }
 }

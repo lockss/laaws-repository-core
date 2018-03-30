@@ -60,12 +60,12 @@ public class CephArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     }
 
     @Override
-    public MD commitArtifactData(Artifact artifact) throws IOException, URISyntaxException {
+    public MD commitArtifactData(Artifact artifact) throws IOException {
         return null;
     }
 
     @Override
-    public MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException {
+    public MD deleteArtifactData(Artifact artifact) throws IOException {
         return null;
     }
 }

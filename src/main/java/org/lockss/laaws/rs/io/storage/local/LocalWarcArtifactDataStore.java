@@ -269,9 +269,10 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
      */
     @Override
     public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
-      if (artifactData == null) {
-        throw new NullPointerException("artifactData is null");
-      }
+        if (artifactData == null) {
+          throw new NullPointerException("artifactData is null");
+        }
+          
 //        if (index == null) {
 //             YES: Cannot proceed without an artifact index - throw RuntimeException
 //            throw new RuntimeException("No artifact index configured!");
@@ -346,7 +347,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
     @Override
     public ArtifactData getArtifactData(Artifact artifact) throws IOException {
         if (artifact == null) {
-            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
+          throw new NullPointerException("artifact is null");
         }
         log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.getId()));
 
@@ -391,22 +392,28 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
      * Updates the metadata of an artifact by appending a WARC metadata record to a metadata WARC file.
      *
      * @param artifactId The artifact identifier to add the metadata to.
-     * @param metadata   ArtifactData metadata.
+     * @param artifactMetadata   ArtifactData metadata.
      * @throws IOException
      */
     @Override
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
+    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) throws IOException {
+        if (artifactId == null) {
+          throw new NullPointerException("artifactId is null");
+        }
+        if (artifactMetadata == null) {
+          throw new NullPointerException("artifactMetadata is null");
+        }
 
 //        if (!isDeleted(artifactId)) {
             // Convert ArtifactMetadata object into a WARC metadata record
             WARCRecordInfo metadataRecord = createWarcMetadataRecord(
 //                    getWarcRecordId(indexedData.getWarcFilePath(), indexedData.getWarcRecordOffset()),
                     artifactId.getId(),
-                    metadata
+                    artifactMetadata
             );
 
             // Get an OutputStream to the AU's metadata file
-            String metadataPath = getArchicalUnitBasePath(artifactId) + SEPARATOR + metadata.getMetadataId() + WARC_FILE_SUFFIX;
+            String metadataPath = getArchicalUnitBasePath(artifactId) + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_SUFFIX;
             FileOutputStream fos = new FileOutputStream(metadataPath, true);
 
             // Append WARC metadata record to AU's repository metadata file
@@ -415,27 +422,30 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
             // Close the OutputStream
             fos.close();
 //        }
-        return metadata;
+        return artifactMetadata;
     }
 
     /**
      * Marks the artifact as committed in the repository by updating the repository metadata for this artifact, and the
      * committed status in the artifact index.
      *
-     * @param indexData The artifact identifier of the artifact to commit.
+     * @param artifact The artifact identifier of the artifact to commit.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifactData(Artifact indexData)
-	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifactData(indexData);
-        RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
+    public RepositoryArtifactMetadata commitArtifactData(Artifact artifact)
+	throws IOException {
+        if (artifact == null) {
+          throw new NullPointerException("artifact is null");
+        }
+        ArtifactData artifactData = getArtifactData(artifact);
+        RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
 
         // Set the commit flag and write the metadata to disk
         if (!repoMetadata.isDeleted()) {
             repoMetadata.setCommitted(true);
-            updateArtifactMetadata(indexData.getIdentifier(), repoMetadata);
+            updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
 
             // Update the committed flag in the index
 //            index.commitArtifact(indexData.getId());
@@ -477,15 +487,18 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
     /**
      * Marks the artifact as deleted in the repository by updating the repository metadata for this artifact.
      *
-     * @param indexData The artifact identifier of the artifact to mark as deleted.
+     * @param artifact The artifact identifier of the artifact to mark as deleted.
      * @throws IOException
      * @throws URISyntaxException 
      */
     @Override
-    public RepositoryArtifactMetadata deleteArtifactData(Artifact indexData)
-	throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifactData(indexData);
-        RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
+    public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact)
+	throws IOException {
+        if (artifact == null) {
+          throw new NullPointerException("artifact is null");
+        }
+        ArtifactData artifactData = getArtifactData(artifact);
+        RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
 
         if (!repoMetadata.isDeleted()) {
             // Update the repository metadata
@@ -493,7 +506,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
             repoMetadata.setDeleted(true);
 
             // Write to disk
-            updateArtifactMetadata(indexData.getIdentifier(), repoMetadata);
+            updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
 
             // Update the committed flag in the index
 //            index.commitArtifact(indexData.getId());

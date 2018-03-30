@@ -512,7 +512,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
      */
     @Override
     public RepositoryArtifactMetadata commitArtifactData(Artifact indexData)
-	throws IOException, URISyntaxException {
+	throws IOException {
         ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
@@ -537,7 +537,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
      */
     @Override
     public RepositoryArtifactMetadata deleteArtifactData(Artifact indexData)
-	throws IOException, URISyntaxException {
+	throws IOException {
         ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
 
