@@ -91,16 +91,14 @@ public class TestVolatileWarcArtifactStore {
     }
 
     @Test
-    public void addArtifact() {
-        String errorMsg = "Cannot add a null artifact";
+    public void addArtifact() throws Exception {
+        String errorMsg = "artifactData is null";
 
         try {
             store.addArtifactData(null);
-            fail("Expected to IOException to be thrown");
-        } catch (IllegalArgumentException e){
-            assertEquals(errorMsg, e.getMessage());
-        } catch (IOException e) {
-            fail("Expected to IOException to be thrown");
+            fail("Expected NullPointerException to be thrown");
+        } catch (NullPointerException npe){
+            assertEquals(errorMsg, npe.getMessage());
         }
 
         try {

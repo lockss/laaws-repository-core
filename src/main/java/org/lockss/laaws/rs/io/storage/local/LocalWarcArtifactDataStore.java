@@ -273,6 +273,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
      */
     @Override
     public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
+      if (artifactData == null) {
+        throw new NullPointerException("artifactData is null");
+      }
 //        if (index == null) {
 //             YES: Cannot proceed without an artifact index - throw RuntimeException
 //            throw new RuntimeException("No artifact index configured!");

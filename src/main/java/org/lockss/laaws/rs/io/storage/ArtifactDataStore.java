@@ -53,6 +53,8 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * @param artifactData
      *          An {@code ArtifactData} to add to this artifact store.
      * @return Returns the {@code ArtifactData} as it is now recorded in this artifact store.
+     * @throws NullPointerException
+     *          if the {@link ArtifactData} instance is null
      * @throws IOException
      */
     Artifact addArtifactData(ArtifactData artifactData) throws IOException;
