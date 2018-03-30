@@ -50,6 +50,9 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     /**
      * Adds an artifact to this artifact store.
      *
+     * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
+     * will exhaust the ArtifactData's InputStream, computes the length, digest of its stream, and sets a storage URL.
+     *
      * @param artifactData
      *          An {@code ArtifactData} to add to this artifact store.
      * @return Returns the {@code ArtifactData} as it is now recorded in this artifact store.

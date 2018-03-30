@@ -265,11 +265,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
     }
 
     /**
-     * Adds an artifact to the repository.
-     *
-     * @param artifactData An artifact.
-     * @return An artifact identifier for artifact reference within this repository.
-     * @throws IOException
+     * {@inheritDoc}
      */
     @Override
     public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
