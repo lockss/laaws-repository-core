@@ -50,26 +50,31 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     /**
      * Adds an artifact to this artifact store.
      *
+     * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
+     * will exhaust the ArtifactData's InputStream, computes the length, digest of its stream, and sets a storage URL.
+     *
      * @param artifactData
      *          An {@code ArtifactData} to add to this artifact store.
      * @return Returns the {@code ArtifactData} as it is now recorded in this artifact store.
+     * @throws NullPointerException
+     *          if the given {@link ArtifactData} instance is null
      * @throws IOException
      */
     Artifact addArtifactData(ArtifactData artifactData) throws IOException;
 
-  /**
-   * Retrieves an artifact from this artifact data store.
-   *
-   * @param artifact
-   *          An {@link Artifact} instance containing a reference to the
-   *          artifact to retrieve from storage.
-   * @return An {@link ArtifactData} instance retrieved from this artifact data
-   *         store.
-   * @throws IOException
-   * @throws IllegalArgumentException
-   *           if the given artifact is null
-   */
-  AD getArtifactData(Artifact artifact) throws IOException;
+    /**
+     * Retrieves an artifact from this artifact data store.
+     *
+     * @param artifact
+     *          An {@link Artifact} instance containing a reference to the
+     *          artifact to retrieve from storage.
+     * @return An {@link ArtifactData} instance retrieved from this artifact data
+     *         store.
+     * @throws IOException
+     * @throws NullPointerException
+     *          if the given {@link Artifact} instance is null
+     */
+    AD getArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Updates an artifact's associated metadata in this artifact store.
@@ -80,6 +85,8 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          An updated {@code ArtifactMetadata} write to this artifact store, for the referenced artifact.
      * @return ArtifactData metadata as it is now recorded in this artifact store.
      * @throws IOException
+     * @throws NullPointerException
+     *          if the given artifact ID or metadata is null
      */
     MD updateArtifactMetadata(ID artifactId, MD metadata) throws IOException;
 
@@ -90,9 +97,10 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          An {@code Artifact} containing a reference to the artifact to update in storage.
      * @return A {@code RepositoryArtifactMetadata} representing the updated state of this artifact's repository metadata.
      * @throws IOException
-     * @throws URISyntaxException
+     * @throws NullPointerException
+     *          if the given {@link Artifact} instance is null
      */
-    MD commitArtifactData(Artifact artifact) throws IOException, URISyntaxException;
+    MD commitArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Permanently removes an artifact from this artifact store.
@@ -101,8 +109,9 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          An {@code Artifact} containing a reference to the artifact to remove from this artifact store.
      * @return A {@code RepositoryArtifactMetadata} with the final state of the removed artifact's repository metadata.
      * @throws IOException
-     * @throws URISyntaxException
+     * @throws NullPointerException
+     *          if the given {@link Artifact} instance is null
      */
-    MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException;
+    MD deleteArtifactData(Artifact artifact) throws IOException;
 
 }

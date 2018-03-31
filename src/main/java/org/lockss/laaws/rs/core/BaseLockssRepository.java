@@ -177,12 +177,8 @@ public class BaseLockssRepository implements LockssRepository {
         if ((collection == null) || (artifactId == null))
             throw new IllegalArgumentException("Null collection ID or artifact ID");
 
-        try {
-            store.deleteArtifactData(index.getArtifact(artifactId));
-            index.deleteArtifact(artifactId);
-        } catch (URISyntaxException e) {
-            throw new IOException(e);
-        }
+        store.deleteArtifactData(index.getArtifact(artifactId));
+        index.deleteArtifact(artifactId);
     }
 
     /**

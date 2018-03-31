@@ -60,21 +60,14 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
     }
 
     /**
-     * Adds an artifact to this artifact store.
-     *
-     * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
-     * will exhaust the ArtifactData's InputStream, computes the length, digest of its stream, and sets a storage URL.
-     *
-     * @param artifactData
-     *          The {@code ArtifactData} to add to this artifact store.
-     * @return A representation of the artifact as it is now stored.
-     * @throws IOException
+     * {@inheritDoc}
      */
     @Override
     public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
-        if (artifactData == null)
-            throw new IllegalArgumentException("Cannot add a null artifact");
-
+        if (artifactData == null) {
+          throw new NullPointerException("artifactData is null");
+        }
+          
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
@@ -134,7 +127,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
     public ArtifactData getArtifactData(Artifact artifact) throws IOException {
         // Cannot work with a null Artifact
         if (artifact == null) {
-            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
+            throw new NullPointerException("artifact is null");
         }
         // ArtifactData to return; defaults to null if one could not be found
         ArtifactData artifactData = null;
@@ -190,6 +183,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
      * @return A representation of the RepositoryArtifactMetadata as it is now stored.
      */
     public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
+        if (artifactId == null) {
+          throw new NullPointerException("artifactId is null");
+        }
+        if (artifactMetadata == null) {
+          throw new NullPointerException("artifactMetadata is null");
+        }
         repositoryMetadata.replace(artifactId.getId(), artifactMetadata);
         return repositoryMetadata.get(artifactId.getId());
     }
@@ -197,45 +196,47 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
     /**
      * Commits an artifact to this artifact store.
      *
-     * @param indexData
+     * @param artifact
      *          A (@code ArtifactIdentifier) that identifies the artifact to commit and store permanently.
      * @return A {@code RepositoryArtifactMetadata} updated to indicate the new commit status as it is now stored.
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifactData(Artifact indexData) {
-        if (indexData == null)
-            throw new IllegalArgumentException("indexData cannot be null");
+    public RepositoryArtifactMetadata commitArtifactData(Artifact artifact) {
+        if (artifact == null) {
+          throw new NullPointerException("artifact is null");
+        }
 
-        RepositoryArtifactMetadata metadata = repositoryMetadata.get(indexData.getId());
+        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifact.getId());
         metadata.setCommitted(true);
 
         // TODO: Use updateArtifactMetadata
-        repositoryMetadata.replace(indexData.getId(), metadata);
+        repositoryMetadata.replace(artifact.getId(), metadata);
         return metadata;
     }
 
     /**
      * Removes an artifact from this store.
      *
-     * @param artifactInfo
+     * @param artifact
      *          A {@code Artifact} referring to the artifact to remove from this store.
      * @return A {@code RepositoryArtifactMetadata} updated to indicate the deleted status of this artifact.
      */
     @Override
-    public RepositoryArtifactMetadata deleteArtifactData(Artifact artifactInfo) {
-        if (artifactInfo == null)
-            throw new IllegalArgumentException("artifactInfo cannot be null");
-
-        Map<String, Map<String, byte[]>> collection = repository.get(artifactInfo.getCollection());
-        Map<String, byte[]> au = collection.get(artifactInfo.getAuid());
-        au.remove(artifactInfo.getId());
+    public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact) {
+        if (artifact == null) {
+            throw new NullPointerException("artifact is null");
+        }
+        
+        Map<String, Map<String, byte[]>> collection = repository.get(artifact.getCollection());
+        Map<String, byte[]> au = collection.get(artifact.getAuid());
+        au.remove(artifact.getId());
 
         // TODO: Use updateArtifactMetadata
-        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifactInfo.getId());
+        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifact.getId());
         metadata.setDeleted(true);
-        repositoryMetadata.replace(artifactInfo.getId(), metadata);
+        repositoryMetadata.replace(artifact.getId(), metadata);
 
-        repositoryMetadata.remove(artifactInfo.getId());
+        repositoryMetadata.remove(artifact.getId());
         return metadata;
     }
 }
