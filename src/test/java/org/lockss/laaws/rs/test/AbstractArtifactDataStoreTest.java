@@ -67,6 +67,7 @@ public abstract class AbstractArtifactDataStoreTest<ID extends ArtifactIdentifie
   @Test
   public void testGetArtifactData() throws Exception {
     assertThrows(NullPointerException.class, () -> store.getArtifactData(null));
+//    assertNull(store.getArtifactData(ArtifactUtil.coll1_auid1_uri1_ver1.getArtifact()));
   }
   
   @Test

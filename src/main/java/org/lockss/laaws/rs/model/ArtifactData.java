@@ -107,6 +107,14 @@ public class ArtifactData implements Comparable<ArtifactData> {
         this.repositoryMetadata = repoMetadata;
     }
 
+    public Artifact getArtifact() {
+      return new Artifact(getIdentifier(),
+                          getRepositoryMetadata().getCommitted(),
+                          getStorageUrl(),
+                          getContentLength(),
+                          getContentDigest());
+    }
+    
     /**
      * Returns additional key-value properties associated with this artifact.
      *
