@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   <groupId>org.lockss.laaws</groupId>
   <artifactId>laaws-repository-core</artifactId>
-  <version>1.11.3</version>
+  <version>1.11.4</version>
   <packaging>jar</packaging>
   
   <name>laaws-repository-core</name>
@@ -70,18 +70,42 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <version>4.4.6</version>
     </dependency>
 
-    <dependency>
-      <groupId>org.springframework.data</groupId>
-      <artifactId>spring-data-hadoop-store</artifactId>
-      <version>2.4.0.RELEASE</version>
-      <!-- A variety of Spring components especially spring-test need the Servlet API 3.1 -->
-      <!-- hadoop-yarn-common brings in 2.5 -->
-      <exclusions>
+    <!-- 
+
+    DEPENDENCY NOTES
+    
+    spring-data-hadoop-store 2.4.0.RELEASE -> hadoop-yarn-common 2.7.1 -> javax.servlet:servlet-api 2.5
+    
+    but a variety of Spring components, especially spring-test, need the Servlet
+    API 3.0.1 or better, so if you are depending on this project from a Spring
+    project, you need this exclusion:
+
         <exclusion>
           <groupId>javax.servlet</groupId>
           <artifactId>servlet-api</artifactId>  
         </exclusion>
-      </exclusions>
+
+    spring-data-hadoop-store 2.4.0.RELEASE -> hadoop-yarn-common 2.7.1 -> org.mortbay.jetty:jetty 6.1.26
+    spring-data-hadoop-store 2.4.0.RELEASE -> hadoop-yarn-common 2.7.1 -> org.mortbay.jetty:jetty-util 6.1.26
+
+    but lockss-core depends on an unsealed Jetty 5 to add classes to
+    org.mortbay.jetty.servlet. If depending on this project from a lockss-core
+    project, you need this exclusion:
+    
+        <exclusion>
+          <groupId>org.mortbay.jetty</groupId>
+          <artifactId>jetty</artifactId>  
+        </exclusion>
+        <exclusion>
+          <groupId>org.mortbay.jetty</groupId>
+          <artifactId>jetty-util</artifactId>  
+        </exclusion>
+
+    -->
+    <dependency>
+      <groupId>org.springframework.data</groupId>
+      <artifactId>spring-data-hadoop-store</artifactId>
+      <version>2.4.0.RELEASE</version>
     </dependency>
 
     <!--SpringFox dependencies -->
