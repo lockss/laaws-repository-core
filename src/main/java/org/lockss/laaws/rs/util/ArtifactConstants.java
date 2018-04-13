@@ -10,4 +10,7 @@ public class ArtifactConstants {
     public static final String ARTIFACTID_URI_KEY = "X-Lockss-Uri";
     public static final String ARTIFACTID_VERSION_KEY = "X-Lockss-Version";
     public static final String ARTIFACTID_ORIGIN_KEY = "X-Lockss-Origin";
+
+    public static final String ARTIFACT_STATE_COMMITTED = "X-Lockss-Committed";
+    public static final String ARTIFACT_STATE_DELETED = "X-Lockss-Deleted";
 }
