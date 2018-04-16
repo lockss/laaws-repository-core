@@ -189,7 +189,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return A boolean indicating whether an artifact exists in this repository.
      */
     @Override
-    public boolean artifactExists(String artifactId) throws IOException {
+    public Boolean artifactExists(String collectionId, String artifactId) throws IOException {
         return index.artifactExists(artifactId);
     }
 
@@ -201,7 +201,7 @@ public class BaseLockssRepository implements LockssRepository {
      * @return A boolean indicating whether the artifact is committed.
      */
     @Override
-    public boolean isArtifactCommitted(String artifactId) throws IOException {
+    public Boolean isArtifactCommitted(String collectionId, String artifactId) throws IOException {
         Artifact artifact = index.getArtifact(artifactId);
         return artifact.getCommitted();
     }

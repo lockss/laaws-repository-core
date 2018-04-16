@@ -30,74 +30,15 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
-import static org.junit.Assert.*;
+public class TestRestLockssRepository extends AbstractLockssRepositoryTest {
+    private final static Log log = LogFactory.getLog(TestRestLockssRepository.class);
 
-public class TestRestLockssRepository {
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @Test
-    public void addArtifact() {
-    }
-
-    @Test
-    public void getArtifact() {
-    }
-
-    @Test
-    public void commitArtifact() {
-    }
-
-    @Test
-    public void deleteArtifact() {
-    }
-
-    @Test
-    public void artifactExists() {
-    }
-
-    @Test
-    public void isArtifactCommitted() {
-    }
-
-    @Test
-    public void getCollectionIds() {
-    }
-
-    @Test
-    public void getAuIds() {
-    }
-
-    @Test
-    public void getArtifactsInAU() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURL() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURL1() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch1() {
-    }
-
-    @Test
-    public void getArtifactsWithUriPrefix() {
-    }
-
-    @Test
-    public void getArtifactsWithUriPrefix1() {
+    @Override
+    public LockssRepository makeLockssRepository() throws Exception {
+//        return new RestLockssRepository(new URL(String.format("http://localhost:%d/", port)));
+        return new VolatileLockssRepository();
     }
 }
