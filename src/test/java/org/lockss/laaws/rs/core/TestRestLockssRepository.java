@@ -33,12 +33,16 @@ package org.lockss.laaws.rs.core;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.net.URL;
+
 public class TestRestLockssRepository extends AbstractLockssRepositoryTest {
     private final static Log log = LogFactory.getLog(TestRestLockssRepository.class);
+    private final static int port = 32640;
 
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
-//        return new RestLockssRepository(new URL(String.format("http://localhost:%d/", port)));
-        return new VolatileLockssRepository();
+        return new RestLockssRepository(new URL(String.format("http://localhost:%d/", port)));
     }
+
+
 }
