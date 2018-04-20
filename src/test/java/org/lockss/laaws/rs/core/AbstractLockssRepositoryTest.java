@@ -494,14 +494,12 @@ public abstract class AbstractLockssRepositoryTest {
         artifact = repository.addArtifact(artifactData1);
         assertNotNull(artifact);
         repository.commitArtifact(artifact);
-        // TODO: Bug
-//        assertEquals((long)4, (long)artifact.getVersion());
+        assertEquals((long)4, (long)artifact.getVersion());
 
         // Get latest artifact
         artifact = repository.getArtifact("coll1", "auid1", "uri1");
         assertNotNull(artifact);
-        // TODO: Bug
-//        assertEquals((long)4, (long)artifact.getVersion());
+        assertEquals((long)4, (long)artifact.getVersion());
     }
 
     @Test

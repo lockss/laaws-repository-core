@@ -95,7 +95,8 @@ public class BaseLockssRepository implements LockssRepository {
         Artifact latestVersion = index.getArtifact(
                 artifactId.getCollection(),
                 artifactId.getAuid(),
-                artifactId.getUri()
+                artifactId.getUri(),
+                true
         );
 
         // Create a new artifact identifier for this
