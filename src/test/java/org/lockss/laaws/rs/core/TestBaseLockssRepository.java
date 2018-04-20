@@ -30,121 +30,16 @@
 
 package org.lockss.laaws.rs.core;
 
-import com.google.common.collect.Iterators;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.message.BasicStatusLine;
-import org.junit.Before;
-import org.junit.Test;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
-import org.springframework.http.HttpHeaders;
+import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.UUID;
-
-import static org.junit.Assert.*;
-
-public class TestBaseLockssRepository {
+public class TestBaseLockssRepository extends AbstractLockssRepositoryTest {
     private final static Log log = LogFactory.getLog(TestBaseLockssRepository.class);
-    private static final byte[] TEST1_BYTES = "hi".getBytes();
-    private LockssRepository repo = null;
 
-    @Before
-    public void setUp() throws Exception {
-        this.repo = new BaseLockssRepository();
-    }
-
-    private ArtifactData createRandomArtifact(String collection, String auid) {
-        // Generate an artifact identifier
-        ArtifactIdentifier id = new ArtifactIdentifier(
-                collection,
-                auid,
-                "http://localhost/" + UUID.randomUUID().toString(),
-                0
-        );
-
-        // Create an InputStream
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(TEST1_BYTES);
-
-        // Custom artifact headers
-        HttpHeaders metadata = new HttpHeaders();
-
-        // HTTP status of the artifact
-        BasicStatusLine statusLine = new BasicStatusLine(
-                new ProtocolVersion("HTTP", 1,1),
-                200,
-                "OK"
-        );
-
-        // Assemble and return artifact
-        return new ArtifactData(id, metadata, inputStream, statusLine);
-    }
-
-    @Test
-    public void addArtifact() throws IOException {
-        // Add an artifact
-        Artifact artifact = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
-        assertNotNull(artifact);
-    }
-
-    @Test
-    public void getArtifact() throws IOException {
-        Artifact artifact = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
-        assertNotNull(artifact);
-        ArtifactData artifactData = repo.getArtifactData("test", artifact.getId());
-        assertNotNull(artifactData);
-    }
-
-    @Test
-    public void commitArtifact() throws IOException {
-        Artifact artifact = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
-        assertNotNull(artifact);
-        Artifact data = repo.commitArtifact("test", artifact.getId());
-        assertTrue(data.getCommitted());
-    }
-
-    @Test
-    public void deleteArtifact() throws IOException {
-        Artifact artifact = repo.addArtifact(createRandomArtifact("test", "testAuid1"));
-        assertNotNull(artifact);
-        repo.deleteArtifact("test", artifact.getId());
-        assertNull(repo.getArtifactData("test", artifact.getId()));
-    }
-
-    @Test
-    public void getCollections() throws IOException {
-        for (Integer i = 0; i < 10; i++) {
-            for (Integer j = 0; j < 10; j++) {
-                String collectionId = String.format("TestCollection-%d", i);
-                String auid = String.format("TestAuid-%d", j);
-                Artifact artifact = repo.addArtifact(createRandomArtifact(collectionId, auid));
-                assertNotNull(artifact);
-                assertNotNull(repo.commitArtifact(collectionId, artifact.getId()));
-            }
-        }
-
-        // Make sure there are ten collections and each begins with TestCollection
-        assertEquals(10, Iterators.size(repo.getCollectionIds().iterator()));
-        repo.getCollectionIds().forEach(x -> assertTrue(x.startsWith("TestCollection")));
-    }
-
-    @Test
-    public void queryArtifacts() {
-    }
-
-    @Test
-    public void getArtifactsInAU() {
-    }
-
-    @Test
-    public void getArtifactsWithUriPrefix() {
-    }
-
-    @Test
-    public void getArtifactsWithUriPrefix1() {
+    @Override
+    public LockssRepository makeLockssRepository() throws Exception {
+        return new BaseLockssRepository(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
     }
 }

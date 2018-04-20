@@ -30,69 +30,33 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
 
 import static org.junit.Assert.*;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
  */
-public class TestLocalLockssRepository {
+public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
+    private final static Log log = LogFactory.getLog(TestLocalLockssRepository.class);
 
-    @Before
-    public void setUp() throws Exception {
+    protected File makeTempDir() throws IOException {
+        File tmpFile = File.createTempFile("TestLocalLockssRepository", null, null);
+        File tmpDir = new File(tmpFile.getPath() + ".d");
+        tmpDir.mkdir();
+        tmpDir.deleteOnExit();
+        tmpFile.delete();
+        return tmpDir;
     }
 
-    @Test
-    public void addArtifact() {
-    }
-
-    @Test
-    public void getArtifact() {
-    }
-
-    @Test
-    public void commitArtifact() {
-    }
-
-    @Test
-    public void deleteArtifact() {
-    }
-
-    @Test
-    public void artifactExists() {
-    }
-
-    @Test
-    public void isArtifactCommitted() {
-    }
-
-    @Test
-    public void getCollectionIds() {
-    }
-
-    @Test
-    public void getAuIds() {
-    }
-
-    @Test
-    public void getArtifactsInAU() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURL() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURL1() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch1() {
+    @Override
+    public LockssRepository makeLockssRepository() throws Exception {
+        return new LocalLockssRepository(makeTempDir());
     }
 }

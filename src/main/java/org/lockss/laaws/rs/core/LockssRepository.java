@@ -135,7 +135,7 @@ public interface LockssRepository {
      *          A {@code String} containing the artifact ID to check.
      * @return A boolean indicating whether an artifact exists in this repository.
      */
-    boolean artifactExists(String artifactId) throws IOException;
+    Boolean artifactExists(String collection, String artifactId) throws IOException;
 
     /**
      * Checks whether an artifact is committed to this LOCKSS repository.
@@ -144,7 +144,7 @@ public interface LockssRepository {
      *          A {@code String} containing the artifact ID to check.
      * @return A boolean indicating whether the artifact is committed.
      */
-    boolean isArtifactCommitted(String artifactId) throws IOException;
+    Boolean isArtifactCommitted(String collection, String artifactId) throws IOException;
 
     /**
      * Provides the collection identifiers of the committed artifacts in the index.
