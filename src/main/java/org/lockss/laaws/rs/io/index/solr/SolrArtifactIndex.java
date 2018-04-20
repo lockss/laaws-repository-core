@@ -535,14 +535,22 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A {@code String} containing the Archival Unit ID.
      * @param url
      *          A {@code String} containing a URL.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
+     *          artifacts of a URL.
      * @return An {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     @Override
-    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+    public Artifact getArtifact(String collection, String auid, String url, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.addFilterQuery(String.format("committed:%s", true));
+
+        if (!includeUncommitted) {
+            // Restrict to only committed artifacts
+            q.addFilterQuery(String.format("committed:%s", true));
+        }
+
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));

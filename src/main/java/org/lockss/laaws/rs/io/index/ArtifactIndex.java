@@ -236,12 +236,34 @@ public interface ArtifactIndex {
      *          A {@code String} containing the Archival Unit ID.
      * @param url
      *          A {@code String} containing a URL.
+     * @return
+     * @throws IOException
+     */
+    default Artifact getArtifact(String collection,
+                         String auid,
+                         String url) throws IOException {
+        return getArtifact(collection, auid, url, false);
+    }
+
+    /**
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @param url
+     *          A {@code String} containing a URL.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
+     *          artifacts of a URL.
      * @return The {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     Artifact getArtifact(String collection,
                          String auid,
-                         String url)
+                         String url,
+                         boolean includeUncommitted)
         throws IOException;
 
     /**

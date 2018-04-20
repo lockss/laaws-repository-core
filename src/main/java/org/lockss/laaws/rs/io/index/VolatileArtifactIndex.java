@@ -400,13 +400,20 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *          A {@code String} containing the Archival Unit ID.
      * @param url
      *          A {@code String} containing a URL.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
+     *          artifacts of a URL.
      * @return An {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     @Override
-    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+    public Artifact getArtifact(String collection, String auid, String url, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
+
+        if (!includeUncommitted) {
+            q.filterByCommitStatus(true);
+        }
+
         q.filterByCollection(collection);
         q.filterByAuid(auid);
         q.filterByURIMatch(url);
