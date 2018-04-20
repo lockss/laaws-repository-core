@@ -140,22 +140,22 @@ public class RestLockssRepository implements LockssRepository {
         parts.add("uri", artifactId.getUri());
 
         // Prepare artifact multipart headers
-        HttpHeaders artifactPartHeaders = new HttpHeaders();
+        HttpHeaders contentPartHeaders = new HttpHeaders();
 
         // This must be set or else AbstractResource#contentLength will read the entire InputStream to determine the
         // content length, which will exhaust the InputStream.
-        artifactPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
-        artifactPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
+        contentPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
+        contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
 
         // Prepare artifact multipart body
         try {
             Resource artifactPartResource = new NamedInputStreamResource(
-                    "artifact",
+                    "content",
                     ArtifactDataUtil.getHttpResponseStreamFromArtifact(artifactData)
             );
 
             // Add artifact multipart to multiparts list
-            parts.add("artifact", new HttpEntity<>(artifactPartResource, artifactPartHeaders));
+            parts.add("content", new HttpEntity<>(artifactPartResource, contentPartHeaders));
         } catch (HttpException e) {
             String errMsg = String.format("Error generating HTTP response stream from artifact data: %s", e);
             log.error(errMsg);
@@ -163,9 +163,9 @@ public class RestLockssRepository implements LockssRepository {
         }
 
         // TODO: Create an attach optional artifact aspects
-//        parts.add("aspects", new NamedByteArrayResource("aspect1", "metadata bytes1".getBytes()));
-//        parts.add("aspects", new NamedByteArrayResource("aspect2", "metadata bytes2".getBytes()));
-//        parts.add("aspects", new NamedByteArrayResource("aspect3", "metadata bytes3".getBytes()));
+//        parts.add("aspectsParts", new NamedByteArrayResource("aspect1", "metadata bytes1".getBytes()));
+//        parts.add("aspectsParts", new NamedByteArrayResource("aspect2", "metadata bytes2".getBytes()));
+//        parts.add("aspectsParts", new NamedByteArrayResource("aspect3", "metadata bytes3".getBytes()));
 
         // POST body entity
         HttpEntity<MultiValueMap<String, Object>> multipartEntity = new HttpEntity<>(parts, null);
