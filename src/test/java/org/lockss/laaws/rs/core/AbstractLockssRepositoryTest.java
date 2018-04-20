@@ -154,7 +154,7 @@ public abstract class AbstractLockssRepositoryTest {
             // Retrieve the artifact and verify we get back the same artifact
             ArtifactData artifactData = repository.getArtifactData("coll1", artifactId);
             assertNotNull(artifactData);
-            assertEquals(artifactData1.getIdentifier().getId(), artifactData.getIdentifier().getId());
+            assertEquals(artifactId, artifactData.getIdentifier().getId());
         } catch (IOException e) {
             fail(String.format("Unexpected IOException thrown: %s", e));
         }
