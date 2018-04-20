@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -203,6 +203,9 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
             );
 
             log.error(errMsg);
+            // Clean up resources.
+            cis.close();
+            dfos.close();
             throw new RuntimeException(errMsg);
         }
 
@@ -217,10 +220,17 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         );
 
         IOUtils.copy(httpResponse, dfos);
+
+        // Get the temporary file created, if it exists, so that we can delete
+        // it after it's no longer needed.
+        File dfosFile = dfos.getFile();
+
         dfos.close();
 
         // Set the length of the artifact data
         artifactData.setContentLength(cis.getByteCount());
+
+        cis.close();
 
         // Set content digest of artifact data
         artifactData.setContentDigest(String.format(
@@ -230,12 +240,18 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         ));
 
         // Attach WARC record payload and set the payload length
-        record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));
+        record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfosFile));
         record.setContentLength(dfos.getByteCount());
 
         // Write WARCRecordInfo to OutputStream
         CountingOutputStream cout = new CountingOutputStream(outputStream);
         writeWarcRecord(record, cout);
+
+        // Delete the temporary file created, if it exists.
+        if (dfosFile != null && !dfosFile.delete()) {
+          log.warn("Removal of temporary file " + dfosFile + " failed.");
+        }
+
         return cout.getCount();
     }
 
