@@ -457,7 +457,7 @@ public class RestLockssRepository implements LockssRepository {
 
             return IteratorUtils.asIterable(response.getBody().iterator());
         } catch (HttpClientErrorException e) {
-            log.warn("Could not fetch artifacts; remote server responded with: %s", e);
+            log.warn(String.format("Could not fetch artifacts; remote server responded with: %s", e));
         }
 
         return new ArrayList<Artifact>();
