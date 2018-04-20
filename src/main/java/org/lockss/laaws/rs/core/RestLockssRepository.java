@@ -48,9 +48,9 @@ import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-import sun.net.www.http.HttpClient;
 
 import java.io.*;
 import java.net.URI;
@@ -175,12 +175,18 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
         // POST the multipart entity to the remote LOCKSS repository and return the result
-        return restTemplate.exchange(
-                builder.build().encode().toUri(),
-                HttpMethod.POST,
-                multipartEntity,
-                Artifact.class
-        ).getBody();
+        try {
+            return restTemplate.exchange(
+                    builder.build().encode().toUri(),
+                    HttpMethod.POST,
+                    multipartEntity,
+                    Artifact.class
+            ).getBody();
+        } catch (HttpServerErrorException e) {
+            String errMsg = String.format("Could not add artifact; remote server responded with: %s", e.getMessage());
+            log.error(errMsg);
+            throw new IOException(errMsg);
+        }
     }
 
     /**
@@ -202,7 +208,7 @@ public class RestLockssRepository implements LockssRepository {
                 Resource.class);
 
         // TODO: Is this InputStream backed by memory? Or over a threshold, is it backed by disk?
-        return ArtifactDataFactory.fromHttpResponseStream(response.getBody().getInputStream());
+        return ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
     }
 
     /**
@@ -217,13 +223,22 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Artifact commitArtifact(String collection, String artifactId) throws IOException {
-        // Create a multivalue map to contain artifact properties
-        MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection or artifactId");
 
-        // Set committed status to true
-        parts.add("committed", true);
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(collection, artifactId))
+                .queryParam("committed", "true");
 
-        return updateArtifactProperties(collection, artifactId, parts);
+        // Required by REST API specification
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.valueOf("multipart/form-data"));
+
+        return restTemplate.exchange(
+                builder.build().encode().toUri(),
+                HttpMethod.PUT,
+                new HttpEntity<>(null, headers),
+                Artifact.class
+        ).getBody();
     }
 
     /**
@@ -237,18 +252,30 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public void deleteArtifact(String collection, String artifactId) throws IOException {
-        ResponseEntity<Integer> response = restTemplate.exchange(
-                artifactEndpoint(collection, artifactId),
-                HttpMethod.DELETE,
-                null,
-                Integer.class
-        );
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection ID or artifact ID");
 
-        if (response.getStatusCode().is5xxServerError()) {
-            throw new IOException(String.format(
-                    "Could not remove artifact from remote server: %s",
-                    response.getStatusCode()
-            ));
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            restTemplate.exchange(
+                    artifactEndpoint(collection, artifactId),
+                    HttpMethod.DELETE,
+                    new HttpEntity<>(null, headers),
+                    Integer.class
+            );
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode() != HttpStatus.NOT_FOUND) {
+                throw new IOException(e);
+            }
+        } catch (HttpServerErrorException e) {
+            if (e.getStatusCode().is5xxServerError()) {
+                throw new IOException(String.format(
+                        "Could not remove artifact from remote server: %s",
+                        e.getMessage()
+                ));
+            }
         }
     }
 
@@ -603,7 +630,7 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-                .queryParam("uri", url)
+                .queryParam("url", url)
                 .queryParam("version", version);
 
         ResponseEntity<List<Artifact>> response = restTemplate.exchange(
@@ -615,18 +642,25 @@ public class RestLockssRepository implements LockssRepository {
 
         List<Artifact> artifacts = response.getBody();
 
-        if (artifacts.size() > 1) {
-            log.warn(String.format(
-                    "Expected one or no artifacts but got %d (Collection: %s, AU: %s, URL: %s, Version: %s)",
-                    artifacts.size(),
-                    collection,
-                    auid,
-                    url,
-                    version
-            ));
+        if (!artifacts.isEmpty()) {
+            // Warn if the server returned more than one ar
+            if (artifacts.size() > 1) {
+                log.warn(String.format(
+                        "Expected one or no artifacts but got %d (Collection: %s, AU: %s, URL: %s, Version: %s)",
+                        artifacts.size(),
+                        collection,
+                        auid,
+                        url,
+                        version
+                ));
+            }
+
+            //
+            return artifacts.get(0);
         }
 
-        return artifacts.get(0);
+        // No artifact found
+        return null;
     }
 
     /**
