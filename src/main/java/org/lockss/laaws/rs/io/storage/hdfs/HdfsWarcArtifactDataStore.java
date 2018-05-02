@@ -400,6 +400,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + auArtifactsWarcPath);
         uriBuilder.queryParam("offset", offset);
         String storageUrl = uriBuilder.toUriString();
+        artifactData.setStorageUrl(storageUrl);
 
         Artifact artifact = new Artifact(
                 artifactId,
