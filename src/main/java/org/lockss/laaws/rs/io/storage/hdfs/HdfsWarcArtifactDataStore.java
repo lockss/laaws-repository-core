@@ -83,7 +83,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
             // Get a FileSystem handle
             this.fs = FileSystem.get(config);
         } catch (IOException e) {
-            throw new RuntimeException("Could not get a FileSystem handle with supplied configuration");
+            throw new RuntimeException(
+                    String.format("Could not get a FileSystem handle with supplied configuration: %s", e)
+            );
         }
 
         // Make sure the base path directory exists
