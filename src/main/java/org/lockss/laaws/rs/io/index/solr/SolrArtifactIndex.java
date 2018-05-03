@@ -416,10 +416,22 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
-        q.addFilterQuery("{!collapse field=uri max=version}");
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
 
+        // Ensure the result is not empty for the collapse filter query
+        if (!query(q).hasNext()) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
+                    collection,
+                    auid
+            ));
+
+            return IteratorUtils.asIterable(IteratorUtils.emptyIterator());
+        }
+
+        // Perform collapse filter query and return result
+        q.addFilterQuery("{!collapse field=uri max=version}");
         return IteratorUtils.asIterable(query(q));
     }
 
@@ -466,10 +478,23 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
-        q.addFilterQuery("{!collapse field=uri max=version}");
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
 
+        // Ensure the result is not empty for the collapse filter query
+        if (!query(q).hasNext()) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s, uri (prefix): %s)",
+                    collection,
+                    auid,
+                    prefix
+            ));
+
+            return IteratorUtils.asIterable(IteratorUtils.emptyIterator());
+        }
+
+        // Perform collapse filter query and return result
+        q.addFilterQuery("{!collapse field=uri max=version}");
         return IteratorUtils.asIterable(query(q));
     }
 
@@ -554,9 +579,26 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
-        q.addFilterQuery("{!collapse field=uri max=version}");
 
         Iterator<Artifact> result = query(q);
+
+        // Ensure the result is not empty for the collapse filter query
+        if (!result.hasNext()) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (collection: %s, auid: %s, uri: %s)",
+                    collection,
+                    auid,
+                    url
+            ));
+
+            return null;
+        }
+
+        // Perform a collapse filter query (must have documents in result set to operate on)
+        q.addFilterQuery("{!collapse field=uri max=version}");
+        result = query(q);
+
+        // Return the latest artifact
         if (result.hasNext()) {
             Artifact artifact = result.next();
 
