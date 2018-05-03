@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -599,17 +599,22 @@ public class RestLockssRepository implements LockssRepository {
 
         List<Artifact> artifacts = response.getBody();
 
-        if (artifacts.size() > 1) {
-            log.warn(String.format(
-                    "Expected one or no artifacts for latest version but got %d (Collection: %s, AU: %s, URL: %s)",
-                    artifacts.size(),
-                    collection,
-                    url,
-                    auid
-            ));
+        if (!artifacts.isEmpty()) {
+            if (artifacts.size() > 1) {
+                log.warn(String.format(
+                        "Expected one or no artifacts for latest version but got %d (Collection: %s, AU: %s, URL: %s)",
+                        artifacts.size(),
+                        collection,
+                        url,
+                        auid
+                ));
+            }
+
+            return artifacts.get(0);
         }
 
-        return artifacts.get(0);
+        // No artifact found
+        return null;
     }
 
     /**

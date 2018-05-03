@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,6 +34,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -155,5 +156,17 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
         Boolean result = repository.isArtifactCommitted("collection1", "artifact1");
 //        assertTrue(result);
+    }
+
+    @Test
+    public void testGetArtifact_failure() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=latest", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
+        mockServer.verify();
+
+        assertNull(result);
     }
 }
