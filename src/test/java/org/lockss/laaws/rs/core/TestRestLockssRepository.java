@@ -160,9 +160,20 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifact_failure() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=latest", BASEURL)))
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=badUrl&version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
+        mockServer.verify();
+
+        assertNull(result);
+    }
+
+    public void testGetArtifact_404() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=latest", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+	  .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
         mockServer.verify();

@@ -520,7 +520,7 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-                .queryParam("uriPrefix", prefix);
+                .queryParam("urlPrefix", prefix);
 
         return getArtifacts(builder);
     }
@@ -543,7 +543,7 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-                .queryParam("uriPrefix", prefix);
+                .queryParam("urlPrefix", prefix);
 
         return getArtifacts(builder);
     }
@@ -565,7 +565,7 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-                .queryParam("uri", url)
+                .queryParam("url", url)
                 .queryParam("version", "all");
 
         return getArtifacts(builder);
@@ -588,14 +588,27 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+                .queryParam("url", url)
                 .queryParam("version", "latest");
 
-        ResponseEntity<List<Artifact>> response = restTemplate.exchange(
-                builder.build().encode().toUri(),
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<Artifact>>() {}
-        );
+        ResponseEntity<List<Artifact>> response = null;
+	try {
+	  response = restTemplate.exchange(
+                  builder.build().encode().toUri(),
+                  HttpMethod.GET,
+                  null,
+                  new ParameterizedTypeReference<List<Artifact>>() {}
+          );
+        } catch (HttpClientErrorException e) {
+	  HttpStatus status = e.getStatusCode();
+
+	  if (status.value() == 404) {
+	    return null;
+	  }
+
+	  log.error(String.format("Unexpected error getting artifact: %s", status));
+	  return null;
+        }
 
         List<Artifact> artifacts = response.getBody();
 
