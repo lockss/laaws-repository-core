@@ -35,22 +35,19 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.util.test.LockssTestCase5;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
-
-public abstract class AbstractLockssRepositoryTest {
+public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     private final static Log log = LogFactory.getLog(AbstractLockssRepositoryTest.class);
 
     private ArtifactIdentifier aid1;
@@ -70,7 +67,7 @@ public abstract class AbstractLockssRepositoryTest {
 
     public abstract LockssRepository makeLockssRepository() throws Exception;
 
-    @Before
+    @BeforeEach
     public void setUpArtifactDataStore() throws Exception {
         uuid = UUID.randomUUID();
 
@@ -95,7 +92,7 @@ public abstract class AbstractLockssRepositoryTest {
         this.repository = makeLockssRepository();
     }
 
-    @After
+    @AfterEach
     public void tearDownArtifactDataStore() throws Exception {
         this.repository = null;
     }
