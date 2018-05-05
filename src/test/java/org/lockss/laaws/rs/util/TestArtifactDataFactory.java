@@ -41,11 +41,11 @@ import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.archive.io.warc.WARCRecord;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
@@ -53,12 +53,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static org.junit.Assert.*;
-
 /**
  * Test class for the ArtifactData factory {@code org.lockss.laaws.rs.util.ArtifactDataFactory}.
  */
-public class TestArtifactDataFactory {
+public class TestArtifactDataFactory extends LockssTestCase5 {
     private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
 
     private static final String ARTIFACT_BYTES = "If kittens could talk, they would whisper soft riddles into my ear," +
@@ -98,7 +96,7 @@ public class TestArtifactDataFactory {
             ARTIFACT_HTTP_ENCODED;
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
 
     }

@@ -30,14 +30,12 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
+import org.lockss.util.test.LockssTestCase5;
 
-import static org.junit.Assert.*;
+public class TestLocalWarcArtifactStore extends LockssTestCase5 {
 
-public class TestLocalWarcArtifactStore {
-
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
     }
 

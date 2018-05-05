@@ -35,18 +35,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.junit.Before;
-import org.junit.Test;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-import org.lockss.test.LockssTestCase4;
+import org.lockss.util.test.LockssTestCase5;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.io.index.VolatileArtifactIndex}
  */
-public class TestVolatileArtifactIndex extends LockssTestCase4 {
+public class TestVolatileArtifactIndex extends LockssTestCase5 {
 
   private UUID uuid;
   private ArtifactIdentifier aid1;
@@ -60,10 +59,8 @@ public class TestVolatileArtifactIndex extends LockssTestCase4 {
   private ArtifactData artifact3;
   private VolatileArtifactIndex index;
 
-  @Before
+  @BeforeEach
   public void setUp() throws Exception {
-    super.setUp();
-
     uuid = UUID.randomUUID();
 
     aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);

@@ -30,18 +30,16 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.*;
+import org.lockss.util.test.LockssTestCase5;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.io.index.ArtifactPredicateBuilder}
  */
-public class TestArtifactPredicateBuilder {
+public class TestArtifactPredicateBuilder extends LockssTestCase5 {
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
     }
 

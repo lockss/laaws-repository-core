@@ -30,11 +30,10 @@
 
 package org.lockss.laaws.rs.io.storage.ceph;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.lockss.util.test.LockssTestCase5;
 
-import static org.junit.Assert.*;
-
-public class TestCephArtifactStore {
+public class TestCephArtifactStore extends LockssTestCase5 {
 
     @Test
     public void addArtifact() {

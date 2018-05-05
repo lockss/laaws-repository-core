@@ -30,14 +30,12 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
+import org.lockss.util.test.LockssTestCase5;
 
-import static org.junit.Assert.*;
+public class TestHdfsWarcArtifactStore extends LockssTestCase5 {
 
-public class TestHdfsWarcArtifactStore {
-
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
     }
 
