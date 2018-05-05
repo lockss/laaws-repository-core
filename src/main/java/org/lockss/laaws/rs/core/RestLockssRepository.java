@@ -47,8 +47,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -90,6 +89,12 @@ public class RestLockssRepository implements LockssRepository {
     public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
         this.repositoryUrl = repositoryUrl;
+
+        restTemplate.setErrorHandler(new DefaultResponseErrorHandler(){
+            protected boolean hasError(HttpStatus statusCode) {
+                return false;
+            }
+        });
 
         // Set the buffer to false for streaming - still needed?
         //SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
@@ -175,18 +180,21 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
         // POST the multipart entity to the remote LOCKSS repository and return the result
-        try {
-            return restTemplate.exchange(
+        ResponseEntity<Artifact> response = restTemplate.exchange(
                     builder.build().encode().toUri(),
                     HttpMethod.POST,
                     multipartEntity,
-                    Artifact.class
-            ).getBody();
-        } catch (HttpServerErrorException e) {
-            String errMsg = String.format("Could not add artifact; remote server responded with: %s", e.getMessage());
-            log.error(errMsg);
-            throw new IOException(errMsg);
+                    Artifact.class);
+
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+            return response.getBody();
         }
+    
+        String errMsg = String.format("Could not add artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        throw new IOException(errMsg);
     }
 
     /**
@@ -207,8 +215,16 @@ public class RestLockssRepository implements LockssRepository {
                 null,
                 Resource.class);
 
-        // TODO: Is this InputStream backed by memory? Or over a threshold, is it backed by disk?
-        return ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+          // TODO: Is this InputStream backed by memory? Or over a threshold, is it backed by disk?
+          return ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
+        }
+    
+        String errMsg = String.format("Could not get artifact data; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        throw new IOException(errMsg);
     }
 
     /**
@@ -233,12 +249,21 @@ public class RestLockssRepository implements LockssRepository {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("multipart/form-data"));
 
-        return restTemplate.exchange(
-                builder.build().encode().toUri(),
-                HttpMethod.PUT,
-                new HttpEntity<>(null, headers),
-                Artifact.class
-        ).getBody();
+        ResponseEntity<Artifact> response = restTemplate.exchange(
+            builder.build().encode().toUri(),
+            HttpMethod.PUT,
+            new HttpEntity<>(null, headers),
+            Artifact.class);
+
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+          return response.getBody();
+        }
+
+        String errMsg = String.format("Could not commit artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        throw new IOException(errMsg);
     }
 
     /**
@@ -255,28 +280,24 @@ public class RestLockssRepository implements LockssRepository {
         if ((collection == null) || (artifactId == null))
             throw new IllegalArgumentException("Null collection ID or artifact ID");
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-            restTemplate.exchange(
+        ResponseEntity<Integer> response = restTemplate.exchange(
                     artifactEndpoint(collection, artifactId),
                     HttpMethod.DELETE,
                     new HttpEntity<>(null, headers),
-                    Integer.class
-            );
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode() != HttpStatus.NOT_FOUND) {
-                throw new IOException(e);
-            }
-        } catch (HttpServerErrorException e) {
-            if (e.getStatusCode().is5xxServerError()) {
-                throw new IOException(String.format(
-                        "Could not remove artifact from remote server: %s",
-                        e.getMessage()
-                ));
-            }
+                    Integer.class);
+
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+          return;
         }
+
+        String errMsg = String.format("Could not remove artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        throw new IOException(errMsg);
     }
 
     /**
@@ -291,16 +312,21 @@ public class RestLockssRepository implements LockssRepository {
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(parts, null);
 
         // Submit PUT request and return artifact index data
-        try {
-            return restTemplate.exchange(
+        ResponseEntity<Artifact> response = restTemplate.exchange(
                     artifactEndpoint(collection, artifactId),
                     HttpMethod.PUT,
                     requestEntity,
-                    Artifact.class
-            ).getBody();
-        } catch (HttpClientErrorException e) {
-            return null;
+                    Artifact.class);
+
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+          return response.getBody();
         }
+
+        String errMsg = String.format("Could not update artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        return null;
     }
 
     /**
@@ -316,26 +342,12 @@ public class RestLockssRepository implements LockssRepository {
             throw new IllegalArgumentException("Null or empty identifier");
         }
 
-        try {
-            HttpHeaders headers = restTemplate.headForHeaders(artifactEndpoint(collection, artifactId));
-            return headers != null;
-        } catch (HttpClientErrorException e) {
-            HttpStatus status = e.getStatusCode();
-
-            if (status.value() == 404) {
-                // Artifact not found
-                return false;
-            }
-
-            if (status.is5xxServerError()) {
-                log.warn(String.format(
-                        "Cannot determine if artifacts exists; remote server responded with: %s",
-                        status
-                ));
-            }
-        }
-
-        return null;
+        HttpStatus status = restTemplate.exchange(
+              artifactEndpoint(collection, artifactId),
+              HttpMethod.HEAD,
+              null,
+              Resource.class).getStatusCode();
+        return status.is2xxSuccessful();
     }
 
     /**
@@ -351,28 +363,35 @@ public class RestLockssRepository implements LockssRepository {
             throw new IllegalArgumentException("Null or empty identifier");
         }
 
-        try {
-            HttpHeaders headers = restTemplate.headForHeaders(artifactEndpoint(collection, artifactId));
-            String committedValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
+        ResponseEntity<Resource> response = restTemplate.exchange(
+            artifactEndpoint(collection, artifactId),
+            HttpMethod.HEAD,
+            null,
+            Resource.class);
 
-            if (committedValue == null) {
-                String errMsg = String.format(
-                        "Remote repository did not return %s header for artifact (Collection: %s, Artifact: %s)",
-                        ArtifactConstants.ARTIFACT_STATE_COMMITTED,
-                        collection,
-                        artifactId
-                );
+        HttpStatus status = response.getStatusCode();
 
-                log.error(errMsg);
-                return null;
-            }
+        if (status.is2xxSuccessful()) {
+          HttpHeaders headers = response.getHeaders();
+          String committedValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
 
-            return committedValue.toLowerCase().equals("true");
-        } catch (HttpClientErrorException e) {
-            HttpStatus status = e.getStatusCode();
-            log.warn(String.format("Could not determine artifact commit status from server response: %s", status));
+          if (committedValue == null) {
+              String errMsg = String.format(
+                      "Remote repository did not return %s header for artifact (Collection: %s, Artifact: %s)",
+                      ArtifactConstants.ARTIFACT_STATE_COMMITTED,
+                      collection,
+                      artifactId
+              );
+
+              log.error(errMsg);
+              return null;
+          }
+
+          return committedValue.toLowerCase().equals("true");
         }
 
+        String errMsg = String.format("Could not determine artifact commit status; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
         return null;
     }
 
@@ -395,7 +414,15 @@ public class RestLockssRepository implements LockssRepository {
                 new ParameterizedTypeReference<List<String>>() {}
         );
 
-        return IteratorUtils.asIterable(response.getBody().iterator());
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+          return IteratorUtils.asIterable(response.getBody().iterator());
+        }
+
+        String errMsg = String.format("Could not get collection IDs; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        return null;
     }
 
     /**
@@ -412,8 +439,7 @@ public class RestLockssRepository implements LockssRepository {
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-        try {
-            ResponseEntity<List<String>> response = restTemplate.exchange(
+        ResponseEntity<List<String>> response = restTemplate.exchange(
                     builder.build().encode().toUri(),
                     HttpMethod.GET,
                     null,
@@ -421,12 +447,15 @@ public class RestLockssRepository implements LockssRepository {
                     }
             );
 
-            return IteratorUtils.asIterable(response.getBody().iterator());
-        } catch (HttpClientErrorException e) {
-            log.error(e);
+        HttpStatus status = response.getStatusCode();
+
+        if (status.is2xxSuccessful()) {
+          return IteratorUtils.asIterable(response.getBody().iterator());
         }
 
-        return (Iterable)new ArrayList<Artifact>();
+        String errMsg = String.format("Could not get AU IDs; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        return (Iterable<String>)new ArrayList<String>();
     }
 
     /**
@@ -446,21 +475,22 @@ public class RestLockssRepository implements LockssRepository {
      * @return An {@code Iterable<Artifact>} containing artifacts.
      */
     private Iterable<Artifact> getArtifacts(URI endpoint) {
-        try {
-            ResponseEntity<List<Artifact>> response = restTemplate.exchange(
-                    endpoint,
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<List<Artifact>>() {
-                    }
+        ResponseEntity<List<Artifact>> response = restTemplate.exchange(
+                  endpoint,
+                  HttpMethod.GET,
+                  null,
+                  new ParameterizedTypeReference<List<Artifact>>() {}
             );
 
-            return IteratorUtils.asIterable(response.getBody().iterator());
-        } catch (HttpClientErrorException e) {
-            log.warn(String.format("Could not fetch artifacts; remote server responded with: %s", e));
-        }
+      HttpStatus status = response.getStatusCode();
 
-        return new ArrayList<Artifact>();
+      if (status.is2xxSuccessful()) {
+        return IteratorUtils.asIterable(response.getBody().iterator());
+      }
+
+      String errMsg = String.format("Could not fetch artifacts; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+      log.error(errMsg);
+      return new ArrayList<Artifact>();
     }
 
     /**
@@ -591,42 +621,41 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("url", url)
                 .queryParam("version", "latest");
 
-        ResponseEntity<List<Artifact>> response = null;
-	try {
-	  response = restTemplate.exchange(
-                  builder.build().encode().toUri(),
-                  HttpMethod.GET,
-                  null,
-                  new ParameterizedTypeReference<List<Artifact>>() {}
-          );
-        } catch (HttpClientErrorException e) {
-	  HttpStatus status = e.getStatusCode();
+        ResponseEntity<List<Artifact>> response = restTemplate.exchange(
+                builder.build().encode().toUri(),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<Artifact>>() {}
+        );
 
-	  if (status.value() == 404) {
-	    return null;
-	  }
+        HttpStatus status = response.getStatusCode();
 
-	  log.error(String.format("Unexpected error getting artifact: %s", status));
-	  return null;
+        if (status.is2xxSuccessful()) {
+          List<Artifact> artifacts = response.getBody();
+
+          if (!artifacts.isEmpty()) {
+              if (artifacts.size() > 1) {
+                  log.warn(String.format(
+                          "Expected one or no artifacts for latest version but got %d (Collection: %s, AU: %s, URL: %s)",
+                          artifacts.size(),
+                          collection,
+                          url,
+                          auid
+                  ));
+              }
+
+              return artifacts.get(0);
+          }
+
+          // No artifact found
+          return null;
         }
 
-        List<Artifact> artifacts = response.getBody();
-
-        if (!artifacts.isEmpty()) {
-            if (artifacts.size() > 1) {
-                log.warn(String.format(
-                        "Expected one or no artifacts for latest version but got %d (Collection: %s, AU: %s, URL: %s)",
-                        artifacts.size(),
-                        collection,
-                        url,
-                        auid
-                ));
-            }
-
-            return artifacts.get(0);
+        if (!status.equals(HttpStatus.NOT_FOUND)) {
+            String errMsg = String.format("Could not fetch artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+            log.error(errMsg);
         }
 
-        // No artifact found
         return null;
     }
 
@@ -658,9 +687,12 @@ public class RestLockssRepository implements LockssRepository {
                 new ParameterizedTypeReference<List<Artifact>>() {}
         );
 
-        List<Artifact> artifacts = response.getBody();
+        HttpStatus status = response.getStatusCode();
 
-        if (!artifacts.isEmpty()) {
+        if (status.is2xxSuccessful()) {
+          List<Artifact> artifacts = response.getBody();
+
+          if (!artifacts.isEmpty()) {
             // Warn if the server returned more than one ar
             if (artifacts.size() > 1) {
                 log.warn(String.format(
@@ -675,9 +707,14 @@ public class RestLockssRepository implements LockssRepository {
 
             //
             return artifacts.get(0);
+          }
+
+          // No artifact found
+          return null;
         }
 
-        // No artifact found
+        String errMsg = String.format("Could not fetch versioned artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
         return null;
     }
 
@@ -695,26 +732,23 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("version", "all");
 
-        ResponseEntity<Long> response = null;
-
-        try {
-            response = restTemplate.exchange(
+        ResponseEntity<Long> response = restTemplate.exchange(
                     builder.build().encode().toUri(),
                     HttpMethod.GET,
                     null,
                     Long.class
             );
-        } catch (HttpClientErrorException e) {
-           HttpStatus status = e.getStatusCode();
 
-           if (status.value() == 404) {
-               return new Long(0);
-           }
+        HttpStatus status = response.getStatusCode();
 
-           log.error(String.format("Could not determine AU size: %s", status));
-           return null;
+        if (status.is2xxSuccessful()) {
+          return response.getBody();
+        } else if (status.value() == 404) {
+          return new Long(0);
         }
 
-        return response.getBody();
+        String errMsg = String.format("Could not determine AU size; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+        log.error(errMsg);
+        return null;
     }
 }

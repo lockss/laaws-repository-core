@@ -41,8 +41,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.test.web.client.RequestMatcher;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URL;
@@ -98,6 +96,19 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     }
 
     @Test
+    public void testGetCollectionIds_failure() throws Exception {
+        // Test with server error.
+        mockServer.expect(requestTo(String.format("%s/collections", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withServerError());
+
+        Iterable<String> collectionIds = repository.getCollectionIds();
+        mockServer.verify();
+
+        assertNull(collectionIds);
+    }
+
+    @Test
     public void testArtifactExists_false() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
                 .andExpect(method(HttpMethod.HEAD))
@@ -129,10 +140,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.HEAD))
                 .andRespond(withServerError());
 
-        assertThrows(
-                HttpServerErrorException.class,
-                () -> repository.artifactExists("collection1", "artifact1")
-        );
+        Boolean artifactExists = repository.artifactExists("collection1", "artifact1");
+        mockServer.verify();
+
+        assertNotNull(artifactExists);
+        assertFalse(artifactExists);
     }
 
     @Test
@@ -142,6 +154,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andRespond(withSuccess().headers(new HttpHeaders()));
 
         Boolean result = repository.isArtifactCommitted("collection1", "artifact1");
+        mockServer.verify();
         assertNull(result);
     }
 
@@ -152,10 +165,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
         mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
                 .andExpect(method(HttpMethod.HEAD))
-                .andRespond(withSuccess().headers(new HttpHeaders()));
+                .andRespond(withSuccess().headers(mockHeaders));
 
         Boolean result = repository.isArtifactCommitted("collection1", "artifact1");
-//        assertTrue(result);
+        mockServer.verify();
+        assertTrue(result);
     }
 
     @Test
