@@ -57,11 +57,20 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
      * Constructor.
      */
     public VolatileWarcArtifactDataStore() {
-        super();
-        this.repository = new HashMap<>();
-        this.repositoryMetadata = new HashMap<>();
+      super();
+      this.repository = new HashMap<>();
+      this.repositoryMetadata = new HashMap<>();
     }
 
+    /**
+     * For testing; this kind of data store ignores the base path.
+     */
+    protected VolatileWarcArtifactDataStore(String repoBaseDirPath) {
+        super(repoBaseDirPath);
+        this.repository = new HashMap<>();
+        this.repositoryMetadata = new HashMap<>();
+    }    
+    
     /**
      * {@inheritDoc}
      */

@@ -63,15 +63,18 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
     private static final String AU_ARTIFACTS_WARC_NAME = "artifacts" + WARC_FILE_EXTENSION;
 
-    private static final long THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
+    protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
 
     protected File repositoryBase;
 
+    protected long thresholdWarcSize;
+    
     public LocalWarcArtifactDataStore(String repositoryBasePath) throws IOException {
       super(repositoryBasePath);
       log.info(String.format("Loading all WARCs under %s", repositoryBasePath));
       mkdirsIfNeeded(repositoryBasePath);
       this.repositoryBase = new File(repositoryBasePath);
+      this.thresholdWarcSize = DEFAULT_THRESHOLD_WARC_SIZE;
       
       // Initialize sealed WARC directory
       try {
@@ -247,6 +250,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
       mkdirsIfNeeded(dir);
       return dir + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
     }
+    
+    public void setThresholdWarcSize(long threshold) {
+      if (threshold < 1L) {
+        throw new IllegalArgumentException("Threshold size must be strictly positive");
+      }
+      this.thresholdWarcSize = threshold;
+    }
 
     /**
      * Ensures a directory exists at the given path by creating one if nothing exists there. Throws a
@@ -269,40 +279,39 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
         }
     }
 
-    /**
-     * Ensures a directory exists at the given path by creating one if nothing exists there. Throws a
-     * RunTimeExceptionError if something exists at the path but is not a directory, because there is no way to safely
-     * recover from this situation.
-     *
-     * @param path Path to the directory to create, if it doesn't exist yet.
-     */
     public static void mkdirsIfNeeded(String dirPath) throws IOException {
       File dir = new File(dirPath);
-      if (dir.exists()) {
-        if (!dir.isDirectory()) {
-          throw new IOException(String.format("Error creating %s: exists but is not a directory", dir.getAbsolutePath()));
-        }
+      if (dir.isDirectory()) {
+        return;
       }
-      else {
-        if (!dir.mkdirs()) {
-          throw new IOException(String.format("Error creating %s: mkdirs did not succeed", dir.getAbsolutePath()));
-        }
+      if (!dir.mkdirs()) {
+        throw new IOException(String.format("Error creating %s: mkdirs did not succeed", dir.getAbsolutePath()));
       }
     }
 
-    protected String makeStorageUrl(String filePath, String offset) {
+    public String makeStorageUrl(String filePath, String offset) {
       UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
       uriBuilder.queryParam("offset", offset);
       return uriBuilder.toUriString();
     }
     
-    protected String makeStorageUrl(String filePath, long offset) {
+    public String makeStorageUrl(String filePath, long offset) {
       return makeStorageUrl(filePath, Long.toString(offset));
     }
 
-    protected String updateStorageUrl(String filePath, Artifact artifact) {
-      String oldUrl = artifact.getStorageUrl();
-      return makeStorageUrl(filePath, oldUrl.substring(oldUrl.lastIndexOf("?") + 1));
+    public String makeNewStorageUrl(String newPath, Artifact artifact) {
+      String oldStorageUrl = artifact.getStorageUrl();
+      int qm = oldStorageUrl.lastIndexOf("?offset=");
+      try {
+        if (oldStorageUrl.startsWith("file://" + getAuArtifactsWarcPath(artifact.getIdentifier()) + "?")) {
+          return makeStorageUrl(newPath, oldStorageUrl.substring(qm + "?offset=".length()));
+        }
+      }
+      catch (IOException shouldnt) {
+        // This should not happen because these existing artifacts have existing paths
+        log.error("Unexpected error", shouldnt);
+      }
+      return null;
     }
     
     /**
@@ -360,11 +369,11 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                 );
             }
 
-            if (offset >= THRESHOLD_WARC_SIZE) {
+            if (offset >= thresholdWarcSize) {
                 String newPath = sealWarc(artifactId.getCollection(),
                                           artifactId.getAuid(),
                                           auArtifactsWarcPath,
-                                          this::updateStorageUrl);
+                                          this::makeNewStorageUrl);
                 artifactData.setStorageUrl(makeStorageUrl(newPath, offset - bytesWritten));
             }
             

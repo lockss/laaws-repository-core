@@ -75,6 +75,7 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
 
     protected static final String WARC_FILE_EXTENSION = ".warc";
     
+    protected static final String COLLECTIONS_DIR = "collections";
     protected static final String SEALED_WARC_DIR = "sealed";
     protected static final String AU_DIR_PREFIX = "au-";
     protected static final String SCHEME = "urn:uuid";
@@ -83,7 +84,7 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
     protected static byte[] CRLF_BYTES;
     protected static String SEPARATOR = "/";
 
-    protected  static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
+    protected static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
     protected ArtifactIndex artifactIndex;
     
@@ -117,7 +118,7 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
     public String sealWarc(String collection,
                            String auid,
                            String currentPath,
-                           BiFunction<String, Artifact, String> makeStorageUrl)
+                           BiFunction<String, Artifact, String> makeNewStorageUrl)
         throws IOException {
       String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
       File current = new File(currentPath);
@@ -125,34 +126,35 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         throw new IOException("Error renaming " + current.getPath() + " to " + newPath);
       }
       for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid)) {
-        if (artifact.getStorageUrl() != null) {
-          artifactIndex.updateStorageUrl(artifact.getId(), makeStorageUrl.apply(newPath, artifact));
+        String newStorageUrl = makeNewStorageUrl.apply(newPath, artifact);
+        if (newStorageUrl != null) {
+          artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
         }
       }
       
       return newPath;
     }
     
-    protected String getRepositoryBasePath() {
+    public String getRepositoryBasePath() {
       return repositoryBasePath;
     }
     
-    protected String getCollectionPath(ArtifactIdentifier artifactId) {
-      return getRepositoryBasePath() + SEPARATOR + artifactId.getCollection();
+    public String getCollectionPath(ArtifactIdentifier artifactIdent) {
+      return getRepositoryBasePath() + SEPARATOR + COLLECTIONS_DIR + SEPARATOR + artifactIdent.getCollection();
     }
 
-    protected String getAuPath(ArtifactIdentifier artifactId) {
+    public String getAuPath(ArtifactIdentifier artifactId) {
       return getCollectionPath(artifactId) + SEPARATOR + AU_DIR_PREFIX + DigestUtils.md5Hex(artifactId.getAuid());
     }
     
-    protected String getSealedWarcPath() {
+    public String getSealedWarcPath() {
       return getRepositoryBasePath() + SEPARATOR + SEALED_WARC_DIR;
     }
     
-    protected String getSealedWarcName(String collection, String auid) {
+    public String getSealedWarcName(String collection, String auid) {
       String auidHash = DigestUtils.md5Hex(auid.getBytes());
       String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
-      return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp;
+      return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + WARC_FILE_EXTENSION;
     }
     
     /**

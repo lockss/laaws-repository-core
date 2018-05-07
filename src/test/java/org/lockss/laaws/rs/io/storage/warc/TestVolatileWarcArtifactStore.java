@@ -43,14 +43,14 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.util.test.LockssTestCase5;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.UUID;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
  */
-public class TestVolatileWarcArtifactStore extends LockssTestCase5 {
+public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+  
     private final static Log log = LogFactory.getLog(TestVolatileWarcArtifactStore.class);
 
     private ArtifactIdentifier aid1;
@@ -65,6 +65,12 @@ public class TestVolatileWarcArtifactStore extends LockssTestCase5 {
 
     private ArtifactDataStore store;
 
+    @Override
+    protected WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> makeWarcArtifactDataStore(File repoBaseDir)
+        throws IOException {
+      return new VolatileWarcArtifactDataStore(repoBaseDir.getAbsolutePath());
+    }
+    
     @BeforeEach
     public void setUp() throws Exception {
         uuid = UUID.randomUUID();
