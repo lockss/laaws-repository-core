@@ -348,7 +348,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
             // Set the offset for the record to be appended to the length of the WARC file (i.e., the end)
             long offset = auArtifactsWarc.length();
-            long bytesWritten = -1L;
+            long bytesWritten;
 
             artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
 
@@ -359,9 +359,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                 // Write artifact to WARC file
                 bytesWritten = writeArtifactData(artifactData, fos);
 
-                // Calculate offset of next record
-                offset += bytesWritten;
-                
                 fos.flush();
             } catch (HttpException e) {
                 throw new IOException(
@@ -369,12 +366,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                 );
             }
 
-            if (offset >= thresholdWarcSize) {
+            if (offset + bytesWritten >= thresholdWarcSize) {
                 String newPath = sealWarc(artifactId.getCollection(),
                                           artifactId.getAuid(),
                                           auArtifactsWarcPath,
                                           this::makeNewStorageUrl);
-                artifactData.setStorageUrl(makeStorageUrl(newPath, offset - bytesWritten));
+                artifactData.setStorageUrl(makeStorageUrl(newPath, offset));
             }
             
             // Attach the artifact's repository metadata

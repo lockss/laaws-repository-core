@@ -31,8 +31,6 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import java.io.*;
-import java.nio.charset.Charset;
-import java.util.function.BiFunction;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.*;
@@ -43,8 +41,6 @@ import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.index.*;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.util.test.LockssTestCase5;
-import org.springframework.http.HttpHeaders;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
 
@@ -144,14 +140,14 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     File tmp1 = makeTempDir();
     LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    String expectedAuPath = store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    File expectedAu = new File(expectedAuPath);
-    String expectedFileName = "artifacts.warc";
-    String expectedPath = expectedAuPath + "/" + expectedFileName;
-    assertFalse(expectedAu.exists());
-    String actualPath = store.getAuArtifactsWarcPath(ident1);
-    assertEquals(expectedPath, actualPath);
-    assertTrue(expectedAu.exists());
+    String expectedAuDirPath = store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
+    File expectedAuDir = new File(expectedAuDirPath);
+    String expectedAuArtifactsWarcName = "artifacts.warc";
+    String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
+    assertFalse(expectedAuDir.exists());
+    String actualAuArtifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
+    assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
+    assertTrue(expectedAuDir.isDirectory());
     quietlyDeleteDir(tmp1);
   }
   
@@ -161,14 +157,14 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
     RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
-    String expectedAuPath = store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    File expectedAu = new File(expectedAuPath);
+    String expectedAuDirPath = store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
+    File expectedAuDir = new File(expectedAuDirPath);
     String expectedFileName = "lockss-repo.warc";
-    String expectedPath = expectedAuPath + "/" + expectedFileName;
-    assertFalse(expectedAu.exists());
+    String expectedPath = expectedAuDirPath + "/" + expectedFileName;
+    assertFalse(expectedAuDir.exists());
     String actualPath = store.getAuMetadataWarcPath(ident1, md1);
     assertEquals(expectedPath, actualPath);
-    assertTrue(expectedAu.isDirectory());
+    assertTrue(expectedAuDir.isDirectory());
     quietlyDeleteDir(tmp1);
   }
   
@@ -265,6 +261,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     assertTrue(auArtifactsWarc.isFile());
     assertTrue(auMetadataWarc.isFile());
     assertTrue(sealedWarcDir.isDirectory());
+    assertEquals(dat1.getStorageUrl(), art1.getStorageUrl());
     assertThat(art1.getStorageUrl(), startsWith("file://" + auArtifactsWarc.getAbsolutePath()));
     
     ArtifactIdentifier ident2 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u2", 1);
@@ -284,6 +281,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     assertFalse(auArtifactsWarc.exists());
     assertTrue(auMetadataWarc.isFile());
     assertTrue(sealedWarcDir.isDirectory());
+    assertEquals(dat2.getStorageUrl(), art2.getStorageUrl());
     assertThat(art2.getStorageUrl(), startsWith("file://" + sealedWarcDir.getAbsolutePath()));
 
     Artifact art1i = index.getArtifact(art1.getId());

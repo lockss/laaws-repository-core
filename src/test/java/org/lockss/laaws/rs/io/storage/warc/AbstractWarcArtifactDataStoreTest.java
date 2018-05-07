@@ -94,7 +94,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<ID extends ArtifactIdent
     assertThat(warcName, startsWith("coll1_au-" + DigestUtils.md5Hex("auid1") + "_"));
     assertThat(warcName, endsWith(".warc"));
     String timestamp = warcName.split("_")[2].split(".warc")[0];
-    // DateTimeFormatter.ofPattern("uuuuMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
+    // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
     ZonedDateTime actual = ZonedDateTime.parse(timestamp, new DateTimeFormatterBuilder().appendPattern("yyyyMMddHHmmss").appendValue(ChronoField.MILLI_OF_SECOND, 3).toFormatter().withZone(ZoneId.of("UTC")));
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of("UTC"));
     assertTrue(actual.isAfter(now.minusSeconds(10L)) && actual.isBefore(now));

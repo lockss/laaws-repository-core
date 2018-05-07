@@ -375,7 +375,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
 
             try {
                 // Write artifact to WARC file
-                long bytesWritten = this.writeArtifactData(artifactData, fos);
+                long bytesWritten = writeArtifactData(artifactData, fos);
 
                 // Calculate offset of next record
 //                offset += bytesWritten;
