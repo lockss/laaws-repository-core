@@ -32,9 +32,14 @@ package org.lockss.laaws.rs.core;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.ProtocolVersion;
+import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
 import org.junit.Test;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -43,6 +48,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.URL;
 
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -109,6 +116,19 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     }
 
     @Test
+    public void testArtifactExists_iae() throws Exception {
+        try {
+            repository.artifactExists("collection1", null);
+            fail("Should have thrown IllegalArgumentException");
+        } catch (IllegalArgumentException iae) {}
+
+        try {
+            repository.artifactExists("collection1", "");
+            fail("Should have thrown IllegalArgumentException");
+      } catch (IllegalArgumentException iae) {}
+    }
+
+    @Test
     public void testArtifactExists_false() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
                 .andExpect(method(HttpMethod.HEAD))
@@ -148,6 +168,19 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     }
 
     @Test
+    public void testIsArtifactCommitted_iae() throws Exception {
+        try {
+            repository.isArtifactCommitted("collection1", null);
+            fail("Should have thrown IllegalArgumentException");
+        } catch (IllegalArgumentException iae) {}
+
+        try {
+            repository.isArtifactCommitted("collection1", "");
+            fail("Should have thrown IllegalArgumentException");
+      } catch (IllegalArgumentException iae) {}
+    }
+
+    @Test
     public void testIsArtifactCommitted_missingheader() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
                 .andExpect(method(HttpMethod.HEAD))
@@ -159,7 +192,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     }
 
     @Test
-    public void testIsArtifactCommitted_success() throws Exception {
+    public void testIsArtifactCommitted_true() throws Exception {
         HttpHeaders mockHeaders = new HttpHeaders();
         mockHeaders.add(ArtifactConstants.ARTIFACT_STATE_COMMITTED, "true");
 
@@ -173,7 +206,45 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     }
 
     @Test
-    public void testGetArtifact_failure() throws Exception {
+    public void testIsArtifactCommitted_false() throws Exception {
+        HttpHeaders mockHeaders = new HttpHeaders();
+        mockHeaders.add(ArtifactConstants.ARTIFACT_STATE_COMMITTED, "false");
+
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
+                .andExpect(method(HttpMethod.HEAD))
+                .andRespond(withSuccess().headers(mockHeaders));
+
+        Boolean result = repository.isArtifactCommitted("collection1", "artifact1");
+        mockServer.verify();
+        assertFalse(result);
+    }
+
+    @Test
+    public void testGetArtifact_400() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=badUrl&version=latest", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST));
+
+        Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
+        mockServer.verify();
+
+        assertNull(result);
+    }
+
+    @Test
+    public void testGetArtifact_404() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=badUrl&version=latest", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+	  .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
+        mockServer.verify();
+
+        assertNull(result);
+    }
+
+    @Test
+    public void testGetArtifact_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=badUrl&version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
@@ -184,14 +255,77 @@ public class TestRestLockssRepository extends LockssTestCase5 {
         assertNull(result);
     }
 
-    public void testGetArtifact_404() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=latest", BASEURL)))
+    @Test
+    public void testGetArtifact_found() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=badUrl&version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-	  .andRespond(withStatus(HttpStatus.NOT_FOUND));
+                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+
+        Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
+        mockServer.verify();
+
+        assertNotNull(result);
+        assertEquals("1", result.getId());
+        assertEquals(2, result.getVersion().intValue());
+    }
+
+    @Test
+    public void testGetArtifact_failure() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=badUrl&version=latest", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+	  .andRespond(withServerError());
 
         Artifact result = repository.getArtifact("collection1", "auid1", "badUrl");
         mockServer.verify();
 
         assertNull(result);
+    }
+
+    @Test
+    public void testAddArtifact_iae() throws Exception {
+        try {
+            repository.addArtifact(null);
+            fail("Should have thrown IllegalArgumentException");
+        } catch (IllegalArgumentException iae) {}
+    }
+
+    @Test
+    public void testAddArtifact_success() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts", BASEURL)))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"id\":\"1\",\"version\":2}", MediaType.APPLICATION_JSON));
+
+        byte buf[] = new byte[] {};
+
+        Artifact result = repository.addArtifact(new ArtifactData(new ArtifactIdentifier("1", "collection1", "auid1", "url1", 2), new HttpHeaders(), new ByteArrayInputStream(buf), new BasicStatusLine(new ProtocolVersion("protocol1", 4, 5), 3, null), "storageUrl1", new RepositoryArtifactMetadata("{\"artifactId\":\"1\",\"committed\":\"true\",\"deleted\":\"false\"}")));
+        mockServer.verify();
+
+        assertNotNull(result);
+        assertEquals("1", result.getId());
+        assertEquals(2, result.getVersion().intValue());
+    }
+
+    @Test
+    public void testAddArtifact_failure() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts", BASEURL)))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withServerError());
+
+        try {
+            repository.addArtifact(new ArtifactData(new ArtifactIdentifier("1", "collection1", "auid1", "url1", 2), new HttpHeaders(), new ByteArrayInputStream(new byte[] {}), new BasicStatusLine(new ProtocolVersion("protocol1", 4, 5), 3, null), "storageUrl1", new RepositoryArtifactMetadata("{\"artifactId\":\"1\",\"committed\":\"true\",\"deleted\":\"false\"}")));
+            fail("Should have thrown IOException");
+        } catch (IOException ioe) {}
+    }
+
+    @Test
+    public void testGetArtifactData_failure() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifactid1", BASEURL)))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withServerError());
+
+        try {
+            repository.getArtifactData("collection1", "artifactid1");
+            fail("Should have thrown IOException");
+        } catch (IOException ioe) {}
     }
 }
