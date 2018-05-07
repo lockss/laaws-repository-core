@@ -30,7 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
@@ -43,7 +43,6 @@ import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.springframework.util.DigestUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
@@ -62,25 +61,40 @@ import java.util.stream.Collectors;
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
     private static final Log log = LogFactory.getLog(LocalWarcArtifactDataStore.class);
 
-    private static final String WARC_FILE_SUFFIX = ".warc";
-    private static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
+    private static final String AU_ARTIFACTS_WARC_NAME = "artifacts" + WARC_FILE_EXTENSION;
 
+    private static final long THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
+
+    protected File repositoryBase;
+
+    public LocalWarcArtifactDataStore(String repositoryBasePath) throws IOException {
+      super(repositoryBasePath);
+      log.info(String.format("Loading all WARCs under %s", repositoryBasePath));
+      mkdirsIfNeeded(repositoryBasePath);
+      this.repositoryBase = new File(repositoryBasePath);
+      
+      // Initialize sealed WARC directory
+      try {
+        mkdirsIfNeeded(getSealedWarcPath());
+      }
+      catch (IOException ioe) {
+        throw new IOException("Could not create sealed WARC directory " + getSealedWarcPath(), ioe);
+      }
+    }
+    
     /**
      * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
      *
      * @param repositoryBasePath The base path of the local repository.
+     * @deprecated Use {@link #LocalWarcArtifactDataStore(String)}
      */
-    public LocalWarcArtifactDataStore(File repositoryBasePath) {
-        log.info(String.format("Loading all WARCs under %s", repositoryBasePath.getAbsolutePath()));
-
-        this.repositoryBasePath = repositoryBasePath;
-
-        // Make sure the base path exists
-        mkdirIfNotExist(repositoryBasePath);
+    @Deprecated
+    public LocalWarcArtifactDataStore(File repositoryBase) throws IOException {
+      this(repositoryBase.getAbsolutePath());
     }
 
     public void rebuildIndex(ArtifactIndex index) {
-        rebuildIndex(index, repositoryBasePath);
+        rebuildIndex(index, repositoryBase);
     }
 
     /**
@@ -93,7 +107,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
         Collection<File> artifactWarcFiles = warcs
                 .stream()
-                .filter(file -> file.getName().endsWith("artifacts" + WARC_FILE_SUFFIX))
+                .filter(file -> file.getName().endsWith("artifacts" + WARC_FILE_EXTENSION))
                 .collect(Collectors.toList());
 
         // Re-index artifacts first
@@ -147,7 +161,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
         // Get a collection of repository metadata files
         Collection<File> repoMetadataWarcFiles = warcs
                 .stream()
-                .filter(file -> file.getName().endsWith("lockss-repo" + WARC_FILE_SUFFIX))
+                .filter(file -> file.getName().endsWith("lockss-repo" + WARC_FILE_EXTENSION))
                 .collect(Collectors.toList());
 
         // Update LOCKSS repository metadata for artifacts by "replaying" their changes
@@ -213,36 +227,25 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
         // Add WARC files from this directory
         warcFiles.addAll(Arrays.asList(basePath.listFiles((dir, name) ->
-                new File(dir, name).isFile() && name.toLowerCase().endsWith(WARC_FILE_SUFFIX)
+                new File(dir, name).isFile() && name.toLowerCase().endsWith(WARC_FILE_EXTENSION)
         )));
 
         // Return WARC files at this level
         return warcFiles;
     }
 
-    /**
-     * Returns the filesystem base path to the archival unit (AU) this artifact belongs in.
-     *
-     * @param artifactId ArtifactData identifier of an artifact.
-     * @return Base path of the AU the artifact belongs in.
-     */
-    public File getArchicalUnitBasePath(ArtifactIdentifier artifactId) {
-        String auidHash = DigestUtils.md5DigestAsHex(artifactId.getAuid().getBytes());
-        File auPath = new File(getCollectionBasePath(artifactId) + SEPARATOR + AU_DIR_PREFIX + auidHash);
-        mkdirIfNotExist(auPath);
-        return auPath;
+    public String getAuArtifactsWarcPath(ArtifactIdentifier artifactId) throws IOException {
+      String dir = getAuPath(artifactId);
+      mkdirsIfNeeded(dir);
+      return dir + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
     }
 
-    /**
-     * Returns the filesystem base path to the collection this artifact belongs in.
-     *
-     * @param artifactId ArtifactData identifier of an artifact.
-     * @return Base path of the collection the artifact belongs in.
-     */
-    public File getCollectionBasePath(ArtifactIdentifier artifactId) {
-        File collectionDir = new File(repositoryBasePath + SEPARATOR + artifactId.getCollection());
-        mkdirIfNotExist(collectionDir);
-        return collectionDir;
+    public String getAuMetadataWarcPath(ArtifactIdentifier artifactId,
+                                        RepositoryArtifactMetadata artifactMetadata)
+        throws IOException {
+      String dir = getAuPath(artifactId);
+      mkdirsIfNeeded(dir);
+      return dir + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
     }
 
     /**
@@ -251,7 +254,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
      * recover from this situation.
      *
      * @param path Path to the directory to create, if it doesn't exist yet.
+     * @deprecated
      */
+    @Deprecated
     public static void mkdirIfNotExist(File path) {
         if (path.exists()) {
             // YES: Make sure it is a directory
@@ -264,6 +269,42 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
         }
     }
 
+    /**
+     * Ensures a directory exists at the given path by creating one if nothing exists there. Throws a
+     * RunTimeExceptionError if something exists at the path but is not a directory, because there is no way to safely
+     * recover from this situation.
+     *
+     * @param path Path to the directory to create, if it doesn't exist yet.
+     */
+    public static void mkdirsIfNeeded(String dirPath) throws IOException {
+      File dir = new File(dirPath);
+      if (dir.exists()) {
+        if (!dir.isDirectory()) {
+          throw new IOException(String.format("Error creating %s: exists but is not a directory", dir.getAbsolutePath()));
+        }
+      }
+      else {
+        if (!dir.mkdirs()) {
+          throw new IOException(String.format("Error creating %s: mkdirs did not succeed", dir.getAbsolutePath()));
+        }
+      }
+    }
+
+    protected String makeStorageUrl(String filePath, String offset) {
+      UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
+      uriBuilder.queryParam("offset", offset);
+      return uriBuilder.toUriString();
+    }
+    
+    protected String makeStorageUrl(String filePath, long offset) {
+      return makeStorageUrl(filePath, Long.toString(offset));
+    }
+
+    protected String updateStorageUrl(String filePath, Artifact artifact) {
+      String oldUrl = artifact.getStorageUrl();
+      return makeStorageUrl(filePath, oldUrl.substring(oldUrl.lastIndexOf("?") + 1));
+    }
+    
     /**
      * {@inheritDoc}
      */
@@ -293,36 +334,40 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                     artifactId.getVersion()
             ));
 
-            // Get an OutputStream
-            File auBasePath = getArchicalUnitBasePath(artifactId);
-            File auArtifactsWarcPath = new File(auBasePath + SEPARATOR + AU_ARTIFACTS_WARC);
+            String auArtifactsWarcPath = getAuArtifactsWarcPath(artifactId);
+            File auArtifactsWarc = new File(auArtifactsWarcPath);
 
             // Set the offset for the record to be appended to the length of the WARC file (i.e., the end)
-            long offset = auArtifactsWarcPath.length();
+            long offset = auArtifactsWarc.length();
+            long bytesWritten = -1L;
 
-            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + auArtifactsWarcPath.getAbsolutePath());
-            uriBuilder.queryParam("offset", offset);
-            artifactData.setStorageUrl(uriBuilder.toUriString());
+            artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
 
-            // Get an appending OutputStream to the WARC file
-            FileOutputStream fos = new FileOutputStream(auArtifactsWarcPath, true);
-
-            try {
+            try (
+                // Get an appending OutputStream to the WARC file
+                FileOutputStream fos = new FileOutputStream(auArtifactsWarc, true)
+            ) {
                 // Write artifact to WARC file
-                long bytesWritten = this.writeArtifactData(artifactData, fos);
+                bytesWritten = writeArtifactData(artifactData, fos);
 
                 // Calculate offset of next record
-//                offset += bytesWritten;
+                offset += bytesWritten;
+                
+                fos.flush();
             } catch (HttpException e) {
                 throw new IOException(
                         String.format("Caught HttpException while attempting to write artifact to WARC file: %s", e)
                 );
             }
 
-            // Close the file
-            fos.flush();
-            fos.close();
-
+            if (offset >= THRESHOLD_WARC_SIZE) {
+                String newPath = sealWarc(artifactId.getCollection(),
+                                          artifactId.getAuid(),
+                                          auArtifactsWarcPath,
+                                          this::updateStorageUrl);
+                artifactData.setStorageUrl(makeStorageUrl(newPath, offset - bytesWritten));
+            }
+            
             // Attach the artifact's repository metadata
             artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
                     artifactId,
@@ -412,15 +457,14 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
                     artifactMetadata
             );
 
-            // Get an OutputStream to the AU's metadata file
-            String metadataPath = getArchicalUnitBasePath(artifactId) + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_SUFFIX;
-            FileOutputStream fos = new FileOutputStream(metadataPath, true);
+            // Append WARC metadata record to AU's metadata file
+            String metadataPath = getAuMetadataWarcPath(artifactId, artifactMetadata);
+            try (
+              FileOutputStream fos = new FileOutputStream(metadataPath, true)
+            ) {
+              writeWarcRecord(metadataRecord, fos);
+            }
 
-            // Append WARC metadata record to AU's repository metadata file
-            writeWarcRecord(metadataRecord, fos);
-
-            // Close the OutputStream
-            fos.close();
 //        }
         return artifactMetadata;
     }
@@ -514,4 +558,5 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactId
 
         return repoMetadata;
     }
+
 }

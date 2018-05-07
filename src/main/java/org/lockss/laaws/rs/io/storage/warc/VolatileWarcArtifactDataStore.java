@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
@@ -38,11 +39,11 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.util.*;
+import java.util.function.*;
 
 /**
  * A volatile ("in-memory") implementation of WarcArtifactDataStore.
@@ -50,13 +51,15 @@ import java.util.*;
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
     private final static Log log = LogFactory.getLog(VolatileWarcArtifactDataStore.class);
     private Map<String, Map<String, Map<String, byte[]>>> repository;
-    private Map<String, RepositoryArtifactMetadata> repositoryMetadata = new HashMap<>();
+    private Map<String, RepositoryArtifactMetadata> repositoryMetadata;
 
     /**
      * Constructor.
      */
     public VolatileWarcArtifactDataStore() {
+        super();
         this.repository = new HashMap<>();
+        this.repositoryMetadata = new HashMap<>();
     }
 
     /**
@@ -67,36 +70,34 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         if (artifactData == null) {
           throw new NullPointerException("artifactData is null");
         }
-          
+
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Get the collection
-        Map<String, Map<String, byte[]>> collection = repository.getOrDefault(artifactId.getCollection(), new HashMap<>());
+        Map<String, Map<String, byte[]>> collection = getInitialize(repository, artifactId.getCollection(), new HashMap<>());
 
         // Get the AU
-        Map<String, byte[]> au = collection.getOrDefault(artifactId.getAuid(), new HashMap<>());
+        Map<String, byte[]> au = getInitialize(collection, artifactId.getAuid(), new HashMap<>());
 
         try {
             // ByteArrayOutputStream to capture the WARC record
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            // Create and set the artifact's repository metadata
-            RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
-            repositoryMetadata.put(artifactId.getId(), repoMetadata);
-            artifactData.setRepositoryMetadata(repoMetadata);
 
             // Write artifact as a WARC record stream to the OutputStream
             long bytesWritten = writeArtifactData(artifactData, baos);
 
             // Store artifact
             au.put(artifactId.getId(), baos.toByteArray());
-            collection.put(artifactId.getAuid(), au);
-            repository.put(artifactId.getCollection(), collection);
         } catch (HttpException e) {
             log.error(String.format("Caught an HttpException while attempt to write an ArtifactData to an OutputStream: %s", e.getMessage()));
             throw new IOException(e);
         }
+
+        // Create and set the artifact's repository metadata
+        RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
+        repositoryMetadata.put(artifactId.getId(), repoMetadata);
+        artifactData.setRepositoryMetadata(repoMetadata);
 
         // Construct volatile storage URL for this WARC record
         String storageUrl = String.format(
@@ -238,5 +239,48 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
 
         repositoryMetadata.remove(artifact.getId());
         return metadata;
+    }
+
+  @Override
+  public String sealWarc(String collection, String auid, String currentPath,
+                         BiFunction<String, Artifact, String> makeStorageUrl)
+      throws IOException {
+    return null; // do nothing
+  }
+
+  /**
+   * <p>
+   * Given a map, either returns the value associated with the given key (if the
+   * key is associated with a non-null value), or sets a mapping from the given
+   * initial value and returns it (if the key is not associated with a value or
+   * is associated with {@code null}).
+   * </p>
+   * <p>
+   * This is slightly different from {@link Map#putIfAbsent(Object, Object)},
+   * which returns {@code null} if the key is not associated with a value or is
+   * associated with {@code null}, which does not enable the caller to use the
+   * returned value immediately.
+   * </p>
+   * 
+   * @param map
+   *          A map.
+   * @param key
+   *          A key in the map.
+   * @param initial
+   *          An initial value used to create a mapping with the key if the key
+   *          is not associated with a value or is associated with {@code null}
+   *          in the map.
+   * @param <K>
+   *          The key type in the map.
+   * @param <T>
+   *          The value type in the map.
+   * @return The value associated with the key after the side effect: either the
+   *         original value if the key was associated with one, or the initial
+   *         value used to initialize a mapping with the key if they key was not
+   *         associated with a value or was associated with {@code null}.
+   */
+    protected static <K, T> T getInitialize(Map<K, T> map, K key, T initial) {
+      T current = map.putIfAbsent(key, initial);
+      return current == null ? initial : current;
     }
 }

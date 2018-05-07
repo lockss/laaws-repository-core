@@ -122,6 +122,8 @@ public interface ArtifactIndex {
      */
     boolean artifactExists(String artifactId) throws IOException;
 
+    Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException;
+    
     /**
      * Provides the collection identifiers of the committed artifacts in the index.
      *

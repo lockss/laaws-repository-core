@@ -38,7 +38,7 @@ import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
 
-import java.io.File;
+import java.io.*;
 import java.net.URL;
 
 /**
@@ -62,7 +62,7 @@ public class LockssRepositoryFactory {
      *          A {@code File} containing the base path of this LOCKSS Repository.
      * @return A {@code LocalLockssRepository} instance.
      */
-    public static LockssRepository createLocalRepository(File basePath) {
+    public static LockssRepository createLocalRepository(File basePath) throws IOException {
         return new LocalLockssRepository(basePath);
     }
 
@@ -76,7 +76,7 @@ public class LockssRepositoryFactory {
      *          An {@code ArtifactIndex} to use as this repository's artifact index.
      * @return A {@code LocalLockssRepository} instance.
      */
-    public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) {
+    public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) throws IOException {
         return new LocalLockssRepository(basePath, index);
     }
 

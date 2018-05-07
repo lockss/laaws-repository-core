@@ -30,33 +30,14 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.StatusLine;
-import org.apache.http.message.BasicStatusLine;
-import org.junit.Before;
-import org.junit.Test;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.UUID;
-
-import static org.junit.Assert.*;
-
 /**
  * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
  */
 public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
-    private final static Log log = LogFactory.getLog(TestVolatileLockssRepository.class);
 
     @Override
     public LockssRepository makeLockssRepository() {
         return new VolatileLockssRepository();
     }
+
 }

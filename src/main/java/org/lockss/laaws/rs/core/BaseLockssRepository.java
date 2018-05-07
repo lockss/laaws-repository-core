@@ -34,7 +34,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.*;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
@@ -42,7 +42,6 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.*;
 
 /**
@@ -51,7 +50,7 @@ import java.util.*;
 public class BaseLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
 
-    protected ArtifactDataStore store = null;
+    protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store = null;
     protected ArtifactIndex index = null;
 
     /**
@@ -69,9 +68,10 @@ public class BaseLockssRepository implements LockssRepository {
      * @param store
      *          An instance of {@code ArtifactDataStore}.
      */
-    public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) {
+    public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store) {
         this.index = index;
         this.store = store;
+        this.store.setArtifactIndex(this.index);
     }
 
     /**
@@ -362,4 +362,5 @@ public class BaseLockssRepository implements LockssRepository {
     public Long auSize(String collection, String auid) throws IOException {
         return index.auSize(collection, auid);
     }
+    
 }

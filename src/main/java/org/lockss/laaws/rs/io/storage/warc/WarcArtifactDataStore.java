@@ -32,7 +32,8 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import com.google.common.io.CountingOutputStream;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.*;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
@@ -46,7 +47,8 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
-import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.storage.*;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -59,11 +61,10 @@ import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.*;
 
 /**
  * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
@@ -72,6 +73,9 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         implements ArtifactDataStore<ID, AD, MD>, WARCConstants {
     private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
 
+    protected static final String WARC_FILE_EXTENSION = ".warc";
+    
+    protected static final String SEALED_WARC_DIR = "sealed";
     protected static final String AU_DIR_PREFIX = "au-";
     protected static final String SCHEME = "urn:uuid";
     protected static final String SCHEME_COLON = SCHEME + ":";
@@ -81,7 +85,9 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
 
     protected  static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
-    protected File repositoryBasePath;
+    protected ArtifactIndex artifactIndex;
+    
+    protected String repositoryBasePath;
 
     static {
         try {
@@ -91,6 +97,64 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         }
     }
 
+    protected WarcArtifactDataStore() {
+      // nothing
+    }
+    
+    public WarcArtifactDataStore(String repositoryBasePath) {
+      this();
+      this.repositoryBasePath = new File(repositoryBasePath).getAbsolutePath();
+    }
+    
+    @Override
+    public void setArtifactIndex(ArtifactIndex artifactIndex) {
+      if (this.artifactIndex != null) {
+        throw new IllegalStateException("Artifact index already set");
+      }
+      this.artifactIndex = artifactIndex;
+    }
+    
+    public String sealWarc(String collection,
+                           String auid,
+                           String currentPath,
+                           BiFunction<String, Artifact, String> makeStorageUrl)
+        throws IOException {
+      String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
+      File current = new File(currentPath);
+      if (!current.renameTo(new File(newPath))) {
+        throw new IOException("Error renaming " + current.getPath() + " to " + newPath);
+      }
+      for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid)) {
+        if (artifact.getStorageUrl() != null) {
+          artifactIndex.updateStorageUrl(artifact.getId(), makeStorageUrl.apply(newPath, artifact));
+        }
+      }
+      
+      return newPath;
+    }
+    
+    protected String getRepositoryBasePath() {
+      return repositoryBasePath;
+    }
+    
+    protected String getCollectionPath(ArtifactIdentifier artifactId) {
+      return getRepositoryBasePath() + SEPARATOR + artifactId.getCollection();
+    }
+
+    protected String getAuPath(ArtifactIdentifier artifactId) {
+      return getCollectionPath(artifactId) + SEPARATOR + AU_DIR_PREFIX + DigestUtils.md5Hex(artifactId.getAuid());
+    }
+    
+    protected String getSealedWarcPath() {
+      return getRepositoryBasePath() + SEPARATOR + SEALED_WARC_DIR;
+    }
+    
+    protected String getSealedWarcName(String collection, String auid) {
+      String auidHash = DigestUtils.md5Hex(auid.getBytes());
+      String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
+      return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp;
+    }
+    
     /**
      * Returns the WARC-Record-Id of the WARC record backing a given ArtifactData.
      *

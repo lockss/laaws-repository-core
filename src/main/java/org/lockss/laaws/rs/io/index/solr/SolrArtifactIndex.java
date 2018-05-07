@@ -75,10 +75,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Constructor that uses a given SolrClient.
      *
      * @param client
-     *          A {@code SolrClient} to use to index artifacts.
+     *          A {@code SolrClient} to use to artifactIndex artifacts.
      */
     public SolrArtifactIndex(SolrClient client) {
-        // Modify the schema to support an artifact index
+        // Modify the schema to support an artifact artifactIndex
         createArtifactSchema(client);
         this.solr = client;
     }
@@ -174,9 +174,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Adds an artifact to the index.
+     * Adds an artifact to the artifactIndex.
      *
-     * @param artifactData An ArtifactData with the artifact to be added to the index,.
+     * @param artifactData An ArtifactData with the artifact to be added to the artifactIndex,.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
@@ -205,10 +205,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the index data of an artifact with a given text index
+     * Provides the artifactIndex data of an artifact with a given text artifactIndex
      * identifier.
      *
-     * @param artifactId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact artifactIndex identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
@@ -222,7 +222,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         Artifact indexData = null;
 
         try {
-            // Query the Solr index and get results as Artifact
+            // Query the Solr artifactIndex and get results as Artifact
             final QueryResponse response = solr.query(q);
             final List<Artifact> documents = response.getBeans(Artifact.class);
 
@@ -248,10 +248,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the index data of an artifact with a given index identifier
+     * Provides the artifactIndex data of an artifact with a given artifactIndex identifier
      * UUID.
      *
-     * @param artifactId An UUID with the artifact index identifier.
+     * @param artifactId An UUID with the artifact artifactIndex identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
@@ -260,9 +260,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Commits to the index an artifact with a given text index identifier.
+     * Commits to the artifactIndex an artifact with a given text artifactIndex identifier.
      *
-     * @param artifactId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact artifactIndex identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
@@ -289,9 +289,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Commits to the index an artifact with a given index identifier UUID.
+     * Commits to the artifactIndex an artifact with a given artifactIndex identifier UUID.
      *
-     * @param artifactId An UUID with the artifact index identifier.
+     * @param artifactId An UUID with the artifact artifactIndex identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
@@ -300,9 +300,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Removes from the index an artifact with a given text index identifier.
+     * Removes from the artifactIndex an artifact with a given text artifactIndex identifier.
      *
-     * @param artifactId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact artifactIndex identifier.
      * @throws IOException
      */
     @Override
@@ -316,10 +316,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Removes from the index an artifact with a given index identifier UUID.
+     * Removes from the artifactIndex an artifact with a given artifactIndex identifier UUID.
      *
-     * @param artifactId A String with the artifact index identifier.
-     * @return <code>true</code> if the artifact was removed from in the index,
+     * @param artifactId A String with the artifact artifactIndex identifier.
+     * @return <code>true</code> if the artifact was removed from in the artifactIndex,
      * <code>false</code> otherwise.
      */
     @Override
@@ -328,11 +328,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides an indication of whether an artifact with a given text index
-     * identifier exists in the index.
+     * Provides an indication of whether an artifact with a given text artifactIndex
+     * identifier exists in the artifactIndex.
      *
      * @param artifactId A String with the artifact identifier.
-     * @return <code>true</code> if the artifact exists in the index,
+     * @return <code>true</code> if the artifact exists in the artifactIndex,
      * <code>false</code> otherwise.
      */
     @Override
@@ -340,10 +340,33 @@ public class SolrArtifactIndex implements ArtifactIndex {
         return getArtifact(artifactId) != null;
     }
 
+    @Override
+    public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
+      // Perform an atomic update
+      SolrInputDocument document = new SolrInputDocument();
+      document.addField("id", artifactId);
+
+      // Setup type of field modification, and replacement value
+      Map<String, Object> fieldModifier = new HashMap<>();
+      fieldModifier.put("set", storageUrl);
+      document.addField("storageUrl", fieldModifier);
+
+      try {
+          // Update the field
+          this.solr.add(document);
+          this.solr.commit();
+      } catch (SolrServerException e) {
+          throw new IOException(e);
+      }
+
+      // Return updated Artifact
+      return getArtifact(artifactId);
+    }
+    
     /**
-     * Provides the collection identifiers of the committed artifacts in the index.
+     * Provides the collection identifiers of the committed artifacts in the artifactIndex.
      *
-     * @return An {@code Iterator<String>} with the index committed artifacts
+     * @return An {@code Iterator<String>} with the artifactIndex committed artifacts
      * collection identifiers.
      */
     @Override

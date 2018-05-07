@@ -218,6 +218,16 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         }
         return index.containsKey(artifactId);
     }
+    
+    @Override
+    public Artifact updateStorageUrl(String artifactId, String storageUrl) {
+      Artifact artifact = index.get(artifactId);
+      if (artifact == null) {
+        throw new IllegalArgumentException("Cannot update storage URL: unknown artifact " + artifactId);
+      }
+      artifact.setStorageUrl(storageUrl);
+      return artifact;
+    }
 
     /**
      * Provides the collection identifiers of the committed artifacts in the index.
@@ -232,7 +242,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
 
         // Sort the collection IDs for return
-        List<String> collectionIds = new ArrayList(collections.keySet());
+        List<String> collectionIds = new ArrayList<String>(collections.keySet());
         Collections.sort(collectionIds);
 
         // Interface requires an iterator since this list could be very large in other implementations
