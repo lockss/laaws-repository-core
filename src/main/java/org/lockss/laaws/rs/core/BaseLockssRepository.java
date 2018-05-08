@@ -50,8 +50,8 @@ import java.util.*;
 public class BaseLockssRepository implements LockssRepository {
     private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
 
-    protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store = null;
-    protected ArtifactIndex index = null;
+    protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
+    protected ArtifactIndex index;
 
     /**
      * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.

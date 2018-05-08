@@ -30,13 +30,16 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
+import org.junit.Ignore;
 import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
@@ -44,12 +47,13 @@ import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.util.test.LockssTestCase5;
 
 import java.io.*;
+import java.net.URLEncoder;
 import java.util.UUID;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
  */
-public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest {
   
     private final static Log log = LogFactory.getLog(TestVolatileWarcArtifactStore.class);
 
@@ -66,9 +70,8 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     private ArtifactDataStore store;
 
     @Override
-    protected WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> makeWarcArtifactDataStore(File repoBaseDir)
-        throws IOException {
-      return new VolatileWarcArtifactDataStore(repoBaseDir.getAbsolutePath());
+    protected WarcArtifactDataStore makeWarcArtifactDataStore(String repoBasePath) throws IOException {
+      return new VolatileWarcArtifactDataStore(repoBasePath);
     }
     
     @BeforeEach
@@ -271,4 +274,79 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
             fail("Unexpected IOException caught");
         }
     }
+    
+  @Override
+  @Test
+  public void testGetAuArtifactsWarcPath() throws Exception {
+    File tmp1 = makeTempDir();
+    WarcArtifactDataStore store = makeWarcArtifactDataStore(tmp1.getAbsolutePath());
+    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
+    String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
+    String expectedAuArtifactsWarcName = "artifacts.warc";
+    String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
+    String actualAuArtifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
+    assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
+    quietlyDeleteDir(tmp1);
+  }
+  
+  @Override
+  @Test
+  public void testGetAuMetadataWarcPath() throws Exception {
+    File tmp1 = makeTempDir();
+    WarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
+    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
+    RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
+    String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
+    String expectedFileName = "lockss-repo.warc";
+    String expectedPath = expectedAuDirPath + "/" + expectedFileName;
+    String actualPath = store.getAuMetadataWarcPath(ident1, md1);
+    assertEquals(expectedPath, actualPath);
+    quietlyDeleteDir(tmp1);
+  }
+
+  @Override
+  @Test
+  @Disabled
+  public void testMakeStorageUrl() throws Exception {
+    
+  }
+  
+  @Override
+  protected String testMakeStorageUrl_getExpected(WarcArtifactDataStore store,
+                                                ArtifactIdentifier ident,
+                                                long offset)
+      throws Exception {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  @Test
+  @Disabled
+  public void testMakeNewStorageUrl() throws Exception {
+    
+  }
+  
+  @Override
+  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store,
+                                                                 Artifact artifact,
+                                                                 String newPath,
+                                                                 String result)
+      throws Exception {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(WarcArtifactDataStore store,
+                                                                ArtifactIdentifier ident)
+      throws Exception {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(WarcArtifactDataStore store,
+                                                                   ArtifactIdentifier ident)
+      throws Exception {
+    throw new UnsupportedOperationException();
+  }
+  
 }

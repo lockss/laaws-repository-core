@@ -92,10 +92,13 @@ public class LockssRepositoryFactory {
      *          A HDFS {@code Path} containing the base path under the HDFS cluster to use for the storage of artifacts.
      * @return A {@code BaseLockssRepository} instance configured to use Solr and HDFS.
      */
-    public static LockssRepository createLargeLockssRepository(SolrClient solrClient, Configuration hadoopConf, Path basePath) {
-        ArtifactIndex index = new SolrArtifactIndex(solrClient);
-        ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, basePath);
-        return new BaseLockssRepository(index, store);
+    public static LockssRepository createLargeLockssRepository(SolrClient solrClient,
+                                                               Configuration hadoopConf,
+                                                               Path basePath)
+        throws IOException {
+      ArtifactIndex index = new SolrArtifactIndex(solrClient);
+      ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, basePath);
+      return new BaseLockssRepository(index, store);
     }
 
     /**

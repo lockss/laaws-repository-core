@@ -30,54 +30,60 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import com.google.common.io.CountingOutputStream;
+import java.io.*;
+import java.net.*;
+import java.security.*;
+import java.time.*;
+import java.time.format.*;
+import java.time.temporal.ChronoField;
+import java.util.*;
+import java.util.regex.*;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.*;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.*;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecordHeader;
-import org.archive.io.warc.WARCRecord;
-import org.archive.io.warc.WARCRecordInfo;
+import org.archive.io.warc.*;
 import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.*;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactConstants;
-import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.laaws.rs.util.*;
 import org.springframework.util.MultiValueMap;
 
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.function.*;
+import com.google.common.io.CountingOutputStream;
 
 /**
  * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
  */
-public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata>
-        implements ArtifactDataStore<ID, AD, MD>, WARCConstants {
-    private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
+public abstract class WarcArtifactDataStore implements ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata>, WARCConstants {
+  
+  private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
 
-    protected static final String WARC_FILE_EXTENSION = ".warc";
+  // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
+  protected static final DateTimeFormatter FMT_TIMESTAMP =
+      new DateTimeFormatterBuilder().appendPattern("yyyyMMddHHmmss")
+                                    .appendValue(ChronoField.MILLI_OF_SECOND, 3)
+                                    .toFormatter()
+                                    .withZone(ZoneId.of("UTC"));
+  
+  protected static final Pattern PAT_FILE_OFFSET_URL =
+      Pattern.compile("^([a-z]+)://(.+)\\?offset=(\\d+)$");
     
+    protected static final String WARC_FILE_EXTENSION = ".warc";
     protected static final String COLLECTIONS_DIR = "collections";
     protected static final String SEALED_WARC_DIR = "sealed";
     protected static final String AU_DIR_PREFIX = "au-";
+    protected static final String AU_ARTIFACTS_WARC_NAME = "artifacts" + WARC_FILE_EXTENSION;
+
     protected static final String SCHEME = "urn:uuid";
     protected static final String SCHEME_COLON = SCHEME + ":";
     protected static final String CRLF = "\r\n";
@@ -86,10 +92,14 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
 
     protected static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
+    protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
+
     protected ArtifactIndex artifactIndex;
     
-    protected String repositoryBasePath;
+    protected String basePath;
 
+    protected long thresholdWarcSize;
+    
     static {
         try {
             CRLF_BYTES = CRLF.getBytes(DEFAULT_ENCODING);
@@ -100,13 +110,25 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
 
     protected WarcArtifactDataStore() {
       // nothing
+      this.thresholdWarcSize = DEFAULT_THRESHOLD_WARC_SIZE;
     }
     
-    public WarcArtifactDataStore(String repositoryBasePath) {
+    public WarcArtifactDataStore(String basePath) {
       this();
-      this.repositoryBasePath = new File(repositoryBasePath).getAbsolutePath();
+      this.basePath = basePath;
     }
     
+  public String getBasePath() {
+    return basePath;
+  }
+    
+  public void setThresholdWarcSize(long threshold) {
+    if (threshold < 1L) {
+      throw new IllegalArgumentException("Threshold size must be strictly positive");
+    }
+    this.thresholdWarcSize = threshold;
+  }
+
     @Override
     public void setArtifactIndex(ArtifactIndex artifactIndex) {
       if (this.artifactIndex != null) {
@@ -115,18 +137,161 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
       this.artifactIndex = artifactIndex;
     }
     
-    public String sealWarc(String collection,
-                           String auid,
-                           String currentPath,
-                           BiFunction<String, Artifact, String> makeNewStorageUrl)
+  @Override
+  public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
+    Objects.requireNonNull(artifactData, "Artifact data is null");
+      
+    ArtifactIdentifier artifactId = artifactData.getIdentifier();
+
+    // Set new artifactId - any existing artifactId is meaningless in this context and should be discarded
+    artifactId.setId(UUID.randomUUID().toString());
+
+    log.info(String.format(
+        "Adding artifact (%s, %s, %s, %s, %s)",
+        artifactId.getId(),
+        artifactId.getCollection(),
+        artifactId.getAuid(),
+        artifactId.getUri(),
+        artifactId.getVersion()
+    ));
+
+    String auArtifactsWarcPath = getAuArtifactsWarcPath(artifactId);
+    createFileIfNeeded(auArtifactsWarcPath);
+
+    // Set the offset for the record to be appended to the length of the WARC file (i.e., the end)
+    long offset = getFileLength(auArtifactsWarcPath);
+    long bytesWritten;
+
+    artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
+
+    try (
+      // Get an appending OutputStream to the WARC file
+      OutputStream out = getAppendableOutputStream(auArtifactsWarcPath);
+    ) {
+      // Write artifact to WARC file
+      bytesWritten = writeArtifactData(artifactData, out);
+
+      out.flush();
+    }
+    catch (HttpException e) {
+      throw new IOException("Caught HttpException while attempting to write artifact to WARC file", e);
+    }
+
+    if (offset + bytesWritten >= thresholdWarcSize) {
+      String newPath = sealWarc(artifactId.getCollection(),
+                                artifactId.getAuid(),
+                                auArtifactsWarcPath);
+      artifactData.setStorageUrl(makeStorageUrl(newPath, offset));
+    }
+        
+        // Attach the artifact's repository metadata
+        artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
+                artifactId,
+                false,
+                false
+        ));
+
+        // TODO: Generalize this to write all of an artifact's metadata
+        updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
+
+    Artifact artifact = new Artifact(
+            artifactId,
+            false,
+            artifactData.getStorageUrl(),
+            artifactData.getContentLength(),
+            artifactData.getContentDigest()
+    );
+
+    return artifact;
+  }
+
+  @Override
+  public ArtifactData getArtifactData(Artifact artifact) throws IOException {
+    Objects.requireNonNull(artifact, "Artifact is null");
+    log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.getId()));
+
+    String storageUrl = artifact.getStorageUrl();
+
+    ArtifactData artifactData;
+    try (
+      InputStream warcStream = getWarcRecordInputStream(storageUrl);
+    ) {
+      WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0);
+      // Convert the WARCRecord object to an ArtifactData
+      artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord);
+    }
+
+    // Set ArtifactData properties
+    artifactData.setIdentifier(artifact.getIdentifier());
+    artifactData.setStorageUrl(artifact.getStorageUrl());
+    artifactData.setContentLength(artifact.getContentLength());
+    artifactData.setContentDigest(artifact.getContentDigest());
+    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifact.getIdentifier(),
+                                                                      artifact.getCommitted(),
+                                                                      false));
+
+    // Return an ArtifactData from the WARC record
+    return artifactData;
+  }
+  
+  @Override
+  public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier ident,
+                                                           RepositoryArtifactMetadata artifactMetadata)
+      throws IOException {
+    Objects.requireNonNull(ident, "Artifact identifier is null");
+    Objects.requireNonNull(artifactMetadata, "Repository artifact metadata is null");
+    WARCRecordInfo metadataRecord = createWarcMetadataRecord(ident.getId(), artifactMetadata);
+
+    // Append WARC metadata record to AU's metadata file
+    String auMetadataWarcPath = getAuMetadataWarcPath(ident, artifactMetadata);
+    try (
+      OutputStream out = getAppendableOutputStream(auMetadataWarcPath);
+    ) {
+      writeWarcRecord(metadataRecord, out);
+    }
+
+    return artifactMetadata;
+  }
+    
+  @Override
+  public RepositoryArtifactMetadata commitArtifactData(Artifact artifact) throws IOException {
+    Objects.requireNonNull(artifact, "Artifact is null");
+    ArtifactData artifactData = getArtifactData(artifact);
+    RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
+
+    // Set the commit flag and write the metadata to disk
+    if (!repoMetadata.isDeleted()) {
+      repoMetadata.setCommitted(true);
+      updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
+    }
+
+    return repoMetadata;
+  }
+
+  @Override
+  public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact) throws IOException {
+    Objects.requireNonNull(artifact, "Artifact is null");
+    ArtifactData artifactData = getArtifactData(artifact);
+    RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
+
+    // Set the commit flag and write the metadata to disk
+    if (!repoMetadata.isDeleted()) {
+      repoMetadata.setCommitted(false);
+      repoMetadata.setDeleted(true);
+      updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
+    }
+
+    return repoMetadata;
+  }
+  
+  public String sealWarc(String collection,
+                         String auid,
+                         String currentPath)
         throws IOException {
       String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
-      File current = new File(currentPath);
-      if (!current.renameTo(new File(newPath))) {
-        throw new IOException("Error renaming " + current.getPath() + " to " + newPath);
-      }
+      renameFile(currentPath, newPath);
       for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid)) {
-        String newStorageUrl = makeNewStorageUrl.apply(newPath, artifact);
+        String newStorageUrl = makeNewStorageUrl(newPath, artifact);
         if (newStorageUrl != null) {
           artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
         }
@@ -135,12 +300,8 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
       return newPath;
     }
     
-    public String getRepositoryBasePath() {
-      return repositoryBasePath;
-    }
-    
     public String getCollectionPath(ArtifactIdentifier artifactIdent) {
-      return getRepositoryBasePath() + SEPARATOR + COLLECTIONS_DIR + SEPARATOR + artifactIdent.getCollection();
+      return SEPARATOR + COLLECTIONS_DIR + SEPARATOR + artifactIdent.getCollection();
     }
 
     public String getAuPath(ArtifactIdentifier artifactId) {
@@ -148,14 +309,52 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
     }
     
     public String getSealedWarcPath() {
-      return getRepositoryBasePath() + SEPARATOR + SEALED_WARC_DIR;
+      return SEPARATOR + SEALED_WARC_DIR;
     }
     
     public String getSealedWarcName(String collection, String auid) {
-      String auidHash = DigestUtils.md5Hex(auid.getBytes());
-      String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
+      String auidHash = DigestUtils.md5Hex(auid);
+      String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(FMT_TIMESTAMP);
       return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + WARC_FILE_EXTENSION;
     }
+    
+    public String getAuArtifactsWarcPath(ArtifactIdentifier ident) throws IOException {
+      String dir = getAuPath(ident);
+      mkdirsIfNeeded(dir);
+      return dir + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
+    }
+
+    public String getAuMetadataWarcPath(ArtifactIdentifier ident,
+                                        RepositoryArtifactMetadata artifactMetadata)
+        throws IOException {
+      String dir = getAuPath(ident);
+      mkdirsIfNeeded(dir);
+      return dir + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
+    }
+    
+    public String makeStorageUrl(String filePath, long offset) {
+      return makeStorageUrl(filePath, Long.toString(offset));
+    }
+
+    public abstract String makeStorageUrl(String filePath, String offset);
+    
+    public abstract String makeNewStorageUrl(String newPath, Artifact artifact);
+    
+    public abstract void mkdirsIfNeeded(String dirPath) throws IOException;
+    
+    public abstract long getFileLength(String filePath) throws IOException;
+    
+    public abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
+    
+    public abstract InputStream getInputStream(String filePath) throws IOException;
+    
+    public abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
+    
+    public abstract InputStream getWarcRecordInputStream(String storageUrl) throws IOException;
+    
+    public abstract void createFileIfNeeded(String filePath) throws IOException;
+    
+    public abstract void renameFile(String srcPath, String dstPath) throws IOException;
     
     /**
      * Returns the WARC-Record-Id of the WARC record backing a given ArtifactData.
@@ -435,4 +634,36 @@ public abstract class WarcArtifactDataStore<ID extends ArtifactIdentifier, AD ex
         throw new IllegalStateException("Internal error converting to URI: " + url, exc);
       }
     }
+    
+    
+  protected String makeNewFileAndOffsetStorageUrl(String newPath, Artifact artifact) {
+    Matcher mat = PAT_FILE_OFFSET_URL.matcher(artifact.getStorageUrl());
+    try {
+      if (mat.matches() && mat.group(2).equals(getBasePath() + getAuArtifactsWarcPath(artifact.getIdentifier()))) {
+        return makeStorageUrl(newPath, mat.group(3));
+      }
+    }
+    catch (IOException shouldnt) {
+      // Shouldn't happen because all these artifacts are in existing directories
+      log.error("Internal error", shouldnt);
+      throw new UncheckedIOException(shouldnt);
+    }
+    return null;
+  }
+  
+  protected InputStream getFileAndOffsetWarcRecordInputStream(String storageUrl) throws IOException {
+    Matcher mat = PAT_FILE_OFFSET_URL.matcher(storageUrl);
+    if (!mat.matches()) {
+      // Shouldn't happen because all these artifacts are in existing directories
+      String msg = "Internal error: " + storageUrl;
+      log.error(msg);
+      throw new IOException(msg);
+    }
+    String realFilePath = mat.group(2);
+    if (!realFilePath.startsWith(getBasePath())) {
+      throw new IOException("Invalid file path: " + realFilePath);
+    }
+    return getInputStreamAndSeek(realFilePath.substring(getBasePath().length()), Long.parseLong(mat.group(3)));
+  }
+    
 }

@@ -38,17 +38,14 @@ import org.archive.io.warc.WARCRecord;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URLEncoder;
 import java.util.*;
-import java.util.function.*;
 
 /**
  * A volatile ("in-memory") implementation of WarcArtifactDataStore.
  */
-public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     private final static Log log = LogFactory.getLog(VolatileWarcArtifactDataStore.class);
     private Map<String, Map<String, Map<String, byte[]>>> repository;
     private Map<String, RepositoryArtifactMetadata> repositoryMetadata;
@@ -57,16 +54,14 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
      * Constructor.
      */
     public VolatileWarcArtifactDataStore() {
-      super();
-      this.repository = new HashMap<>();
-      this.repositoryMetadata = new HashMap<>();
+      this("volatile:///");
     }
 
     /**
      * For testing; this kind of data store ignores the base path.
      */
-    protected VolatileWarcArtifactDataStore(String repoBaseDirPath) {
-        super(repoBaseDirPath);
+    protected VolatileWarcArtifactDataStore(String basePath) {
+        super(basePath);
         this.repository = new HashMap<>();
         this.repositoryMetadata = new HashMap<>();
     }    
@@ -81,13 +76,13 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         }
 
         // Get artifact identifier
-        ArtifactIdentifier artifactId = artifactData.getIdentifier();
+        ArtifactIdentifier ident = artifactData.getIdentifier();
 
         // Get the collection
-        Map<String, Map<String, byte[]>> collection = getInitialize(repository, artifactId.getCollection(), new HashMap<>());
+        Map<String, Map<String, byte[]>> collection = getInitialize(repository, ident.getCollection(), new HashMap<>());
 
         // Get the AU
-        Map<String, byte[]> au = getInitialize(collection, artifactId.getAuid(), new HashMap<>());
+        Map<String, byte[]> au = getInitialize(collection, ident.getAuid(), new HashMap<>());
 
         try {
             // ByteArrayOutputStream to capture the WARC record
@@ -97,33 +92,26 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
             long bytesWritten = writeArtifactData(artifactData, baos);
 
             // Store artifact
-            au.put(artifactId.getId(), baos.toByteArray());
+            au.put(ident.getId(), baos.toByteArray());
         } catch (HttpException e) {
             log.error(String.format("Caught an HttpException while attempt to write an ArtifactData to an OutputStream: %s", e.getMessage()));
             throw new IOException(e);
         }
 
         // Create and set the artifact's repository metadata
-        RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(artifactId, false, false);
-        repositoryMetadata.put(artifactId.getId(), repoMetadata);
+        RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(ident, false, false);
+        repositoryMetadata.put(ident.getId(), repoMetadata);
         artifactData.setRepositoryMetadata(repoMetadata);
 
         // Construct volatile storage URL for this WARC record
-        String storageUrl = String.format(
-                "volatile:///%s/%s/%s/%s/%s",
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                URLEncoder.encode(artifactId.getUri(), "UTF-8"),
-                artifactId.getVersion(),
-                artifactId.getId()
-        );
+        String storageUrl = makeStorageUrl(ident);
 
         // Set the artifact's storage URL
         artifactData.setStorageUrl(storageUrl);
 
         // Create an Artifact to return
         Artifact artifact = new Artifact(
-                artifactId,
+                ident,
                 false,
                 storageUrl,
                 artifactData.getContentLength(),
@@ -131,7 +119,18 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         );
 
         return artifact;
-    }
+    }//  @Test
+//  public void testMkdirsIfNeeded() throws Exception {
+//  File tmp1 = makeTempDir();
+//  String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
+//  File dir = new File(dirPath);
+//  assertFalse(dir.exists());
+//  LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath);
+//  assertTrue(dir.isDirectory());
+//  LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath); // should not fail or throw
+//  quietlyDeleteDir(tmp1);
+//}
+
 
     @Override
     public ArtifactData getArtifactData(Artifact artifact) throws IOException {
@@ -250,13 +249,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
         return metadata;
     }
 
-  @Override
-  public String sealWarc(String collection, String auid, String currentPath,
-                         BiFunction<String, Artifact, String> makeStorageUrl)
-      throws IOException {
-    return null; // do nothing
-  }
-
   /**
    * <p>
    * Given a map, either returns the value associated with the given key (if the
@@ -292,4 +284,71 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore<Artifac
       T current = map.putIfAbsent(key, initial);
       return current == null ? initial : current;
     }
+    
+  @Override
+  public void mkdirsIfNeeded(String dirPath) throws IOException {
+    // Intentionally left blank
+  }
+  
+  @Override
+  public long getFileLength(String filePath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+  
+  public String makeStorageUrl(ArtifactIdentifier ident) {
+    try {
+      return makeStorageUrl(String.format("/%s/%s/%s/%s/%s",
+                                          ident.getCollection(),
+                                          ident.getAuid(),
+                                          URLEncoder.encode(ident.getUri(), "UTF-8"),
+                                          ident.getVersion(),
+                                          ident.getId()),
+                            0L);
+    }
+    catch (UnsupportedEncodingException shouldnt) {
+      log.error("Internal error", shouldnt);
+      throw new UncheckedIOException(shouldnt);
+    }
+  }
+  
+  @Override
+  public String makeStorageUrl(String filePath, String offset) {
+    return "volatile://" + filePath;
+  }
+  
+  @Override
+  public OutputStream getAppendableOutputStream(String filePath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public InputStream getInputStream(String filePath) throws IOException {
+    throw new UnsupportedOperationException();
+  }  
+
+  @Override
+  public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  public void createFileIfNeeded(String filePath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  public void renameFile(String srcPath, String dstPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  public String makeNewStorageUrl(String newPath, Artifact artifact) {
+    throw new UnsupportedOperationException();
+  }
+  
 }

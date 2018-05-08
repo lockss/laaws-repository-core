@@ -42,12 +42,11 @@ import org.lockss.laaws.rs.io.index.*;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
 
-public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
+public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest {
 
   @Override
-  protected WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> makeWarcArtifactDataStore(File repoBaseDir)
-      throws IOException {
-    return new LocalWarcArtifactDataStore(repoBaseDir);
+  protected WarcArtifactDataStore makeWarcArtifactDataStore(String repoBasePath) throws IOException {
+    return new LocalWarcArtifactDataStore(repoBasePath);
   }
   
   @BeforeEach
@@ -135,91 +134,64 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   public void createWARCInfoRecord() {
   }
 
-  @Test
-  public void testGetAuArtifactsWarcPath() throws Exception {
-    File tmp1 = makeTempDir();
-    LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    String expectedAuDirPath = store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    File expectedAuDir = new File(expectedAuDirPath);
-    String expectedAuArtifactsWarcName = "artifacts.warc";
-    String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
-    assertFalse(expectedAuDir.exists());
-    String actualAuArtifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
-    assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
-    assertTrue(expectedAuDir.isDirectory());
-    quietlyDeleteDir(tmp1);
-  }
-  
-  @Test
-  public void testGetAuMetadataWarcPath() throws Exception {
-    File tmp1 = makeTempDir();
-    LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
-    String expectedAuDirPath = store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    File expectedAuDir = new File(expectedAuDirPath);
-    String expectedFileName = "lockss-repo.warc";
-    String expectedPath = expectedAuDirPath + "/" + expectedFileName;
-    assertFalse(expectedAuDir.exists());
-    String actualPath = store.getAuMetadataWarcPath(ident1, md1);
-    assertEquals(expectedPath, actualPath);
-    assertTrue(expectedAuDir.isDirectory());
-    quietlyDeleteDir(tmp1);
-  }
-  
-  @Test
-  public void testSetThresholdWarcSize() throws Exception {
-    File tmp1 = makeTempDir();
-    LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
-    // Use privileged access to peek
-    assertEquals(100L * FileUtils.ONE_MB, LocalWarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
-    assertEquals(LocalWarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE, store.thresholdWarcSize);
-    assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(-1234L));
-    assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(0L));
-    store.setThresholdWarcSize(10L * FileUtils.ONE_KB);
-    assertEquals(10L * FileUtils.ONE_KB, store.thresholdWarcSize);
-    quietlyDeleteDir(tmp1);
-  }
-  
-  @Test
-  public void testMkdirsIfNeeded() throws Exception {
-    File tmp1 = makeTempDir();
-    String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
-    File dir = new File(dirPath);
-    assertFalse(dir.exists());
-    LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath);
-    assertTrue(dir.isDirectory());
-    LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath); // should not fail or throw
-    quietlyDeleteDir(tmp1);
-  }
-  
-  @Test
-  public void testMakeStorageUrl() throws Exception {
-    File tmp1 = makeTempDir();
-    LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    String artifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
-    assertEquals("file://" + artifactsWarcPath + "?offset=1234",
-                 store.makeStorageUrl(artifactsWarcPath, 1234L));
-    assertEquals(store.makeStorageUrl(artifactsWarcPath, 1234L),
-                 store.makeStorageUrl(artifactsWarcPath, "1234"));
-    quietlyDeleteDir(tmp1);
+//  @Test
+//  public void testMkdirsIfNeeded() throws Exception {
+//    File tmp1 = makeTempDir();
+//    String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
+//    File dir = new File(dirPath);
+//    assertFalse(dir.exists());
+//    LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath);
+//    assertTrue(dir.isDirectory());
+//    LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath); // should not fail or throw
+//    quietlyDeleteDir(tmp1);
+//  }
+
+  @Override
+  protected String testMakeStorageUrl_getExpected(WarcArtifactDataStore store,
+                                                  ArtifactIdentifier ident,
+                                                  long offset)
+      throws Exception {
+    return String.format("file://%s%s?offset=%d",
+                         store.getBasePath(),
+                         store.getAuArtifactsWarcPath(ident),
+                         offset);
   }
 
-  @Test
-  public void testMakeNewStorageUrl() throws Exception {
-    File tmp1 = makeTempDir();
-    LocalWarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    Artifact art1 = new Artifact();
-    art1.setCollection("coll1");
-    art1.setAuid("auid1");
-    art1.setStorageUrl(store.makeStorageUrl(store.getAuArtifactsWarcPath(ident1), 1234L));
-    String newPath = store.getSealedWarcPath() + "/" + store.getSealedWarcName("coll1", "auid1");
-    assertEquals("file://" + newPath + "?offset=1234",
-                 store.makeNewStorageUrl(newPath, art1));
-    quietlyDeleteDir(tmp1);
+  @Override
+  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(WarcArtifactDataStore store,
+                                                                     ArtifactIdentifier ident)
+      throws Exception {
+    Artifact art = new Artifact(ident,
+                                Boolean.TRUE,
+                                String.format("file://%s%s/%s?offset=1234",
+                                              store.getBasePath(),
+                                              store.getSealedWarcPath(),
+                                              store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
+                                123L,
+                                "0x12345");
+    return art;
+  }
+  
+  @Override
+  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(WarcArtifactDataStore store,
+                                                                  ArtifactIdentifier ident)
+      throws Exception {
+    Artifact art = new Artifact(ident,
+                                Boolean.TRUE,
+                                String.format("file://%s?offset=1234",
+                                              store.getAuArtifactsWarcPath(ident)),
+                                123L,
+                                "0x12345");
+    return art;
+  }
+  
+  @Override
+  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store,
+                                                               Artifact artifact,
+                                                               String newPath,
+                                                               String result)
+      throws Exception {
+    assertThat(result, startsWith(String.format("file://" + newPath)));
   }
   
   @Test
@@ -234,10 +206,10 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 
     StatusLine status200 = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
     
-    File auDir = new File(store.getRepositoryBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
+    File auDir = new File(store.getBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
     File auArtifactsWarc = new File(auDir, "artifacts.warc");
     File auMetadataWarc = new File(auDir, "lockss-repo.warc");
-    File sealedWarcDir = new File(store.getRepositoryBasePath() + "/sealed");
+    File sealedWarcDir = new File(store.getBasePath() + "/sealed");
     
     assertFalse(auDir.exists());
     assertFalse(auArtifactsWarc.exists());

@@ -30,68 +30,64 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
+import java.io.*;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
-import org.apache.http.HttpException;
+import org.apache.hadoop.fs.FileSystem;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.warc.WARCReaderFactory;
-import org.archive.io.warc.WARCRecord;
-import org.archive.io.warc.WARCRecordInfo;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.index.*;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
-import org.springframework.util.DigestUtils;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
  */
-public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> {
-    private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
-    private static final String WARC_FILE_SUFFIX = ".warc";
-    public static final String AU_ARTIFACTS_WARC = "artifacts" + WARC_FILE_SUFFIX;
+public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
-    private Configuration config;
-    private Path basePath;
-    private FileSystem fs;
+  private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
 
+  protected Configuration config;
+  protected Path base;
+  protected FileSystem fs;
+
+  public HdfsWarcArtifactDataStore(Configuration config, String basePath) throws IOException {
+    this(config, new Path(basePath));
+  }
+
+    
     /**
      * Constructor.
      *
      * @param config
      *          A Apache Hadoop {@code Configuration}.
-     * @param basePath
+     * @param base
      *          A {@code Path} to the base directory of the LOCKSS Repository under HDFS.
      */
-    public HdfsWarcArtifactDataStore(Configuration config, Path basePath) {
-        this.config = config;
-        this.basePath = basePath;
+    public HdfsWarcArtifactDataStore(Configuration config, Path base) throws IOException {
+      super(base.toString());
+      log.info(String.format("Instantiating a data store under %s", basePath));
+      this.config = config;
+      this.base = base;
+      this.fs = FileSystem.get(config);
 
-        try {
-            // Get a FileSystem handle
-            this.fs = FileSystem.get(config);
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    String.format("Could not get a FileSystem handle with supplied configuration: %s", e)
-            );
-        }
-
-        // Make sure the base path directory exists
-        mkdirIfNotExist(basePath);
+      // Make sure the base path directory exists
+      mkdirsIfNeeded("/");
+      mkdirsIfNeeded(getSealedWarcPath());
     }
 
+    public Path getBase() {
+      return base;
+    }
+    
     /**
      * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
      *
@@ -103,11 +99,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         // Rebuild the index if using volatile index
         if (index.getClass() == VolatileArtifactIndex.class) {
             try {
-                rebuildIndex(index, this.basePath);
+                rebuildIndex(index, this.base);
             } catch (IOException e) {
                 throw new RuntimeException(String.format(
                         "IOException caught while trying to rebuild index from %s",
-                        basePath
+                        base
                 ));
             }
         }
@@ -116,7 +112,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
     /**
      * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
      *
-     * @param basePath The base path of the local repository.
+     * @param base The base path of the local repository.
      * @throws IOException
      */
     public void rebuildIndex(ArtifactIndex index, Path basePath) throws IOException {
@@ -124,7 +120,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
 
         Collection<Path> artifactWarcFiles = warcs
                 .stream()
-                .filter(file -> file.getName().endsWith("artifacts" + WARC_FILE_SUFFIX))
+                .filter(file -> file.getName().endsWith("artifacts" + WARC_FILE_EXTENSION))
                 .collect(Collectors.toList());
 
         // Re-index artifacts first
@@ -177,7 +173,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         // Get a collection of repository metadata files
         Collection<Path> repoMetadataWarcFiles = warcs
                 .stream()
-                .filter(file -> file.getName().endsWith("lockss-repo" + WARC_FILE_SUFFIX))
+                .filter(file -> file.getName().endsWith("lockss-repo" + WARC_FILE_EXTENSION))
                 .collect(Collectors.toList());
 
         // Load repository artifact metadata by "replaying" them
@@ -229,14 +225,14 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
     /**
      * Recursively finds artifact WARC files under a given base path.
      *
-     * @param basePath The base path to scan recursively for WARC files.
+     * @param base The base path to scan recursively for WARC files.
      * @return A collection of paths to WARC files under the given base path.
      * @throws IOException
      */
     public Collection<Path> scanDirectories(Path basePath) throws IOException {
         Collection<Path> warcFiles = new ArrayList<>();
 
-//        RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, false);
+//        RemoteIterator<LocatedFileStatus> files = fs.listFiles(base, false);
 //
 //        while (files.hasNext()) {
 //            LocatedFileStatus status = files.next();
@@ -251,37 +247,12 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, true);
         while(files.hasNext()) {
             LocatedFileStatus status = files.next();
-            if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_SUFFIX))
+            if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
                 warcFiles.add(status.getPath());
         }
 
         // Return WARC files at this level
         return warcFiles;
-    }
-
-    /**
-     * Returns the filesystem base path to the archival unit (AU) this artifact belongs in.
-     *
-     * @param artifactId ArtifactData identifier of an artifact.
-     * @return Base path of the AU the artifact belongs in.
-     */
-    public Path getArchicalUnitBasePath(ArtifactIdentifier artifactId) {
-        String auidHash = DigestUtils.md5DigestAsHex(artifactId.getAuid().getBytes());
-        Path auPath = new Path(getCollectionBasePath(artifactId) + SEPARATOR + AU_DIR_PREFIX + auidHash);
-        mkdirIfNotExist(auPath);
-        return auPath;
-    }
-
-    /**
-     * Returns the filesystem base path to the collection this artifact belongs in.
-     *
-     * @param artifactId ArtifactData identifier of an artifact.
-     * @return Base path of the collection the artifact belongs in.
-     */
-    public Path getCollectionBasePath(ArtifactIdentifier artifactId) {
-        Path collectionDir = new Path(this.basePath + SEPARATOR + artifactId.getCollection());
-        mkdirIfNotExist(collectionDir);
-        return collectionDir;
     }
 
     /**
@@ -291,24 +262,78 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
      *
      * @param path Path to the directory to create, if it doesn't exist yet.
      */
-    public void mkdirIfNotExist(Path path) {
-        try {
-            if (fs.exists(path)) {
-                // YES: Make sure it is a directory
-                if (!fs.isDirectory(path)) {
-                    throw new RuntimeException(String.format("%s exists but is not a directory", path));
-                }
-            } else {
-                // NO: Create a directory for the collection
-                fs.mkdirs(path);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(String.format(
-                    "Caught IOException while creating or verifying %s is a directory",
-                    path
-            ));
-        }
+    @Override
+    public void mkdirsIfNeeded(String dirPath) throws IOException {
+      Path dir = new Path(getBasePath() + dirPath);
+      if (fs.isDirectory(dir)) {
+        return;
+      }
+      if (!fs.mkdirs(dir)) {
+        throw new IOException(String.format("Error creating %s: fs.mkdirs() did not succeed", dirPath));
+      }
     }
+    
+  @Override
+  public long getFileLength(String filePath) throws IOException {
+    try {
+      return fs.getFileStatus(new Path(getBasePath() + filePath)).getLen();
+    }
+    catch (FileNotFoundException fnfe) {
+      return 0L;
+    }
+  }
+
+  @Override
+  public String makeStorageUrl(String filePath, String offset) {
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + getBasePath() + filePath);
+    uriBuilder.queryParam("offset", offset);
+    return uriBuilder.toUriString();
+  }
+  
+  @Override
+  public OutputStream getAppendableOutputStream(String filePath) throws IOException {
+    return fs.append(new Path(getBasePath() + filePath));
+  }
+  
+  @Override
+  public InputStream getInputStream(String filePath) throws IOException {
+    return fs.open(new Path(getBasePath() + filePath));
+  }
+  
+  @Override
+  public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
+    FSDataInputStream fsDataInputStream = fs.open(new Path(getBasePath() + filePath));
+    fsDataInputStream.seek(seek);
+    return fsDataInputStream;
+  }
+  
+  @Override
+  public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
+    return getFileAndOffsetWarcRecordInputStream(storageUrl);
+  }
+  
+  @Override
+  public void createFileIfNeeded(String filePath) throws IOException {
+    Path file = new Path(getBasePath() + filePath);
+    if (!fs.exists(file)) {
+      mkdirsIfNeeded(new Path(filePath).getParent().toString());
+      fs.create(file);
+    }
+  }
+  
+  @Override
+  public void renameFile(String srcPath, String dstPath) throws IOException {
+    String realSrcPath = getBasePath() + srcPath;
+    String realDstPath = getBasePath() + dstPath;
+    if (!fs.rename(new Path(realSrcPath), new Path(realDstPath))) {
+      throw new IOException(String.format("Error renaming %s to %s", realSrcPath, realDstPath));
+    }
+  }
+  
+  @Override
+  public String makeNewStorageUrl(String newPath, Artifact artifact) {
+    return makeNewFileAndOffsetStorageUrl(newPath, artifact);
+  }
 
     /**
      * Creates a new WARC file, and begins it with a warcinfo WARC record.
@@ -331,231 +356,4 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore<ArtifactIde
         }
     }
 
-    /**
-     * Adds an artifact to the repository.
-     *
-     * @param artifactData An artifact.
-     * @return An artifact identifier for artifact reference within this repository.
-     * @throws IOException
-     */
-    @Override
-    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
-//        if (index == null) {
-            // YES: Cannot proceed without an artifact index - throw RuntimeException
-//            throw new RuntimeException("No artifact index configured!");
-
-//        } else {
-            // NO: Add the ArtifactData to the index
-            ArtifactIdentifier artifactId = artifactData.getIdentifier();
-
-            // Set new artifactId - any existing artifactId is meaningless in this context and should be discarded
-            artifactId.setId(UUID.randomUUID().toString());
-
-            log.info(String.format(
-                    "Adding artifact (%s, %s, %s, %s, %s)",
-                    artifactId.getId(),
-                    artifactId.getCollection(),
-                    artifactId.getAuid(),
-                    artifactId.getUri(),
-                    artifactId.getVersion()
-            ));
-
-            // Get an OutputStream
-            Path auBasePath = getArchicalUnitBasePath(artifactId);
-            Path auArtifactsWarcPath = new Path(auBasePath + SEPARATOR + AU_ARTIFACTS_WARC);
-
-            // Make sure the WARC file exists
-            createWarcFile(auArtifactsWarcPath);
-
-            // Set the offset for the record to be appended to the length of the WARC file (i.e., the end)
-            long offset = fs.getFileStatus(auArtifactsWarcPath).getLen();
-
-            // Get an appending OutputStream to the WARC file
-            FSDataOutputStream fos = fs.append(auArtifactsWarcPath);
-
-            try {
-                // Write artifact to WARC file
-                long bytesWritten = writeArtifactData(artifactData, fos);
-
-                // Calculate offset of next record
-//                offset += bytesWritten;
-            } catch (HttpException e) {
-                throw new IOException(
-                        String.format("Caught HttpException while attempting to write artifact to WARC file: %s", e)
-                );
-            }
-
-            // Close the file
-            fos.flush();
-            fos.close();
-
-            // Attach the artifact's repository metadata
-            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
-                    artifactId,
-                    false,
-                    false
-            ));
-
-            // TODO: Generalize this to write all of an artifact's metadata
-            updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
-
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + auArtifactsWarcPath);
-        uriBuilder.queryParam("offset", offset);
-        String storageUrl = uriBuilder.toUriString();
-        artifactData.setStorageUrl(storageUrl);
-
-        Artifact artifact = new Artifact(
-                artifactId,
-                false,
-                storageUrl,
-                artifactData.getContentLength(),
-                artifactData.getContentDigest()
-        );
-
-        return artifact;
-    }
-
-    @Override
-    public ArtifactData getArtifactData(Artifact artifact)
-	throws IOException {
-        if (artifact == null) {
-            throw new IllegalArgumentException("Artifact used to reference artifact cannot be null");
-        }
-        log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.toString()));
-
-        // Get details from the artifact index service
-//        Artifact indexedData = index.getArtifactIndexData(indexData.getId());
-
-        URI uri = urlToUri(artifact.getStorageUrl());
-
-        // Get InputStream to WARC file
-        String warcFilePath = uri.getScheme() + uri.getAuthority() + uri.getPath();
-        FSDataInputStream warcStream = fs.open(new Path(warcFilePath));
-
-        // Seek to the WARC record
-        List<String> offsetQueryArgs = UriComponentsBuilder
-            .fromUri(uri).build().getQueryParams().get("offset");
-
-        if (offsetQueryArgs != null && !offsetQueryArgs.isEmpty()) {
-          warcStream.seek(Long.parseLong(offsetQueryArgs.get(0)));
-        }
-
-        // Get a WARCRecord object
-        WARCRecord record = new WARCRecord(warcStream, "HdfsWarcArtifactDataStore#getArtifact", 0);
-
-        // Convert the WARCRecord object to an ArtifactData
-        ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
-
-        // Repository metadata for this artifact
-        RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(
-                artifact.getIdentifier(),
-                artifact.getCommitted(),
-                false
-        );
-
-        // Set ArtifactData properties
-        artifactData.setIdentifier(artifactData.getIdentifier());
-        artifactData.setStorageUrl(artifactData.getStorageUrl());
-        artifactData.setContentLength(artifactData.getContentLength());
-        artifactData.setContentDigest(artifactData.getContentDigest());
-        artifactData.setRepositoryMetadata(repoMetadata);
-
-        // Close the stream
-        warcStream.close();
-
-        // Return an ArtifactData from the WARC record
-        return artifactData;
-    }
-
-    /**
-     * Updates the metadata of an artifact by appending a WARC metadata record to a metadata WARC file.
-     *
-     * @param artifactId The artifact identifier to add the metadata to.
-     * @param metadata   ArtifactData metadata.
-     * @throws IOException
-     */
-    @Override
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
-
-//        if (!isDeleted(artifactId)) {
-        // Convert ArtifactMetadata object into a WARC metadata record
-        WARCRecordInfo metadataRecord = createWarcMetadataRecord(
-//                    getWarcRecordId(indexedData.getWarcFilePath(), indexedData.getWarcRecordOffset()),
-                artifactId.getId(),
-                metadata
-        );
-
-        // Assemble path to the metadata file
-        Path metadataFilePath = new Path(
-                getArchicalUnitBasePath(artifactId) + SEPARATOR + metadata.getMetadataId() + WARC_FILE_SUFFIX
-        );
-
-        // Make sure the WARC file exists
-        createWarcFile(metadataFilePath);
-
-        // Get an OutputStream to the AU's metadata file
-        FSDataOutputStream fos = fs.append(metadataFilePath);
-
-        // Append WARC metadata record to AU's repository metadata file
-        writeWarcRecord(metadataRecord, fos);
-
-        // Close the OutputStream
-        fos.close();
-//        }
-        return metadata;
-    }
-
-    /**
-     * Marks the artifact as committed in the repository by updating the repository metadata for this artifact, and the
-     * committed status in the artifact index.
-     *
-     * @param indexData The artifact identifier of the artifact to commit.
-     * @throws IOException
-     * @throws URISyntaxException 
-     */
-    @Override
-    public RepositoryArtifactMetadata commitArtifactData(Artifact indexData)
-	throws IOException {
-        ArtifactData artifact = getArtifactData(indexData);
-        RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
-
-        // Set the commit flag and write the metadata to disk
-        if (!repoMetadata.isDeleted()) {
-            repoMetadata.setCommitted(true);
-            updateArtifactMetadata(indexData.getIdentifier(), repoMetadata);
-
-            // Update the committed flag in the index
-//            index.commitArtifact(indexData.getId());
-        }
-
-        return repoMetadata;
-    }
-
-    /**
-     * Marks the artifact as deleted in the repository by updating the repository metadata for this artifact.
-     *
-     * @param indexData The artifact identifier of the artifact to mark as deleted.
-     * @throws IOException
-     * @throws URISyntaxException 
-     */
-    @Override
-    public RepositoryArtifactMetadata deleteArtifactData(Artifact indexData)
-	throws IOException {
-        ArtifactData artifact = getArtifactData(indexData);
-        RepositoryArtifactMetadata repoMetadata = artifact.getRepositoryMetadata();
-
-        if (!repoMetadata.isDeleted()) {
-            // Update the repository metadata
-            repoMetadata.setCommitted(false);
-            repoMetadata.setDeleted(true);
-
-            // Write to disk
-            updateArtifactMetadata(indexData.getIdentifier(), repoMetadata);
-
-            // Update the committed flag in the index
-//            index.commitArtifact(indexData.getId());
-        }
-
-        return repoMetadata;
-    }
 }
