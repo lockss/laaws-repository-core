@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -459,19 +459,26 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
+     *          artifacts.
+     * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.addFilterQuery(String.format("committed:%s", true));
+
+        if (!includeUncommitted) {
+            q.addFilterQuery(String.format("committed:%s", true));
+        }
+
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addSort(URI_ASC);

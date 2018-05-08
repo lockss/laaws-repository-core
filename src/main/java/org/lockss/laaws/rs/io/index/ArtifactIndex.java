@@ -167,9 +167,32 @@ public interface ArtifactIndex {
      * @param auid
      *          A String with the Archival Unit identifier.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @throws IOException
+     */
+    default Iterable<Artifact> getAllArtifactsAllVersions(String collection,
+                                                          String auid)
+        throws IOException {
+        return getAllArtifactsAllVersions(collection, auid, false);
+    }
+
+    /**
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
+     * and for each URL, with version numbers in decreasing order.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
+     *          artifacts.
+     * @return An {@code Iterable<Artifact>} containing the artifacts of all version of all URLs in an AU.
+     * @throws IOException
      */
     Iterable<Artifact> getAllArtifactsAllVersions(String collection,
-                                                  String auid)
+                                                  String auid,
+                                                  boolean includeUncommitted)
         throws IOException;
 
     /**

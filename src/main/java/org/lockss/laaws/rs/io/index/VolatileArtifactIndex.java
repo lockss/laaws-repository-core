@@ -298,18 +298,25 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
+     *          artifacts.
+     * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
+
+        if (!includeUncommitted) {
+            query.filterByCommitStatus(true);
+        }
+
         query.filterByCollection(collection);
         query.filterByAuid(auid);
 
