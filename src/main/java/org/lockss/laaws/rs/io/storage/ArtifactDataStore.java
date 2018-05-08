@@ -60,7 +60,7 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          if the given {@link ArtifactData} instance is null
      * @throws IOException
      */
-    Artifact addArtifactData(ArtifactData artifactData) throws IOException;
+    Artifact addArtifactData(AD artifactData) throws IOException;
 
     /**
      * Retrieves an artifact from this artifact data store.
