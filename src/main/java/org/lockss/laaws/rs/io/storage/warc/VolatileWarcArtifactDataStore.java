@@ -37,6 +37,9 @@ import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
 import java.net.URLEncoder;
@@ -313,10 +316,19 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   
   @Override
   public String makeStorageUrl(String filePath, String offset) {
-    return "volatile://" + filePath;
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    params.add("offset", offset);
+    return makeStorageUrl(filePath, params);
   }
-  
-  @Override
+
+    @Override
+    public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
+      UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + getBasePath() + filePath);
+      uriBuilder.queryParams(params);
+      return uriBuilder.toUriString();
+    }
+
+    @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
     throw new UnsupportedOperationException();
   }

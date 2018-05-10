@@ -59,9 +59,38 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   <properties>
     <skiptTestJar>false</skiptTestJar>
+    <hadoop.version>2.7.3</hadoop.version>
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+      <!--<scope>compile</scope>-->
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+      <!--<scope>compile</scope>-->
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
+      <version>${hadoop.version}</version>
+      <!--<scope>compile</scope>-->
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
+      <version>${hadoop.version}</version>
+      <!--<scope>compile</scope>-->
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+    </dependency>
 
     <dependency>
       <groupId>org.lockss</groupId>
@@ -203,6 +232,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <artifactId>lockss-util</artifactId>
       <version>${lockss.util.version}</version>
     </dependency>
+
 
   </dependencies>
 

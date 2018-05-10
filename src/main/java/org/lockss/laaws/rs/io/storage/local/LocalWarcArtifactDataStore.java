@@ -44,6 +44,8 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
@@ -62,7 +64,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     /**
      * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
      *
-     * @param basePath The base path of the local repository.
+     * @param base The base path of the local repository.
      */
     public LocalWarcArtifactDataStore(File base) throws IOException {
       super(base.getAbsolutePath());
@@ -233,12 +235,19 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     @Override
     public String makeStorageUrl(String filePath, String offset) {
+      MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+      params.add("offset", offset);
+      return makeStorageUrl(filePath, params);
+    }
+
+    @Override
+    public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
       UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + getBasePath() + filePath);
-      uriBuilder.queryParam("offset", offset);
+      uriBuilder.queryParams(params);
       return uriBuilder.toUriString();
     }
 
-  @Override
+    @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
     return new FileOutputStream(getBasePath() + filePath, true);
   }
@@ -259,7 +268,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
     return getFileAndOffsetWarcRecordInputStream(storageUrl);
   }
-  
+
   @Override
   public void createFileIfNeeded(String filePath) throws IOException {
     File file = new File(getBasePath() + filePath);

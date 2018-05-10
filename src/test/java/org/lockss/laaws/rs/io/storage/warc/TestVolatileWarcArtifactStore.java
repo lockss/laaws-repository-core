@@ -304,7 +304,22 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     quietlyDeleteDir(tmp1);
   }
 
-  @Override
+    @Override
+    protected boolean pathExists(String path) throws IOException {
+        return true;
+    }
+
+    @Override
+    protected boolean isDirectory(String path) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected boolean isFile(String path) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
   @Test
   @Disabled
   public void testMakeStorageUrl() throws Exception {
@@ -325,6 +340,13 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   public void testMakeNewStorageUrl() throws Exception {
     
   }
+
+    @Override
+    @Test
+    @Disabled
+    public void testWarcSealing() throws Exception {
+
+    }
   
   @Override
   protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store,

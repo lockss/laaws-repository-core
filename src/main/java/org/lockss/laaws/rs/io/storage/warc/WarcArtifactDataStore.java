@@ -57,6 +57,7 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import com.google.common.io.CountingOutputStream;
@@ -156,13 +157,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ));
 
     String auArtifactsWarcPath = getAuArtifactsWarcPath(artifactId);
+    log.info(String.format("Appending artifact data to %s", auArtifactsWarcPath));
     createFileIfNeeded(auArtifactsWarcPath);
 
     // Set the offset for the record to be appended to the length of the WARC file (i.e., the end)
     long offset = getFileLength(auArtifactsWarcPath);
     long bytesWritten;
-
-    artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
 
     try (
       // Get an appending OutputStream to the WARC file
@@ -170,30 +170,43 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ) {
       // Write artifact to WARC file
       bytesWritten = writeArtifactData(artifactData, out);
-
       out.flush();
-    }
-    catch (HttpException e) {
+    } catch (HttpException e) {
       throw new IOException("Caught HttpException while attempting to write artifact to WARC file", e);
     }
 
+    log.info(String.format(
+            "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+            offset,
+            bytesWritten,
+            auArtifactsWarcPath,
+            offset + bytesWritten
+    ));
+
+    // Determine if a WARC seal was triggered by WARC size threshold; set artifact data's storage URL as appropriate
     if (offset + bytesWritten >= thresholdWarcSize) {
       String newPath = sealWarc(artifactId.getCollection(),
                                 artifactId.getAuid(),
                                 auArtifactsWarcPath);
+
+      log.info(String.format("Sealing WARC - [newPath: %s, offset: %d]", newPath, offset));
       artifactData.setStorageUrl(makeStorageUrl(newPath, offset));
+    } else {
+      artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
     }
         
-        // Attach the artifact's repository metadata
-        artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
+    // Attach the artifact's repository metadata
+    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
                 artifactId,
                 false,
                 false
-        ));
+    ));
 
-        // TODO: Generalize this to write all of an artifact's metadata
-        updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
+    // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
+    createFileIfNeeded(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
+    updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
+    // Create a new Artifact object to return; should reflect artifact data as it is in the data store
     Artifact artifact = new Artifact(
             artifactId,
             false,
@@ -283,21 +296,32 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     return repoMetadata;
   }
-  
-  public String sealWarc(String collection,
-                         String auid,
-                         String currentPath)
-        throws IOException {
-      String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
-      renameFile(currentPath, newPath);
-      for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid)) {
-        String newStorageUrl = makeNewStorageUrl(newPath, artifact);
-        if (newStorageUrl != null) {
-          artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
+
+    public String sealWarc(String collection, String auid, String currentPath) throws IOException {
+        // Compute a path for the sealed WARC file
+        String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
+        log.info(String.format("Sealing WARC %s to %s", currentPath, newPath));
+
+        // Move the default artifacts.warc file to the sealed WARCs directory
+        renameFile(currentPath, newPath);
+
+        // Iterate over all the artifacts in the sealed WARC and update their storage URLs in the index
+        for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid)) {
+            String newStorageUrl = makeNewStorageUrl(newPath, artifact);
+
+            log.info(String.format(
+                    "Updating storage URL for artifact %s: %s -> %s",
+                    artifact.getId(),
+                    artifact.getStorageUrl(),
+                    newStorageUrl
+            ));
+
+            if (newStorageUrl != null) {
+                artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
+            }
         }
-      }
-      
-      return newPath;
+
+        return newPath;
     }
     
     public String getCollectionPath(ArtifactIdentifier artifactIdent) {
@@ -336,8 +360,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return makeStorageUrl(filePath, Long.toString(offset));
     }
 
+    public String makeStorageUrl(String filePath) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        return makeStorageUrl(filePath, params);
+    }
+
     public abstract String makeStorageUrl(String filePath, String offset);
-    
+
+    public abstract String makeStorageUrl(String filePath, MultiValueMap<String,String> params);
+
     public abstract String makeNewStorageUrl(String newPath, Artifact artifact);
     
     public abstract void mkdirsIfNeeded(String dirPath) throws IOException;
@@ -634,23 +665,30 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         throw new IllegalStateException("Internal error converting to URI: " + url, exc);
       }
     }
-    
-    
-  protected String makeNewFileAndOffsetStorageUrl(String newPath, Artifact artifact) {
-    Matcher mat = PAT_FILE_OFFSET_URL.matcher(artifact.getStorageUrl());
-    try {
-      if (mat.matches() && mat.group(2).equals(getBasePath() + getAuArtifactsWarcPath(artifact.getIdentifier()))) {
-        return makeStorageUrl(newPath, mat.group(3));
-      }
+
+
+    protected String makeNewFileAndOffsetStorageUrl(String newPath, Artifact artifact) {
+        Matcher mat = PAT_FILE_OFFSET_URL.matcher(artifact.getStorageUrl());
+
+        try {
+            if (mat.matches() && mat.group(2).equals(getAuArtifactsWarcPath(artifact.getIdentifier()))) {
+                return makeStorageUrl(newPath, mat.group(3));
+            }
+        } catch (IOException e) {
+            // Shouldn't happen because all these artifacts are in existing directories
+            log.error("Internal error", e);
+            throw new UncheckedIOException(e);
+        }
+
+        return null;
     }
-    catch (IOException shouldnt) {
-      // Shouldn't happen because all these artifacts are in existing directories
-      log.error("Internal error", shouldnt);
-      throw new UncheckedIOException(shouldnt);
-    }
-    return null;
-  }
-  
+
+    /**
+     * Parses a storage URL containing a byte offset
+     * @param storageUrl
+     * @return
+     * @throws IOException
+     */
   protected InputStream getFileAndOffsetWarcRecordInputStream(String storageUrl) throws IOException {
     Matcher mat = PAT_FILE_OFFSET_URL.matcher(storageUrl);
     if (!mat.matches()) {
