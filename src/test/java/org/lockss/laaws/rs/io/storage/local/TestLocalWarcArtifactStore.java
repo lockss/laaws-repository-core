@@ -31,22 +31,34 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import java.io.*;
+import java.util.UUID;
 
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.*;
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.http.*;
-import org.apache.http.message.BasicStatusLine;
 import org.junit.jupiter.api.*;
-import org.lockss.laaws.rs.io.index.*;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
+  private File testsRootDir;
 
   @Override
-  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(String repoBasePath) throws IOException {
-    return new LocalWarcArtifactDataStore(repoBasePath);
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
+    File testRepoBaseDir = new File(testsRootDir + "/" + UUID.randomUUID());
+    testRepoBaseDir.mkdirs();
+    return new LocalWarcArtifactDataStore(testRepoBaseDir);
+  }
+
+  @BeforeAll
+  protected void makeLocalTempDir() throws IOException {
+    File tempFile = File.createTempFile(getClass().getSimpleName(), null);
+    tempFile.deleteOnExit();
+
+    testsRootDir = new File(tempFile.getAbsolutePath() + ".d");
+    testsRootDir.mkdirs();
+  }
+
+  @AfterAll
+  public void tearDown() {
+    quietlyDeleteDir(testsRootDir);
   }
 
   @Override
@@ -67,11 +79,6 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return pathDir.isFile();
   }
 
-  @BeforeEach
-  public void setUp() throws Exception {
-    
-  }
-  
   @Test
   public void rebuildIndex() {
   }

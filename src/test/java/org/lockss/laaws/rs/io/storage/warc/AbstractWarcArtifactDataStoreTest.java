@@ -33,7 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.io.storage.warc;
 
 import java.io.*;
-import java.net.URL;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
@@ -41,39 +40,28 @@ import java.time.temporal.*;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.util.test.LockssTestCase5;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
+  private final static Log log = LogFactory.getLog(AbstractWarcArtifactDataStoreTest.class);
 
-  protected File tmpRepoBaseDir;
   protected WADS store;
 
-  protected abstract WADS makeWarcArtifactDataStore(String repoBasePath) throws IOException;
-  
+  protected abstract WADS makeWarcArtifactDataStore() throws IOException;
+
   @BeforeEach
-  public void setupStore() throws IOException {
-    // Temporary local filesystem directory for testing activity
-    tmpRepoBaseDir = makeTempDir();
-    store = makeWarcArtifactDataStore(tmpRepoBaseDir.getAbsolutePath());
-
-  }
-
-  @AfterAll
-  public void tearDown() {
-    // Remove local directory used for testing
-    quietlyDeleteDir(tmpRepoBaseDir);
+  public void setupTestContext() throws IOException {
+    store = makeWarcArtifactDataStore();
   }
 
   @Test
@@ -125,10 +113,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testGetAuArtifactsWarcPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, 0);
-    String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
+    String expectedAuDirPath = store.getBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
     String expectedAuArtifactsWarcPath = expectedAuDirPath + "/artifacts.warc";
     assertFalse(pathExists(expectedAuDirPath)); // Not created until an artifact data is added
-    assertEquals(expectedAuArtifactsWarcPath, store.getAuArtifactsWarcPath(ident1));
+    assertEquals(expectedAuArtifactsWarcPath, store.getBasePath() + store.getAuArtifactsWarcPath(ident1));
   }
   
   @Test
@@ -186,7 +174,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     tempDir.mkdirs();
     return tempDir;
   }
-  
+
   protected static void quietlyDeleteDir(File dir) {
     try {
       FileUtils.deleteDirectory(dir);

@@ -36,24 +36,19 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
-import org.junit.Ignore;
 import org.junit.jupiter.api.*;
-import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
-import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-import org.lockss.util.test.LockssTestCase5;
 
 import java.io.*;
-import java.net.URLEncoder;
 import java.util.UUID;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
  */
-public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest {
+public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<VolatileWarcArtifactDataStore> {
   
     private final static Log log = LogFactory.getLog(TestVolatileWarcArtifactStore.class);
 
@@ -67,11 +62,9 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     private UUID uuid;
     private StatusLine httpStatus;
 
-    private ArtifactDataStore store;
-
     @Override
-    protected WarcArtifactDataStore makeWarcArtifactDataStore(String repoBasePath) throws IOException {
-      return new VolatileWarcArtifactDataStore(repoBasePath);
+    protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore() {
+      return new VolatileWarcArtifactDataStore();
     }
     
     @BeforeEach
@@ -191,8 +184,6 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
             fail("Expected NullPointerException to be thrown");
         } catch (NullPointerException npe) {
             assertEquals(errMsg, npe.getMessage());
-        } catch (IOException e) {
-            fail("Unexpected IOException caught");
         }
 
         try {
@@ -237,8 +228,6 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
             fail("Expected NullPointerException to be thrown");
         } catch (NullPointerException npe) {
             assertEquals(errMsg, npe.getMessage());
-        } catch (IOException e) {
-            fail("Unexpected IOException caught");
         }
 
         try {
@@ -278,22 +267,22 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   @Override
   @Test
   public void testGetAuArtifactsWarcPath() throws Exception {
-    File tmp1 = makeTempDir();
-    WarcArtifactDataStore store = makeWarcArtifactDataStore(tmp1.getAbsolutePath());
+//    File tmp1 = makeLocalTempDir();
+//    WarcArtifactDataStore store = makeWarcArtifactDataStore(tmp1.getAbsolutePath());
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
     String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
     String expectedAuArtifactsWarcName = "artifacts.warc";
     String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
     String actualAuArtifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
     assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
-    quietlyDeleteDir(tmp1);
+//    quietlyDeleteDir(tmp1);
   }
   
   @Override
   @Test
   public void testGetAuMetadataWarcPath() throws Exception {
-    File tmp1 = makeTempDir();
-    WarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
+//    File tmp1 = makeLocalTempDir();
+//    WarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
     RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
     String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
@@ -301,7 +290,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     String expectedPath = expectedAuDirPath + "/" + expectedFileName;
     String actualPath = store.getAuMetadataWarcPath(ident1, md1);
     assertEquals(expectedPath, actualPath);
-    quietlyDeleteDir(tmp1);
+//    quietlyDeleteDir(tmp1);
   }
 
     @Override

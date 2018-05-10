@@ -54,55 +54,63 @@ import java.util.UUID;
 public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
     private final static Log log = LogFactory.getLog(TestHdfsWarcArtifactStore.class);
 
+    private MiniDFSCluster hdfsCluster;
+
+    @BeforeAll
+    private void startMiniDFSCluster() throws IOException {
+//        System.clearProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA);
+
+        File baseDir = new File("target/test-hdfs/" + UUID.randomUUID());
+        baseDir.mkdirs();
+        assertTrue(baseDir.exists());
+        assertTrue(baseDir.isDirectory());
+
+        Configuration conf = new HdfsConfiguration();
+        conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+
+        log.info(String.format("Starting MiniDFSCluster with %s = %s, getBaseDirectory(): %s",
+                MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
+                conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
+                MiniDFSCluster.getBaseDirectory()
+        ));
+
+        MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
+//        builder.numDataNodes(3);
+//        builder.clusterId("test");
+
+        hdfsCluster = builder.build();
+        hdfsCluster.waitClusterUp();
+    }
+
+    @AfterAll
+    private void stopMiniDFSCluster() {
+        hdfsCluster.shutdown(true);
+    }
+
     @Override
-    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(String repoBasePath) throws IOException {
-        try {
-//            System.clearProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA);
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
+        String repoBasePath = String.format("/tests/%s", UUID.randomUUID());
 
-//            Configuration conf = new Configuration();
-            Configuration conf = new HdfsConfiguration();
-            File baseDir = new File("target/test-hdfs/" + UUID.randomUUID());
-            baseDir.mkdirs();
-            assertTrue(baseDir.exists() && baseDir.isDirectory());
+        log.info(String.format("Creating HDFS artifact data store with baseDir = %s", repoBasePath));
 
-            conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
-
-            log.info(String.format("WOLF4 %s: %s, getBaseDirectory(): %s",
-                    MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
-                    conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
-                    MiniDFSCluster.getBaseDirectory()
-            ));
-
-            MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
-//            builder.numDataNodes(3);
-//            builder.clusterId("test");
-            assertNotNull(builder);
-
-            MiniDFSCluster hdfsCluster = builder.build();
-
-            String hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
-
-            return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), new Path("/"));
-        } catch (Exception e) {
-            //throw new IOException(e);
-            throw e;
-        }
+        assertNotNull(hdfsCluster);
+        return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), repoBasePath);
     }
 
     @Override
     protected boolean pathExists(String path) throws IOException {
-        Path hdfsPath = new Path(store.getBasePath(), path);
+        Path hdfsPath = new Path(store.getBasePath() + path);
         return store.fs.exists(hdfsPath);
     }
 
     @Override
     protected boolean isDirectory(String path) throws IOException {
-        return store.fs.isDirectory(new Path(store.getBasePath(), path));
+        return store.fs.isDirectory(new Path(store.getBasePath() + path));
     }
 
     @Override
     protected boolean isFile(String path) throws IOException {
-        Path file = new Path(store.getBasePath(), path);
+        Path file = new Path(store.getBasePath() + path);
         log.info(String.format("Checking whether %s is a file in HDFS", file));
 
         if (!store.fs.exists(file)) {
@@ -110,7 +118,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
             log.warn(errMsg);
         }
 
-        return store.fs.isFile(new Path(store.getBasePath(), path));
+        return store.fs.isFile(new Path(store.getBasePath() + path));
     }
 
     @Override
