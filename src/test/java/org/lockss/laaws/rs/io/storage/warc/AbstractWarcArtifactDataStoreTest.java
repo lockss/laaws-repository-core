@@ -167,16 +167,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String actual = store.makeNewStorageUrl("/new/path", art1);
   }
 
-  protected abstract Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(WarcArtifactDataStore store,
-                                                                              ArtifactIdentifier ident)
+  protected abstract Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident)
       throws Exception;
   
-  protected abstract Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(WarcArtifactDataStore store,
-                                                                           ArtifactIdentifier ident)
+  protected abstract Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident)
       throws Exception;
   
-  protected abstract void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store,
-                                                                        Artifact artifact,
+  protected abstract void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact,
                                                                         String newPath,
                                                                         String result)
       throws Exception;

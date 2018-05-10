@@ -348,8 +348,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     }
   
   @Override
-  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store,
-                                                                 Artifact artifact,
+  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact,
                                                                  String newPath,
                                                                  String result)
       throws Exception {
@@ -357,15 +356,13 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
   
   @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(WarcArtifactDataStore store,
-                                                                ArtifactIdentifier ident)
+  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident)
       throws Exception {
     throw new UnsupportedOperationException();
   }
   
   @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(WarcArtifactDataStore store,
-                                                                   ArtifactIdentifier ident)
+  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident)
       throws Exception {
     throw new UnsupportedOperationException();
   }

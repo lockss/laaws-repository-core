@@ -175,8 +175,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   }
 
   @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(WarcArtifactDataStore store,
-                                                                     ArtifactIdentifier ident)
+  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident)
       throws Exception {
     Artifact art = new Artifact(ident,
                                 Boolean.TRUE,
@@ -190,8 +189,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   }
   
   @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(WarcArtifactDataStore store,
-                                                                  ArtifactIdentifier ident)
+  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident)
       throws Exception {
     Artifact art = new Artifact(ident,
                                 Boolean.TRUE,
@@ -203,8 +201,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   }
   
   @Override
-  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store,
-                                                               Artifact artifact,
+  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact,
                                                                String newPath,
                                                                String result)
       throws Exception {

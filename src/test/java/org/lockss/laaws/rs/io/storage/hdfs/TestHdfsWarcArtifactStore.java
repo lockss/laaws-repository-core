@@ -41,7 +41,6 @@ import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.util.FileUtil;
@@ -125,7 +124,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(WarcArtifactDataStore store, ArtifactIdentifier ident) throws Exception {
+    protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident) throws Exception {
         Artifact art = new Artifact(ident,
                 Boolean.TRUE,
                 String.format("hdfs://%s%s/%s?offset=1234",
@@ -138,7 +137,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(WarcArtifactDataStore store, ArtifactIdentifier ident) throws Exception {
+    protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident) throws Exception {
         Artifact art = new Artifact(ident,
                 Boolean.TRUE,
                 String.format("hdfs://%s?offset=1234",
@@ -149,7 +148,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(WarcArtifactDataStore store, Artifact artifact, String newPath, String result) throws Exception {
+    protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact, String newPath, String result) throws Exception {
         assertThat(result, startsWith(String.format("hdfs://" + newPath)));
     }
 }
