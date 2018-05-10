@@ -283,11 +283,11 @@ public class RestLockssRepository implements LockssRepository {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        ResponseEntity<Integer> response = restTemplate.exchange(
+        ResponseEntity<Void> response = restTemplate.exchange(
                     artifactEndpoint(collection, artifactId),
                     HttpMethod.DELETE,
                     new HttpEntity<>(null, headers),
-                    Integer.class);
+                    Void.class);
 
         HttpStatus status = response.getStatusCode();
 
@@ -527,7 +527,7 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-                .queryParam("version", "latest");
+                .queryParam("version", "all");
 
         return getArtifacts(builder);
     }
@@ -573,6 +573,7 @@ public class RestLockssRepository implements LockssRepository {
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+                .queryParam("version", "all")
                 .queryParam("urlPrefix", prefix);
 
         return getArtifacts(builder);
