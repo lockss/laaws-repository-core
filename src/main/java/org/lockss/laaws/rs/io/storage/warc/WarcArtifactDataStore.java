@@ -76,9 +76,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                                     .toFormatter()
                                     .withZone(ZoneId.of("UTC"));
   
-  protected static final Pattern PAT_FILE_OFFSET_URL =
-      Pattern.compile("^([a-z]+)://(.+)\\?offset=(\\d+)$");
-    
     protected static final String WARC_FILE_EXTENSION = ".warc";
     protected static final String COLLECTIONS_DIR = "collections";
     protected static final String SEALED_WARC_DIR = "sealed";
@@ -100,6 +97,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected String basePath;
 
     protected long thresholdWarcSize;
+
+    protected Pattern fileAndOffsetStorageUrlPat;
     
     static {
         try {
@@ -668,11 +667,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
 
     protected String makeNewFileAndOffsetStorageUrl(String newPath, Artifact artifact) {
-        Matcher mat = PAT_FILE_OFFSET_URL.matcher(artifact.getStorageUrl());
+        Matcher mat = fileAndOffsetStorageUrlPat.matcher(artifact.getStorageUrl());
 
         try {
-            if (mat.matches() && mat.group(2).equals(getAuArtifactsWarcPath(artifact.getIdentifier()))) {
-                return makeStorageUrl(newPath, mat.group(3));
+            if (mat.matches() && mat.group(3).equals(getAuArtifactsWarcPath(artifact.getIdentifier()))) {
+                return makeStorageUrl(newPath, mat.group(4));
             }
         } catch (IOException e) {
             // Shouldn't happen because all these artifacts are in existing directories
@@ -690,18 +689,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      * @throws IOException
      */
   protected InputStream getFileAndOffsetWarcRecordInputStream(String storageUrl) throws IOException {
-    Matcher mat = PAT_FILE_OFFSET_URL.matcher(storageUrl);
+    Matcher mat = fileAndOffsetStorageUrlPat.matcher(storageUrl);
     if (!mat.matches()) {
       // Shouldn't happen because all these artifacts are in existing directories
       String msg = "Internal error: " + storageUrl;
       log.error(msg);
       throw new IOException(msg);
     }
-    String realFilePath = mat.group(2);
-    if (!realFilePath.startsWith(getBasePath())) {
-      throw new IOException("Invalid file path: " + realFilePath);
-    }
-    return getInputStreamAndSeek(realFilePath.substring(getBasePath().length()), Long.parseLong(mat.group(3)));
+    return getInputStreamAndSeek(mat.group(3), Long.parseLong(mat.group(4)));
   }
     
 }

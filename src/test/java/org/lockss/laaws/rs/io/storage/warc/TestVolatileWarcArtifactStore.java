@@ -327,9 +327,8 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
   
   @Override
-  protected String testMakeStorageUrl_getExpected(WarcArtifactDataStore store,
-                                                ArtifactIdentifier ident,
-                                                long offset)
+  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
+                                                  long offset)
       throws Exception {
     throw new UnsupportedOperationException();
   }

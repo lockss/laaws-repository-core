@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.*;
@@ -74,6 +75,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
       // Initialize sealed WARC directory
       base.mkdirs();
       mkdirsIfNeeded(getSealedWarcPath());
+      this.fileAndOffsetStorageUrlPat =
+          Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
     }
 
     public void rebuildIndex(ArtifactIndex index) {

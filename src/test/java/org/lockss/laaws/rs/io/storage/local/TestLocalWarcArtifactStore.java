@@ -165,12 +165,11 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 //  }
 
   @Override
-  protected String testMakeStorageUrl_getExpected(WarcArtifactDataStore store,
-                                                  ArtifactIdentifier ident,
+  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
                                                   long offset)
       throws Exception {
     return String.format("file://%s%s?offset=%d",
-                         store.getBasePath(),
+                         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
                          store.getAuArtifactsWarcPath(ident),
                          offset);
   }

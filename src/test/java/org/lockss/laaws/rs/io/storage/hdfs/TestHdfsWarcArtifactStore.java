@@ -115,9 +115,11 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected String testMakeStorageUrl_getExpected(WarcArtifactDataStore store, ArtifactIdentifier ident, long offset) throws Exception {
-        return String.format("hdfs://%s?offset=%d",
+    protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
+        return String.format("%s%s%s?offset=%d",
 //                store.getBasePath(),
+                store.fs.getUri(),
+                (store.getBasePath().equals("/") ? "" : store.getBasePath()),
                 store.getAuArtifactsWarcPath(ident),
                 offset);
     }

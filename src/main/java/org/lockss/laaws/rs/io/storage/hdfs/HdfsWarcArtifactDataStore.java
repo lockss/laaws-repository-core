@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.storage.hdfs;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
@@ -81,7 +82,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         log.info(String.format("Instantiating a data store under %s", basePath));
         this.base = base;
         this.fs = fs;
-
+        this.fileAndOffsetStorageUrlPat =
+            Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
         initializeLockssRepository();
     }
 
@@ -303,7 +305,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-      UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + getBasePath() + filePath);
+      UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + getBasePath() + filePath);
       uriBuilder.queryParams(params);
       return uriBuilder.toUriString();
   }

@@ -149,13 +149,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testMakeStorageUrl() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
     String artifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
-    String expected = testMakeStorageUrl_getExpected(store, ident1, 1234L);
+    String expected = testMakeStorageUrl_getExpected(ident1, 1234L);
     String actual = store.makeStorageUrl(artifactsWarcPath, 1234L);
     assertEquals(expected, actual);
   }
   
-  protected abstract String testMakeStorageUrl_getExpected(WarcArtifactDataStore store,
-                                                           ArtifactIdentifier ident,
+  protected abstract String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
                                                            long offset)
       throws Exception;
 
