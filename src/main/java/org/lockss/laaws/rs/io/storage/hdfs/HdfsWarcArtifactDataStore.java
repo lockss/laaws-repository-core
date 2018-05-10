@@ -55,35 +55,44 @@ import org.springframework.web.util.UriComponentsBuilder;
  * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
  */
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
+    private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
+    public final static String DEFAULT_REPO_BASEDIR = "/";
 
-  private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
+    protected FileSystem fs;
 
-  protected Path base;
-  protected FileSystem fs;
-
-  public HdfsWarcArtifactDataStore(Configuration config, String basePath) throws IOException {
-    this(config, new Path(basePath));
-  }
+    public HdfsWarcArtifactDataStore(Configuration config) throws IOException {
+        this(config, DEFAULT_REPO_BASEDIR);
+    }
 
     /**
      * Constructor.
      *
      * @param config
-     *          A Apache Hadoop {@code Configuration}.
-     * @param base
-     *          A {@code Path} to the base directory of the LOCKSS Repository under HDFS.
+     *          A Apache Hadoop {@code Configuration}
+     * @param basePath
+     *          A {@code String} to the base directory of the LOCKSS repository under HDFS
      */
-    public HdfsWarcArtifactDataStore(Configuration config, Path base) throws IOException {
-        this(FileSystem.get(config), base);
+    public HdfsWarcArtifactDataStore(Configuration config, String basePath) throws IOException {
+        this(FileSystem.get(config), basePath);
     }
 
-    public HdfsWarcArtifactDataStore(FileSystem fs, Path base) throws IOException {
-        super(base.toString());
-        log.info(String.format("Instantiating a data store under %s", basePath));
-        this.base = base;
+    public HdfsWarcArtifactDataStore(FileSystem fs) throws IOException {
+        this(fs, DEFAULT_REPO_BASEDIR);
+    }
+
+    public HdfsWarcArtifactDataStore(FileSystem fs, String basePath) throws IOException {
+        super(basePath);
+
+        log.info(String.format(
+                "Instantiating a HDFS artifact data store under %s%s",
+                fs.getUri(),
+                this.basePath
+        ));
+
         this.fs = fs;
         this.fileAndOffsetStorageUrlPat =
             Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
+
         initializeLockssRepository();
     }
 
@@ -97,10 +106,12 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         mkdirsIfNeeded(getSealedWarcPath());
     }
 
-    public Path getBase() {
-      return base;
-    }
+    public void rebuildIndex() {
+        if (artifactIndex != null)
+            this.rebuildIndex(this.artifactIndex);
 
+        throw new IllegalStateException("No artifact index set");
+    }
     /**
      * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
      *
@@ -108,15 +119,15 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
      *          An ArtifactIndex to rebuild and populate from WARCs.
      * @throws IOException
      */
-    public void rebuildIndex(ArtifactIndex index) throws IOException {
+    public void rebuildIndex(ArtifactIndex index) {
         // Rebuild the index if using volatile index
         if (index.getClass() == VolatileArtifactIndex.class) {
             try {
-                rebuildIndex(index, this.base);
+                rebuildIndex(index, new Path(getBasePath()));
             } catch (IOException e) {
                 throw new RuntimeException(String.format(
                         "IOException caught while trying to rebuild index from %s",
-                        base
+                        getBasePath()
                 ));
             }
         }
@@ -277,7 +288,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
      */
     @Override
     public void mkdirsIfNeeded(String dirPath) throws IOException {
-      Path dir = new Path(getBasePath(), dirPath);
+      Path dir = new Path(getBasePath() + dirPath);
+
+
       if (fs.isDirectory(dir)) {
         return;
       }
@@ -289,7 +302,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public long getFileLength(String filePath) throws IOException {
     try {
-      return fs.getFileStatus(new Path(getBasePath(), filePath)).getLen();
+      return fs.getFileStatus(new Path(getBasePath() + filePath)).getLen();
     }
     catch (FileNotFoundException fnfe) {
       return 0L;
@@ -312,7 +325,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public void createFileIfNeeded(String filePath) throws IOException {
-    Path file = new Path(getBasePath(), filePath);
+    Path file = new Path(getBasePath() + filePath);
 
     if (!fs.exists(file)) {
         log.info(String.format("Creating new HDFS file: %s", file));
@@ -323,19 +336,19 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
-    Path extPath = new Path(getBasePath(), filePath);
+    Path extPath = new Path(getBasePath() + filePath);
     log.info(String.format("Opening %s for appendable OutputStream", extPath));
     return fs.append(extPath);
   }
 
   @Override
   public InputStream getInputStream(String filePath) throws IOException {
-    return fs.open(new Path(getBasePath(), filePath));
+    return fs.open(new Path(getBasePath() + filePath));
   }
 
   @Override
   public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-    FSDataInputStream fsDataInputStream = fs.open(new Path(getBasePath(), filePath));
+    FSDataInputStream fsDataInputStream = fs.open(new Path(getBasePath() + filePath));
     fsDataInputStream.seek(seek);
     return fsDataInputStream;
   }
@@ -347,7 +360,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public void renameFile(String srcPath, String dstPath) throws IOException {
-    if (!fs.rename(new Path(getBasePath(), srcPath), new Path(getBasePath(), dstPath))) {
+    if (!fs.rename(new Path(getBasePath() + srcPath), new Path(getBasePath() + dstPath))) {
       throw new IOException(String.format("Error renaming %s to %s", srcPath, dstPath));
     }
   }

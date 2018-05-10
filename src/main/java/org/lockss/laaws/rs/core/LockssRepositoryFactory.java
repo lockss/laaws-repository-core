@@ -94,7 +94,7 @@ public class LockssRepositoryFactory {
      */
     public static LockssRepository createLargeLockssRepository(SolrClient solrClient,
                                                                Configuration hadoopConf,
-                                                               Path basePath)
+                                                               String basePath)
         throws IOException {
       ArtifactIndex index = new SolrArtifactIndex(solrClient);
       ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, basePath);
