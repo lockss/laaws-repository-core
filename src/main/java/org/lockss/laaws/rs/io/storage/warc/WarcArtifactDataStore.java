@@ -743,7 +743,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         Collection<String> artifactWarcFiles = warcPaths
                 .stream()
-                .filter(file -> new File(file).getName().endsWith("artifacts" + WARC_FILE_EXTENSION))
+                .filter(file -> file.endsWith("artifacts" + WARC_FILE_EXTENSION))
                 .collect(Collectors.toList());
 
         // Re-index artifacts first
@@ -796,7 +796,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Get a collection of repository metadata files
         Collection<String> repoMetadataWarcFiles = warcPaths
                 .stream()
-                .filter(file -> new File(file).getName().endsWith("lockss-repo" + WARC_FILE_EXTENSION))
+                .filter(file -> file.endsWith("lockss-repo" + WARC_FILE_EXTENSION))
                 .collect(Collectors.toList());
 
         // Load repository artifact metadata by "replaying" them
@@ -827,7 +827,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                         }
 
                         if (repoState.isCommitted()) {
-                            log.info(String.format("Marking aritfact %s as committed in index", artifactId));
+                            log.info(String.format("Marking artifact %s as committed in index", artifactId));
                             index.commitArtifact(artifactId);
                         }
                     } else {
