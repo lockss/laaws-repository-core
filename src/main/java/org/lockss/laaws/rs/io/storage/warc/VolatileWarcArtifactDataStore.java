@@ -357,8 +357,13 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public void renameFile(String srcPath, String dstPath) throws IOException {
     throw new UnsupportedOperationException();
   }
-  
-  @Override
+
+    @Override
+    public Collection<String> scanDirectories(String basePath) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
   public String makeNewStorageUrl(String newPath, Artifact artifact) {
     throw new UnsupportedOperationException();
   }
