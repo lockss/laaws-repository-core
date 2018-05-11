@@ -50,6 +50,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     private static final Log log = LogFactory.getLog(LocalWarcArtifactDataStore.class);
 
+    public LocalWarcArtifactDataStore(File basePath) throws IOException {
+        this(basePath.getAbsolutePath());
+    }
+
     /**
      * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
      *
