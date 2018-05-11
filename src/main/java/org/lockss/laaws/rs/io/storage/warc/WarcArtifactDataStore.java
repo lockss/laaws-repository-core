@@ -741,6 +741,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     public void rebuildIndex(ArtifactIndex index, String basePath) throws IOException {
         Collection<String> warcPaths = scanDirectories(basePath);
 
+        // Build a collection of paths to WARCs containing artifact data
         Collection<String> artifactWarcFiles = warcPaths
                 .stream()
                 .filter(file -> file.endsWith("artifacts" + WARC_FILE_EXTENSION))
@@ -750,7 +751,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         for (String warcFile : artifactWarcFiles) {
             try {
                 BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(warcFile));
-                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
+                for (ArchiveRecord record : WARCReaderFactory.get("WarcArtifactDataStore", bufferedStream, true)) {
                     log.info(String.format(
                             "Re-indexing artifact from WARC %s record %s from %s",
                             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
@@ -763,9 +764,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
                         if (artifactData != null) {
                             // Set ArtifactData storage URL
-                            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + warcFile);
-                            uriBuilder.queryParam("offset", record.getHeader().getOffset());
-                            artifactData.setStorageUrl(uriBuilder.toUriString());
+                            artifactData.setStorageUrl(makeStorageUrl(warcFile, record.getHeader().getOffset()));
 
                             // Default repository metadata for all ArtifactData objects to be indexed
                             artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
@@ -793,7 +792,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         // TODO: What follows is loading of artifact repository-specific metadata. It should be generalized to others.
 
-        // Get a collection of repository metadata files
+        // Get a collection of paths to WARCs containing repository metadata
         Collection<String> repoMetadataWarcFiles = warcPaths
                 .stream()
                 .filter(file -> file.endsWith("lockss-repo" + WARC_FILE_EXTENSION))
@@ -803,7 +802,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         for (String metadataFile : repoMetadataWarcFiles) {
             try {
                 BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(metadataFile));
-                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
+                for (ArchiveRecord record : WARCReaderFactory.get("WarcArtifactDataStore", bufferedStream, true)) {
                     // Parse the JSON into a RepositoryArtifactMetadata object
                     RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
                             IOUtils.toString(record)
@@ -844,5 +843,4 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             }
         }
     }
-
 }
