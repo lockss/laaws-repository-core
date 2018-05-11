@@ -33,20 +33,13 @@ package org.lockss.laaws.rs.io.storage.hdfs;
 import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.FileSystem;
-import org.archive.format.warc.WARCConstants;
-import org.archive.io.ArchiveRecord;
-import org.archive.io.warc.WARCReaderFactory;
-import org.lockss.laaws.rs.io.index.*;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -106,146 +99,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         mkdirsIfNeeded(getSealedWarcPath());
     }
 
-    public void rebuildIndex() {
-        if (artifactIndex != null)
-            this.rebuildIndex(this.artifactIndex);
-
-        throw new IllegalStateException("No artifact index set");
-    }
-    /**
-     * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
-     *
-     * @param index
-     *          An ArtifactIndex to rebuild and populate from WARCs.
-     * @throws IOException
-     */
-    public void rebuildIndex(ArtifactIndex index) {
-        // Rebuild the index if using volatile index
-        if (index.getClass() == VolatileArtifactIndex.class) {
-            try {
-                rebuildIndex(index, new Path(getBasePath()));
-            } catch (IOException e) {
-                throw new RuntimeException(String.format(
-                        "IOException caught while trying to rebuild index from %s",
-                        getBasePath()
-                ));
-            }
-        }
-    }
-
-    /**
-     * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
-     *
-     * @param basePath The base path of the local repository.
-     * @throws IOException
-     */
-    public void rebuildIndex(ArtifactIndex index, Path basePath) throws IOException {
-        Collection<Path> warcs = scanDirectories(basePath);
-
-        Collection<Path> artifactWarcFiles = warcs
-                .stream()
-                .filter(file -> file.getName().endsWith("artifacts" + WARC_FILE_EXTENSION))
-                .collect(Collectors.toList());
-
-        // Re-index artifacts first
-        for (Path warcFile : artifactWarcFiles) {
-            try {
-                BufferedInputStream bufferedStream = new BufferedInputStream(fs.open(warcFile));
-                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
-                    log.info(String.format(
-                            "Re-indexing artifact from WARC %s record %s from %s",
-                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
-                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                            warcFile
-                    ));
-
-                    try {
-                        ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
-
-                        if (artifactData != null) {
-                            // Set ArtifactData storage URL
-                            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + warcFile);
-                            uriBuilder.queryParam("offset", record.getHeader().getOffset());
-                            artifactData.setStorageUrl(uriBuilder.toUriString());
-
-                            // Default repository metadata for all ArtifactData objects to be indexed
-                            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
-                                    artifactData.getIdentifier(),
-                                    false,
-                                    false
-                            ));
-
-                            // Add artifact to the index
-                            index.indexArtifact(artifactData);
-                        }
-                    } catch (IOException e) {
-                        log.error(String.format(
-                                "IOException caught while attempting to re-index WARC record %s from %s",
-                                record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                                warcFile
-                        ));
-                    }
-
-                }
-            } catch (IOException e) {
-                log.error(String.format("IOException caught while attempt to re-index WARC file %s", warcFile));
-            }
-        }
-
-        // TODO: What follows is loading of artifact repository-specific metadata. It should be generalized to others.
-
-        // Get a collection of repository metadata files
-        Collection<Path> repoMetadataWarcFiles = warcs
-                .stream()
-                .filter(file -> file.getName().endsWith("lockss-repo" + WARC_FILE_EXTENSION))
-                .collect(Collectors.toList());
-
-        // Load repository artifact metadata by "replaying" them
-        for (Path metadataFile : repoMetadataWarcFiles) {
-            try {
-                BufferedInputStream bufferedStream = new BufferedInputStream(fs.open(metadataFile));
-                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
-                    // Parse the JSON into a RepositoryArtifactMetadata object
-                    RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
-                            IOUtils.toString(record)
-                    );
-
-                    String artifactId = repoState.getArtifactId();
-
-                    log.info(String.format(
-                            "Replaying repository metadata for artifact %s, from WARC %s record %s in %s",
-                            artifactId,
-                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
-                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                            metadataFile
-                    ));
-
-                    if (index.artifactExists(artifactId)) {
-                        if (repoState.isDeleted()) {
-                            log.info(String.format("Removing artifact %s from index", artifactId));
-                            index.deleteArtifact(artifactId);
-                            continue;
-                        }
-
-                        if (repoState.isCommitted()) {
-                            log.info(String.format("Marking aritfact %s as committed in index", artifactId));
-                            index.commitArtifact(artifactId);
-                        }
-                    } else {
-                        if (!repoState.isDeleted()) {
-                            log.warn(String.format("Artifact %s not found in index; skipped replay", artifactId));
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                log.error(String.format(
-                        "IOException caught while attempt to re-index metadata WARC file %s",
-                        metadataFile
-                ));
-            }
-        }
-    }
-
     /**
      * Recursively finds artifact WARC files under a given base path.
      *
@@ -253,8 +106,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
      * @return A collection of paths to WARC files under the given base path.
      * @throws IOException
      */
-    public Collection<Path> scanDirectories(Path basePath) throws IOException {
-        Collection<Path> warcFiles = new ArrayList<>();
+    @Override
+    public Collection<String> scanDirectories(String basePath) throws IOException {
+        Collection<String> warcFiles = new ArrayList<>();
 
 //        RemoteIterator<LocatedFileStatus> files = fs.listFiles(base, false);
 //
@@ -268,12 +122,12 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 //            }
 //        }
 
-//        RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, true);
-//        while(files.hasNext()) {
-//            LocatedFileStatus status = files.next();
-//            if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
-//                warcFiles.add(status.getPath());
-//        }
+        RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
+        while(files.hasNext()) {
+            LocatedFileStatus status = files.next();
+            if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+                warcFiles.add(status.getPath().toString());
+        }
 
         // Return WARC files at this level
         return warcFiles;

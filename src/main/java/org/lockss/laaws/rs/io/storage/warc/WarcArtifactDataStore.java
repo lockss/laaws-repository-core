@@ -38,6 +38,7 @@ import java.time.format.*;
 import java.time.temporal.ChronoField;
 import java.util.*;
 import java.util.regex.*;
+import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -49,6 +50,7 @@ import org.apache.commons.logging.*;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
 import org.archive.format.warc.WARCConstants;
+import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.*;
 import org.archive.util.ArchiveUtils;
@@ -61,12 +63,13 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import com.google.common.io.CountingOutputStream;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
  */
 public abstract class WarcArtifactDataStore implements ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata>, WARCConstants {
-  
+
   private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
 
   // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
@@ -238,9 +241,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     artifactData.setStorageUrl(artifact.getStorageUrl());
     artifactData.setContentLength(artifact.getContentLength());
     artifactData.setContentDigest(artifact.getContentDigest());
-    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifact.getIdentifier(),
-                                                                      artifact.getCommitted(),
-                                                                      false));
+    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
+            artifact.getIdentifier(),
+            artifact.getCommitted(),
+            false
+    ));
 
     // Return an ArtifactData from the WARC record
     return artifactData;
@@ -698,5 +703,146 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
     return getInputStreamAndSeek(mat.group(3), Long.parseLong(mat.group(4)));
   }
-    
+
+
+    public void rebuildIndex() {
+        if (artifactIndex != null)
+            this.rebuildIndex(this.artifactIndex);
+
+        throw new IllegalStateException("No artifact index set");
+    }
+
+    /**
+     * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
+     *
+     * @param index
+     *          An ArtifactIndex to rebuild and populate from WARCs.
+     * @throws IOException
+     */
+    public void rebuildIndex(ArtifactIndex index) {
+        try {
+            rebuildIndex(index, getBasePath());
+        } catch (IOException e) {
+            throw new RuntimeException(String.format(
+                    "IOException caught while trying to rebuild index from %s",
+                    getBasePath()
+            ));
+        }
+    }
+
+    public abstract Collection<String> scanDirectories(String basePath) throws IOException;
+
+    /**
+     * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.
+     *
+     * @param basePath The base path of the local repository.
+     * @throws IOException
+     */
+    public void rebuildIndex(ArtifactIndex index, String basePath) throws IOException {
+        Collection<String> warcPaths = scanDirectories(basePath);
+
+        Collection<String> artifactWarcFiles = warcPaths
+                .stream()
+                .filter(file -> new File(file).getName().endsWith("artifacts" + WARC_FILE_EXTENSION))
+                .collect(Collectors.toList());
+
+        // Re-index artifacts first
+        for (String warcFile : artifactWarcFiles) {
+            try {
+                BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(warcFile));
+                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
+                    log.info(String.format(
+                            "Re-indexing artifact from WARC %s record %s from %s",
+                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
+                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+                            warcFile
+                    ));
+
+                    try {
+                        ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
+
+                        if (artifactData != null) {
+                            // Set ArtifactData storage URL
+                            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("hdfs://" + warcFile);
+                            uriBuilder.queryParam("offset", record.getHeader().getOffset());
+                            artifactData.setStorageUrl(uriBuilder.toUriString());
+
+                            // Default repository metadata for all ArtifactData objects to be indexed
+                            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
+                                    artifactData.getIdentifier(),
+                                    false,
+                                    false
+                            ));
+
+                            // Add artifact to the index
+                            index.indexArtifact(artifactData);
+                        }
+                    } catch (IOException e) {
+                        log.error(String.format(
+                                "IOException caught while attempting to re-index WARC record %s from %s",
+                                record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+                                warcFile
+                        ));
+                    }
+
+                }
+            } catch (IOException e) {
+                log.error(String.format("IOException caught while attempt to re-index WARC file %s", warcFile));
+            }
+        }
+
+        // TODO: What follows is loading of artifact repository-specific metadata. It should be generalized to others.
+
+        // Get a collection of repository metadata files
+        Collection<String> repoMetadataWarcFiles = warcPaths
+                .stream()
+                .filter(file -> new File(file).getName().endsWith("lockss-repo" + WARC_FILE_EXTENSION))
+                .collect(Collectors.toList());
+
+        // Load repository artifact metadata by "replaying" them
+        for (String metadataFile : repoMetadataWarcFiles) {
+            try {
+                BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(metadataFile));
+                for (ArchiveRecord record : WARCReaderFactory.get("HdfsWarcArtifactDataStore", bufferedStream, true)) {
+                    // Parse the JSON into a RepositoryArtifactMetadata object
+                    RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
+                            IOUtils.toString(record)
+                    );
+
+                    String artifactId = repoState.getArtifactId();
+
+                    log.info(String.format(
+                            "Replaying repository metadata for artifact %s, from WARC %s record %s in %s",
+                            artifactId,
+                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
+                            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+                            metadataFile
+                    ));
+
+                    if (index.artifactExists(artifactId)) {
+                        if (repoState.isDeleted()) {
+                            log.info(String.format("Removing artifact %s from index", artifactId));
+                            index.deleteArtifact(artifactId);
+                            continue;
+                        }
+
+                        if (repoState.isCommitted()) {
+                            log.info(String.format("Marking aritfact %s as committed in index", artifactId));
+                            index.commitArtifact(artifactId);
+                        }
+                    } else {
+                        if (!repoState.isDeleted()) {
+                            log.warn(String.format("Artifact %s not found in index; skipped replay", artifactId));
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                log.error(String.format(
+                        "IOException caught while attempt to re-index metadata WARC file %s",
+                        metadataFile
+                ));
+            }
+        }
+    }
+
 }
