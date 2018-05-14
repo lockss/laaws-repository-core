@@ -67,7 +67,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   @Test
-  public void testGetBasePath() throws Exception {
+  public void testGetBasePath() throws Exception { // FIXME
 //    assertEquals(tmpRepoBaseDir.getAbsolutePath(), store.getBasePath());
   }
 
@@ -86,12 +86,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testGetCollectionPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", null, null, 0);
     assertEquals("/collections/coll1", store.getCollectionPath(ident1));
+    assertEquals(store.getCollectionPath(ident1.getCollection()),
+                 store.getCollectionPath(ident1));
   }
   
   @Test
   public void testGetAuPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, 0);
     assertEquals("/collections/coll1/au-" + DigestUtils.md5Hex("auid1"),
+                 store.getAuPath(ident1));
+    assertEquals(store.getAuPath(ident1.getCollection(), ident1.getAuid()),
                  store.getAuPath(ident1));
   }
   
@@ -114,11 +118,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   
   @Test
   public void testGetAuArtifactsWarcPath() throws Exception {
+    // FIXME assertEquals(getBasePath() + expectedPath, getBasePath() + store.methodCall(...)) should be assertEquals(expectedPath, store.methodCall(...))
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, 0);
     String expectedAuDirPath = store.getBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
     String expectedAuArtifactsWarcPath = expectedAuDirPath + "/artifacts.warc";
     assertFalse(pathExists(expectedAuDirPath)); // Not created until an artifact data is added
     assertEquals(expectedAuArtifactsWarcPath, store.getBasePath() + store.getAuArtifactsWarcPath(ident1));
+    // FIXME assert that getAuArtifactsWarcPath() returns the same for ident1 and ident1.getCollection()+ident1.getAuid()
+    // FIXME assert that the path exists now
   }
   
   @Test

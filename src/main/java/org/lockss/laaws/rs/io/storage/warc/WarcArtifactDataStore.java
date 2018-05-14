@@ -188,8 +188,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Determine if a WARC seal was triggered by WARC size threshold; set artifact data's storage URL as appropriate
     if (offset + bytesWritten >= thresholdWarcSize) {
       String newPath = sealWarc(artifactId.getCollection(),
-                                artifactId.getAuid(),
-                                auArtifactsWarcPath);
+                                artifactId.getAuid());
 
       log.info(String.format("Sealing WARC - [newPath: %s, offset: %d]", newPath, offset));
       artifactData.setStorageUrl(makeStorageUrl(newPath, offset));
@@ -301,7 +300,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return repoMetadata;
   }
 
-    public String sealWarc(String collection, String auid, String currentPath) throws IOException {
+    public String sealWarc(String collection, String auid) throws IOException {
+        String currentPath = getAuArtifactsWarcPath(collection, auid);
         // Compute a path for the sealed WARC file
         String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
         log.info(String.format("Sealing WARC %s to %s", currentPath, newPath));
@@ -328,12 +328,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         return newPath;
     }
     
-    public String getCollectionPath(ArtifactIdentifier artifactIdent) {
-      return SEPARATOR + COLLECTIONS_DIR + SEPARATOR + artifactIdent.getCollection();
+    public String getCollectionPath(String collection) {
+      return SEPARATOR + COLLECTIONS_DIR + SEPARATOR + collection;
     }
 
-    public String getAuPath(ArtifactIdentifier artifactId) {
-      return getCollectionPath(artifactId) + SEPARATOR + AU_DIR_PREFIX + DigestUtils.md5Hex(artifactId.getAuid());
+    public String getCollectionPath(ArtifactIdentifier artifactIdent) {
+      return getCollectionPath(artifactIdent.getCollection());
+    }
+
+    public String getAuPath(String collection, String auid) {
+      return getCollectionPath(collection) + SEPARATOR + AU_DIR_PREFIX + DigestUtils.md5Hex(auid);
+    }
+    
+    public String getAuPath(ArtifactIdentifier artifactIdent) {
+      return getAuPath(artifactIdent.getCollection(), artifactIdent.getAuid());
     }
     
     public String getSealedWarcPath() {
@@ -346,10 +354,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + WARC_FILE_EXTENSION;
     }
     
-    public String getAuArtifactsWarcPath(ArtifactIdentifier ident) throws IOException {
-      String dir = getAuPath(ident);
+    public String getAuArtifactsWarcPath(String collection, String auid) throws IOException {
+      String dir = getAuPath(collection, auid);
       mkdirsIfNeeded(dir);
       return dir + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
+    }
+
+    public String getAuArtifactsWarcPath(ArtifactIdentifier artifactIdent) throws IOException {
+      return getAuArtifactsWarcPath(artifactIdent.getCollection(), artifactIdent.getAuid());
     }
 
     public String getAuMetadataWarcPath(ArtifactIdentifier ident,
