@@ -46,6 +46,8 @@ import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
+import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.model.*;
@@ -182,6 +184,35 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     catch (IOException ioe) {
       // oh well.
     }
+  }
+
+  @Test
+  public void testRebuildIndex() throws Exception {
+    // Instances of artifact index to populate and compare
+    ArtifactIndex index1 = new VolatileArtifactIndex();
+    ArtifactIndex index2 = new VolatileArtifactIndex();
+
+    //// Create and populate first index by adding new artifacts to a repository
+    store.setArtifactIndex(index1);
+    LockssRepository repository = new BaseLockssRepository(index1, store);
+
+    // Add an artifact to the repository
+    ArtifactData ad1 = makeTestArtifactData();
+    Artifact a1 = repository.addArtifact(ad1);
+    repository.commitArtifact(a1);
+
+    // Populate second index by rebuilding
+    store.rebuildIndex(index2);
+
+    //// Compare indexes
+    Iterable<String> cid1 = index1.getCollectionIds();
+    Iterable<String> cid2 = index2.getCollectionIds();
+  }
+
+  protected static ArtifactData makeTestArtifactData() {
+    InputStream is = new ByteArrayInputStream("whatever".getBytes());
+    StatusLine status = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
+    return new ArtifactData(null, is, status);
   }
 
   @Test
