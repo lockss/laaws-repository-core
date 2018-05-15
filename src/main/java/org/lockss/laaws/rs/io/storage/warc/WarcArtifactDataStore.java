@@ -717,7 +717,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
 
-    public void rebuildIndex() {
+    public void rebuildIndex() throws IOException {
         if (artifactIndex != null)
             this.rebuildIndex(this.artifactIndex);
 
@@ -731,15 +731,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      *          An ArtifactIndex to rebuild and populate from WARCs.
      * @throws IOException
      */
-    public void rebuildIndex(ArtifactIndex index) {
-        try {
-            rebuildIndex(index, getBasePath());
-        } catch (IOException e) {
-            throw new RuntimeException(String.format(
-                    "IOException caught while trying to rebuild index from %s",
-                    getBasePath()
-            ));
-        }
+    public void rebuildIndex(ArtifactIndex index) throws IOException {
+        rebuildIndex(index, getBasePath());
     }
 
     public abstract Collection<String> scanDirectories(String basePath) throws IOException;
@@ -794,11 +787,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                                 record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
                                 warcFile
                         ));
+
+                        throw e;
                     }
 
                 }
             } catch (IOException e) {
                 log.error(String.format("IOException caught while attempt to re-index WARC file %s", warcFile));
+                throw e;
             }
         }
 
@@ -852,6 +848,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                         "IOException caught while attempt to re-index metadata WARC file %s",
                         metadataFile
                 ));
+
+                throw e;
             }
         }
     }
