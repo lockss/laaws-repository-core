@@ -248,4 +248,20 @@ public class Artifact {
                 ", contentDigest='" + contentDigest + '\'' +
                 '}';
     }
+
+    @Override
+    public boolean equals(Object o) {
+        Artifact other = (Artifact)o;
+
+        if (this.getIdentifier().equals(other.getIdentifier())
+                && storageUrl.equalsIgnoreCase(other.getStorageUrl())
+                && committed == other.getCommitted()
+//                && getContentLength() == other.getContentLength()
+//                && getContentDigest() == other.getContentDigest()
+        ) {
+            return true;
+        }
+
+       return false;
+    }
 }

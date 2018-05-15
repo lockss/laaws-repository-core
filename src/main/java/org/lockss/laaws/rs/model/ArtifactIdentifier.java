@@ -134,6 +134,11 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
                 .result();
     }
 
+    @Override
+    public boolean equals(Object o) {
+       return this.compareTo((ArtifactIdentifier)o) == 0;
+    }
+
     /**
      *
      * @return
