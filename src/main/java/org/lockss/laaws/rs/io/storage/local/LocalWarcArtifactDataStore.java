@@ -67,7 +67,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
                 Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
         // Initialize LOCKSS repository structure
-        mkdirsIfNeeded(getBasePath());
+        mkdirsIfNeeded("/");
         mkdirsIfNeeded(getSealedWarcPath());
     }
 
