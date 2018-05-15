@@ -153,10 +153,12 @@ public interface ArtifactIndex {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifacts(String collection,
-                                       String auid)
-        throws IOException;
-    
+    default Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+        return getAllArtifacts(collection, auid, false);
+    }
+
+    Iterable<Artifact> getAllArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException;
+
     /**
      * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator},

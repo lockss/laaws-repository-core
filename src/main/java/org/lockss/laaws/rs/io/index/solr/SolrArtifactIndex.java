@@ -432,11 +432,17 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
+
+
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.addFilterQuery(String.format("committed:%s", true));
+
+        // Filter by committed status equal to true?
+        if (!includeUncommitted)
+            q.addFilterQuery(String.format("committed:%s", true));
+
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addSort(URI_ASC);

@@ -280,9 +280,13 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getAllArtifacts(String collection, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
+
+        // Filter by committed status equal to true?
+        if (!includeUncommitted)
+            q.filterByCommitStatus(true);
+
         q.filterByCollection(collection);
         q.filterByAuid(auid);
 
