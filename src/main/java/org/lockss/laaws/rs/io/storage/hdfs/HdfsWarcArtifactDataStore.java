@@ -126,7 +126,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         while(files.hasNext()) {
             LocatedFileStatus status = files.next();
             if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
-                warcFiles.add(status.getPath().toString());
+                warcFiles.add(status.getPath().toString().substring((fs.getUri() + getBasePath()).length()));
         }
 
         // Return WARC files at this level

@@ -92,7 +92,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
                         new File(basePath).listFiles(
                                 x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION)
                         )
-                ).stream().map(File::getPath).collect(Collectors.toSet())
+                ).stream().map(x -> x.getPath().substring(getBasePath().length())).collect(Collectors.toSet())
         );
 
         // Return WARC files at this level
