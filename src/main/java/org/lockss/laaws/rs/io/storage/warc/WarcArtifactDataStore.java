@@ -179,8 +179,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     log.info(String.format(
             "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
-            offset,
             bytesWritten,
+            offset,
             auArtifactsWarcPath,
             offset + bytesWritten
     ));
