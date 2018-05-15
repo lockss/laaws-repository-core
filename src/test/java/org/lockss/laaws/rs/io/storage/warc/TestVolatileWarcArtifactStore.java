@@ -329,13 +329,20 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     
   }
 
-    @Override
-    @Test
-    @Disabled
-    public void testWarcSealing() throws Exception {
+  @Override
+  @Test
+  @Disabled
+  public void testWarcSealing() throws Exception {
+    // Intentionally left blank
+  }
 
-    }
-  
+  @Override
+  @Test
+  @Disabled
+  public void testRebuildIndex() throws Exception {
+    // Intentionally left blank
+  }
+
   @Override
   protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact,
                                                                  String newPath,
