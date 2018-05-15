@@ -36,8 +36,10 @@ import java.io.*;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
+import java.util.List;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.logging.Log;
@@ -200,26 +202,70 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIndex index2 = new VolatileArtifactIndex();
 
     //// Create and populate first index by adding new artifacts to a repository
-    store.setArtifactIndex(index1);
+//    store.setArtifactIndex(index1);
     LockssRepository repository = new BaseLockssRepository(index1, store);
 
-    // Add an artifact to the repository
-    ArtifactData ad1 = makeTestArtifactData();
+    // Add first artifact to the repository - don't commit
+    ArtifactData ad1 = makeTestArtifactData(new ArtifactIdentifier("collection1", "auid1", "uri1", 1));
     Artifact a1 = repository.addArtifact(ad1);
-    repository.commitArtifact(a1);
+
+    // Add second artifact to the repository - commit
+    ArtifactData ad2 = makeTestArtifactData(new ArtifactIdentifier("collection1", "auid1", "uri2", 1));
+    Artifact a2 = repository.addArtifact(ad2);
+    repository.commitArtifact(a2);
+
+    // Add third artifact to the repository - don't commit but immediately delete
+    ArtifactData ad3 = makeTestArtifactData(new ArtifactIdentifier("collection1", "auid1", "uri3", 1));
+    Artifact a3 = repository.addArtifact(ad3);
+    repository.deleteArtifact(a3);
+
+    // Add fourth artifact to the repository - commit and delete
+    ArtifactData ad4 = makeTestArtifactData(new ArtifactIdentifier("collection1", "auid1", "uri4", 1));
+    Artifact a4 = repository.addArtifact(ad4);
+    repository.commitArtifact(a4);
+    repository.deleteArtifact(a4);
 
     // Populate second index by rebuilding
     store.rebuildIndex(index2);
 
     //// Compare indexes
-    Iterable<String> cid1 = index1.getCollectionIds();
-    Iterable<String> cid2 = index2.getCollectionIds();
+
+    // Compare collections IDs
+    List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
+    List<String> cids2 = IteratorUtils.toList(index2.getCollectionIds().iterator());
+    if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
+      fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+    }
+
+    // Iterate over the collection IDs
+    for (String cid : cids1) {
+      // Compare the set of AUIDs
+      List<String> auids1 = IteratorUtils.toList(index1.getAuIds(cid).iterator());
+      List<String> auids2 = IteratorUtils.toList(index2.getAuIds(cid).iterator());
+      if (!(auids1.containsAll(auids2) && auids2.containsAll(auids1))) {
+        fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
+      }
+
+      // Iterate over AUIDs
+      for (String auid : auids1) {
+        List<Artifact> artifacts1 = IteratorUtils.toList(index1.getAllArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts2 = IteratorUtils.toList(index2.getAllArtifacts(cid, auid, true).iterator());
+
+        // Debugging
+        artifacts1.forEach(artifact -> log.info(String.format("Artifact from artifact1: %s", artifact)));
+        artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
+
+        if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
+          fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
+        }
+      }
+    }
   }
 
-  protected static ArtifactData makeTestArtifactData() {
+  protected static ArtifactData makeTestArtifactData(ArtifactIdentifier ident) {
     InputStream is = new ByteArrayInputStream("whatever".getBytes());
     StatusLine status = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
-    return new ArtifactData(null, is, status);
+    return new ArtifactData(ident, null, is, status);
   }
 
   @Test
