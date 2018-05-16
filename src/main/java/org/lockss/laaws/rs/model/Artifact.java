@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.model;
 
+import java.io.Serializable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.lang3.StringUtils;
@@ -40,7 +41,7 @@ import org.apache.solr.client.solrj.beans.Field;
  *
  * Represents an atomic unit of data in a LOCKSS repository.
  */
-public class Artifact {
+public class Artifact implements Serializable {
     private static final Log log = LogFactory.getLog(Artifact.class);
 
     @Field("id")

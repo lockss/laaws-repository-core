@@ -51,7 +51,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     private final static Log log = LogFactory.getLog(VolatileArtifactIndex.class);
 
     // Map from artifact ID to Artifact
-    private Map<String, Artifact> index = new LinkedHashMap<>();
+    protected Map<String, Artifact> index = new LinkedHashMap<>();
 
     /**
      * Adds an artifact to the index.
@@ -89,7 +89,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         );
 
         // Add Artifact to the index
-        index.put(id, artifact);
+        addToIndex(id, artifact);
 
         return artifact;
     }
@@ -178,7 +178,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
       boolean result = false;
 
       synchronized (this) {
-        if (index.remove(artifactId) != null) {
+        if (removeFromIndex(artifactId) != null) {
           result = index.get(artifactId) == null;
         }
       }
@@ -506,5 +506,36 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         q.filterByAuid(auid);
 
         return index.values().stream().filter(q.build()).mapToLong(artifact -> artifact.getContentLength()).sum();
+    }
+
+    /**
+     * Adds an artifact to the index.
+     *
+     * @param id
+     *          A String with the identifier of the article to be added.
+     * @param artifact
+     *          An Artifact with the artifact to be added.
+     */
+    protected synchronized void addToIndex(String id, Artifact artifact) {
+        // Add Artifact to the index.
+        index.put(id, artifact);
+    }
+
+    /**
+     * Removes an artifact from the index.
+     *
+     * @param id
+     *          A String with the identifier of the article to be removed.
+     * @return an Artifact with the artifact that has been removed from the
+     *         index.
+     */
+    protected synchronized Artifact removeFromIndex(String id) {
+        // Remove Artifact from the index.
+        return index.remove(id);
+    }
+
+    @Override
+    public String toString() {
+        return "[VolatileArtifactIndex index=" + index + "]";
     }
 }

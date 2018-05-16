@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,7 +33,7 @@ package org.lockss.laaws.rs.core;
 import java.io.*;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.index.LocalArtifactIndex;
 import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 
 /**
@@ -47,9 +47,11 @@ public class LocalLockssRepository extends BaseLockssRepository {
      *
      * @param basePath
      *          A {@code File} containing the base path of this LOCKSS repository.
+     * @param persistedIndexName
+     *          A String with the name of the file where to persist the index.
      */
-    public LocalLockssRepository(File basePath) throws IOException {
-        super(new VolatileArtifactIndex(), new LocalWarcArtifactDataStore(basePath));
+    public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
+        super(new LocalArtifactIndex(basePath, persistedIndexName), new LocalWarcArtifactDataStore(basePath));
         ((LocalWarcArtifactDataStore)store).rebuildIndex(index);
     }
 

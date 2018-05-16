@@ -31,7 +31,6 @@
 package org.lockss.laaws.rs.core;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.solr.client.solrj.SolrClient;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
@@ -60,10 +59,12 @@ public class LockssRepositoryFactory {
      *
      * @param basePath
      *          A {@code File} containing the base path of this LOCKSS Repository.
+     * @param persistedIndexName
+     *          A String with the name of the file where to persist the index.
      * @return A {@code LocalLockssRepository} instance.
      */
-    public static LockssRepository createLocalRepository(File basePath) throws IOException {
-        return new LocalLockssRepository(basePath);
+    public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
+        return new LocalLockssRepository(basePath, persistedIndexName);
     }
 
     /**
