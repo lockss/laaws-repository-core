@@ -142,6 +142,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
 
         if (indexedData != null) {
           indexedData.setCommitted(true);
+          addToIndex(artifactId, indexedData);
         }
 
         return indexedData;

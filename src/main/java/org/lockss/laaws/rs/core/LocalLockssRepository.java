@@ -32,6 +32,8 @@ package org.lockss.laaws.rs.core;
 
 import java.io.*;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.LocalArtifactIndex;
 import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
@@ -40,6 +42,7 @@ import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
  * Local filesystem implementation of the LOCKSS Repository API that uses a volatile artifact index.
  */
 public class LocalLockssRepository extends BaseLockssRepository {
+  private final static Log log = LogFactory.getLog(LocalLockssRepository.class);
 
     /**
      * Constructor the takes a base path and uses a volatile artifact artifactIndex implementation. It automatically invokes a
@@ -52,7 +55,8 @@ public class LocalLockssRepository extends BaseLockssRepository {
      */
     public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
         super(new LocalArtifactIndex(basePath, persistedIndexName), new LocalWarcArtifactDataStore(basePath));
-        ((LocalWarcArtifactDataStore)store).rebuildIndex(index);
+        log.info("basePath = " + basePath);
+        log.info("persistedIndexName = " + persistedIndexName);
     }
 
     /**

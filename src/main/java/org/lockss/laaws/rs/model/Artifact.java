@@ -42,6 +42,7 @@ import org.apache.solr.client.solrj.beans.Field;
  * Represents an atomic unit of data in a LOCKSS repository.
  */
 public class Artifact implements Serializable {
+    private static final long serialVersionUID = 1961138745993115018L;
     private static final Log log = LogFactory.getLog(Artifact.class);
 
     @Field("id")
@@ -256,9 +257,9 @@ public class Artifact implements Serializable {
 
         if (this.getIdentifier().equals(other.getIdentifier())
                 && storageUrl.equalsIgnoreCase(other.getStorageUrl())
-                && committed == other.getCommitted()
+                && committed.equals(other.getCommitted())
 //                && getContentLength() == other.getContentLength()
-//                && getContentDigest() == other.getContentDigest()
+//                && getContentDigest().equals(other.getContentDigest()
         ) {
             return true;
         }

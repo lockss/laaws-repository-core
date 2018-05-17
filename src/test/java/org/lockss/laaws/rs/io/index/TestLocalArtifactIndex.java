@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2018, Board of Trustees of Leland Stanford Jr. University,
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package org.lockss.laaws.rs.io.index;
 
 import org.apache.commons.collections4.IteratorUtils;
@@ -56,8 +85,7 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
         List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
         List<String> cids2 = IteratorUtils.toList(index2.getCollectionIds().iterator());
         if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
-            log.error("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
-//            fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+            fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
         }
 
         // Iterate over the collection IDs
@@ -66,10 +94,7 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
             List<String> auids1 = IteratorUtils.toList(index1.getAuIds(cid).iterator());
             List<String> auids2 = IteratorUtils.toList(index2.getAuIds(cid).iterator());
             if (!(auids1.containsAll(auids2) && auids2.containsAll(auids1))) {
-                log.info(auids1);
-                log.info(auids2);
-                log.error("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
-//                fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
+                fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
             }
 
             // Iterate over AUIDs
@@ -82,8 +107,7 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
                 artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
 
                 if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
-                    log.error("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
-//                    fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
+                    fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
                 }
             }
         }
@@ -106,10 +130,6 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
 
         // Populate a second LocalArtifactIndex from the persisted file
         LocalArtifactIndex index2 = new LocalArtifactIndex(testBaseDir, PERSISTED_INDEX_NAME);
-        index2.populateFromPersistence();
-
-        log.info(index);
-        log.info(index2);
 
         // Compare the
         compareArtifactIndexes(index, index2);
