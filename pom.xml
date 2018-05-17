@@ -58,7 +58,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   </scm>
 
   <properties>
-    <skiptTestJar>false</skiptTestJar>
+    <skipTestJar>false</skipTestJar>
     <hadoop.version>2.7.3</hadoop.version>
   </properties>
 
