@@ -232,8 +232,28 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <artifactId>lockss-util</artifactId>
       <version>${lockss.util.version}</version>
     </dependency>
-
-
+    <!-- JMS support classes -->
+    <dependency>
+      <groupId>org.apache.activemq</groupId>
+      <artifactId>activemq-all</artifactId>
+      <version>5.15.3</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.jms</groupId>
+      <artifactId>javax.jms-api</artifactId>
+      <version>2.0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.activemq</groupId>
+      <artifactId>activemq-kahadb-store</artifactId>
+      <version>5.15.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.nurkiewicz.asyncretry</groupId>
+      <artifactId>asyncretry</artifactId>
+      <version>0.0.7</version>
+    </dependency>
   </dependencies>
 
   <profiles>
