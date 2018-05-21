@@ -231,4 +231,19 @@ public class ArtifactData implements Comparable<ArtifactData> {
     public void setContentLength(long contentLength) {
         this.contentLength = contentLength;
     }
+
+  @Override
+  public String toString() {
+        return "ArtifactData{" +
+                "identifier='" + identifier + '\'' +
+                ", httpStatus='" + httpStatus + '\'' +
+                ", artifactMetadata='" + artifactMetadata + '\'' +
+                ", artifactStream='" + artifactStream + '\'' +
+                ", storageUrl='" + storageUrl + '\'' +
+//                 ", contentDigest='" + contentDigest + '\'' +
+                ", contentLength='" + contentLength + '\'' +
+                '}';
+  }
+
+
 }

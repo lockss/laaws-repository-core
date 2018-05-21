@@ -39,5 +39,4 @@ public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
     public LockssRepository makeLockssRepository() {
         return new VolatileLockssRepository();
     }
-
 }
