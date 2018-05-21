@@ -30,6 +30,8 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.io.*;
+import org.apache.commons.lang3.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
@@ -42,10 +44,10 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.util.test.LockssTestCase5;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.Iterator;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 
 public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     private final static Log log = LogFactory.getLog(AbstractLockssRepositoryTest.class);
@@ -64,6 +66,12 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     private StatusLine httpStatus;
 
     protected LockssRepository repository;
+
+  static HttpHeaders HEADERS1 = new HttpHeaders();
+  static {
+    HEADERS1.set("key1", "val1");
+//     HEADERS1.set("key2", "val2");
+  }
 
     public abstract LockssRepository makeLockssRepository() throws Exception;
 
@@ -96,6 +104,39 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     public void tearDownArtifactDataStore() throws Exception {
         this.repository = null;
     }
+
+    @Test
+    public void testArtSize() throws IOException {
+      for (int size = 0; size < 10000; size += 100) {
+	testArtSize(size);
+      }
+    }
+
+  public void testArtSize(int size) throws IOException {
+    log.info("testsize: " + size);
+    // Add an artifact to the repository
+    ArtifactIdentifier aid =
+      new ArtifactIdentifier("coll1", "auid1", "uri" + size, -1);
+    ArtifactData stored =
+      new ArtifactData(aid, HEADERS1,
+		       IOUtils.toInputStream(RandomStringUtils.randomAlphabetic(size)),
+		       httpStatus);
+    Artifact art = repository.addArtifact(stored);
+    ArtifactData ad = repository.getArtifactData(art);
+
+    InputStream is = ad.getInputStream();
+    int i = 0;
+    try {
+      int c;
+      while ((c = is.read()) >= 0) {
+	i++;
+//	log.info("read: " + i);
+      }
+      assertEquals(size, i);
+    } catch (IOException e) {
+      fail("Threw after reading " + i + " bytes of " + size, e);
+    }
+  }
 
     @Test
     public void addArtifact() {
