@@ -138,8 +138,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
 
     @Test
-    public void getArtifact() {
-        try {
+    public void getArtifact() throws Exception {
             // Add the artifact and verify we get back an artifact ID
             Artifact artifact = repository.addArtifact(artifactData1);
 
@@ -152,9 +151,6 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
             ArtifactData artifactData = repository.getArtifactData("coll1", artifactId);
             assertNotNull(artifactData);
             assertEquals(artifactId, artifactData.getIdentifier().getId());
-        } catch (IOException e) {
-            fail(String.format("Unexpected IOException thrown: %s", e));
-        }
     }
 
     @Test

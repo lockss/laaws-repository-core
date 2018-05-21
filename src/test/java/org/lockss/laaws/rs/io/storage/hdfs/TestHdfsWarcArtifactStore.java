@@ -30,60 +30,133 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.HdfsConfiguration;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.util.FileUtil;
 import org.lockss.util.test.LockssTestCase5;
+import org.springframework.data.hadoop.config.annotation.builders.HadoopConfigBuilder;
 
-public class TestHdfsWarcArtifactStore extends LockssTestCase5 {
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
 
-    @BeforeEach
-    public void setUp() throws Exception {
+public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
+    private final static Log log = LogFactory.getLog(TestHdfsWarcArtifactStore.class);
+
+    private MiniDFSCluster hdfsCluster;
+
+    @BeforeAll
+    private void startMiniDFSCluster() throws IOException {
+//        System.clearProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA);
+
+        File baseDir = new File("target/test-hdfs/" + UUID.randomUUID());
+        baseDir.mkdirs();
+        assertTrue(baseDir.exists());
+        assertTrue(baseDir.isDirectory());
+
+        Configuration conf = new HdfsConfiguration();
+        conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+
+        log.info(String.format("Starting MiniDFSCluster with %s = %s, getBaseDirectory(): %s",
+                MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
+                conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
+                MiniDFSCluster.getBaseDirectory()
+        ));
+
+        MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
+//        builder.numDataNodes(3);
+//        builder.clusterId("test");
+
+        hdfsCluster = builder.build();
+        hdfsCluster.waitClusterUp();
     }
 
-    @Test
-    public void rebuildIndex() {
+    @AfterAll
+    private void stopMiniDFSCluster() {
+        hdfsCluster.shutdown(true);
     }
 
-    @Test
-    public void rebuildIndex1() {
+    @Override
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
+        String repoBasePath = String.format("/tests/%s", UUID.randomUUID());
+
+        log.info(String.format("Creating HDFS artifact data store with baseDir = %s", repoBasePath));
+
+        assertNotNull(hdfsCluster);
+        return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), repoBasePath);
     }
 
-    @Test
-    public void scanDirectories() {
+    @Override
+    protected boolean pathExists(String path) throws IOException {
+        Path hdfsPath = new Path(store.getBasePath() + path);
+        return store.fs.exists(hdfsPath);
     }
 
-    @Test
-    public void getArchicalUnitBasePath() {
+    @Override
+    protected boolean isDirectory(String path) throws IOException {
+        return store.fs.isDirectory(new Path(store.getBasePath() + path));
     }
 
-    @Test
-    public void getCollectionBasePath() {
+    @Override
+    protected boolean isFile(String path) throws IOException {
+        Path file = new Path(store.getBasePath() + path);
+        log.info(String.format("Checking whether %s is a file in HDFS", file));
+
+        if (!store.fs.exists(file)) {
+            String errMsg = String.format("%s does not exist!", file);
+            log.warn(errMsg);
+        }
+
+        return store.fs.isFile(new Path(store.getBasePath() + path));
     }
 
-    @Test
-    public void mkdirIfNotExist() {
+    @Override
+    protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
+        return String.format("%s%s%s?offset=%d",
+//                store.getBasePath(),
+                store.fs.getUri(),
+                (store.getBasePath().equals("/") ? "" : store.getBasePath()),
+                store.getAuArtifactsWarcPath(ident),
+                offset);
     }
 
-    @Test
-    public void createWarcFile() {
+    @Override
+    protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident) throws Exception {
+        Artifact art = new Artifact(ident,
+                Boolean.TRUE,
+                String.format("hdfs://%s%s/%s?offset=1234",
+                        store.getBasePath(),
+                        store.getSealedWarcPath(),
+                        store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
+                123L,
+                "0x12345");
+        return art;
     }
 
-    @Test
-    public void addArtifact() {
+    @Override
+    protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident) throws Exception {
+        Artifact art = new Artifact(ident,
+                Boolean.TRUE,
+                String.format("hdfs://%s?offset=1234",
+                        store.getAuArtifactsWarcPath(ident)),
+                123L,
+                "0x12345");
+        return art;
     }
 
-    @Test
-    public void getArtifact() {
-    }
-
-    @Test
-    public void updateArtifactMetadata() {
-    }
-
-    @Test
-    public void commitArtifact() {
-    }
-
-    @Test
-    public void deleteArtifact() {
+    @Override
+    protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact, String newPath, String result) throws Exception {
+        assertThat(result, startsWith(String.format("hdfs://" + newPath)));
     }
 }
