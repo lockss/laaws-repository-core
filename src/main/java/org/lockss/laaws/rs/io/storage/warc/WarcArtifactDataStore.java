@@ -59,11 +59,11 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
+import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import com.google.common.io.CountingOutputStream;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
@@ -84,6 +84,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected static final String SEALED_WARC_DIR = "sealed";
     protected static final String AU_DIR_PREFIX = "au-";
     protected static final String AU_ARTIFACTS_WARC_NAME = "artifacts" + WARC_FILE_EXTENSION;
+    protected static final byte[] SEALED_MARK = "This WARC file is marked as sealed and should contain no subsequent records.".getBytes();
 
     protected static final String SCHEME = "urn:uuid";
     protected static final String SCHEME_COLON = SCHEME + ":";
@@ -186,13 +187,23 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ));
 
     // Determine if a WARC seal was triggered by WARC size threshold; set artifact data's storage URL as appropriate
-    if (offset + bytesWritten >= thresholdWarcSize) {
-      String newPath = sealWarc(artifactId.getCollection(),
-                                artifactId.getAuid());
+    long warcFileLength = offset + bytesWritten;
+    if (warcFileLength >= thresholdWarcSize) {
+      log.info(String.format(
+              "Seal WARC triggered by size threshold [Threshold: %d bytes, Length: %d bytes] for [Collection: %s, AUID: %s]",
+              warcFileLength,
+              thresholdWarcSize,
+              artifactId.getCollection(),
+              artifactId.getAuid()
+      ));
 
-      log.info(String.format("Sealing WARC - [newPath: %s, offset: %d]", newPath, offset));
+      // Seal the artifacts WARC
+      String newPath = sealWarc(artifactId.getCollection(), artifactId.getAuid());
+
+      // Set the storage URL of the artifact we're adding to the sealed WARC path
       artifactData.setStorageUrl(makeStorageUrl(newPath, offset));
     } else {
+      // Set the storage URL of the artifact we're adding to default artifacts WARC path
       artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
     }
         
@@ -301,12 +312,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
     public String sealWarc(String collection, String auid) throws IOException {
+        // Current and new (sealed) path of artifacts WARC file
         String currentPath = getAuArtifactsWarcPath(collection, auid);
-        // Compute a path for the sealed WARC file
         String newPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
-        log.info(String.format("Sealing WARC %s to %s", currentPath, newPath));
+
+        log.info(String.format("Sealing WARC %s", currentPath));
+
+        // Write terminating warcinfo record
+        writeTerminateWarcFile(currentPath);
 
         // Move the default artifacts.warc file to the sealed WARCs directory
+        log.info(String.format("Moving sealed WARC %s to %s", currentPath, newPath));
         renameFile(currentPath, newPath);
 
         // Iterate over all the artifacts in the sealed WARC and update their storage URLs in the index
@@ -325,9 +341,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             }
         }
 
+
         return newPath;
     }
-    
+
+    private void writeTerminateWarcFile(String warcfilePath) throws IOException {
+        OutputStream warcOutput = getAppendableOutputStream(warcfilePath);
+        writeWarcRecord(createWARCInfoRecord(null, MediaType.TEXT_PLAIN, SEALED_MARK), warcOutput);
+        warcOutput.flush();
+        warcOutput.close();
+    }
+
     public String getCollectionPath(String collection) {
       return SEPARATOR + COLLECTIONS_DIR + SEPARATOR + collection;
     }
@@ -642,19 +666,27 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      * @return
      */
     public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> extraHeaders) {
+        return createWARCInfoRecord(extraHeaders, null, null);
+    }
+
+    public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> headers, MediaType mimeType, byte[] content) {
         WARCRecordInfo record = new WARCRecordInfo();
+
         record.setRecordId(generateRecordId());
         record.setType(WARCRecordType.warcinfo);
-        record.setCreate14DigitDate(ArchiveUtils.get14DigitDate());
+        record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
+        record.setContentLength(content == null ? 0 : (long)content.length);
+        record.setMimetype(mimeType.toString());
 
-        // Set extra headers
-        extraHeaders.forEach((k, vs) -> vs.forEach(v -> record.addExtraHeader(k, v)));
+        // Set extra WARC record headers
+        if (headers != null) {
+            headers.forEach((k, vs) -> vs.forEach(v -> record.addExtraHeader(k, v)));
+        }
 
-//        record.setMimetype("application/warc-fields");
-//        byte[] contents = "Not implemented".getBytes(UTF8);
-//        record.setContentStream(new ByteArrayInputStream(contents));
-//        record.setContentLength((long)contents.length);
-        record.setContentLength(0);
+        // Set content length and input stream
+        if (content != null) {
+            record.setContentStream(new ByteArrayInputStream(content));
+        }
 
         return record;
     }
