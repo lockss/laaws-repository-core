@@ -64,11 +64,22 @@ import org.lockss.util.test.*;
 // - multi-threaded (for local? & rest)
 // - more realistic workflows (retrievals more interleaved with stores)
 // - different headers
+// - test persistence (shut down repo, recreate)
 
 /** Test harness for LockssRepository implementations */
 public abstract class AbstractLockssRepositoryTest extends LTC5 {
+
+  public abstract LockssRepository makeLockssRepository() throws Exception;
+
   private final static Log log =
     LogFactory.getLog(AbstractLockssRepositoryTest.class);
+
+  static int MAX_RANDOM_FILE = 50000;
+  static int MAX_INCR_FILE = 20000;
+//   static int MAX_RANDOM_FILE = 4000;
+//   static int MAX_INCR_FILE = 4000;
+
+  // TEST DATA
 
   // Commonly used artifact identifiers and contents
   static String COLL1 = "coll1";
@@ -87,7 +98,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   static HttpHeaders HEADERS1 = new HttpHeaders();
   static {
     HEADERS1.set("key1", "val1");
-//     HEADERS1.set("key2", "val2");
+    HEADERS1.set("key2", "val2");
   }
 
   private static StatusLine STATUS_LINE_OK =
@@ -101,22 +112,13 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   static String NO_URL = "no_url";
   static String NO_ARTID = "not an artifact ID";
 
-  // last one in each differs only in case
+  // Sets of coll, au, url.  Last one in each differs only in case from
+  // previous, to check case-sensitivity
   static String[] COLLS = {COLL1, COLL2, "Coll2"};
   static String[] AUIDS = {AUID1, AUID2, "Auid2"};
   static String[] URLS = {URL1, URL2, URL2.toUpperCase()};
 
-
-  protected LockssRepository repository;
-  private String variant = "no_variant";
-  List<ArtSpec> addedSpecs = new ArrayList<ArtSpec>();
-  Map<String,ArtSpec> highestVerSpec = new HashMap<String,ArtSpec>();
-  Map<String,ArtSpec> highestCommittedVerSpec = new HashMap<String,ArtSpec>();
-
-  public abstract LockssRepository makeLockssRepository() throws Exception;
-
-
-
+  // Definition of variants to run
   enum StdVariants {
     empty, commit1, uncommit1, url3, url3unc, disjoint, grid3x3x3,
   }
@@ -185,6 +187,24 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     return res;
   }
   
+  // LOCALS
+
+  protected LockssRepository repository;
+
+  // Currently running variant name
+  private String variant = "no_variant";
+
+  // ArtSpec for each Artifact that has been added to the repository
+  List<ArtSpec> addedSpecs = new ArrayList<ArtSpec>();
+
+  // Maps ArtButVer to ArtSpec for highest version added to the repository
+  Map<String,ArtSpec> highestVerSpec = new HashMap<String,ArtSpec>();
+  // Maps ArtButVer to ArtSpec for highest version added and committed to
+  // the repository
+  Map<String,ArtSpec> highestCommittedVerSpec = new HashMap<String,ArtSpec>();
+
+
+  // SETUP
 
   @BeforeEach
   public void beforeEach() throws Exception {
@@ -196,11 +216,14 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     this.repository = makeLockssRepository();
   }
 
+  // Set up the current variant: create appropriate ArtSpecs and add them
+  // to the repository
   void beforeVariant() throws IOException {
     List<ArtSpec> scenario = getVariantSpecs(variant);
     instantiateScanario(scenario);
   }
 
+  // Add Artifacts to the repository as specified by the ArtSpecs
   void instantiateScanario(List<ArtSpec> scenario) throws IOException {
     for (ArtSpec spec : scenario) {
       Artifact art = addUncommitted(spec);
@@ -216,21 +239,36 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     this.repository = null;
   }
 
+  // Invoked automatically before each test by the @VariantTest mechanism
   @Override
   protected void setUpVariant(String variantName) {
     log.info("setUpVariant: " + variantName);
     variant = variantName;
   }
 
-  InputStream stringInputStream(String str) {
-    return IOUtils.toInputStream(str);
+  // TESTS
+
+  // write artifacts of increasing size, catch size-related bugs early
+  @Test
+  public void testArticleSizes() throws IOException {
+    for (int size = 0; size < MAX_INCR_FILE; size += 100) {
+      testArticleSize(size);
+    }
   }
 
-  // test
-  // empty repo
-  // empty coll
-  // empty au
+  public void testArticleSize(int size) throws IOException {
+    ArtSpec spec = ArtSpec.forCollAuUrl(COLL1, AUID1, URL1 + size)
+      .toCommit(true);
+    Artifact newArt = addUncommitted(spec);
+    Artifact commArt = commit(spec, newArt);
+    assertData(spec, commArt);
+  }
 
+  // This is now redundant
+  @Test
+  void emptyRepo() throws IOException {
+    checkEmptyAu(COLL1, AUID1);
+  }
 
   void checkEmptyAu(String coll, String auid) throws IOException {
     assertEmpty(repository.getAuIds(coll));
@@ -245,23 +283,976 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     assertEmpty(repository.getArtifactAllVersions(coll, AUID1, URL1));
   }
 
-  @Test
-  void emptyRepo() throws IOException {
-    log.info("emptyRepo()");
-    checkEmptyAu(COLL1, AUID1);
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testAddArtifact() throws IOException {
+    // Illegal arguments
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "ArtifactData",
+		      () -> {repository.addArtifact(null);});
+
+    // Illegal ArtifactData (at least one null field)
+    for (ArtifactData illAd : nullPointerArtData) {
+      assertThrows(NullPointerException.class,
+		   () -> {repository.addArtifact(illAd);});
+    }
+
+    // legal use of addArtifact is tested in the normal course of setting
+    // up variants, and by testArticleSizes(), but for the sake of
+    // completeness ...
+
+    ArtSpec spec = new ArtSpec().setUrl("https://mr/ed/").setContent(CONTENT1);
+    Artifact newArt = addUncommitted(spec);
+    Artifact commArt = commit(spec, newArt);
+    assertData(spec, commArt);
   }
 
-  @Test
-  void emptyColl() throws IOException {
-    // create art in COLL2
-    checkEmptyAu(COLL1, AUID1);
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetArtifact() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifact(null, null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifact(null, AUID1, URL1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getArtifact(COLL1, null, URL1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "url",
+		      () -> {repository.getArtifact(COLL1, AUID1, null);});
+
+    // Artifact not found
+    for (ArtSpec spec : notFoundArtSpecs()) {
+      log.info("s.b. notfound: " + spec);
+      assertNull(getArtifact(repository, spec),
+		 "Null or non-existent name shouldn't be found: " + spec);
+    }
+
+    // Ensure that a no-version retrieval gets the expects highest version
+    for (ArtSpec highSpec : highestCommittedVerSpec.values()) {
+      log.info("highSpec: " + highSpec);
+      assertData(highSpec, repository.getArtifact(highSpec.getCollection(),
+						  highSpec.getAuid(),
+						  highSpec.getUrl()));
+    }
+
   }
 
-  @Test
-  void emptyAu() throws IOException {
-    // create art in COLL2
-    checkEmptyAu(COLL1, AUID1);
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetArtifactData() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null",
+		      () -> {repository.getArtifactData(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null",
+		      () -> {repository.getArtifactData(null, ARTID1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null",
+		      () -> {repository.getArtifactData(COLL1, null);});
+
+    // Artifact not found
+    assertNull(repository.getArtifactData(COLL1, NO_ARTID));
+
+    ArtSpec cspec = anyCommittedSpec();
+    if (cspec != null) {
+      ArtifactData ad = repository.getArtifactData(cspec.getCollection(),
+						   cspec.getArtifactId());
+      assertData(cspec, ad);
+    }
+    ArtSpec uspec = anyUncommittedSpec();
+    if (uspec != null) {
+      ArtifactData ad = repository.getArtifactData(uspec.getCollection(),
+						   uspec.getArtifactId());
+      assertData(uspec, ad);
+    }
   }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetArtifactVersion() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifactVersion(null, null, null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getArtifactVersion(COLL1, null, URL1, 1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "url",
+		      () -> {repository.getArtifactVersion(COLL1, AUID1, null, 1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "version",
+		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, null);});
+    // XXXAPI illegal version numbers
+//     assertThrowsMatch(IllegalArgumentException.class,
+// 		      "version",
+// 		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, -1);});
+//     assertThrowsMatch(IllegalArgumentException.class,
+// 		      "version",
+// 		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, 0);});
+
+    // Artifact not found
+
+    // notFoundArtSpecs() includes some that would be found with a
+    // different version so can't use that here.
+
+    for (ArtSpec spec : neverFoundArtSpecs) {
+      log.info("s.b. notfound: " + spec);
+      assertNull(getArtifactVersion(repository, spec, 1),
+		 "Null or non-existent name shouldn't be found: " + spec);
+      assertNull(getArtifactVersion(repository, spec, 2),
+		 "Null or non-existent name shouldn't be found: " + spec);
+    }
+
+    // Get all added artifacts, check correctness
+    for (ArtSpec spec : addedSpecs) {
+      if (spec.isCommitted()) {
+	log.info("s.b. data: " + spec);
+	assertData(spec, getArtifact(repository, spec));
+      } else {
+	log.info("s.b. uncommitted: " + spec);
+	assertNull(getArtifact(repository, spec),
+		   "Uncommitted shouldn't be found: " + spec);
+      }
+      // XXXAPI illegal version numbers
+      assertNull(getArtifactVersion(repository, spec, 0));
+      assertNull(getArtifactVersion(repository, spec, -1));
+    }    
+
+    // Ensure that a non-existent version isn't found
+    for (ArtSpec highSpec : highestVerSpec.values()) {
+      log.info("highSpec: " + highSpec);
+      assertNull(repository.getArtifactVersion(highSpec.getCollection(),
+					       highSpec.getAuid(),
+					       highSpec.getUrl(),
+					       highSpec.getVersion() + 1));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testArtifactExists() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.artifactExists(null, ARTID1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "artifact id",
+		      () -> {repository.artifactExists(COLL1, null);});
+
+
+    // s.b. true for all added artifacts, including uncommitted
+    for (ArtSpec spec : addedSpecs) {
+      assertTrue(repository.artifactExists(spec.getCollection(),
+					   spec.getArtifactId()));
+      // false if only collection or artifactId is correct
+      // XXXAPI collection is ignored
+//       assertFalse(repository.artifactExists(NO_COLL,
+// 					    spec.getArtifactId()));
+      assertFalse(repository.artifactExists(spec.getCollection(),
+					    NO_ARTID));
+    }    
+
+    assertFalse(repository.artifactExists("NO_COLL", "NO_ARTID"));
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testAuSize() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.auSize(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.auSize(null, AUID1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.auSize(COLL1, null);});
+
+    // non-existent AU
+    assertEquals(0, (long)repository.auSize(COLL1, NO_AUID));
+
+    // XXXBUG auSize
+    // Calculate the expected size of each AU in each collection, compare
+    // with auSize()
+    for (String coll : addedCollections()) {
+      for (String auid : addedAuids()) {
+	long expSize = committedSpecStream()
+	  .filter(s -> s.getAuid().equals(auid))
+	  .filter(s -> s.getCollection().equals(coll))
+	  .mapToLong(ArtSpec::getContentLength)
+	  .sum();
+	assertEquals(expSize, (long)repository.auSize(coll, auid));
+      }
+    }
+
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testCommitArtifact() throws IOException {
+    // Illegal args
+    assertThrows(IllegalArgumentException.class,
+		 () -> {repository.commitArtifact(null, null);});
+    assertThrows(IllegalArgumentException.class,
+		 () -> {repository.commitArtifact(null, ARTID1);});
+    assertThrows(IllegalArgumentException.class,
+		 () -> {repository.commitArtifact(COLL1, null);});
+
+    // Commit already committed artifact
+    ArtSpec commSpec = anyCommittedSpec();
+    if (commSpec != null) {
+      // Get the existing artifact
+      Artifact commArt = getArtifact(repository, commSpec);
+      // XXXAPI should this throw?
+//       assertThrows(NullPointerException.class,
+// 		   () -> {repository.commitArtifact(commSpec.getCollection(),
+// 						    commSpec.getArtifactId());});
+      Artifact dupArt = repository.commitArtifact(commSpec.getCollection(),
+						  commSpec.getArtifactId());
+      assertEquals(commArt, dupArt);
+      assertData(commSpec, dupArt);
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testDeleteArtifact() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id or artifact id",
+		      () -> {repository.deleteArtifact(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "artifact",
+		      () -> {repository.deleteArtifact(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.deleteArtifact(null, AUID1);});
+
+    // Delete non-existent artifact
+    // XXXAPI
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Non-existent artifact id: " + AUID1,
+		      () -> {repository.deleteArtifact(NO_COLL, AUID1);});
+
+    // XXXBUG auSize
+    // Delete a committed artifact, it should disappear and size should change
+    ArtSpec spec = anyCommittedSpec();
+    if (spec != null) {
+      long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
+      long artsize = spec.getContentLength();
+      assertTrue(repository.artifactExists(spec.getCollection(),
+					   spec.getArtifactId()));
+      assertNotNull(getArtifact(repository, spec));
+      log.info("Deleting: " + spec);
+      repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
+      assertFalse(repository.artifactExists(spec.getCollection(),
+					    spec.getArtifactId()));
+      assertNull(getArtifact(repository, spec));
+      assertEquals(totsize - artsize,
+		   (long)repository.auSize(spec.getCollection(),
+					   spec.getAuid()));
+    // Delete an uncommitted artifact, it should disappear and size should
+    // not change
+    }
+    ArtSpec uspec = anyUncommittedSpec();
+    if (uspec != null) {
+      long totsize = repository.auSize(uspec.getCollection(), uspec.getAuid());
+      long artsize = uspec.getContentLength();
+      assertTrue(repository.artifactExists(uspec.getCollection(),
+					   uspec.getArtifactId()));
+      assertNull(getArtifact(repository, uspec));
+      log.info("Deleting: " + uspec);
+      repository.deleteArtifact(uspec.getCollection(), uspec.getArtifactId());
+      assertFalse(repository.artifactExists(uspec.getCollection(),
+					    uspec.getArtifactId()));
+      assertNull(getArtifact(repository, uspec));
+      assertEquals(totsize,
+		   (long)repository.auSize(uspec.getCollection(),
+					   uspec.getAuid()));
+    }
+
+    // TK Delete committed & uncommitted arts & check results each time
+    // delete twice
+    // check getAuIds() & getCollectionIds() as they run out
+
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetAllArtifacts() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id or au id",
+		      () -> {repository.getAllArtifacts(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getAllArtifacts(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getAllArtifacts(null, AUID1);});
+
+    // Non-existent collection & auid
+    assertEmpty(repository.getAllArtifacts(NO_COLL, NO_AUID));
+
+    String anyColl = null;
+    String anyAuid = null;
+
+    // Compare with all URLs in each AU
+    for (String coll : addedCollections()) {
+      anyColl = coll;
+      for (String auid : addedAuids()) {
+	anyAuid = auid;
+	assertArtList((orderedAllAu(coll, auid)
+		       .filter(distinctByKey(ArtSpec::artButVerKey))),
+		      repository.getAllArtifacts(coll, auid));
+	
+      }
+    }
+
+    // Combination of coll and au id that both exist, but have no artifacts
+    // in common
+    Pair<String,String> collau = collAuMistmatch();
+    if (collau != null) {
+      assertEmpty(repository.getAllArtifacts(collau.getLeft(),
+					     collau.getRight()));
+    }
+    // non-existent coll, au
+    if (anyColl != null && anyAuid != null) {
+      assertEmpty(repository.getAllArtifacts(anyColl,
+					     anyAuid + "_notAuSuffix"));
+      assertEmpty(repository.getAllArtifacts(anyColl + "_notCollSuffix",
+					     anyAuid));
+    }    
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetAllArtifactsWithPrefix() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id, au id or prefix",
+		      () -> {repository.getAllArtifactsWithPrefix(null, null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "prefix",
+		      () -> {repository.getAllArtifactsWithPrefix(COLL1, AUID1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getAllArtifactsWithPrefix(COLL1, null, PREFIX1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getAllArtifactsWithPrefix(null, AUID1, PREFIX1);});
+
+    // Non-existent collection & auid
+    assertEmpty(repository.getAllArtifactsWithPrefix(NO_COLL, NO_AUID, PREFIX1));
+    // Compare with all URLs matching prefix in each AU
+    for (String coll : addedCollections()) {
+      for (String auid : addedAuids()) {
+	assertArtList((orderedAllAu(coll, auid)
+		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))
+		       .filter(distinctByKey(ArtSpec::artButVerKey))),
+		       repository.getAllArtifactsWithPrefix(coll, auid, PREFIX1));
+	assertEmpty(repository.getAllArtifactsWithPrefix(coll, auid,
+							 PREFIX1 + "notpath"));
+      }
+    }
+
+    // Combination of coll and au id that both exist, but have no artifacts
+    // in common
+    Pair<String,String> collau = collAuMistmatch();
+    if (collau != null) {
+      assertEmpty(repository.getAllArtifactsWithPrefix(collau.getLeft(),
+						       collau.getRight(),
+						       PREFIX1));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetAllArtifactsAllVersions() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id or au id",
+		      () -> {repository.getAllArtifactsAllVersions(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getAllArtifactsAllVersions(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getAllArtifactsAllVersions(null, AUID1);});
+
+    // Non-existent collection & auid
+    assertEmpty(repository.getAllArtifactsAllVersions(NO_COLL, NO_AUID));
+
+    String anyColl = null;
+    String anyAuid = null;
+    // Compare with all URLs all version in each AU
+    for (String coll : addedCollections()) {
+      anyColl = coll;
+      for (String auid : addedAuids()) {
+	anyAuid = auid;
+	assertArtList(orderedAllAu(coll, auid),
+		      repository.getAllArtifactsAllVersions(coll, auid));
+	
+      }
+    }
+    // Combination of coll and au id that both exist, but have no artifacts
+    // in common
+    Pair<String,String> collau = collAuMistmatch();
+    if (collau != null) {
+      assertEmpty(repository.getAllArtifactsAllVersions(collau.getLeft(),
+							collau.getRight()));
+    }
+    if (anyColl != null && anyAuid != null) {
+      assertEmpty(repository.getAllArtifactsAllVersions(anyColl,
+							anyAuid + "_not"));
+      assertEmpty(repository.getAllArtifactsAllVersions(anyColl + "_not",
+							anyAuid));
+    }    
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetAllArtifactsWithPrefixAllVersions() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id, au id or prefix",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersions(null, null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "prefix",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersions(COLL1, AUID1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersions(COLL1, null, PREFIX1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersions(null, AUID1, PREFIX1);});
+
+    // Non-existent collection & auid
+    assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(NO_COLL, NO_AUID, PREFIX1));
+    // Compare with all URLs matching prefix in each AU
+    for (String coll : addedCollections()) {
+      for (String auid : addedAuids()) {
+	assertArtList((orderedAllAu(coll, auid)
+		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
+		       repository.getAllArtifactsWithPrefixAllVersions(coll, auid, PREFIX1));
+	assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(coll, auid,
+								    PREFIX1 + "notpath"));
+      }
+    }
+
+    // Combination of coll and au id that both exist, but have no artifacts
+    // in common
+    Pair<String,String> collau = collAuMistmatch();
+    if (collau != null) {
+      assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(collau.getLeft(),
+						       collau.getRight(),
+						       PREFIX1));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetArtifactAllVersions() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id, au id or url",
+		      () -> {repository.getArtifactAllVersions(null, null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "url",
+		      () -> {repository.getArtifactAllVersions(COLL1, AUID1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getArtifactAllVersions(COLL1, null, URL1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "coll",
+		      () -> {repository.getArtifactAllVersions(null, AUID1, URL1);});
+
+    // Non-existent collection, auid or url
+    assertEmpty(repository.getArtifactAllVersions(NO_COLL, AUID1, URL1));
+    assertEmpty(repository.getArtifactAllVersions(COLL1, NO_AUID, URL1));
+    assertEmpty(repository.getArtifactAllVersions(COLL1, AUID1, NO_URL));
+
+    // For each ArtButVer in the repository, enumerate all its versions and
+    // compare with expected
+    Stream<ArtSpec> s =
+      committedSpecStream().filter(distinctByKey(ArtSpec::artButVerKey));
+    for (ArtSpec urlSpec : (Iterable<ArtSpec>)s::iterator) {
+      assertArtList(orderedAll()
+		    .filter(spec -> spec.sameArtButVer(urlSpec)),
+		    repository.getArtifactAllVersions(urlSpec.getCollection(),
+						      urlSpec.getAuid(),
+						      urlSpec.getUrl()));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetAuIds() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection",
+		      () -> {repository.getAuIds(null);});
+
+    // Non-existent collection
+    assertEmpty(repository.getAuIds(NO_COLL));
+
+    // Compare with expected auid list for each collection
+    for (String coll : addedCollections()) {
+      Iterator<String> expAuids =
+	orderedAllColl(coll)
+	.map(ArtSpec::getAuid)
+	.distinct()
+	.iterator();
+      assertEquals(IteratorUtils.toList(expAuids),
+		   IteratorUtils.toList(repository.getAuIds(coll).iterator()));
+    }
+
+    // Try getAuIds() on collections that have no committed artifacts
+
+    // All the collection ids in the repo
+    List<String> allCollections = addedSpecStream()
+      .map(ArtSpec::getCollection)
+      .distinct()
+      .collect(Collectors.toList());
+
+    // All the collection ids that have committed artifacts
+    List<String> collectionsWithCommittedArt = orderedAll()
+      .map(ArtSpec::getCollection)
+      .distinct()
+      .collect(Collectors.toList());
+
+    for (String coll : CollectionUtils.subtract(allCollections,
+						collectionsWithCommittedArt)) {
+      assertEmpty(repository.getAuIds(coll));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetCollectionIds() throws IOException {
+    Iterator<String> expColl =
+      orderedAll()
+      .map(ArtSpec::getCollection)
+      .distinct()
+      .iterator();
+      assertEquals(IteratorUtils.toList(expColl),
+		   IteratorUtils.toList(repository.getCollectionIds().iterator()));
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testIsArtifactCommitted() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id or artifact id",
+		      () -> {repository.isArtifactCommitted(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "artifact",
+		      () -> {repository.isArtifactCommitted(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.isArtifactCommitted(null, ARTID1);});
+
+    // non-existent collection, artifact id
+
+    // XXXAPI
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Non-existent artifact id: " + NO_ARTID,
+		      () -> {repository.isArtifactCommitted(COLL1, NO_ARTID);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Non-existent artifact id: " + ARTID1,
+		      () -> {repository.isArtifactCommitted(NO_COLL, ARTID1);});
+
+//     assertFalse(repository.isArtifactCommitted(COLL1, NO_ARTID));
+//     assertFalse(repository.isArtifactCommitted(NO_COLL, ARTID1));
+
+    for (ArtSpec spec : addedSpecs) {
+      if (spec.isCommitted()) {
+	assertTrue(repository.isArtifactCommitted(spec.getCollection(),
+						  spec.getArtifactId()));
+      } else {
+	assertFalse(repository.isArtifactCommitted(spec.getCollection(),
+						   spec.getArtifactId()));
+      }
+    }
+
+  }
+
+
+  // Assertions
+
+    void assertData(ArtSpec spec, Artifact art) throws IOException {
+    assertNotNull(art, "Comparing with " + spec);
+    assertEquals(spec.getCollection(), art.getCollection());
+    assertEquals(spec.getAuid(), art.getAuid());
+    assertEquals(spec.getUrl(), art.getUri());
+    if (spec.getExpVer() >= 0) {
+      assertEquals(spec.getExpVer(), (int)art.getVersion());
+    }
+    ArtifactData ad = repository.getArtifactData(art);
+    assertEquals(art.getIdentifier(), ad.getIdentifier());
+    assertEquals(spec.getContentLength(), ad.getContentLength());
+    assertData(spec, ad);
+
+    ArtifactData ad2 = repository.getArtifactData(spec.getCollection(),
+						  art.getId());
+    assertEquals(spec.getContentLength(), ad2.getContentLength());
+    assertData(spec, ad2);
+  }
+
+  void assertEquals(StatusLine exp, StatusLine line) {
+    assertEquals(exp.toString(), line.toString());
+  }
+
+  void assertData(ArtSpec spec, ArtifactData ad) throws IOException {
+    assertEquals(spec.getStatusLine(), ad.getHttpStatus());
+    assertEquals(spec.getContentLength(), ad.getContentLength());
+    assertSameBytes(spec.getInputStream(), ad.getInputStream(),
+		    spec.getContentLength());
+    assertEquals(spec.getHeaders(),
+		 RepoUtil.mapFromHttpHeaders(ad.getMetadata()));
+  }
+
+
+  void assertArtList(Stream<ArtSpec> expSpecs, Iterable<Artifact> arts)
+      throws IOException {
+    Iterator<ArtSpec> specIter = expSpecs.iterator();
+    Iterator<Artifact> artIter = arts.iterator();
+    while (specIter.hasNext() && artIter.hasNext()) {
+      ArtSpec spec = specIter.next();
+      Artifact art = artIter.next();
+      assertData(spec, art);
+    }
+    assertFalse(specIter.hasNext());
+    assertFalse(artIter.hasNext());
+  }
+
+
+
+
+  // utilities
+
+
+  void logAdded() {
+    for (ArtSpec spec : addedSpecs) {
+      log.info("spec: " + spec);
+    }
+  }
+
+  long expectedVersions(ArtSpec spec) {
+    return addedSpecs.stream()
+      .filter(s -> spec.sameArtButVer(s))
+      .count();
+  }
+
+  List<String> addedAuids() {
+    return addedSpecs.stream()
+      .map(ArtSpec::getAuid)
+      .distinct()
+      .collect(Collectors.toList());
+  }
+
+  List<String> addedCommittedAuids() {
+    return addedSpecs.stream()
+      .filter(spec -> spec.isCommitted())
+      .map(ArtSpec::getAuid)
+      .distinct()
+      .collect(Collectors.toList());
+  }
+
+  List<String> addedCollections() {
+    return addedSpecs.stream()
+      .map(ArtSpec::getCollection)
+      .distinct()
+      .collect(Collectors.toList());
+  }
+
+  List<String> addedCommittedCollections() {
+    return addedSpecs.stream()
+      .filter(spec -> spec.isCommitted())
+      .map(ArtSpec::getCollection)
+      .distinct()
+      .collect(Collectors.toList());
+  }
+
+  Stream<String> collectionsOf(Stream<ArtSpec> specStream) {
+    return specStream
+      .map(ArtSpec::getCollection)
+      .distinct();
+  }
+
+  Stream<String> auidsOf(Stream<ArtSpec> specStream, String collection) {
+    return specStream
+      .filter(s -> s.getCollection().equals(collection))
+      .map(ArtSpec::getAuid)
+      .distinct();
+  }
+
+  Stream<ArtSpec> addedSpecStream() {
+    return addedSpecs.stream();
+  }
+
+  Stream<ArtSpec> committedSpecStream() {
+    return addedSpecs.stream()
+      .filter(spec -> spec.isCommitted());
+  }
+
+  Stream<ArtSpec> uncommittedSpecStream() {
+    return addedSpecs.stream()
+      .filter(spec -> !spec.isCommitted());
+  }
+
+  Stream<ArtSpec> orderedAll() {
+    return committedSpecStream()
+      .sorted();
+  }
+
+  public static <T> Predicate<T>
+    distinctByKey(Function<? super T,Object> keyExtractor) {
+    Set seen = new HashSet();
+    return t -> seen.add(keyExtractor.apply(t));
+  }
+
+  Stream<ArtSpec> orderedAllColl(String coll) {
+    return committedSpecStream()
+      .filter(s -> s.getCollection().equals(coll))
+      .sorted();
+  }
+
+  Stream<ArtSpec> orderedAllAu(String coll, String auid) {
+    return committedSpecStream()
+      .filter(s -> s.getCollection().equals(coll))
+      .filter(s -> s.getAuid().equals(auid))
+      .sorted();
+  }
+
+  Stream<ArtSpec> orderedAllUrl(String coll, String auid, String url) {
+    return committedSpecStream()
+      .filter(s -> s.getCollection().equals(coll))
+      .filter(s -> s.getAuid().equals(auid))
+      .filter(s -> s.getUrl().equals(url))
+      .sorted();
+  }
+
+  ArtSpec anyCommittedSpec() {
+    return committedSpecStream().findAny().orElse(null);
+  }
+
+  ArtSpec anyUncommittedSpec() {
+    return uncommittedSpecStream().findAny().orElse(null);
+  }
+
+
+  // Find a collection and an au that each have artifacts, but don't have
+  // any artifacts in common
+  Pair<String,String> collAuMistmatch() {
+    Set<Pair<String,String>> set = new HashSet<Pair<String,String>>();
+    for (String coll : addedCommittedCollections()) {
+      for (String auid : addedCommittedAuids()) {
+	set.add(new ImmutablePair(coll, auid));
+      }
+    }
+    committedSpecStream()
+      .forEach(spec -> {set.remove(new ImmutablePair(spec.getCollection(),
+						     spec.getAuid()));});
+    if (set.isEmpty()) {
+      return null;
+    } else {
+      Pair<String,String> res = set.iterator().next();
+      log.info("Found coll au mismatch: " +
+	       res.getLeft() + ", " + res.getRight());
+      logAdded();
+      return res;
+    }
+  }
+    
+  Artifact getArtifact(LockssRepository repository, ArtSpec spec)
+      throws IOException {
+    log.info(String.format("getArtifact(%s, %s, %s)",
+			   spec.getCollection(),
+			   spec.getAuid(),
+			   spec.getUrl()));
+    if (spec.hasVersion()) {
+      return repository.getArtifactVersion(spec.getCollection(),
+					   spec.getAuid(),
+					   spec.getUrl(),
+					   spec.getVersion());
+    } else {
+      return repository.getArtifact(spec.getCollection(),
+				    spec.getAuid(),
+				    spec.getUrl());
+    }
+  }
+
+  Artifact getArtifactVersion(LockssRepository repository, ArtSpec spec,
+			      int ver)
+      throws IOException {
+    log.info(String.format("getArtifactVersion(%s, %s, %s, %d)",
+			   spec.getCollection(),
+			   spec.getAuid(),
+			   spec.getUrl(),
+			   ver));
+    return repository.getArtifactVersion(spec.getCollection(),
+					 spec.getAuid(),
+					 spec.getUrl(),
+					 ver);
+  }
+
+  Artifact addUncommitted(ArtSpec spec) throws IOException {
+    if (!spec.hasContent()) {
+      spec.setContent(RandomStringUtils.randomAlphabetic(0, MAX_RANDOM_FILE));
+      log.info("gen content");
+    }
+    log.info("adding: " + spec);
+    
+    ArtifactData ad = spec.getArtifactData();
+    Artifact newArt = repository.addArtifact(ad);
+    assertNotNull(newArt);
+
+//     assertData(spec, newArt);
+    long expVers = expectedVersions(spec);
+    assertEquals(expVers + 1, (int)newArt.getVersion(),
+		 "version of " + newArt);
+    if (spec.getExpVer() >= 0) {
+      throw new IllegalStateException("addUncommitted() must be called with unused ArtSpec");
+    }
+
+    String newArtId = newArt.getId();
+    assertNotNull(newArtId);
+    assertFalse(repository.isArtifactCommitted(spec.getCollection(),
+					       newArtId));
+    assertFalse(newArt.getCommitted());
+    assertTrue(repository.artifactExists(spec.getCollection(), newArtId));
+
+    Artifact oldArt = getArtifact(repository, spec);
+    if (expVers > 0) {
+      // this test valid only when a single version exists
+//       assertData(spec, oldArt);
+      
+    } else {
+      assertNull(oldArt);
+    }
+    spec.setVersion(newArt.getVersion());
+    spec.setArtifactId(newArtId);
+
+    addedSpecs.add(spec);
+    // Remember the highest version of this URL we've added
+    ArtSpec maxVerSpec = highestVerSpec.get(spec.artButVerKey());
+    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
+      highestVerSpec.put(spec.artButVerKey(), spec);
+    }
+    return newArt;
+  }
+
+  Artifact commit(ArtSpec spec, Artifact art) throws IOException {
+    String artId = art.getId();
+    Artifact commArt = repository.commitArtifact(spec.getCollection(), artId);
+    if (spec.getExpVer() > 0) {
+      assertEquals(spec.getExpVer(), (int)commArt.getVersion());
+    }
+    spec.setCommitted(true);
+    // Remember the highest version of this URL we've committed
+    ArtSpec maxVerSpec = highestCommittedVerSpec.get(spec.artButVerKey());
+    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
+      highestCommittedVerSpec.put(spec.artButVerKey(), spec);
+    }
+    assertNotNull(commArt);
+    assertTrue(repository.isArtifactCommitted(spec.getCollection(),
+					      commArt.getId()));
+    assertTrue(commArt.getCommitted());
+
+    assertData(spec, commArt);
+
+    Artifact newArt = getArtifact(repository, spec);
+    assertNotNull(newArt);
+    assertTrue(repository.isArtifactCommitted(spec.getCollection(),
+					      newArt.getId()));
+    assertTrue(newArt.getCommitted());
+    assertTrue(repository.artifactExists(spec.getCollection(), newArt.getId()));
+    return newArt;
+  }
+
+  // These should all cause addArtifact to throw NPE 
+  ArtifactData[] nullPointerArtData = {
+    new ArtifactData(null, null, null),
+    new ArtifactData(null, null, STATUS_LINE_OK), 
+    new ArtifactData(null, stringInputStream(""), null),
+    new ArtifactData(null, stringInputStream(""), STATUS_LINE_OK), 
+    new ArtifactData(HEADERS1, null, null),
+    new ArtifactData(HEADERS1, null, STATUS_LINE_OK), 
+    new ArtifactData(HEADERS1, stringInputStream(""), null), 
+  };    
+
+  // These describe artifacts that getArtifact() should never find
+  ArtSpec[] neverFoundArtSpecs = {
+    ArtSpec.forCollAuUrl(NO_COLL, AUID1, URL1),
+    ArtSpec.forCollAuUrl(COLL1, NO_AUID, URL1),
+    ArtSpec.forCollAuUrl(COLL1, AUID1, NO_URL),
+  };    
+
+  /** Return list of ArtSpecs that shouldn't be found in the current
+   * repository */
+  List<ArtSpec> notFoundArtSpecs() {
+    List<ArtSpec> res = new ArrayList<ArtSpec>();
+    // Always include some that should never be found
+    Collections.addAll(res, neverFoundArtSpecs);
+
+    // Include an uncommitted artifact, if any
+    ArtSpec uncSpec = anyUncommittedSpec();
+    if (uncSpec != null) {
+      log.info("adding an uncommitted spec: " + uncSpec);
+      res.add(uncSpec);
+    }
+    
+    // If there's at least one committed artifact ...
+    ArtSpec commSpec = anyCommittedSpec();
+    if (commSpec != null) {
+      // include variants of it with non-existent collection, au, etc.
+      res.add(commSpec.copy().setCollection("NO_" + commSpec.getCollection()));
+      res.add(commSpec.copy().setAuid("NO_" + commSpec.getAuid()));
+      res.add(commSpec.copy().setUrl("NO_" + commSpec.getUrl()));
+
+      // and with existing but different collection, au
+      ArtSpec differentColl = committedSpecStream()
+	.filter(s -> !s.getCollection().equals(commSpec.getCollection()))
+	.findAny().orElse(null);
+      if (differentColl != null) {
+	ArtSpec dcspec =
+	  commSpec.copy().setCollection(differentColl.getCollection());
+	log.info("adding a different collection spec: " + dcspec);
+	res.add(dcspec);
+      }
+      ArtSpec differentAu = committedSpecStream()
+	.filter(s -> !s.getAuid().equals(commSpec.getAuid()))
+	.findAny().orElse(null);
+      if (differentAu != null) {
+	ArtSpec daspec = commSpec.copy().setAuid(differentAu.getAuid());
+	log.info("adding a different au spec: " + daspec);
+	res.add(daspec);
+      }
+
+      // and with correct coll, au, url but non-existent version
+      res.add(commSpec.copy().setVersion(0));
+      res.add(commSpec.copy().setVersion(1000));
+    }
+
+    return res;
+  }
+
+  InputStream stringInputStream(String str) {
+    return IOUtils.toInputStream(str);
+  }
+
 
   // All the info needed to create and store an Artifact, or to compare
   // with a retrieved Artifact
@@ -486,1033 +1477,6 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
       sb.append("]");
       return sb.toString();
     }
-  }
-
-  void assertData(ArtSpec spec, Artifact art) throws IOException {
-    assertNotNull(art, "Comparing with " + spec);
-    assertEquals(spec.getCollection(), art.getCollection());
-    assertEquals(spec.getAuid(), art.getAuid());
-    assertEquals(spec.getUrl(), art.getUri());
-    if (spec.getExpVer() >= 0) {
-      assertEquals(spec.getExpVer(), (int)art.getVersion());
-    }
-    ArtifactData ad = repository.getArtifactData(art);
-    assertEquals(art.getIdentifier(), ad.getIdentifier());
-    assertEquals(spec.getContentLength(), ad.getContentLength());
-    assertData(spec, ad);
-
-    ArtifactData ad2 = repository.getArtifactData(spec.getCollection(),
-						  art.getId());
-    assertEquals(spec.getContentLength(), ad2.getContentLength());
-    assertData(spec, ad2);
-  }
-
-  void assertEquals(StatusLine exp, StatusLine line) {
-    assertEquals(exp.toString(), line.toString());
-  }
-
-  void assertData(ArtSpec spec, ArtifactData ad) throws IOException {
-    assertEquals(spec.getStatusLine(), ad.getHttpStatus());
-    long l = logfoo(ad, spec.getContentLength());
-//     assertEquals(spec.getContentLength(), l);
-    
-    assertSameBytes(spec.getInputStream(), ad.getInputStream());
-    assertEquals(spec.getContentLength(), ad.getContentLength());
-    assertEquals(spec.getHeaders(),
-		 RepoUtil.mapFromHttpHeaders(ad.getMetadata()));
-  }
-
-  long logfoo(ArtifactData ad, long exp) throws IOException {
-    InputStream is = ad.getInputStream();
-    int i = 0;
-    try {
-      int c;
-      while ((c = is.read()) >= 0) {
-	i++;
-      }
-      log.info("read " + i + " bytes (" + (i == exp ? "correct)" : "wrong: " + exp + ")"));
-      return i;
-    } catch (IOException e) {
-      log.info("after " + i + " bytes (" + (i == exp ? "correct)" : "wrong: " + exp + ")"), e);
-//       return i;
-      throw e;
-    }
-
-  }
-
-  void logAdded() {
-    for (ArtSpec spec : addedSpecs) {
-      log.info("spec: " + spec);
-    }
-  }
-
-  long expectedVersions(ArtSpec spec) {
-    return addedSpecs.stream()
-      .filter(s -> spec.sameArtButVer(s))
-      .count();
-  }
-
-  List<String> addedAuids() {
-    return addedSpecs.stream()
-      .map(ArtSpec::getAuid)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCommittedAuids() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted())
-      .map(ArtSpec::getAuid)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCollections() {
-    return addedSpecs.stream()
-      .map(ArtSpec::getCollection)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCommittedCollections() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted())
-      .map(ArtSpec::getCollection)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  Stream<String> collectionsOf(Stream<ArtSpec> specStream) {
-    return specStream
-      .map(ArtSpec::getCollection)
-      .distinct();
-  }
-
-  Stream<String> auidsOf(Stream<ArtSpec> specStream, String collection) {
-    return specStream
-      .filter(s -> s.getCollection().equals(collection))
-      .map(ArtSpec::getAuid)
-      .distinct();
-  }
-
-  Stream<ArtSpec> addedSpecStream() {
-    return addedSpecs.stream();
-  }
-
-  Stream<ArtSpec> committedSpecStream() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted());
-  }
-
-  Stream<ArtSpec> uncommittedSpecStream() {
-    return addedSpecs.stream()
-      .filter(spec -> !spec.isCommitted());
-  }
-
-  Stream<ArtSpec> orderedAll() {
-    return committedSpecStream()
-      .sorted();
-  }
-
-  public static <T> Predicate<T>
-    distinctByKey(Function<? super T,Object> keyExtractor) {
-    Set seen = new HashSet();
-    return t -> seen.add(keyExtractor.apply(t));
-  }
-
-  Stream<ArtSpec> orderedAllColl(String coll) {
-    return committedSpecStream()
-      .filter(s -> s.getCollection().equals(coll))
-      .sorted();
-  }
-
-  Stream<ArtSpec> orderedAllAu(String coll, String auid) {
-    return committedSpecStream()
-      .filter(s -> s.getCollection().equals(coll))
-      .filter(s -> s.getAuid().equals(auid))
-      .sorted();
-  }
-
-  Stream<ArtSpec> orderedAllUrl(String coll, String auid, String url) {
-    return committedSpecStream()
-      .filter(s -> s.getCollection().equals(coll))
-      .filter(s -> s.getAuid().equals(auid))
-      .filter(s -> s.getUrl().equals(url))
-      .sorted();
-  }
-
-  ArtSpec anyCommittedSpec() {
-    return committedSpecStream().findAny().orElse(null);
-  }
-
-  ArtSpec anyUncommittedSpec() {
-    return uncommittedSpecStream().findAny().orElse(null);
-  }
-
-
-  Artifact getArtifact(LockssRepository repository, ArtSpec spec)
-      throws IOException {
-    log.info(String.format("getArtifact(%s, %s, %s)",
-			   spec.getCollection(),
-			   spec.getAuid(),
-			   spec.getUrl()));
-    if (spec.hasVersion()) {
-      return repository.getArtifactVersion(spec.getCollection(),
-					   spec.getAuid(),
-					   spec.getUrl(),
-					   spec.getVersion());
-    } else {
-      return repository.getArtifact(spec.getCollection(),
-				    spec.getAuid(),
-				    spec.getUrl());
-    }
-  }
-
-  Artifact getArtifactVersion(LockssRepository repository, ArtSpec spec,
-			      int ver)
-      throws IOException {
-    log.info(String.format("getArtifactVersion(%s, %s, %s, %d)",
-			   spec.getCollection(),
-			   spec.getAuid(),
-			   spec.getUrl(),
-			   ver));
-    return repository.getArtifactVersion(spec.getCollection(),
-					 spec.getAuid(),
-					 spec.getUrl(),
-					 ver);
-  }
-
-  Artifact addUncommitted(ArtSpec spec) throws IOException {
-    if (!spec.hasContent()) {
-      spec.setContent(RandomStringUtils.randomAlphabetic(10, 10000));
-      log.info("gen content");
-    }
-    log.info("adding: " + spec);
-    
-    ArtifactData ad = spec.getArtifactData();
-    Artifact newArt = repository.addArtifact(ad);
-    assertNotNull(newArt);
-
-//     assertData(spec, newArt);
-    long expVers = expectedVersions(spec);
-    assertEquals(expVers + 1, (int)newArt.getVersion(),
-		 "version of " + newArt);
-    if (spec.getExpVer() >= 0) {
-      throw new IllegalStateException("addUncommitted() must be called with unused ArtSpec");
-    }
-
-    String newArtId = newArt.getId();
-    assertNotNull(newArtId);
-    assertFalse(repository.isArtifactCommitted(spec.getCollection(),
-					       newArtId));
-    assertFalse(newArt.getCommitted());
-    assertTrue(repository.artifactExists(spec.getCollection(), newArtId));
-
-    Artifact oldArt = getArtifact(repository, spec);
-    if (expVers > 0) {
-      // this test valid only when a single version exists
-//       assertData(spec, oldArt);
-      
-    } else {
-      assertNull(oldArt);
-    }
-    spec.setVersion(newArt.getVersion());
-    spec.setArtifactId(newArtId);
-
-    addedSpecs.add(spec);
-    // Remember the highest version of this URL we've added
-    ArtSpec maxVerSpec = highestVerSpec.get(spec.artButVerKey());
-    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      highestVerSpec.put(spec.artButVerKey(), spec);
-    }
-    return newArt;
-  }
-
-  Artifact commit(ArtSpec spec, Artifact art) throws IOException {
-    String artId = art.getId();
-    Artifact commArt = repository.commitArtifact(spec.getCollection(), artId);
-    if (spec.getExpVer() > 0) {
-      assertEquals(spec.getExpVer(), (int)commArt.getVersion());
-    }
-    spec.setCommitted(true);
-    // Remember the highest version of this URL we've committed
-    ArtSpec maxVerSpec = highestCommittedVerSpec.get(spec.artButVerKey());
-    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      highestCommittedVerSpec.put(spec.artButVerKey(), spec);
-    }
-    assertNotNull(commArt);
-    assertTrue(repository.isArtifactCommitted(spec.getCollection(),
-					      commArt.getId()));
-    assertTrue(commArt.getCommitted());
-
-    assertData(spec, commArt);
-
-    Artifact newArt = getArtifact(repository, spec);
-    assertNotNull(newArt);
-    assertTrue(repository.isArtifactCommitted(spec.getCollection(),
-					      newArt.getId()));
-    assertTrue(newArt.getCommitted());
-    assertTrue(repository.artifactExists(spec.getCollection(), newArt.getId()));
-    return newArt;
-  }
-
-
-  // These should all cause addArtifact to throw NPE 
-  ArtifactData[] nullPointerArtData = {
-    new ArtifactData(null, null, null),
-    new ArtifactData(null, null, STATUS_LINE_OK), 
-    new ArtifactData(null, stringInputStream(""), null),
-    new ArtifactData(null, stringInputStream(""), STATUS_LINE_OK), 
-    new ArtifactData(HEADERS1, null, null),
-    new ArtifactData(HEADERS1, null, STATUS_LINE_OK), 
-    new ArtifactData(HEADERS1, stringInputStream(""), null), 
-  };    
-
-  // These describe artifacts that getArtifact() should never find
-  ArtSpec[] neverFoundArtSpecs = {
-    ArtSpec.forCollAuUrl(NO_COLL, AUID1, URL1),
-    ArtSpec.forCollAuUrl(COLL1, NO_AUID, URL1),
-    ArtSpec.forCollAuUrl(COLL1, AUID1, NO_URL),
-  };    
-
-  /** Return list of ArtSpecs that shouldn't be found in the current
-   * repository */
-  List<ArtSpec> notFoundArtSpecs() {
-    List<ArtSpec> res = new ArrayList<ArtSpec>();
-    // Always include some that should never be found
-    Collections.addAll(res, neverFoundArtSpecs);
-
-    // Include an uncommitted artifact, if any
-    ArtSpec uncSpec = anyUncommittedSpec();
-    if (uncSpec != null) {
-      log.info("adding an uncommitted spec: " + uncSpec);
-      res.add(uncSpec);
-    }
-    
-    // If there's at least one committed artifact ...
-    ArtSpec commSpec = anyCommittedSpec();
-    if (commSpec != null) {
-      // include variants of it with non-existent collection, au, etc.
-      res.add(commSpec.copy().setCollection("NO_" + commSpec.getCollection()));
-      res.add(commSpec.copy().setAuid("NO_" + commSpec.getAuid()));
-      res.add(commSpec.copy().setUrl("NO_" + commSpec.getUrl()));
-
-      // and with existing but different collection, au
-      ArtSpec differentColl = committedSpecStream()
-	.filter(s -> !s.getCollection().equals(commSpec.getCollection()))
-	.findAny().orElse(null);
-      if (differentColl != null) {
-	ArtSpec dcspec =
-	  commSpec.copy().setCollection(differentColl.getCollection());
-	log.info("adding a different collection spec: " + dcspec);
-	res.add(dcspec);
-      }
-      ArtSpec differentAu = committedSpecStream()
-	.filter(s -> !s.getAuid().equals(commSpec.getAuid()))
-	.findAny().orElse(null);
-      if (differentAu != null) {
-	ArtSpec daspec = commSpec.copy().setAuid(differentAu.getAuid());
-	log.info("adding a different au spec: " + daspec);
-	res.add(daspec);
-      }
-
-      // and with correct coll, au, url but non-existent version
-      res.add(commSpec.copy().setVersion(0));
-      res.add(commSpec.copy().setVersion(1000));
-    }
-
-    return res;
-
-
-
-  }
-
-
-  public void nonExistentArtifacts(ArtSpec ... specs) {
-    for (ArtSpec spec : specs) {
-      assertNoArtifacts(spec);
-    }
-  }
-
-  void assertNoArtifacts(ArtSpec spec) {
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testAddArtifact() throws IOException {
-    // Illegal arguments
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "ArtifactData",
-		      () -> {repository.addArtifact(null);});
-
-    // Illegal ArtifactData (at least one null field)
-    for (ArtifactData illAd : nullPointerArtData) {
-      assertThrows(NullPointerException.class,
-		   () -> {repository.addArtifact(illAd);});
-    }
-
-    // addArtifact is thoroughly tested in the normal course of setting up
-    // variants, but for the sake of completeness ...
-
-    ArtSpec spec = new ArtSpec().setUrl("https://mr/ed/").setContent(CONTENT1);
-    Artifact newArt = addUncommitted(spec);
-    Artifact commArt = commit(spec, newArt);
-    assertData(spec, commArt);
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetArtifact() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getArtifact(null, null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getArtifact(null, AUID1, URL1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getArtifact(COLL1, null, URL1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
-		      () -> {repository.getArtifact(COLL1, AUID1, null);});
-
-    // Artifact not found
-    for (ArtSpec spec : notFoundArtSpecs()) {
-      log.info("s.b. notfound: " + spec);
-      assertNull(getArtifact(repository, spec),
-		 "Null or non-existent name shouldn't be found: " + spec);
-    }
-
-    // Ensure that a no-version retrieval gets the expects highest version
-    for (ArtSpec highSpec : highestCommittedVerSpec.values()) {
-      log.info("highSpec: " + highSpec);
-      assertData(highSpec, repository.getArtifact(highSpec.getCollection(),
-						  highSpec.getAuid(),
-						  highSpec.getUrl()));
-    }
-
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetArtifactData() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null",
-		      () -> {repository.getArtifactData(null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null",
-		      () -> {repository.getArtifactData(null, ARTID1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null",
-		      () -> {repository.getArtifactData(COLL1, null);});
-
-    // Artifact not found
-    assertNull(repository.getArtifactData(COLL1, NO_ARTID));
-
-    ArtSpec cspec = anyCommittedSpec();
-    if (cspec != null) {
-      ArtifactData ad = repository.getArtifactData(cspec.getCollection(),
-						   cspec.getArtifactId());
-      assertData(cspec, ad);
-    }
-    ArtSpec uspec = anyUncommittedSpec();
-    if (uspec != null) {
-    }
-	       
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetArtifactVersion() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getArtifactVersion(null, null, null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getArtifactVersion(COLL1, null, URL1, 1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
-		      () -> {repository.getArtifactVersion(COLL1, AUID1, null, 1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "version",
-		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, null);});
-    // TK
-//     assertThrowsMatch(IllegalArgumentException.class,
-// 		      "version",
-// 		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, -1);});
-//     assertThrowsMatch(IllegalArgumentException.class,
-// 		      "version",
-// 		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, 0);});
-
-    // Artifact not found
-
-    // notFoundArtSpecs() includes some that would be found with a
-    // different version so can't use that here.
-
-    for (ArtSpec spec : neverFoundArtSpecs) {
-      log.info("s.b. notfound: " + spec);
-      assertNull(getArtifactVersion(repository, spec, 1),
-		 "Null or non-existent name shouldn't be found: " + spec);
-      assertNull(getArtifactVersion(repository, spec, 2),
-		 "Null or non-existent name shouldn't be found: " + spec);
-    }
-
-    // Get all added artifacts, check correctness
-    for (ArtSpec spec : addedSpecs) {
-      if (spec.isCommitted()) {
-	log.info("s.b. data: " + spec);
-	assertData(spec, getArtifact(repository, spec));
-      } else {
-	log.info("s.b. uncommitted: " + spec);
-	assertNull(getArtifact(repository, spec),
-		   "Uncommitted shouldn't be found: " + spec);
-      }
-      // TK
-      assertNull(getArtifactVersion(repository, spec, 0));
-      assertNull(getArtifactVersion(repository, spec, -1));
-    }    
-
-    // Ensure that a non-existent version isn't found
-    for (ArtSpec highSpec : highestVerSpec.values()) {
-      log.info("highSpec: " + highSpec);
-      assertNull(repository.getArtifactVersion(highSpec.getCollection(),
-					       highSpec.getAuid(),
-					       highSpec.getUrl(),
-					       highSpec.getVersion() + 1));
-    }
-
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testArtifactExists() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.artifactExists(null, ARTID1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "artifact id",
-		      () -> {repository.artifactExists(COLL1, null);});
-
-
-    // s.b. true for all added artifacts, including uncommitted
-    for (ArtSpec spec : addedSpecs) {
-      assertTrue(repository.artifactExists(spec.getCollection(),
-					   spec.getArtifactId()));
-      // false if only collection or artifactId is correct
-      // TK collection is ignored
-//       assertFalse(repository.artifactExists(NO_COLL,
-// 					    spec.getArtifactId()));
-      assertFalse(repository.artifactExists(spec.getCollection(),
-					    NO_ARTID));
-    }    
-
-    assertFalse(repository.artifactExists("NO_COLL", "NO_ARTID"));
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testAuSize() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.auSize(null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.auSize(null, AUID1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.auSize(COLL1, null);});
-
-    // non-existent AU
-    assertEquals(0, (long)repository.auSize(COLL1, NO_AUID));
-
-    // TK bug
-    // Calculate the expected size of each AU in each collection, compare
-    // with auSize()
-    for (String coll : addedCollections()) {
-      for (String auid : addedAuids()) {
-	long expSize = committedSpecStream()
-	  .filter(s -> s.getAuid().equals(auid))
-	  .filter(s -> s.getCollection().equals(coll))
-	  .mapToLong(ArtSpec::getContentLength)
-	  .sum();
-	assertEquals(expSize, (long)repository.auSize(coll, auid));
-      }
-    }
-
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testCommitArtifact() throws IOException {
-    // Illegal args
-    assertThrows(IllegalArgumentException.class,
-		 () -> {repository.commitArtifact(null, null);});
-    assertThrows(IllegalArgumentException.class,
-		 () -> {repository.commitArtifact(null, ARTID1);});
-    assertThrows(IllegalArgumentException.class,
-		 () -> {repository.commitArtifact(COLL1, null);});
-
-    // Commit already committed artifact
-    ArtSpec commSpec = anyCommittedSpec();
-    if (commSpec != null) {
-      // Get the existing artifact
-      Artifact commArt = getArtifact(repository, commSpec);
-      // BUG? I expected this to throw, ok that it doesn't
-//       assertThrows(NullPointerException.class,
-// 		   () -> {repository.commitArtifact(commSpec.getCollection(),
-// 						    commSpec.getArtifactId());});
-      Artifact dupArt = repository.commitArtifact(commSpec.getCollection(),
-						  commSpec.getArtifactId());
-      assertEquals(commArt, dupArt);
-      assertData(commSpec, dupArt);
-    }
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testDeleteArtifact() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id or artifact id",
-		      () -> {repository.deleteArtifact(null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "artifact",
-		      () -> {repository.deleteArtifact(COLL1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.deleteArtifact(null, AUID1);});
-
-    // Delete non-existent artifact
-    // TK better exception?
-    assertThrowsMatch(NullPointerException.class,
-		      "artifact",
-		      () -> {repository.deleteArtifact(NO_COLL, AUID1);});
-
-    // TK auSize bug
-    // Delete a committed artifact, it should disappear and size should change
-    ArtSpec spec = anyCommittedSpec();
-    if (spec != null) {
-      long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
-      long artsize = spec.getContentLength();
-      assertTrue(repository.artifactExists(spec.getCollection(),
-					   spec.getArtifactId()));
-      assertNotNull(getArtifact(repository, spec));
-      log.info("Deleting: " + spec);
-      repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
-      assertFalse(repository.artifactExists(spec.getCollection(),
-					    spec.getArtifactId()));
-      assertNull(getArtifact(repository, spec));
-      assertEquals(totsize - artsize,
-		   (long)repository.auSize(spec.getCollection(),
-					   spec.getAuid()));
-    // Delete an uncommitted artifact, it should disappear and size should
-    // not change
-    }
-    ArtSpec uspec = anyUncommittedSpec();
-    if (uspec != null) {
-      long totsize = repository.auSize(uspec.getCollection(), uspec.getAuid());
-      long artsize = uspec.getContentLength();
-      assertTrue(repository.artifactExists(uspec.getCollection(),
-					   uspec.getArtifactId()));
-      assertNull(getArtifact(repository, uspec));
-      log.info("Deleting: " + uspec);
-      repository.deleteArtifact(uspec.getCollection(), uspec.getArtifactId());
-      assertFalse(repository.artifactExists(uspec.getCollection(),
-					    uspec.getArtifactId()));
-      assertNull(getArtifact(repository, uspec));
-      assertEquals(totsize,
-		   (long)repository.auSize(uspec.getCollection(),
-					   uspec.getAuid()));
-    }
-
-    // TK Delete committed & uncommitted arts & check results each time
-    // delete twice
-    // check getAuIds() & getCollectionIds() as they run out
-
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetAllArtifacts() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id or au id",
-		      () -> {repository.getAllArtifacts(null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getAllArtifacts(COLL1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getAllArtifacts(null, AUID1);});
-
-    // Non-existent collection & auid
-    assertEmpty(repository.getAllArtifacts(NO_COLL, NO_AUID));
-
-    String anyColl = null;
-    String anyAuid = null;
-
-    // Compare with all URLs in each AU
-    for (String coll : addedCollections()) {
-      anyColl = coll;
-      for (String auid : addedAuids()) {
-	anyAuid = auid;
-	assertArtList((orderedAllAu(coll, auid)
-		       .filter(distinctByKey(ArtSpec::artButVerKey))),
-		      repository.getAllArtifacts(coll, auid));
-	
-      }
-    }
-
-    Pair<String,String> collau = collAuMistmatch();
-    if (collau != null) {
-      assertEmpty(repository.getAllArtifacts(collau.getLeft(),
-					     collau.getRight()));
-    }
-    if (anyColl != null && anyAuid != null) {
-      assertEmpty(repository.getAllArtifacts(anyColl,
-					     anyAuid + "_notAuSuffix"));
-      assertEmpty(repository.getAllArtifacts(anyColl + "_notCollSuffix",
-					     anyAuid));
-    }    
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetAllArtifactsWithPrefix() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id, au id or prefix",
-		      () -> {repository.getAllArtifactsWithPrefix(null, null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "prefix",
-		      () -> {repository.getAllArtifactsWithPrefix(COLL1, AUID1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getAllArtifactsWithPrefix(COLL1, null, PREFIX1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getAllArtifactsWithPrefix(null, AUID1, PREFIX1);});
-
-    // Non-existent collection & auid
-    assertEmpty(repository.getAllArtifactsWithPrefix(NO_COLL, NO_AUID, PREFIX1));
-    // Compare with all URLs matching prefix in each AU
-    for (String coll : addedCollections()) {
-      for (String auid : addedAuids()) {
-	assertArtList((orderedAllAu(coll, auid)
-		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))
-		       .filter(distinctByKey(ArtSpec::artButVerKey))),
-		       repository.getAllArtifactsWithPrefix(coll, auid, PREFIX1));
-	assertEmpty(repository.getAllArtifactsWithPrefix(coll, auid,
-							 PREFIX1 + "notpath"));
-      }
-    }
-
-    Pair<String,String> collau = collAuMistmatch();
-    if (collau != null) {
-      assertEmpty(repository.getAllArtifactsWithPrefix(collau.getLeft(),
-						       collau.getRight(),
-						       PREFIX1));
-    }
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetAllArtifactsAllVersions() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id or au id",
-		      () -> {repository.getAllArtifactsAllVersions(null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getAllArtifactsAllVersions(COLL1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getAllArtifactsAllVersions(null, AUID1);});
-
-    // Non-existent collection & auid
-    assertEmpty(repository.getAllArtifactsAllVersions(NO_COLL, NO_AUID));
-
-    String anyColl = null;
-    String anyAuid = null;
-    // Compare with all URLs all version in each AU
-    for (String coll : addedCollections()) {
-      anyColl = coll;
-      for (String auid : addedAuids()) {
-	anyAuid = auid;
-	assertArtList(orderedAllAu(coll, auid),
-		      repository.getAllArtifactsAllVersions(coll, auid));
-	
-      }
-    }
-    Pair<String,String> collau = collAuMistmatch();
-    if (collau != null) {
-      assertEmpty(repository.getAllArtifactsAllVersions(collau.getLeft(),
-							collau.getRight()));
-    }
-    if (anyColl != null && anyAuid != null) {
-      assertEmpty(repository.getAllArtifactsAllVersions(anyColl,
-							anyAuid + "_not"));
-      assertEmpty(repository.getAllArtifactsAllVersions(anyColl + "_not",
-							anyAuid));
-    }    
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetAllArtifactsWithPrefixAllVersions() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id, au id or prefix",
-		      () -> {repository.getAllArtifactsWithPrefixAllVersions(null, null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "prefix",
-		      () -> {repository.getAllArtifactsWithPrefixAllVersions(COLL1, AUID1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getAllArtifactsWithPrefixAllVersions(COLL1, null, PREFIX1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.getAllArtifactsWithPrefixAllVersions(null, AUID1, PREFIX1);});
-
-    // Non-existent collection & auid
-    assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(NO_COLL, NO_AUID, PREFIX1));
-    // Compare with all URLs matching prefix in each AU
-    for (String coll : addedCollections()) {
-      for (String auid : addedAuids()) {
-	assertArtList((orderedAllAu(coll, auid)
-		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
-		       repository.getAllArtifactsWithPrefixAllVersions(coll, auid, PREFIX1));
-	assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(coll, auid,
-								    PREFIX1 + "notpath"));
-      }
-    }
-
-    Pair<String,String> collau = collAuMistmatch();
-    if (collau != null) {
-      assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(collau.getLeft(),
-						       collau.getRight(),
-						       PREFIX1));
-    }
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetArtifactAllVersions() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id, au id or url",
-		      () -> {repository.getArtifactAllVersions(null, null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
-		      () -> {repository.getArtifactAllVersions(COLL1, AUID1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
-		      () -> {repository.getArtifactAllVersions(COLL1, null, URL1);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "coll",
-		      () -> {repository.getArtifactAllVersions(null, AUID1, URL1);});
-
-    // Non-existent collection, auid or url
-    assertEmpty(repository.getArtifactAllVersions(NO_COLL, AUID1, URL1));
-    assertEmpty(repository.getArtifactAllVersions(COLL1, NO_AUID, URL1));
-    assertEmpty(repository.getArtifactAllVersions(COLL1, AUID1, NO_URL));
-
-    Stream<ArtSpec> s =
-      committedSpecStream().filter(distinctByKey(ArtSpec::artButVerKey));
-//     for (ArtSpec urlSpec :
-// 	   committedSpecStream().filter(distinctByKey(ArtSpec::artButVerKey))) {
-    for (ArtSpec urlSpec : (Iterable<ArtSpec>)s::iterator) {
-      assertArtList(orderedAll()
-		    .filter(spec -> spec.sameArtButVer(urlSpec)),
-		    repository.getArtifactAllVersions(urlSpec.getCollection(),
-						      urlSpec.getAuid(),
-						      urlSpec.getUrl()));
-    }
-
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetAuIds() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection",
-		      () -> {repository.getAuIds(null);});
-
-    // Non-existent collection
-    assertEmpty(repository.getAuIds(NO_COLL));
-
-    // Compare with all expected auid list for each collection
-    for (String coll : addedCollections()) {
-      Iterator<String> expAuids =
-	orderedAllColl(coll)
-	.map(ArtSpec::getAuid)
-	.distinct()
-	.iterator();
-      assertEquals(IteratorUtils.toList(expAuids),
-		   IteratorUtils.toList(repository.getAuIds(coll).iterator()));
-    }
-
-    List<String> allCollections = addedSpecStream()
-      .map(ArtSpec::getCollection)
-      .distinct()
-      .collect(Collectors.toList());
-    List<String> collectionsWithCommittedArt = orderedAll()
-      .map(ArtSpec::getCollection)
-      .distinct()
-      .collect(Collectors.toList());
-//     allCollections.removeAll(collectionsWithCommittedArt);
-    for (String coll : CollectionUtils.subtract(allCollections,
-						collectionsWithCommittedArt)) {
-      assertEmpty(repository.getAuIds(coll));
-    }
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testGetCollectionIds() throws IOException {
-    Iterator<String> expColl =
-      orderedAll()
-      .map(ArtSpec::getCollection)
-      .distinct()
-      .iterator();
-      assertEquals(IteratorUtils.toList(expColl),
-		   IteratorUtils.toList(repository.getCollectionIds().iterator()));
-  }
-
-  @VariantTest
-  @EnumSource(StdVariants.class)
-  public void testIsArtifactCommitted() throws IOException {
-    // Illegal args
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "Null collection id or artifact id",
-		      () -> {repository.isArtifactCommitted(null, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "artifact",
-		      () -> {repository.isArtifactCommitted(COLL1, null);});
-    assertThrowsMatch(IllegalArgumentException.class,
-		      "collection",
-		      () -> {repository.isArtifactCommitted(null, ARTID1);});
-
-    // non-existent collection, artifact id
-
-    // TK NPE because artifact isn't found.  s.b. null?
-    // IllegalArgumentException?
-//     assertFalse(repository.isArtifactCommitted(COLL1, NO_ARTID));
-//     assertFalse(repository.isArtifactCommitted(NO_COLL, ARTID1));
-
-    for (ArtSpec spec : addedSpecs) {
-      if (spec.isCommitted()) {
-	assertTrue(repository.isArtifactCommitted(spec.getCollection(),
-						  spec.getArtifactId()));
-      } else {
-	assertFalse(repository.isArtifactCommitted(spec.getCollection(),
-						   spec.getArtifactId()));
-      }
-    }
-
-  }
-
-  Pair<String,String> collAuMistmatch() {
-    Set<Pair<String,String>> set = new HashSet<Pair<String,String>>();
-    for (String coll : addedCommittedCollections()) {
-      for (String auid : addedCommittedAuids()) {
-	set.add(new ImmutablePair(coll, auid));
-      }
-    }
-    committedSpecStream()
-      .forEach(spec -> {set.remove(new ImmutablePair(spec.getCollection(),
-						     spec.getAuid()));});
-    if (set.isEmpty()) {
-      return null;
-    } else {
-      Pair<String,String> res = set.iterator().next();
-      log.info("Found coll au mismatch: " +
-	       res.getLeft() + ", " + res.getRight());
-      logAdded();
-      return res;
-    }
-  }
-    
-
-  void assertArtList(Stream<ArtSpec> expSpecs, Iterable<Artifact> arts)
-      throws IOException {
-    Iterator<ArtSpec> specIter = expSpecs.iterator();
-    Iterator<Artifact> artIter = arts.iterator();
-    while (specIter.hasNext() && artIter.hasNext()) {
-      ArtSpec spec = specIter.next();
-      Artifact art = artIter.next();
-      assertData(spec, art);
-    }
-    assertFalse(specIter.hasNext());
-    assertFalse(artIter.hasNext());
-  }
-
-  // XXXXXXXXXXXXXXXXXXXXX
-
-  String[] collections = {null, COLL1, "COLL2"};
-  String[] auids = {null, AUID1, "AUID2"};
-  String[] urls = {null,
-		   "http://ho.st/path.ext",
-		   "http://ho.st/enc%20path.ext?query=1&a=b"};
-
-
-
-  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-
-
-  void assertArt(String url, String content) throws IOException {
-    assertArt(COLL1, AUID1, url, content);
-  }
-
-  void assertArt(String coll, String auid,
-		 String url, String expContent)
-      throws IOException {
-    assertArt(coll, auid, url, expContent, -1);
-  }
-
-
-  void assertArt(String coll, String auid,
-		 String url, String expContent, int expVer)
-      throws IOException {
-    Artifact art = repository.getArtifact(coll, auid, url);
-    assertNotNull(art, "Artifact not found: " + url);
-    assertEquals(expContent.length(), art.getContentLength());
-
-    try {
-      ArtifactData artData = repository.getArtifactData(art);
-      assertInputStreamMatchesString(expContent, artData.getInputStream());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    
-  }
-
-  private ArtifactData createArtifact(String collection, String auid,
-				      String url, String content) {
-
-    ArtifactIdentifier id =
-      new ArtifactIdentifier(collection, auid, url, null);
-
-    HttpHeaders metadata = new HttpHeaders();
-    metadata.set("key1", "val1");
-    metadata.set("key2", "val2");
-    metadata.set("key3", "val3");
-
-    BasicStatusLine statusLine =
-      new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
-
-    return new ArtifactData(id, metadata,
-			    stringInputStream(content), statusLine);
   }
 
 }

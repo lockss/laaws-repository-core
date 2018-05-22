@@ -182,7 +182,11 @@ public class BaseLockssRepository implements LockssRepository {
         if ((collection == null) || (artifactId == null))
             throw new IllegalArgumentException("Null collection id or artifact id");
 
-        store.deleteArtifactData(index.getArtifact(artifactId));
+	Artifact artifact = index.getArtifact(artifactId);
+        if ((artifact == null))
+	  throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+
+        store.deleteArtifactData(artifact);
         index.deleteArtifact(artifactId);
     }
 
@@ -212,6 +216,8 @@ public class BaseLockssRepository implements LockssRepository {
         if ((collectionId == null) || (artifactId == null))
             throw new IllegalArgumentException("Null collection id or artifact id");
         Artifact artifact = index.getArtifact(artifactId);
+        if ((artifact == null))
+	  throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
         return artifact.getCommitted();
     }
 
