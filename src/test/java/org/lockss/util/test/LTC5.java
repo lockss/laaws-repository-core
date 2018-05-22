@@ -42,6 +42,7 @@ import java.util.stream.Stream;
 import javax.xml.namespace.NamespaceContext;
 
 import org.apache.commons.io.*;
+import org.apache.commons.lang3.*;
 import org.apache.commons.logging.*;
 
 import org.hamcrest.*;
@@ -88,26 +89,77 @@ public class LTC5 extends LockssTestCase5 {
     return th;
   }
 
-  public void assertSameBytes(InputStream expected,
-                                     InputStream actual,
-				     String message)
-      throws IOException {
-    if (!IOUtils.contentEquals(expected, actual)) {
-      if (message == null) {
-        fail("Bytes not same");
-      }
-      else {
-        fail(message);
-      }
+  /** Read a byte, fail with a detailed message if an IOException is throw */
+  int paranoidRead(InputStream in, String streamName, long cnt, long expLen,
+		   String message) {
+    try {
+      return in.read();
+    } catch (IOException e) {
+      fail( ( buildPrefix(message) + "after " + cnt + " bytes" +
+	      (expLen >= 0 ? " of " + expLen : "") +
+	      ", " + streamName + " stream threw " + e.toString()),
+	    e);
+      // compiler doesn't know fail() doesn't return
+      throw new IllegalStateException("can't happen");
     }
+  }
+
+  public void assertSameBytes(InputStream expected,
+			      InputStream actual,
+			      long expLen) {
+    assertSameBytes(expected, actual, expLen, null);
   }
   
   public void assertSameBytes(InputStream expected,
-			      InputStream actual)
-      throws IOException {
+			      InputStream actual) {
     assertSameBytes(expected, actual, null);
   }
   
+  public void assertSameBytes(InputStream expected,
+			      InputStream actual,
+			      String message) {
+    assertSameBytes(expected, actual, -1, message);
+  }
+
+  public void assertSameBytes(InputStream expected,
+			      InputStream actual,
+			      long expLen,
+			      String message) {
+    if (expected == actual) {
+      throw new IllegalArgumentException("assertSameBytes() called with same stream for both expected and actual.");
+    }
+    if (!(expected instanceof BufferedInputStream)) {
+      expected = new BufferedInputStream(expected);
+    }
+    if (!(actual instanceof BufferedInputStream)) {
+      actual = new BufferedInputStream(actual);
+    }
+    long cnt = 0;
+    int ch = paranoidRead(expected, "expected", cnt, expLen, message);
+    while (-1 != ch) {
+      int ch2 = paranoidRead(actual, "actual", cnt, expLen, message);
+      if (-1 == ch2) {
+	fail(buildPrefix(message) + "actual stream ran out early, at byte position " + cnt);
+      }
+      assertEquals(ch, ch2,
+		   buildPrefix(message) + "at byte position " + cnt);
+      cnt++;
+      ch = paranoidRead(expected, "expected", cnt, expLen, message);
+    }
+
+    int ch2 = paranoidRead(actual, "actual", cnt, expLen, message);
+    if (-1 != ch2) {
+      fail(buildPrefix(message) + "expected stream ran out early, at byte position " + cnt);
+    }
+    if (expLen >= 0) {
+      assertEquals(expLen, cnt, "Both streams were wrong length");
+    }
+  }
+  
+  static String buildPrefix(String message) {
+    return (StringUtils.isNotBlank(message) ? message + " ==> " : "");
+  }
+
   public void assertSameCharacters(Reader expected,
 				   Reader actual,
 				   String message)
