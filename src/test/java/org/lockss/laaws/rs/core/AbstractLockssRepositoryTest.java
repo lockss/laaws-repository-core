@@ -74,52 +74,52 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   private final static Log log =
     LogFactory.getLog(AbstractLockssRepositoryTest.class);
 
-  static int MAX_RANDOM_FILE = 50000;
-  static int MAX_INCR_FILE = 20000;
-//   static int MAX_RANDOM_FILE = 4000;
-//   static int MAX_INCR_FILE = 4000;
+  protected static int MAX_RANDOM_FILE = 50000;
+  protected static int MAX_INCR_FILE = 20000;
+//   protected static int MAX_RANDOM_FILE = 4000;
+//   protected static int MAX_INCR_FILE = 4000;
 
   // TEST DATA
 
   // Commonly used artifact identifiers and contents
-  static String COLL1 = "coll1";
-  static String COLL2 = "coll2";
-  static String AUID1 = "auid1";
-  static String AUID2 = "auid2";
-  static String ARTID1 = "art_id_1";
+  protected static String COLL1 = "coll1";
+  protected static String COLL2 = "coll2";
+  protected static String AUID1 = "auid1";
+  protected static String AUID2 = "auid2";
+  protected static String ARTID1 = "art_id_1";
 
-  static String URL1 = "http://host1.com/path";
-  static String URL2 = "http://host2.com/file1";
-  static String URL3 = "http://host2.com/file2";
-  static String PREFIX1 = "http://host2.com/";
+  protected static String URL1 = "http://host1.com/path";
+  protected static String URL2 = "http://host2.com/file1";
+  protected static String URL3 = "http://host2.com/file2";
+  protected static String PREFIX1 = "http://host2.com/";
 
-  static String CONTENT1 = "content string 1";
+  protected static String CONTENT1 = "content string 1";
 
-  static HttpHeaders HEADERS1 = new HttpHeaders();
+  protected static HttpHeaders HEADERS1 = new HttpHeaders();
   static {
     HEADERS1.set("key1", "val1");
     HEADERS1.set("key2", "val2");
   }
 
-  private static StatusLine STATUS_LINE_OK =
+  protected static StatusLine STATUS_LINE_OK =
     new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
-  private static StatusLine STATUS_LINE_MOVED =
+  protected static StatusLine STATUS_LINE_MOVED =
     new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 301, "Moved");
 
   // Identifiers expected not to exist in the repository
-  static String NO_COLL= "no_coll";
-  static String NO_AUID = "no_auid";
-  static String NO_URL = "no_url";
-  static String NO_ARTID = "not an artifact ID";
+  protected static String NO_COLL= "no_coll";
+  protected static String NO_AUID = "no_auid";
+  protected static String NO_URL = "no_url";
+  protected static String NO_ARTID = "not an artifact ID";
 
   // Sets of coll, au, url.  Last one in each differs only in case from
   // previous, to check case-sensitivity
-  static String[] COLLS = {COLL1, COLL2, "Coll2"};
-  static String[] AUIDS = {AUID1, AUID2, "Auid2"};
-  static String[] URLS = {URL1, URL2, URL2.toUpperCase()};
+  protected static String[] COLLS = {COLL1, COLL2, "Coll2"};
+  protected static String[] AUIDS = {AUID1, AUID2, "Auid2"};
+  protected static String[] URLS = {URL1, URL2, URL2.toUpperCase()};
 
   // Definition of variants to run
-  enum StdVariants {
+  protected enum StdVariants {
     empty, commit1, uncommit1, url3, url3unc, disjoint, grid3x3x3,
   }
 
@@ -1156,7 +1156,9 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
 
   Artifact commit(ArtSpec spec, Artifact art) throws IOException {
     String artId = art.getId();
+    log.info("committing: " + art);
     Artifact commArt = repository.commitArtifact(spec.getCollection(), artId);
+    assertNotNull(commArt);
     if (spec.getExpVer() > 0) {
       assertEquals(spec.getExpVer(), (int)commArt.getVersion());
     }
@@ -1166,7 +1168,6 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
       highestCommittedVerSpec.put(spec.artButVerKey(), spec);
     }
-    assertNotNull(commArt);
     assertTrue(repository.isArtifactCommitted(spec.getCollection(),
 					      commArt.getId()));
     assertTrue(commArt.getCommitted());
@@ -1183,7 +1184,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   }
 
   // These should all cause addArtifact to throw NPE 
-  ArtifactData[] nullPointerArtData = {
+  protected ArtifactData[] nullPointerArtData = {
     new ArtifactData(null, null, null),
     new ArtifactData(null, null, STATUS_LINE_OK), 
     new ArtifactData(null, stringInputStream(""), null),
@@ -1194,7 +1195,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   };    
 
   // These describe artifacts that getArtifact() should never find
-  ArtSpec[] neverFoundArtSpecs = {
+  protected ArtSpec[] neverFoundArtSpecs = {
     ArtSpec.forCollAuUrl(NO_COLL, AUID1, URL1),
     ArtSpec.forCollAuUrl(COLL1, NO_AUID, URL1),
     ArtSpec.forCollAuUrl(COLL1, AUID1, NO_URL),
@@ -1202,7 +1203,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
 
   /** Return list of ArtSpecs that shouldn't be found in the current
    * repository */
-  List<ArtSpec> notFoundArtSpecs() {
+  protected List<ArtSpec> notFoundArtSpecs() {
     List<ArtSpec> res = new ArrayList<ArtSpec>();
     // Always include some that should never be found
     Collections.addAll(res, neverFoundArtSpecs);
@@ -1256,7 +1257,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
 
   // All the info needed to create and store an Artifact, or to compare
   // with a retrieved Artifact
-  static class ArtSpec implements Comparable {
+  public static class ArtSpec implements Comparable {
     // Identifying fields used in lookups
     String coll = COLL1;
     String auid = AUID1;
@@ -1278,7 +1279,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     boolean isCommitted = false;
     String artId;
     
-    ArtSpec copy() {
+    public ArtSpec copy() {
       return new ArtSpec().forCollAuUrl(coll, auid, url)
 	.setStatusLine(getStatusLine())
 	.setHeaders(new HashMap<String,String>(getHeaders()))
@@ -1286,123 +1287,123 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
 	.setContentLength(len);
     }
 
-    static ArtSpec forCollAuUrl(String coll, String auid, String url) {
+    public static ArtSpec forCollAuUrl(String coll, String auid, String url) {
       return new ArtSpec()
 	.setCollection(coll)
 	.setAuid(auid)
 	.setUrl(url);
     }
 
-    static ArtSpec forCollAuUrlVer(String coll, String auid,
+    public static ArtSpec forCollAuUrlVer(String coll, String auid,
 				   String url, int version) {
       return ArtSpec.forCollAuUrl(coll, auid, url).setVersion(version);
     }
 
-    ArtSpec setUrl(String url) {
+    public ArtSpec setUrl(String url) {
       this.url = url;
       return this;
     }
     
-    ArtSpec setExpVer(int ver) {
+    public ArtSpec setExpVer(int ver) {
       this.expVer = ver;
       return this;
     }
     
-    ArtSpec setCollection(String coll) {
+    public ArtSpec setCollection(String coll) {
       this.coll = coll;
       return this;
     }
     
-    ArtSpec setAuid(String auid) {
+    public ArtSpec setAuid(String auid) {
       this.auid = auid;
       return this;
     }
     
-    ArtSpec setContent(String content) {
+    public ArtSpec setContent(String content) {
       this.content = content;
       return this;
     }
     
-    ArtSpec setVersion(int version) {
+    public ArtSpec setVersion(int version) {
       this.fixedVer = version;
       return this;
     }
     
-    ArtSpec setArtifactId(String id) {
+    public ArtSpec setArtifactId(String id) {
       this.artId = id;
       return this;
     }
     
-    ArtSpec setContentLength(long len) {
+    public ArtSpec setContentLength(long len) {
       this.len = len;
       return this;
     }
     
-    ArtSpec setHeaders(Map headers) {
+    public ArtSpec setHeaders(Map headers) {
       this.headers = headers;
       return this;
     }
 
-    ArtSpec setStatusLine(StatusLine statLine) {
+    public ArtSpec setStatusLine(StatusLine statLine) {
       this.statLine = statLine;
       return this;
     }
 
-    ArtSpec toCommit(boolean toCommit) {
+    public ArtSpec toCommit(boolean toCommit) {
       this.toCommit = toCommit;
       return this;
     }
 
-    boolean isDoCommit() {
+    public boolean isDoCommit() {
       return toCommit;
     }
 
-    ArtSpec setCommitted(boolean committed) {
+    public ArtSpec setCommitted(boolean committed) {
       this.isCommitted = committed;
       return this;
     }
 
-    boolean isCommitted() {
+    public boolean isCommitted() {
       return isCommitted;
     }
 
-    String getUrl() {
+    public String getUrl() {
       return url;
     }
     
-    String getCollection() {
+    public String getCollection() {
       return coll;
     }
     
-    String getAuid() {
+    public String getAuid() {
       return auid;
     }
     
-    int getVersion() {
+    public int getVersion() {
       return fixedVer;
     }
     
-    boolean hasVersion() {
+    public boolean hasVersion() {
       return fixedVer >= 0;
     }
     
-    int getExpVer() {
+    public int getExpVer() {
       return expVer;
     }
     
-    String getArtifactId() {
+    public String getArtifactId() {
       return artId;
     }
     
-    boolean hasContent() {
+    public boolean hasContent() {
       return content != null || iStream != null;
     }
 
-    String getContent() {
+    public String getContent() {
       return content;
     }
     
-    long getContentLength() {
+    public long getContentLength() {
       if (len >= 0) {
 	return len;
       } else if (content != null) {
@@ -1412,28 +1413,28 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
       }
     }
     
-    Map getHeaders() {
+    public Map getHeaders() {
       return headers;
     }
 
-    StatusLine getStatusLine() {
+    public StatusLine getStatusLine() {
       return statLine;
     }
 
-    HttpHeaders getMetdata() {
+    public HttpHeaders getMetdata() {
       return RepoUtil.httpHeadersFromMap(headers);
-    }      
+    }
 
-    ArtifactIdentifier getArtifactIdentifier() {
+    public ArtifactIdentifier getArtifactIdentifier() {
       return new ArtifactIdentifier(coll, auid, url, -1);
     }
 
-    ArtifactData getArtifactData() {
+    public ArtifactData getArtifactData() {
       return new ArtifactData(getArtifactIdentifier(), getMetdata(),
 			      getInputStream(), getStatusLine());
     }
 
-    InputStream getInputStream() {
+    public InputStream getInputStream() {
       if (content != null) {
 	return IOUtils.toInputStream(content);
       }
