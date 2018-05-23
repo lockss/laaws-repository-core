@@ -49,6 +49,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
@@ -209,6 +210,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection id or artifact id");
         ResponseEntity<Resource> response = restTemplate.exchange(
                 artifactEndpoint(collection, artifactId),
                 HttpMethod.GET,
@@ -222,6 +225,10 @@ public class RestLockssRepository implements LockssRepository {
           return ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
         }
     
+        if (status.equals(HttpStatus.NOT_FOUND)) {
+	  // XXX Some analogous cases throw
+	  return null;
+	}
         String errMsg = String.format("Could not get artifact data; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
         log.error(errMsg);
         throw new IOException(errMsg);
@@ -278,7 +285,7 @@ public class RestLockssRepository implements LockssRepository {
     @Override
     public void deleteArtifact(String collection, String artifactId) throws IOException {
         if ((collection == null) || (artifactId == null))
-            throw new IllegalArgumentException("Null collection ID or artifact ID");
+            throw new IllegalArgumentException("Null collection id or artifact id");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -295,6 +302,9 @@ public class RestLockssRepository implements LockssRepository {
           return;
         }
 
+        if (status.equals(HttpStatus.NOT_FOUND)) {
+	  throw new IllegalArgumentException("Non-existent artifact id: " + artifactId + ": " + status.toString());
+	}
         String errMsg = String.format("Could not remove artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
         log.error(errMsg);
         throw new IOException(errMsg);
@@ -338,6 +348,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Boolean artifactExists(String collection, String artifactId) {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection id or artifact id");
         if (StringUtils.isEmpty(artifactId)) {
             throw new IllegalArgumentException("Null or empty identifier");
         }
@@ -367,16 +379,24 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Boolean isArtifactCommitted(String collection, String artifactId) {
+        if ((collection == null) || (artifactId == null))
+            throw new IllegalArgumentException("Null collection id or artifact id");
         if (StringUtils.isEmpty(artifactId)) {
             throw new IllegalArgumentException("Null or empty identifier");
         }
 
-        ResponseEntity<Resource> response = restTemplate.exchange(
-            artifactEndpoint(collection, artifactId),
-            HttpMethod.HEAD,
-            null,
-            Resource.class);
-
+	ResponseEntity<Resource> response;
+	try {
+	  response =
+	    restTemplate.exchange(artifactEndpoint(collection, artifactId),
+				  HttpMethod.HEAD,
+				  null,
+				  Resource.class);
+	} catch (ResourceAccessException e) {
+	  // XXX documenting exception that gets thrown for 404 response
+	  log.warn("isArtifactCommitted", e);
+	  throw new IllegalArgumentException("Non-existent artifact id: " + artifactId, e);
+	}
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
@@ -443,6 +463,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Iterable<String> getAuIds(String collection) throws IOException {
+        if ((collection == null))
+            throw new IllegalArgumentException("Null collection id");
         String endpoint = String.format("%s/collections/%s/aus", repositoryUrl, collection);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
@@ -514,6 +536,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Iterable<Artifact> getAllArtifacts(String collection, String auid) {
+        if ((collection == null) || (auid == null))
+            throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -533,6 +557,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+        if ((collection == null) || (auid == null))
+            throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -556,6 +582,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) {
+        if ((collection == null) || (auid == null) || (prefix == null))
+            throw new IllegalArgumentException("Null collection id, au id or prefix");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -579,6 +607,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+        if ((collection == null) || (auid == null) || (prefix == null))
+            throw new IllegalArgumentException("Null collection id, au id or prefix");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -602,6 +632,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+        if ((collection == null) || (auid == null) || (url == null))
+            throw new IllegalArgumentException("Null collection id, au id or url");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -625,6 +657,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+        if ((collection == null) || (auid == null) || (url == null))
+            throw new IllegalArgumentException("Null collection id, au id or url");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -684,6 +718,9 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
+        if ((collection == null) || (auid == null) ||
+	    (url == null) || version == null)
+            throw new IllegalArgumentException("Null collection id, au id, url or version");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -737,6 +774,8 @@ public class RestLockssRepository implements LockssRepository {
      */
     @Override
     public Long auSize(String collection, String auid) {
+        if ((collection == null) || (auid == null))
+            throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/size", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
