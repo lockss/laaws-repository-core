@@ -701,6 +701,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+        q.addFilterQuery("{!collapse field=uri max=version}");
         q.setGetFieldStatistics(true);
         q.setGetFieldStatistics("contentLength");
         q.setRows(0);
