@@ -672,7 +672,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> headers, MediaType mimeType, byte[] content) {
         WARCRecordInfo record = new WARCRecordInfo();
 
-        record.setRecordId(generateRecordId());
+        record.setRecordId(URI.create(UUID.randomUUID().toString()));
         record.setType(WARCRecordType.warcinfo);
         record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
         record.setContentLength(content == null ? 0 : (long)content.length);
