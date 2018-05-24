@@ -375,7 +375,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     public String getSealedWarcName(String collection, String auid) {
       String auidHash = DigestUtils.md5Hex(auid);
       String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(FMT_TIMESTAMP);
-      return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + WARC_FILE_EXTENSION;
+      return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + AU_ARTIFACTS_WARC_NAME;
     }
     
     public String getAuArtifactsWarcPath(String collection, String auid) throws IOException {

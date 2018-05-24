@@ -111,7 +111,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String warcName = store.getSealedWarcName("coll1", "auid1");
     assertThat(warcName, startsWith("coll1_au-" + DigestUtils.md5Hex("auid1") + "_"));
     assertThat(warcName, endsWith(".warc"));
-    String timestamp = warcName.split("_")[2].split(".warc")[0];
+    String timestamp = warcName.split("_")[2].split("artifacts.warc")[0];
     // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
     ZonedDateTime actual = ZonedDateTime.parse(timestamp, new DateTimeFormatterBuilder().appendPattern("yyyyMMddHHmmss").appendValue(ChronoField.MILLI_OF_SECOND, 3).toFormatter().withZone(ZoneId.of("UTC")));
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of("UTC"));
@@ -256,6 +256,86 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
 
         if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
+          fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testRebuildIndexSealed() throws Exception {
+    // Instances of artifact index to populate and compare
+    ArtifactIndex index3 = new VolatileArtifactIndex();
+    ArtifactIndex index4 = new VolatileArtifactIndex();
+
+    //// Create and populate first index by adding new artifacts to a repository
+    LockssRepository repository = new BaseLockssRepository(index3, store);
+
+    // The WARC records for the two artifacts here end up being 586 bytes each.
+    store.setThresholdWarcSize(1024L);
+
+    // HTTP status (200 OK) for use volatile ArtifactData's we'll add to the repository
+    StatusLine status200 = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
+
+    // Create an artifact and add it to the data store
+    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+    org.apache.commons.io.output.ByteArrayOutputStream baos1 = new org.apache.commons.io.output.ByteArrayOutputStream(150);
+    for (int i = 0 ; i < 150 ; ++i) {
+      baos1.write('a');
+    }
+    ArtifactData dat1 = new ArtifactData(ident1, null, baos1.toInputStream(), status200);
+    Artifact art1 = store.addArtifactData(dat1);
+    baos1.close(); // to satisfy static analyzers
+
+    // Register the artifact in the index
+    index3.indexArtifact(dat1);
+    repository.commitArtifact(art1);
+
+    // Add another artifact to the store - this will add another 586 bytes while should trigger a seal
+    ArtifactIdentifier ident2 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u2", 1);
+    org.apache.commons.io.output.ByteArrayOutputStream baos2 = new ByteArrayOutputStream(150);
+    for (int i = 0 ; i < 150 ; ++i) {
+      baos2.write('b');
+    }
+    ArtifactData dat2 = new ArtifactData(ident2, null, baos2.toInputStream(), status200);
+    Artifact art2 = store.addArtifactData(dat2);
+    baos2.close(); // to satisfy static analyzers
+
+    // Register the second artifact in the index
+    index3.indexArtifact(dat2);
+    repository.commitArtifact(art2);
+
+    // Populate second index by rebuilding
+    store.rebuildIndex(index4);
+
+    //// Compare indexes
+
+    // Compare collections IDs
+    List<String> cids3 = IteratorUtils.toList(index3.getCollectionIds().iterator());
+    List<String> cids4 = IteratorUtils.toList(index4.getCollectionIds().iterator());
+    if (!(cids3.containsAll(cids4) && cids4.containsAll(cids3))) {
+      fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+    }
+
+    // Iterate over the collection IDs
+    for (String cid : cids3) {
+      // Compare the set of AUIDs
+      List<String> auids3 = IteratorUtils.toList(index3.getAuIds(cid).iterator());
+      List<String> auids4 = IteratorUtils.toList(index4.getAuIds(cid).iterator());
+      if (!(auids3.containsAll(auids4) && auids4.containsAll(auids3))) {
+        fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
+      }
+
+      // Iterate over AUIDs
+      for (String auid : auids3) {
+        List<Artifact> artifacts3 = IteratorUtils.toList(index3.getAllArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts4 = IteratorUtils.toList(index4.getAllArtifacts(cid, auid, true).iterator());
+
+        // Debugging
+        artifacts3.forEach(artifact -> log.info(String.format("Artifact from artifact1: %s", artifact)));
+        artifacts4.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
+
+        if (!(artifacts3.containsAll(artifacts4) && artifacts4.containsAll(artifacts3))) {
           fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
         }
       }
