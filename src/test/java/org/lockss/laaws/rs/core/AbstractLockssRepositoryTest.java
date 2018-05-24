@@ -74,10 +74,17 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   private final static Log log =
     LogFactory.getLog(AbstractLockssRepositoryTest.class);
 
+  static boolean AVOID_STREAM_CLOSED_BUG = false;
+
   protected static int MAX_RANDOM_FILE = 50000;
   protected static int MAX_INCR_FILE = 20000;
-//   protected static int MAX_RANDOM_FILE = 4000;
-//   protected static int MAX_INCR_FILE = 4000;
+  static {
+    if (AVOID_STREAM_CLOSED_BUG) {
+      // avoid Stream Closed bug by staying under 4096
+      MAX_RANDOM_FILE = 4000;
+      MAX_INCR_FILE = 4000;
+    }
+  }
 
   // TEST DATA
 
@@ -331,7 +338,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
 		 "Null or non-existent name shouldn't be found: " + spec);
     }
 
-    // Ensure that a no-version retrieval gets the expects highest version
+    // Ensure that a no-version retrieval gets the expected highest version
     for (ArtSpec highSpec : highestCommittedVerSpec.values()) {
       log.info("highSpec: " + highSpec);
       assertData(highSpec, repository.getArtifact(highSpec.getCollection(),
@@ -481,12 +488,11 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     // non-existent AU
     assertEquals(0, (long)repository.auSize(COLL1, NO_AUID));
 
-    // XXXBUG auSize
     // Calculate the expected size of each AU in each collection, compare
     // with auSize()
     for (String coll : addedCollections()) {
       for (String auid : addedAuids()) {
-	long expSize = committedSpecStream()
+	long expSize = highestCommittedVerSpec.values().stream()
 	  .filter(s -> s.getAuid().equals(auid))
 	  .filter(s -> s.getCollection().equals(coll))
 	  .mapToLong(ArtSpec::getContentLength)
@@ -541,46 +547,84 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     // Delete non-existent artifact
     // XXXAPI
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Non-existent artifact id: " + AUID1,
-		      () -> {repository.deleteArtifact(NO_COLL, AUID1);});
+		      "Non-existent artifact id: " + NO_ARTID,
+		      () -> {repository.deleteArtifact(NO_COLL, NO_ARTID);});
 
-    // XXXBUG auSize
-    // Delete a committed artifact, it should disappear and size should change
-    ArtSpec spec = anyCommittedSpec();
-    if (spec != null) {
-      long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
-      long artsize = spec.getContentLength();
-      assertTrue(repository.artifactExists(spec.getCollection(),
-					   spec.getArtifactId()));
-      assertNotNull(getArtifact(repository, spec));
-      log.info("Deleting: " + spec);
-      repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
-      assertFalse(repository.artifactExists(spec.getCollection(),
-					    spec.getArtifactId()));
-      assertNull(getArtifact(repository, spec));
-      assertEquals(totsize - artsize,
-		   (long)repository.auSize(spec.getCollection(),
-					   spec.getAuid()));
+    {
+      // Delete a committed artifact that isn't the highest version. it
+      // should disappear but size shouldn't change
+      ArtSpec spec = committedSpecStream()
+	.filter(s -> s != highestCommittedVerSpec.get(s.artButVerKey()))
+	.findAny().orElse(null);
+      if (spec != null) {
+	long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
+	assertTrue(repository.artifactExists(spec.getCollection(),
+					     spec.getArtifactId()));
+	assertNotNull(getArtifact(repository, spec));
+	log.info("Deleting not highest: " + spec);
+	repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
+	assertFalse(repository.artifactExists(spec.getCollection(),
+					      spec.getArtifactId()));
+	assertNull(getArtifact(repository, spec));
+	delFromAll(spec);
+	assertEquals(totsize,
+		     (long)repository.auSize(spec.getCollection(),
+					     spec.getAuid()),
+		     "AU size changed after deleting non-highest version");
+      }
+    }
+    {
+      // Delete a highest-version committed artifact, it should disappear and
+      // size should change
+      ArtSpec spec = highestCommittedVerSpec.values().stream()
+	.findAny().orElse(null);
+      if (spec != null) {
+	long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
+	long artsize = spec.getContentLength();
+	assertTrue(repository.artifactExists(spec.getCollection(),
+					     spec.getArtifactId()));
+	assertNotNull(getArtifact(repository, spec));
+	log.info("Deleting highest: " + spec);
+	repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
+	assertFalse(repository.artifactExists(spec.getCollection(),
+					      spec.getArtifactId()));
+	assertNull(getArtifact(repository, spec));
+	delFromAll(spec);
+	ArtSpec newHigh = highestCommittedVerSpec.get(spec.artButVerKey());
+	long exp = totsize - artsize;
+	if (newHigh != null) {
+	  exp += newHigh.getContentLength();
+	}
+	assertEquals(exp,
+		     (long)repository.auSize(spec.getCollection(),
+					     spec.getAuid()),
+		     variant + ": AU size wrong after deleting highest version");
+	log.info(variant +
+		 ": AU size right after deleting highest version was: "
+		 + totsize + " now " + exp);
+      }
+    }
     // Delete an uncommitted artifact, it should disappear and size should
     // not change
+    {
+      ArtSpec uspec = anyUncommittedSpec();
+      if (uspec != null) {
+	long totsize =
+	  repository.auSize(uspec.getCollection(), uspec.getAuid());
+	assertTrue(repository.artifactExists(uspec.getCollection(),
+					     uspec.getArtifactId()));
+	assertNull(getArtifact(repository, uspec));
+	log.info("Deleting uncommitted: " + uspec);
+	repository.deleteArtifact(uspec.getCollection(), uspec.getArtifactId());
+	assertFalse(repository.artifactExists(uspec.getCollection(),
+					      uspec.getArtifactId()));
+	assertNull(getArtifact(repository, uspec));
+	assertEquals(totsize,
+		     (long)repository.auSize(uspec.getCollection(),
+					     uspec.getAuid()),
+		     "AU size changed after deleting uncommitted");
+      }
     }
-    ArtSpec uspec = anyUncommittedSpec();
-    if (uspec != null) {
-      long totsize = repository.auSize(uspec.getCollection(), uspec.getAuid());
-      long artsize = uspec.getContentLength();
-      assertTrue(repository.artifactExists(uspec.getCollection(),
-					   uspec.getArtifactId()));
-      assertNull(getArtifact(repository, uspec));
-      log.info("Deleting: " + uspec);
-      repository.deleteArtifact(uspec.getCollection(), uspec.getArtifactId());
-      assertFalse(repository.artifactExists(uspec.getCollection(),
-					    uspec.getArtifactId()));
-      assertNull(getArtifact(repository, uspec));
-      assertEquals(totsize,
-		   (long)repository.auSize(uspec.getCollection(),
-					   uspec.getAuid()));
-    }
-
     // TK Delete committed & uncommitted arts & check results each time
     // delete twice
     // check getAuIds() & getCollectionIds() as they run out
@@ -1076,6 +1120,32 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
     }
   }
     
+  // Return the highest version ArtSpec with same ArtButVer
+  ArtSpec highestVer(ArtSpec likeSpec, Stream<ArtSpec> stream) {
+    return stream
+      .filter(spec -> spec.sameArtButVer(likeSpec))
+      .max(Comparator.comparingInt(ArtSpec::getVersion))
+      .orElse(null);
+  }
+
+
+  // Delete ArtSpec from record of what we've added to the repository,
+  // adjust highest version maps accordingly
+  void delFromAll(ArtSpec spec) {
+    addedSpecs.remove(spec);
+    String key = spec.artButVerKey();
+    if (highestVerSpec.get(key) == spec) {
+      ArtSpec newHigh = highestVer(spec, addedSpecStream());
+      log.info("newHigh: " + newHigh);
+      highestVerSpec.put(key, newHigh);
+    }
+    if (highestCommittedVerSpec.get(key) == spec) {
+      ArtSpec newCommHigh = highestVer(spec, committedSpecStream());
+      log.info("newCommHigh: " + newCommHigh);
+      highestCommittedVerSpec.put(key, newCommHigh);
+    }
+  }
+
   Artifact getArtifact(LockssRepository repository, ArtSpec spec)
       throws IOException {
     log.info(String.format("getArtifact(%s, %s, %s)",
