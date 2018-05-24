@@ -564,16 +564,22 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         dfos.close();
 
         // Set the length of the artifact data
-        artifactData.setContentLength(cis.getByteCount());
+        long contentLength = cis.getByteCount();
+        if (log.isDebugEnabled()) log.debug("contentLength = " + contentLength);
+        artifactData.setContentLength(contentLength);
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_CONTENT_LENGTH_KEY,
+            String.valueOf(contentLength));
 
         cis.close();
 
         // Set content digest of artifact data
-        artifactData.setContentDigest(String.format(
-                "%s:%s",
-                dis.getMessageDigest().getAlgorithm(),
-                new String(Hex.encodeHex(dis.getMessageDigest().digest()))
-        ));
+        String contentDigest = String.format("%s:%s",
+            dis.getMessageDigest().getAlgorithm(),
+            new String(Hex.encodeHex(dis.getMessageDigest().digest())));
+        if (log.isDebugEnabled()) log.debug("contentDigest = " + contentDigest);
+        artifactData.setContentDigest(contentDigest);
+        record.addExtraHeader(ArtifactConstants.ARTIFACTID_DIGEST_KEY,
+            contentDigest);
 
         // Attach WARC record payload and set the payload length
         record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfosFile));

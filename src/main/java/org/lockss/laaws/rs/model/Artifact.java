@@ -258,8 +258,9 @@ public class Artifact implements Serializable {
         if (this.getIdentifier().equals(other.getIdentifier())
                 && storageUrl.equalsIgnoreCase(other.getStorageUrl())
                 && committed.equals(other.getCommitted())
-//                && getContentLength() == other.getContentLength()
-//                && getContentDigest().equals(other.getContentDigest()
+                && getContentLength() == other.getContentLength()
+                && ((contentDigest == null && other.getContentDigest() == null)
+                    || contentDigest.equals(other.getContentDigest()))
         ) {
             return true;
         }
