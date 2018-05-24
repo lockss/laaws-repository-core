@@ -506,8 +506,10 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         q.filterByCollection(collection);
         q.filterByAuid(auid);
 
-        Map<String, Optional<Artifact>> result = index.values().stream().filter(q.build()).collect(
-                Collectors.groupingBy(Artifact::getUri, Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
+        Map<String, Optional<Artifact>> result = index.values().stream()
+	  .filter(q.build())
+	  .collect(Collectors.groupingBy(Artifact::getUri,
+					 Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
         );
 
         return result.values().stream()
