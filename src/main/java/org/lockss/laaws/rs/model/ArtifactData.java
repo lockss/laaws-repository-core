@@ -78,7 +78,10 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * @param httpStatus
      *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
      */
-    public ArtifactData(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
+    public ArtifactData(ArtifactIdentifier identifier,
+                        HttpHeaders artifactMetadata,
+                        InputStream inputStream,
+                        StatusLine httpStatus) {
         this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
     }
 
@@ -98,7 +101,12 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * @param repoMetadata
      *          A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
      */
-    public ArtifactData(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, String storageUrl, RepositoryArtifactMetadata repoMetadata) {
+    public ArtifactData(ArtifactIdentifier identifier,
+                        HttpHeaders artifactMetadata,
+                        InputStream inputStream,
+                        StatusLine httpStatus,
+                        String storageUrl,
+                        RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
         this.artifactMetadata = artifactMetadata;
         this.artifactStream = inputStream;
@@ -222,5 +230,14 @@ public class ArtifactData implements Comparable<ArtifactData> {
 
     public void setContentLength(long contentLength) {
         this.contentLength = contentLength;
+    }
+
+    @Override
+    public String toString() {
+        return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
+            + artifactMetadata + ", httpStatus=" + httpStatus
+            + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
+            + storageUrl + ", contentDigest=" + contentDigest
+            + ", contentLength=" + contentLength + "]";
     }
 }

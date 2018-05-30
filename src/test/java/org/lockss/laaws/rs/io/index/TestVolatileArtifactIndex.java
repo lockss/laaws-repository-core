@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -381,7 +381,7 @@ public class TestVolatileArtifactIndex extends LockssTestCase5 {
   }
 
   @Test
-  public void testGetArtifactsInAU() {
+  public void testGetCommittedArtifactsInAU() throws IOException {
     assertFalse(index.getAllArtifactsAllVersions(null, null).iterator().hasNext());
     assertFalse(index.getAllArtifactsAllVersions("coll1", null).iterator().hasNext());
     assertFalse(index.getAllArtifactsAllVersions("coll1", "auid1").iterator().hasNext());
@@ -415,6 +415,52 @@ public class TestVolatileArtifactIndex extends LockssTestCase5 {
     assertEquals(uuid.toString(), aid.getId());
     assertEquals("coll2", aid.getCollection());
     assertEquals("auid2", aid.getAuid());
+  }
+
+  @Test
+  public void testGetArtifactsInAU() throws IOException {
+    assertFalse(index.getAllArtifactsAllVersions(null, null, true).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll1", null, true).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll1", "auid1", true).iterator().hasNext());
+
+    index.indexArtifact(artifact1);
+    assertTrue(index.getAllArtifactsAllVersions("coll1", "auid1", true).iterator().hasNext());
+    Iterator<Artifact> iter = index.getAllArtifactsAllVersions("coll1", "auid1", true).iterator();
+    assertTrue(iter.hasNext());
+    Artifact aid = iter.next();
+    assertEquals("id1", aid.getId());
+    assertEquals("coll1", aid.getCollection());
+    assertEquals("auid1", aid.getAuid());
+
+    index.commitArtifact("id1");
+
+    iter = index.getAllArtifactsAllVersions("coll1", "auid1", true).iterator();
+    assertTrue(iter.hasNext());
+    Artifact aid2 = iter.next();
+    assertEquals(aid, aid2);
+
+    assertFalse(index.getAllArtifactsAllVersions("coll2", null, true).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1", true).iterator().hasNext());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid2", true).iterator().hasNext());
+
+    index.indexArtifact(artifact2);
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1", true).iterator().hasNext());
+    assertTrue(index.getAllArtifactsAllVersions("coll2", "auid2", true).iterator().hasNext());
+
+    iter = index.getAllArtifactsAllVersions("coll2", "auid2", true).iterator();
+    assertTrue(iter.hasNext());
+    aid = iter.next();
+    assertEquals(uuid.toString(), aid.getId());
+    assertEquals("coll2", aid.getCollection());
+    assertEquals("auid2", aid.getAuid());
+
+    index.commitArtifact(uuid.toString());
+    assertFalse(index.getAllArtifactsAllVersions("coll2", "auid1", true).iterator().hasNext());
+
+    iter = index.getAllArtifactsAllVersions("coll2", "auid2", true).iterator();
+    assertTrue(iter.hasNext());
+    aid2 = iter.next();
+    assertEquals(aid, aid2);
   }
 
   @Test

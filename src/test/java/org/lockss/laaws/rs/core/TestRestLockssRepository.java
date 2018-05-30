@@ -890,7 +890,8 @@ public class TestRestLockssRepository extends LockssTestCase5 {
         Long result = repository.auSize("collection1", "auid1");
         mockServer.verify();
 
-        assertNull(result);
+        assertNotNull(result);
+        assertEquals(0, result.longValue());
     }
 
     @Test
@@ -941,6 +942,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
         Long result = repository.auSize("collection1", "auid1");
         mockServer.verify();
 
-        assertNull(result);
+        assertNotNull(result);
+        assertEquals(0, result.longValue());
     }
 }

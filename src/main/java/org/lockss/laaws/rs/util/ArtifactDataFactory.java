@@ -343,6 +343,20 @@ public class ArtifactDataFactory {
             // Parse the ArchiveRecord into an artifact and return it
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(record);
             artifact.setIdentifier(artifactId);
+
+            String warcBlockContentLength = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_CONTENT_LENGTH_KEY);
+            if (log.isDebugEnabled()) log.debug("warcBlockContentLength = " + warcBlockContentLength);
+            if (warcBlockContentLength != null && !warcBlockContentLength.trim().isEmpty()) {
+                artifact.setContentLength(Long.parseLong(warcBlockContentLength));
+            }
+
+            String warcBlockDigest = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_DIGEST_KEY);
+            if (log.isDebugEnabled()) log.debug("warcBlockDigest = " + warcBlockDigest);
+            if (warcBlockDigest != null && !warcBlockDigest.trim().isEmpty()) {
+                artifact.setContentDigest(warcBlockDigest);
+            }
+
+            if (log.isDebugEnabled()) log.debug("artifact = " + artifact);
             return artifact;
 
         } else if (recordType.equals(RESOURCE_TYPE)) {

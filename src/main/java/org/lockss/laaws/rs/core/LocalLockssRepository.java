@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,27 +30,33 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
+import java.io.*;
 
-import java.io.File;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.index.LocalArtifactIndex;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 
 /**
  * Local filesystem implementation of the LOCKSS Repository API that uses a volatile artifact index.
  */
 public class LocalLockssRepository extends BaseLockssRepository {
+  private final static Log log = LogFactory.getLog(LocalLockssRepository.class);
 
     /**
-     * Constructor the takes a base path and uses a volatile artifact index implementation. It automatically invokes a
-     * rebuild of the index from the local filesystem base path.
+     * Constructor the takes a base path and uses a volatile artifact artifactIndex implementation. It automatically invokes a
+     * rebuild of the artifactIndex from the local filesystem base path.
      *
      * @param basePath
      *          A {@code File} containing the base path of this LOCKSS repository.
+     * @param persistedIndexName
+     *          A String with the name of the file where to persist the index.
      */
-    public LocalLockssRepository(File basePath) {
-        super(new VolatileArtifactIndex(), new LocalWarcArtifactDataStore(basePath));
-        ((LocalWarcArtifactDataStore)store).rebuildIndex(index);
+    public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
+        super(new LocalArtifactIndex(basePath, persistedIndexName), new LocalWarcArtifactDataStore(basePath));
+        log.info("basePath = " + basePath);
+        log.info("persistedIndexName = " + persistedIndexName);
     }
 
     /**
@@ -61,7 +67,7 @@ public class LocalLockssRepository extends BaseLockssRepository {
      * @param index
      *          An {@code ArtifactIndex} to use as this repository's artifact index.
      */
-    public LocalLockssRepository(File basePath, ArtifactIndex index) {
+    public LocalLockssRepository(File basePath, ArtifactIndex index) throws IOException {
         super(index, new LocalWarcArtifactDataStore(basePath));
     }
 }

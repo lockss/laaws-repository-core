@@ -30,10 +30,10 @@
 
 package org.lockss.laaws.rs.io.storage;
 
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 
 /**
  * ArtifactData storage interface.
@@ -60,7 +60,7 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          if the given {@link ArtifactData} instance is null
      * @throws IOException
      */
-    Artifact addArtifactData(ArtifactData artifactData) throws IOException;
+    Artifact addArtifactData(AD artifactData) throws IOException;
 
     /**
      * Retrieves an artifact from this artifact data store.
@@ -113,5 +113,6 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          if the given {@link Artifact} instance is null
      */
     MD deleteArtifactData(Artifact artifact) throws IOException;
-
+    
+    void setArtifactIndex(ArtifactIndex artifactIndex);
 }

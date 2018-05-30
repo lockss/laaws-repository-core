@@ -56,7 +56,8 @@ public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
         repoBaseDir = makeTempDir();
-        return new LocalLockssRepository(repoBaseDir);
+        String noPersistenceFile = null;
+        return new LocalLockssRepository(repoBaseDir, noPersistenceFile);
     }
 
     /**

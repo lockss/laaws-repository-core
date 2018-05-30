@@ -342,12 +342,20 @@ public class RestLockssRepository implements LockssRepository {
             throw new IllegalArgumentException("Null or empty identifier");
         }
 
-        HttpStatus status = restTemplate.exchange(
-              artifactEndpoint(collection, artifactId),
-              HttpMethod.HEAD,
-              null,
-              Resource.class).getStatusCode();
-        return status.is2xxSuccessful();
+        try {
+            ResponseEntity<Resource> response = restTemplate.exchange(
+        	artifactEndpoint(collection, artifactId),
+        	HttpMethod.HEAD,
+        	null,
+        	Resource.class);
+
+            HttpStatus status = response.getStatusCode();
+
+            return status.is2xxSuccessful();
+        } catch (Exception e) {
+        }
+
+        return false;
     }
 
     /**
@@ -439,22 +447,23 @@ public class RestLockssRepository implements LockssRepository {
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-        ResponseEntity<List<String>> response = restTemplate.exchange(
+        try {
+          ResponseEntity<List<String>> response = restTemplate.exchange(
                     builder.build().encode().toUri(),
                     HttpMethod.GET,
                     null,
                     new ParameterizedTypeReference<List<String>>() {
                     }
-            );
+              );
 
-        HttpStatus status = response.getStatusCode();
+          HttpStatus status = response.getStatusCode();
 
-        if (status.is2xxSuccessful()) {
-          return IteratorUtils.asIterable(response.getBody().iterator());
+          if (status.is2xxSuccessful()) {
+            return IteratorUtils.asIterable(response.getBody().iterator());
+          }
+        } catch (Exception e) {
         }
 
-        String errMsg = String.format("Could not get AU IDs; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
-        log.error(errMsg);
         return (Iterable<String>)new ArrayList<String>();
     }
 
@@ -733,23 +742,22 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("version", "all");
 
-        ResponseEntity<Long> response = restTemplate.exchange(
-                    builder.build().encode().toUri(),
+        try {
+            ResponseEntity<Long> response = restTemplate.exchange(
+        	    builder.build().encode().toUri(),
                     HttpMethod.GET,
                     null,
                     Long.class
-            );
+        	);
 
-        HttpStatus status = response.getStatusCode();
+            HttpStatus status = response.getStatusCode();
 
-        if (status.is2xxSuccessful()) {
-          return response.getBody();
-        } else if (status.value() == 404) {
-          return new Long(0);
+            if (status.is2xxSuccessful()) {
+              return response.getBody();
+            }
+        } catch (Exception e) {
         }
 
-        String errMsg = String.format("Could not determine AU size; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
-        log.error(errMsg);
-        return null;
+        return new Long(0);
     }
 }
