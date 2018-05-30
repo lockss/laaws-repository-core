@@ -40,6 +40,8 @@ import java.util.*;
 import java.util.regex.*;
 import java.util.stream.Collectors;
 
+import javax.jms.JMSException;
+import javax.jms.Message;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.*;
@@ -59,6 +61,8 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
+
+import org.assertj.core.api.Assertions;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -91,6 +95,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected static final String CRLF = "\r\n";
     protected static byte[] CRLF_BYTES;
     protected static String SEPARATOR = "/";
+    protected static String CLIENT_ID = "ArtifactDataStore";
+    protected static String BROKER_URI = "";
+    protected static String JMS_TOPIC ="AuEventTopic";
 
     protected static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
@@ -103,7 +110,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected long thresholdWarcSize;
 
     protected Pattern fileAndOffsetStorageUrlPat;
-    
+
+    protected JmsConsumer jmsConsumer;
     static {
         try {
             CRLF_BYTES = CRLF.getBytes(DEFAULT_ENCODING);
@@ -115,13 +123,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected WarcArtifactDataStore() {
       // nothing
       this.thresholdWarcSize = DEFAULT_THRESHOLD_WARC_SIZE;
+
+      try {
+        jmsConsumer= JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC).setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
+      }
+      catch (JMSException e) {
+        log.error("Creating a JMS Consumer failed - JMS messaging not available.");
+      }
     }
     
     public WarcArtifactDataStore(String basePath) {
       this();
       this.basePath = basePath;
     }
-    
+
+  public JmsConsumer getJmsConsumer() { return jmsConsumer;}
   public String getBasePath() {
     return basePath;
   }
@@ -426,7 +442,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     public abstract void createFileIfNeeded(String filePath) throws IOException;
     
     public abstract void renameFile(String srcPath, String dstPath) throws IOException;
-    
+
     /**
      * Returns the WARC-Record-Id of the WARC record backing a given ArtifactData.
      *
@@ -891,4 +907,47 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             }
         }
     }
+
+  public static final String KEY_AUID = "auid";
+  public static final String KEY_TYPE = "type";
+  public static final String CONTENT_CHANGED = "ContentChanged";
+  public static final String KEY_REPO_SPEC = "repository_spec";
+  static Pattern REPO_SPEC_PATTERN =
+      Pattern.compile("([^:]+):([^:]+)(?::(.*$))?");
+
+  private class DataStoreCrawlListener extends JmsConsumer.SubscriptionListener {
+
+    DataStoreCrawlListener(String listenerName) {
+      super(listenerName);
+    }
+
+    @Override
+    public void onMessage(Message message) {
+
+      try {
+        Map<String, Object> msgMap  = (Map<String, Object>)JmsConsumer.convertMessage(message);
+        String auId = (String)msgMap.get(KEY_AUID);
+        String event = (String)msgMap.get(KEY_TYPE);
+        String repospec = (String)msgMap.get(KEY_REPO_SPEC);
+        if(auId != null && repospec != null && CONTENT_CHANGED.equals(event)) {
+          Matcher m1 = REPO_SPEC_PATTERN.matcher(repospec);
+          if(m1.matches()) {
+            String collection = m1.group(2);
+            if(collection != null) {
+              try {
+                String ignorePath = sealWarc(collection, auId);
+              }
+              catch (IOException e) {
+                log.error("JmsConsumer: Unable to seal warc for collection " + collection+ " and au " + auId);
+              }
+            }
+          }
+        }
+      }
+      catch (JMSException e) {
+        log.error("Unable to understand crawl listener jms message.");
+      }
+    }
+  }
+
 }
