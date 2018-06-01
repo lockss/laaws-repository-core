@@ -62,22 +62,28 @@ import java.util.regex.Pattern;
 public class LTC5 extends LockssTestCase5 {
   private final static Log log = LogFactory.getLog(LTC5.class);
 
+  /** Assert that Iterable has no elements */
   public void assertEmpty(Iterable iter) {
     assertNotNull(iter);
     assertFalse(iter.iterator().hasNext());
   }
 
+  /** Assert that Iterator has no elements */
   public void assertEmpty(Iterator iter) {
     assertNotNull(iter);
     assertFalse(iter.hasNext());
   }
 
+  /** Assert that the Executable throws an instnace of the expected class,
+   * and that the Throwable's message matches the expect pattern. */
   public <T extends Throwable> T assertThrowsMatch(Class<T> expectedType,
 						   String pattern,
 						   Executable executable) {
     return assertThrowsMatch(expectedType, pattern, executable, null);
   }
 
+  /** Assert that the Executable throws an instnace of the expected class,
+   * and that the Throwable's message matches the expect pattern. */
   public <T extends Throwable> T assertThrowsMatch(Class<T> expectedType,
 						   String pattern,
 						   Executable executable,
@@ -89,7 +95,8 @@ public class LTC5 extends LockssTestCase5 {
     return th;
   }
 
-  /** Read a byte, fail with a detailed message if an IOException is throw */
+  /** Read a byte, fail with a detailed message if an IOException is
+   * thrown. */
   int paranoidRead(InputStream in, String streamName, long cnt, long expLen,
 		   String message) {
     try {
@@ -104,23 +111,39 @@ public class LTC5 extends LockssTestCase5 {
     }
   }
 
+  /** Assert that the two InputStreams return the same sequence of bytes,
+   * of the expected length.  Displays a detailed message if a mistmatch is
+   * found, one stream runs out before the other, the length doesn't match
+   * or an IOException is thrown while reading. */
   public void assertSameBytes(InputStream expected,
 			      InputStream actual,
 			      long expLen) {
     assertSameBytes(expected, actual, expLen, null);
   }
   
+  /** Assert that the two InputStreams return the same sequence of bytes.
+   * Displays a detailed message if a mistmatch is found, one stream runs
+   * out before the other, the length doesn't match or an IOException is
+   * thrown while reading. */
   public void assertSameBytes(InputStream expected,
 			      InputStream actual) {
     assertSameBytes(expected, actual, null);
   }
   
+  /** Assert that the two InputStreams return the same sequence of bytes.
+   * Displays a detailed message if a mistmatch is found, one stream runs
+   * out before the other, the length doesn't match or an IOException is
+   * thrown while reading. */
   public void assertSameBytes(InputStream expected,
 			      InputStream actual,
 			      String message) {
     assertSameBytes(expected, actual, -1, message);
   }
 
+  /** Assert that the two InputStreams return the same sequence of bytes,
+   * of the expected length.  Displays a detailed message if a mistmatch is
+   * found, one stream runs out before the other, the length doesn't match
+   * or an IOException is thrown while reading. */
   public void assertSameBytes(InputStream expected,
 			      InputStream actual,
 			      long expLen,
@@ -128,6 +151,7 @@ public class LTC5 extends LockssTestCase5 {
     if (expected == actual) {
       throw new IllegalArgumentException("assertSameBytes() called with same stream for both expected and actual.");
     }
+    // XXX This could obscure the byte count at which an error occurs
     if (!(expected instanceof BufferedInputStream)) {
       expected = new BufferedInputStream(expected);
     }
@@ -139,7 +163,8 @@ public class LTC5 extends LockssTestCase5 {
     while (-1 != ch) {
       int ch2 = paranoidRead(actual, "actual", cnt, expLen, message);
       if (-1 == ch2) {
-	fail(buildPrefix(message) + "actual stream ran out early, at byte position " + cnt);
+	fail(buildPrefix(message) +
+	     "actual stream ran out early, at byte position " + cnt);
       }
       assertEquals(ch, ch2,
 		   buildPrefix(message) + "at byte position " + cnt);
@@ -149,7 +174,8 @@ public class LTC5 extends LockssTestCase5 {
 
     int ch2 = paranoidRead(actual, "actual", cnt, expLen, message);
     if (-1 != ch2) {
-      fail(buildPrefix(message) + "expected stream ran out early, at byte position " + cnt);
+      fail(buildPrefix(message) +
+	   "expected stream ran out early, at byte position " + cnt);
     }
     if (expLen >= 0) {
       assertEquals(expLen, cnt, "Both streams were wrong length");
@@ -174,6 +200,8 @@ public class LTC5 extends LockssTestCase5 {
     }
   }
   
+  /** Assert that the two Readers return the same sequence of
+   * characters */
   public void assertSameCharacters(Reader expected,
 				   Reader actual)
       throws IOException {
@@ -184,7 +212,7 @@ public class LTC5 extends LockssTestCase5 {
    * Asserts that a string matches the content of an InputStream
    */
   public void assertInputStreamMatchesString(String expected,
-						    InputStream in)
+					     InputStream in)
       throws IOException {
     assertInputStreamMatchesString(expected, in, "UTF-8");
   }
@@ -193,8 +221,8 @@ public class LTC5 extends LockssTestCase5 {
    * Asserts that a string matches the content of an InputStream
    */
   public void assertInputStreamMatchesString(String expected,
-						    InputStream in,
-						    String encoding)
+					     InputStream in,
+					     String encoding)
       throws IOException {
     Reader rdr = new InputStreamReader(in, encoding);
     assertReaderMatchesString(expected, rdr);
@@ -205,8 +233,8 @@ public class LTC5 extends LockssTestCase5 {
    * specified buffer size.
    */
   public void assertInputStreamMatchesString(String expected,
-						    InputStream in,
-						    int bufsize)
+					     InputStream in,
+					     int bufsize)
       throws IOException {
     Reader rdr = new InputStreamReader(in, "UTF-8");
     assertReaderMatchesString(expected, rdr, bufsize);
@@ -216,10 +244,10 @@ public class LTC5 extends LockssTestCase5 {
    * Asserts that a string matches the content of a reader
    */
   public void assertReaderMatchesString(String expected, Reader reader)
-      throws IOException{
+      throws IOException {
     int len = Math.max(1, expected.length() * 2);
     char[] ca = new char[len];
-    StringBuffer actual = new StringBuffer(expected.length());
+    StringBuilder actual = new StringBuilder(expected.length());
 
     int n;
     while ((n = reader.read(ca)) != -1) {
@@ -236,7 +264,7 @@ public class LTC5 extends LockssTestCase5 {
 					       int bufsize)
       throws IOException {
     char[] ca = new char[bufsize];
-    StringBuffer actual = new StringBuffer(expected.length());
+    StringBuilder actual = new StringBuilder(expected.length());
 
     int n;
     while ((n = reader.read(ca)) != -1) {
@@ -248,6 +276,10 @@ public class LTC5 extends LockssTestCase5 {
 
 
 
+  // Copied from hamcrest 2.0
+  /** Regexp matcher to use with assertThat.  Pattern must match entire
+   * input string.  <i>Eg</i>, <code>assertThat("reason", "abc123",
+   * MatchPattern.matchPattern("a.*23"))</code> */
   public static class MatchesPattern extends TypeSafeMatcher<String> {
     private final Pattern pattern;
 
@@ -283,6 +315,9 @@ public class LTC5 extends LockssTestCase5 {
   }
 
 
+  /** Regexp matcher to use with assertThat.  Succeeds if pattern matches
+   * anywhere within input string.  <i>Eg</i>, <code>assertThat("reason",
+   * "abc123", FindPattern.findPattern("c12"))</code> */
   public static class FindPattern extends TypeSafeMatcher<String> {
     private final Pattern pattern;
 
@@ -318,22 +353,27 @@ public class LTC5 extends LockssTestCase5 {
   }
 
 
+  /** Log the start of each test class */
   @BeforeAll
   public static void logTestClass(TestInfo info) {
     log.info("Start test class: " + info.getDisplayName());
   }
 
+  /** Log the end of each test class */
   @AfterAll
   public static void logTestClassEnd(TestInfo info) {
     log.info("End test class: " + info.getDisplayName());
   }
 
+  /** Log each test method */
   @BeforeEach
   public void logTest(TestInfo info) {
 //     Optional meth = info.getTestMethod();
     log.info("Testcase: " + info.getDisplayName());
   }
 
+  /** Called by the &#64;VariantTest mechanism to set up the named
+   * variant */
   protected void setUpVariant(String vName) {
   }
 
