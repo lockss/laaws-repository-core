@@ -24,7 +24,7 @@ class VariantTestInvocationContext implements TestTemplateInvocationContext {
   public List<Extension> getAdditionalExtensions() {
     return Collections.singletonList(new BeforeEachCallback() {
 	@Override
-	public void beforeEach​(ExtensionContext context) {
+	public void beforeEach(ExtensionContext context) {
 // 	  log.info("beforeEach: " + context);
 // 	  log.info("testInstance: " + context.getTestInstance());
 	  Optional optInst = context.getTestInstance();
