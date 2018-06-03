@@ -78,7 +78,7 @@ public abstract class AbstractLockssRepositoryTest extends LTC5 {
   private final static Log log =
     LogFactory.getLog(AbstractLockssRepositoryTest.class);
 
-  static boolean AVOID_STREAM_CLOSED_BUG = true;
+  static boolean AVOID_STREAM_CLOSED_BUG = false;
 
   protected static int MAX_RANDOM_FILE = 50000;
   protected static int MAX_INCR_FILE = 20000;
