@@ -39,7 +39,7 @@ import java.io.IOException;
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
  */
-public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
+public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTest {
     private final static Log log = LogFactory.getLog(TestLocalLockssRepository.class);
 
     // The local repository root directory.
@@ -56,8 +56,7 @@ public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
         repoBaseDir = makeTempDir();
-        String noPersistenceFile = null;
-        return new LocalLockssRepository(repoBaseDir, (String)null);
+        return new LocalLockssRepository(repoBaseDir, "persist.ser");
     }
 
     /**

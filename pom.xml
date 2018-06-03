@@ -189,12 +189,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     </dependency>
  
     <!-- LOCKSS daemon -->
-    <dependency>
-      <groupId>org.lockss.laaws</groupId>
-      <artifactId>lockss-core</artifactId>
-      <version>${lockss.core.version}</version>
-      <scope>test</scope>
-    </dependency>
+<!--     <dependency> -->
+<!--       <groupId>org.lockss.laaws</groupId> -->
+<!--       <artifactId>lockss-core</artifactId> -->
+<!--       <version>${lockss.core.version}</version> -->
+<!--       <scope>test</scope> -->
+<!--     </dependency> -->
     <dependency>
       <groupId>org.lockss.laaws</groupId>
       <artifactId>lockss-core</artifactId>
@@ -253,6 +253,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <groupId>com.nurkiewicz.asyncretry</groupId>
       <artifactId>asyncretry</artifactId>
       <version>0.0.7</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.junit.platform/junit-platform-console-standalone -->
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-console-standalone</artifactId>
+      <version>1.2.0</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
