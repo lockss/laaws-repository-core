@@ -75,7 +75,7 @@ public class LTC5 extends LockssTestCase5 {
   }
 
   /** Assert that the Executable throws an instnace of the expected class,
-   * and that the Throwable's message matches the expect pattern. */
+   * and that the expected pattern is found in the Throwable's message . */
   public <T extends Throwable> T assertThrowsMatch(Class<T> expectedType,
 						   String pattern,
 						   Executable executable) {
@@ -83,7 +83,7 @@ public class LTC5 extends LockssTestCase5 {
   }
 
   /** Assert that the Executable throws an instnace of the expected class,
-   * and that the Throwable's message matches the expect pattern. */
+   * and that the expected pattern is found in the Throwable's message . */
   public <T extends Throwable> T assertThrowsMatch(Class<T> expectedType,
 						   String pattern,
 						   Executable executable,
@@ -91,7 +91,6 @@ public class LTC5 extends LockssTestCase5 {
     T th = assertThrows(expectedType, executable, message);
     assertThat(message,
 	       th.getMessage(), FindPattern.findPattern(pattern));
-    //     assertThat(th.getMessage(), equals(pattern));
     return th;
   }
 
@@ -166,9 +165,9 @@ public class LTC5 extends LockssTestCase5 {
 	fail(buildPrefix(message) +
 	     "actual stream ran out early, at byte position " + cnt);
       }
+      cnt++;
       assertEquals(ch, ch2,
 		   buildPrefix(message) + "at byte position " + cnt);
-      cnt++;
       ch = paranoidRead(expected, "expected", cnt, expLen, message);
     }
 
@@ -188,26 +187,75 @@ public class LTC5 extends LockssTestCase5 {
 
   public void assertSameCharacters(Reader expected,
 				   Reader actual,
-				   String message)
-      throws IOException {
-    if (!IOUtils.contentEquals(expected, actual)) {
-      if (message == null) {
-        fail("Characters not same");
-      }
-      else {
-        fail(message);
-      }
-    }
+				   String message) {
+    assertSameCharacters(expected, actual, -1, message);
   }
   
   /** Assert that the two Readers return the same sequence of
    * characters */
   public void assertSameCharacters(Reader expected,
-				   Reader actual)
-      throws IOException {
+				   Reader actual) {
     assertSameCharacters(expected, actual, null);
   }
   
+  /** Read a byte, fail with a detailed message if an IOException is
+   * thrown. */
+  int paranoidReadChar(Reader in, String streamName, long cnt, long expLen,
+		       String message) {
+    try {
+      return in.read();
+    } catch (IOException e) {
+      fail( ( buildPrefix(message) + "after " + cnt + " chars" +
+	      (expLen >= 0 ? " of " + expLen : "") +
+	      ", " + streamName + " stream threw " + e.toString()),
+	    e);
+      // compiler doesn't know fail() doesn't return
+      throw new IllegalStateException("can't happen");
+    }
+  }
+
+  /** Assert that the two Readers return the same sequence of characters,
+   * of the expected length.  Displays a detailed message if a mistmatch is
+   * found, one stream runs out before the other, the length doesn't match
+   * or an IOException is thrown while reading. */
+  public void assertSameCharacters(Reader expected,
+				   Reader actual,
+				   long expLen,
+				   String message) {
+    if (expected == actual) {
+      throw new IllegalArgumentException("assertSameBytes() called with same reader for both expected and actual.");
+    }
+    // XXX This could obscure the char count at which an error occurs
+    if (!(expected instanceof BufferedReader)) {
+      expected = new BufferedReader(expected);
+    }
+    if (!(actual instanceof BufferedReader)) {
+      actual = new BufferedReader(actual);
+    }
+    long cnt = 0;
+    int ch = paranoidReadChar(expected, "expected", cnt, expLen, message);
+    while (-1 != ch) {
+      int ch2 = paranoidReadChar(actual, "actual", cnt, expLen, message);
+      if (-1 == ch2) {
+	fail(buildPrefix(message) +
+	     "actual stream ran out early, at char position " + cnt);
+      }
+      cnt++;
+      assertEquals((char)ch, (char)ch2,
+		   buildPrefix(message) + "at char position " + cnt);
+      ch = paranoidReadChar(expected, "expected", cnt, expLen, message);
+    }
+
+    int ch2 = paranoidReadChar(actual, "actual", cnt, expLen, message);
+    if (-1 != ch2) {
+      fail(buildPrefix(message) +
+	   "expected stream ran out early, at char position " + cnt);
+    }
+    if (expLen >= 0) {
+      assertEquals(expLen, cnt, "Both streams were wrong length");
+    }
+  }
+
   /**
    * Asserts that a string matches the content of an InputStream
    */
@@ -276,10 +324,10 @@ public class LTC5 extends LockssTestCase5 {
 
 
 
-  // Copied from hamcrest 2.0
   /** Regexp matcher to use with assertThat.  Pattern must match entire
    * input string.  <i>Eg</i>, <code>assertThat("reason", "abc123",
    * MatchPattern.matchPattern("a.*23"))</code> */
+  // XXX Copied from hamcrest 2.0.  If we upgrade, this can be removed
   public static class MatchesPattern extends TypeSafeMatcher<String> {
     private final Pattern pattern;
 
@@ -318,6 +366,8 @@ public class LTC5 extends LockssTestCase5 {
   /** Regexp matcher to use with assertThat.  Succeeds if pattern matches
    * anywhere within input string.  <i>Eg</i>, <code>assertThat("reason",
    * "abc123", FindPattern.findPattern("c12"))</code> */
+  // Modification of MatchPattern to allow substring match.  Likely still
+  // needed even if upgrade to hamcrest 2.0
   public static class FindPattern extends TypeSafeMatcher<String> {
     private final Pattern pattern;
 
