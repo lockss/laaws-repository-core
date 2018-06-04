@@ -34,29 +34,23 @@ package org.lockss.laaws.rs.core;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.*;
-import java.util.function.*;
 
-import org.apache.commons.io.*;
-import org.apache.commons.lang3.*;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.commons.collections4.*;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.commons.lang3.tuple.*;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.IteratorUtils;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.StatusLine;
+import org.apache.commons.logging.*;
+import org.apache.http.*;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.provider.*;
-import org.springframework.http.HttpHeaders;
-
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-
+import org.junit.jupiter.params.provider.EnumSource;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.util.test.*;
+import org.springframework.http.HttpHeaders;
 
 
 
@@ -69,7 +63,7 @@ import org.lockss.util.test.*;
 // - test persistence (shut down repo, recreate)
 
 /** Test harness for LockssRepository implementations */
-public abstract class AbstractLockssRepositoryTest extends LTC5 {
+public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   /** Concrete subclasses must implement to create an instance of the
    * appropriate repository type */
