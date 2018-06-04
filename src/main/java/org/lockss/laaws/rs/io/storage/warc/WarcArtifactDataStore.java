@@ -55,14 +55,12 @@ import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.*;
-import org.archive.util.ArchiveUtils;
 import org.archive.util.anvl.Element;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
 
-import org.assertj.core.api.Assertions;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -540,35 +538,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
         DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifactData", null, new File("/tmp"));
 
-        // Wrap the artifact content stream in a CountingInputStream
-        CountingInputStream cis = new CountingInputStream(artifactData.getInputStream());
-
-        // Will hold a DigestInputStream to comptue the artifact data shortly
-        DigestInputStream dis = null;
-
-        try {
-            // Wrap the stream in a DigestInputStream
-            dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
-        } catch (NoSuchAlgorithmException e) {
-            String errMsg = String.format(
-                    "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
-            );
-
-            log.error(errMsg);
-            // Clean up resources.
-            cis.close();
-            dfos.close();
-            throw new RuntimeException(errMsg);
-        }
-
         // Create a HTTP response stream from the ArtifactData
         InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
-                ArtifactDataUtil.getHttpResponseFromArtifact(
-                        artifactData.getIdentifier(),
-                        artifactData.getHttpStatus(),
-                        artifactData.getMetadata(),
-                        dis
-                )
+                ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
         );
 
         IOUtils.copy(httpResponse, dfos);
@@ -580,18 +552,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         dfos.close();
 
         // Set the length of the artifact data
-        long contentLength = cis.getByteCount();
+        long contentLength = artifactData.getBytesRead();
         if (log.isDebugEnabled()) log.debug("contentLength = " + contentLength);
         artifactData.setContentLength(contentLength);
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_CONTENT_LENGTH_KEY,
             String.valueOf(contentLength));
 
-        cis.close();
-
         // Set content digest of artifact data
         String contentDigest = String.format("%s:%s",
-            dis.getMessageDigest().getAlgorithm(),
-            new String(Hex.encodeHex(dis.getMessageDigest().digest())));
+            artifactData.getMessageDigest().getAlgorithm(),
+            new String(Hex.encodeHex(artifactData.getMessageDigest().digest())));
         if (log.isDebugEnabled()) log.debug("contentDigest = " + contentDigest);
         artifactData.setContentDigest(contentDigest);
         record.addExtraHeader(ArtifactConstants.ARTIFACTID_DIGEST_KEY,

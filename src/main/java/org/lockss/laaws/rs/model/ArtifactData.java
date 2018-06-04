@@ -30,26 +30,43 @@
 
 package org.lockss.laaws.rs.model;
 
+import org.apache.commons.io.input.CountingInputStream;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.StatusLine;
 import org.springframework.http.HttpHeaders;
 
 import java.io.*;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Objects;
 
 /**
  * An {@code ArtifactData} serves as an atomic unit of data archived in the LOCKSS Repository.
  */
 public class ArtifactData implements Comparable<ArtifactData> {
+    private final static Log log = LogFactory.getLog(ArtifactData.class);
+    protected static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
+
     // Core artifact attributes
     private ArtifactIdentifier identifier;
-    private InputStream artifactStream;
 
-    // Metadata
+    // Artifact data stream
+    private InputStream artifactStream;
+    private final CountingInputStream cis;
+    private final DigestInputStream dis;
+
+
+    // Artifact data properties
     private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
     private StatusLine httpStatus;
+    private long contentLength;
+    private String contentDigest;
+
+    // Internal repository metadata
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
-    private String contentDigest;
-    private long contentLength;
 
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
@@ -108,11 +125,25 @@ public class ArtifactData implements Comparable<ArtifactData> {
                         String storageUrl,
                         RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
-        this.artifactMetadata = artifactMetadata;
-        this.artifactStream = inputStream;
         this.httpStatus = httpStatus;
         this.storageUrl = storageUrl;
         this.repositoryMetadata = repoMetadata;
+
+        this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+
+        try {
+            // Wrap the stream in a DigestInputStream
+            cis = new CountingInputStream(inputStream);
+            dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
+            artifactStream = dis;
+        } catch (NoSuchAlgorithmException e) {
+            String errMsg = String.format(
+                    "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
+            );
+
+            log.error(errMsg);
+            throw new RuntimeException(errMsg);
+        }
     }
 
     /**
@@ -237,7 +268,15 @@ public class ArtifactData implements Comparable<ArtifactData> {
         return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
             + artifactMetadata + ", httpStatus=" + httpStatus
             + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
-            + storageUrl + ", contentDigest=" + contentDigest
-            + ", contentLength=" + contentLength + "]";
+            + storageUrl + ", contentDigest=" + getContentDigest()
+            + ", contentLength=" + getContentLength() + "]";
+    }
+
+    public long getBytesRead() {
+        return cis.getByteCount();
+    }
+
+    public MessageDigest getMessageDigest() {
+        return dis.getMessageDigest();
     }
 }
