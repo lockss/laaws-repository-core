@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -171,6 +171,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
                     // Generate an artifact from the HTTP response stream
                     artifactData = ArtifactDataFactory.fromHttpResponseStream(record);
+
+                    // Save the underlying input stream so that it can be closed when needed.
+                    artifactData.setClosableInputStream(warcRecordStream);
 
                     // Set ArtifactData properties
                     artifactData.setIdentifier(artifact.getIdentifier());

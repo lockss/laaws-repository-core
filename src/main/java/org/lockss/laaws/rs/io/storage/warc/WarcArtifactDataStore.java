@@ -251,14 +251,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     String storageUrl = artifact.getStorageUrl();
 
-    ArtifactData artifactData;
-    try (
-      InputStream warcStream = getWarcRecordInputStream(storageUrl);
-    ) {
-      WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0);
-      // Convert the WARCRecord object to an ArtifactData
-      artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord);
-    }
+    InputStream warcStream = getWarcRecordInputStream(storageUrl);
+    WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0);
+    // Convert the WARCRecord object to an ArtifactData
+    ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord);
+
+    // Save the underlying input stream so that it can be closed when needed.
+    artifactData.setClosableInputStream(warcStream);
 
     // Set ArtifactData properties
     artifactData.setIdentifier(artifact.getIdentifier());

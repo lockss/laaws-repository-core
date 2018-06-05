@@ -34,6 +34,8 @@ import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.StatusLine;
+import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.IOUtil;
 import org.springframework.http.HttpHeaders;
 
 import java.io.*;
@@ -57,8 +59,13 @@ public class ArtifactData implements Comparable<ArtifactData> {
     private final CountingInputStream cis;
     private final DigestInputStream dis;
 
+    // The byte stream of this artifact before it is wrapped in the WARC
+    // processing code that does not honor close().
+    private InputStream closableInputStream;
 
     // Artifact data properties
+
+    // Metadata
     private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
     private StatusLine httpStatus;
     private long contentLength;
@@ -125,6 +132,22 @@ public class ArtifactData implements Comparable<ArtifactData> {
                         String storageUrl,
                         RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
+        this.artifactMetadata = artifactMetadata;
+
+        // Wrap the WARC-aware byte stream of this artifact so that the
+        // underlying stream can be closed.
+        this.artifactStream = new CloseCallbackInputStream(
+            inputStream,
+            new CloseCallbackInputStream.Callback() {
+                // Called when the close() method of the stream is closed.
+          	@Override
+          	public void streamClosed(Object o) {
+          	    // Release any resources bound to this object.
+          	    ((ArtifactData)o).release();
+          	}
+            },
+            this);
+
         this.httpStatus = httpStatus;
         this.storageUrl = storageUrl;
         this.repositoryMetadata = repoMetadata;
@@ -261,6 +284,36 @@ public class ArtifactData implements Comparable<ArtifactData> {
 
     public void setContentLength(long contentLength) {
         this.contentLength = contentLength;
+    }
+
+    /**
+     * Returns a closable version of this artifact's byte stream.
+     *
+     * @return an {@code InputStream} with the underlying, closable, byte
+     *         stream.
+     */
+    public InputStream getClosableInputStream() {
+      return closableInputStream;
+    }
+
+    /**
+     * Sets the closable version of this artifact's byte stream.
+     * 
+     * @param closableInputStream
+     *          A {@code InputStream} containing the underlying, closable, byte
+     *          stream.
+     */
+    public void setClosableInputStream(InputStream closableInputStream) {
+      this.closableInputStream = closableInputStream;
+    }
+
+    /**
+     * Releases resources used.
+     */
+    public void release() {
+      IOUtil.safeClose(closableInputStream);
+      artifactStream = null;
+      closableInputStream = null;
     }
 
     @Override
