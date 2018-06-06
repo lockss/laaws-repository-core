@@ -43,7 +43,6 @@ import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.util.FileUtil;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.data.hadoop.config.annotation.builders.HadoopConfigBuilder;
 
