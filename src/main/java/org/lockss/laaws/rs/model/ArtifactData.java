@@ -64,8 +64,6 @@ public class ArtifactData implements Comparable<ArtifactData> {
     private InputStream closableInputStream;
 
     // Artifact data properties
-
-    // Metadata
     private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
     private StatusLine httpStatus;
     private long contentLength;
@@ -132,22 +130,6 @@ public class ArtifactData implements Comparable<ArtifactData> {
                         String storageUrl,
                         RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
-        this.artifactMetadata = artifactMetadata;
-
-        // Wrap the WARC-aware byte stream of this artifact so that the
-        // underlying stream can be closed.
-        this.artifactStream = new CloseCallbackInputStream(
-            inputStream,
-            new CloseCallbackInputStream.Callback() {
-                // Called when the close() method of the stream is closed.
-          	@Override
-          	public void streamClosed(Object o) {
-          	    // Release any resources bound to this object.
-          	    ((ArtifactData)o).release();
-          	}
-            },
-            this);
-
         this.httpStatus = httpStatus;
         this.storageUrl = storageUrl;
         this.repositoryMetadata = repoMetadata;
@@ -158,7 +140,20 @@ public class ArtifactData implements Comparable<ArtifactData> {
             // Wrap the stream in a DigestInputStream
             cis = new CountingInputStream(inputStream);
             dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
-            artifactStream = dis;
+
+            // Wrap the WARC-aware byte stream of this artifact so that the
+            // underlying stream can be closed.
+            artifactStream = new CloseCallbackInputStream(
+                dis,
+                new CloseCallbackInputStream.Callback() {
+                    // Called when the close() method of the stream is closed.
+              	@Override
+              	public void streamClosed(Object o) {
+              	    // Release any resources bound to this object.
+              	    ((ArtifactData)o).release();
+              	}
+                },
+                this);
         } catch (NoSuchAlgorithmException e) {
             String errMsg = String.format(
                     "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
