@@ -104,7 +104,7 @@ public class ArtifactDataUtil {
             });
         }
 
-        response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(artifactData.getContentLength()));
+//        response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(artifactData.getContentLength()));
 
         // Embed artifact identifier into header if set - cannot use reponse.setHeaders() because it will replace the
         // current set of headers entirely
