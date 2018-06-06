@@ -44,7 +44,6 @@ public interface LockssRepository {
   
     /**
      * Adds an artifact to this LOCKSS repository.
-     *
      * @param artifactData
      *          {@code ArtifactData} instance to add to this LOCKSS repository.
      * @return The artifact ID of the newly added artifact.
@@ -54,6 +53,8 @@ public interface LockssRepository {
 
     /**
      * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
      *
      * @param artifact
      *          An artifact to retrieve from this repository.
@@ -66,6 +67,9 @@ public interface LockssRepository {
 
     /**
      * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
+     *
      *
      * @param collection
      *          The collection ID of the artifact.

@@ -384,6 +384,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       ArtifactData ad = repository.getArtifactData(cspec.getCollection(),
 						   cspec.getArtifactId());
       assertData(cspec, ad);
+      // should be in TestArtifactData
+      assertThrowsMatch(IllegalStateException.class,
+			"Can't call getInputStream\\(\\) more than once",
+			() -> ad.getInputStream());
     }
     ArtSpec uspec = anyUncommittedSpec();
     if (uspec != null) {

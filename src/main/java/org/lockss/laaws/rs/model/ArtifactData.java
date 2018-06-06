@@ -45,7 +45,15 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
 
 /**
- * An {@code ArtifactData} serves as an atomic unit of data archived in the LOCKSS Repository.
+ * An {@code ArtifactData} serves as an atomic unit of data archived in the
+ * LOCKSS Repository.
+ * <br>
+ * Reusability and release:<ul>
+ * <li>{@link #getInputStream()} may be called only once.</li>
+ * <li>Once an ArtifactData is obtained, it <b>must</b> be released (by
+ * calling {@link #release()}, whether or not {@link #getInputStream()} has
+ * been called.
+ * </ul>
  */
 public class ArtifactData implements Comparable<ArtifactData> {
     private final static Log log = LogFactory.getLog(ArtifactData.class);
@@ -179,7 +187,12 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * @return An {@code InputStream} containing this artifact's byte stream.
      */
     public InputStream getInputStream() {
-        return artifactStream;
+	if (artifactStream == null) {
+	  throw new IllegalStateException("Can't call getInputStream() more than once");
+	}
+        InputStream res = artifactStream;
+        artifactStream = null;
+        return res;
     }
 
     /**
