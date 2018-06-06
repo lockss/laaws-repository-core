@@ -30,12 +30,12 @@
 
 package org.lockss.laaws.rs.model;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.StatusLine;
 import org.lockss.util.CloseCallbackInputStream;
-import org.lockss.util.IOUtil;
 import org.springframework.http.HttpHeaders;
 
 import java.io.*;
@@ -306,7 +306,7 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * Releases resources used.
      */
     public void release() {
-      IOUtil.safeClose(closableInputStream);
+      IOUtils.closeQuietly(closableInputStream);
       artifactStream = null;
       closableInputStream = null;
     }
