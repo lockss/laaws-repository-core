@@ -131,11 +131,11 @@ public class ArtifactDataFactory {
 
         // Parse the InputStream to a HttpResponse object
         HttpResponse response = (new DefaultHttpResponseParser(buffer)).parse();
-        long len = (new LaxContentLengthStrategy()).determineLength(response);
+//        long len = (new LaxContentLengthStrategy()).determineLength(response);
 
         // Create and attach an HTTP entity to the HttpResponse
         BasicHttpEntity responseEntity = new BasicHttpEntity();
-        responseEntity.setContentLength(len);
+//        responseEntity.setContentLength(len);
         responseEntity.setContent(new IdentityInputStream(buffer));
         response.setEntity(responseEntity);
 
