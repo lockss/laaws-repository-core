@@ -212,6 +212,7 @@ public class RestLockssRepository implements LockssRepository {
     public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
         if ((collection == null) || (artifactId == null))
             throw new IllegalArgumentException("Null collection id or artifact id");
+
         ResponseEntity<Resource> response = restTemplate.exchange(
                 artifactEndpoint(collection, artifactId),
                 HttpMethod.GET,
@@ -222,13 +223,17 @@ public class RestLockssRepository implements LockssRepository {
 
         if (status.is2xxSuccessful()) {
           // TODO: Is this InputStream backed by memory? Or over a threshold, is it backed by disk?
-          return ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
+          ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
+          ad.setContentLength(Long.valueOf(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+          ad.setContentDigest(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+          return ad;
         }
     
         if (status.equals(HttpStatus.NOT_FOUND)) {
-	  // XXX Some analogous cases throw
-	  return null;
-	}
+            // XXX Some analogous cases throw
+            return null;
+        }
+
         String errMsg = String.format("Could not get artifact data; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
         log.error(errMsg);
         throw new IOException(errMsg);
