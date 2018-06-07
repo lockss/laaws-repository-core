@@ -331,16 +331,24 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactData_success() throws Exception {
+        // TODO: Expand the transport response headers tested here
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(321));
+
         mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifactid1", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("HTTP/1.1 200 OK\nContent-Length: 123", MediaType.APPLICATION_JSON));
+                .andRespond(
+                        withSuccess("HTTP/1.1 200 OK\nContent-Length: 123", MediaType.APPLICATION_JSON)
+                        .headers(headers)
+                );
 
         ArtifactData result = repository.getArtifactData("collection1", "artifactid1");
         mockServer.verify();
 
         assertNotNull(result);
-        assertEquals(123, result.getContentLength());
         assertEquals(200, result.getHttpStatus().getStatusCode());
+        assertEquals(321, result.getContentLength());
+        assertEquals(123, result.getMetadata().getContentLength());
     }
 
     @Test
