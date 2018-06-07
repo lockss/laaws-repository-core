@@ -30,12 +30,10 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
-import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.*;
@@ -137,10 +135,10 @@ public class ArtifactDataUtil {
      */
     private static Header[] getArtifactIdentifierHeaders(ArtifactIdentifier id) {
         Collection<Header> headers = new HashSet<>();
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, id.getCollection()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, id.getAuid()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_URI_KEY, id.getUri()));
-        headers.add(new BasicHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, String.valueOf(id.getVersion())));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY, id.getCollection()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACT_AUID_KEY, id.getAuid()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACT_URI_KEY, id.getUri()));
+        headers.add(new BasicHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion())));
 
         return headers.toArray(new Header[headers.size()]);
     }

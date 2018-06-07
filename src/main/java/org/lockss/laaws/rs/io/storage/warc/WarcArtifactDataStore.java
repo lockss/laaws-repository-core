@@ -32,7 +32,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import java.io.*;
 import java.net.*;
-import java.security.*;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.ChronoField;
@@ -45,7 +44,6 @@ import javax.jms.Message;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.*;
-import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.*;
@@ -524,13 +522,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         record.setUrl(artifactId.getUri());
         record.setMimetype("application/http; msgtype=response"); // Content-Type of WARC payload
 
-        // Add LOCKSS-specific WARC headers to record (Note: X-Lockss-ArtifactId and X-Lockss-Uri are redundant because
-        // the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_ID_KEY, artifactId.getId());
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_COLLECTION_KEY, artifactId.getCollection());
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_AUID_KEY, artifactId.getAuid());
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_URI_KEY, artifactId.getUri());
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_VERSION_KEY, String.valueOf(artifactId.getVersion()));
+        // Add LOCKSS-specific WARC headers to record (Note: X-LockssRepo-Artifact-Id and X-LockssRepo-Artifact-Uri are
+        // redundant because the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_ID_KEY, artifactId.getId());
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY, artifactId.getCollection());
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_AUID_KEY, artifactId.getAuid());
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_URI_KEY, artifactId.getUri());
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
         // We're required to pre-compute the WARC payload (which is an artifact encoded as an HTTP response stream) but
         // it is not possible to determine the final size without reading the InputStream entirely, so we use a
@@ -554,7 +552,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         long contentLength = artifactData.getBytesRead();
         if (log.isDebugEnabled()) log.debug("contentLength = " + contentLength);
         artifactData.setContentLength(contentLength);
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_CONTENT_LENGTH_KEY,
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY,
             String.valueOf(contentLength));
 
         // Set content digest of artifact data
@@ -563,7 +561,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             new String(Hex.encodeHex(artifactData.getMessageDigest().digest())));
         if (log.isDebugEnabled()) log.debug("contentDigest = " + contentDigest);
         artifactData.setContentDigest(contentDigest);
-        record.addExtraHeader(ArtifactConstants.ARTIFACTID_DIGEST_KEY,
+        record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY,
             contentDigest);
 
         // Attach WARC record payload and set the payload length

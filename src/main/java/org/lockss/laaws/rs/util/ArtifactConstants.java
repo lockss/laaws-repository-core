@@ -34,15 +34,21 @@ package org.lockss.laaws.rs.util;
  * Class to hold constants related to artifacts.
  */
 public class ArtifactConstants {
-    public static final String ARTIFACTID_ID_KEY = "X-Lockss-ArtifactId";
-    public static final String ARTIFACTID_COLLECTION_KEY = "X-Lockss-Collection";
-    public static final String ARTIFACTID_AUID_KEY = "X-Lockss-AuId";
-    public static final String ARTIFACTID_URI_KEY = "X-Lockss-Uri";
-    public static final String ARTIFACTID_VERSION_KEY = "X-Lockss-Version";
-    public static final String ARTIFACTID_ORIGIN_KEY = "X-Lockss-Origin";
-    public static final String ARTIFACTID_CONTENT_LENGTH_KEY = "WARC-Payload-Length";
-    public static final String ARTIFACTID_DIGEST_KEY = "WARC-Payload-Digest";
+    // Artifact identity
+    public static final String ARTIFACT_ID_KEY = "X-LockssRepo-Artifact-Id";
+    public static final String ARTIFACT_COLLECTION_KEY = "X-LockssRepo-Artifact-Collection";
+    public static final String ARTIFACT_AUID_KEY = "X-LockssRepo-Artifact-AuId";
+    public static final String ARTIFACT_URI_KEY = "X-LockssRepo-Artifact-Uri";
+    public static final String ARTIFACT_VERSION_KEY = "X-LockssRepo-Artifact-Version";
 
-    public static final String ARTIFACT_STATE_COMMITTED = "X-Lockss-Committed";
-    public static final String ARTIFACT_STATE_DELETED = "X-Lockss-Deleted";
+    // Repository state
+    public static final String ARTIFACT_STATE_COMMITTED = "X-LockssRepo-Artifact-Committed";
+    public static final String ARTIFACT_STATE_DELETED = "X-LockssRepo-Artifact-Deleted";
+
+    // Repository
+    public static final String ARTIFACT_LENGTH_KEY = "X-LockssRepo-Artifact-Length";
+    public static final String ARTIFACT_DIGEST_KEY = "X-LockssRepo-Artifact-Digest";
+
+    // Miscellaneous
+    public static final String ARTIFACT_ORIGIN_KEY = "X-LockssRepo-Artifact-Origin";
 }

@@ -34,7 +34,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
-import org.apache.http.impl.entity.LaxContentLengthStrategy;
 import org.apache.http.impl.io.*;
 import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
@@ -179,17 +178,17 @@ public class ArtifactDataFactory {
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
         Integer version = -1;
 
-        String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY);
+        String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACT_VERSION_KEY);
 
         if ((versionHeader != null) && (!versionHeader.isEmpty())) {
             version = Integer.valueOf(versionHeader);
         }
 
         return new ArtifactIdentifier(
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_ID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_AUID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_URI_KEY),
                 version
         );
     }
@@ -204,18 +203,18 @@ public class ArtifactDataFactory {
    private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
         Integer version = -1;
 
-        String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY);
+        String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);
 
         if ((versionHeader != null) && (!versionHeader.isEmpty())) {
             version = Integer.valueOf(versionHeader);
         }
 
         return new ArtifactIdentifier(
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
                 version
         );
@@ -344,16 +343,16 @@ public class ArtifactDataFactory {
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(record);
             artifact.setIdentifier(artifactId);
 
-            String warcBlockContentLength = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_CONTENT_LENGTH_KEY);
-            if (log.isDebugEnabled()) log.debug("warcBlockContentLength = " + warcBlockContentLength);
-            if (warcBlockContentLength != null && !warcBlockContentLength.trim().isEmpty()) {
-                artifact.setContentLength(Long.parseLong(warcBlockContentLength));
+            String artifactContentLength = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
+            if (log.isDebugEnabled()) log.debug("artifactContentLength = " + artifactContentLength);
+            if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
+                artifact.setContentLength(Long.parseLong(artifactContentLength));
             }
 
-            String warcBlockDigest = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_DIGEST_KEY);
-            if (log.isDebugEnabled()) log.debug("warcBlockDigest = " + warcBlockDigest);
-            if (warcBlockDigest != null && !warcBlockDigest.trim().isEmpty()) {
-                artifact.setContentDigest(warcBlockDigest);
+            String artifactDigest = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
+            if (log.isDebugEnabled()) log.debug("artifactDigest = " + artifactDigest);
+            if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
+                artifact.setContentDigest(artifactDigest);
             }
 
             if (log.isDebugEnabled()) log.debug("artifact = " + artifact);
@@ -376,7 +375,7 @@ public class ArtifactDataFactory {
             //));
 
             // Custom header to indicate the origin of this artifact
-            metadata.add(ArtifactConstants.ARTIFACTID_ORIGIN_KEY, "warc");
+            metadata.add(ArtifactConstants.ARTIFACT_ORIGIN_KEY, "warc");
 
             // Parse the ArchiveRecord into an artifact and return it
             return ArtifactDataFactory.fromResourceStream(metadata, record);

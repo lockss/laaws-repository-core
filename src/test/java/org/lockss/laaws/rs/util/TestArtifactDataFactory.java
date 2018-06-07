@@ -71,12 +71,12 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "Connection: keep-alive\n" +
             "ETag: \"595f57cc-76\"\n" +
             "Accept-Ranges: bytes\n" +
-            "X-Lockss-ArtifactId: id1\n" +
-            "X-Lockss-Collection: coll1\n" +
-            "X-Lockss-AuId: auid1\n" +
-            "X-Lockss-Uri: url1\n" +
-            "X-Lockss-Version: 1\n" +
-            "X-Lockss-Origin: warc\n" +
+            "X-LockssRepo-Artifact-Id: id1\n" +
+            "X-LockssRepo-Artifact-Collection: coll1\n" +
+            "X-LockssRepo-Artifact-AuId: auid1\n" +
+            "X-LockssRepo-Artifact-Uri: url1\n" +
+            "X-LockssRepo-Artifact-Version: 1\n" +
+            "X-LockssRepo-Artifact-Origin: warc\n" +
             "\n" +
             ARTIFACT_BYTES;
 
@@ -87,11 +87,11 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "WARC-Type: response\n" +
             "WARC-Target-URI: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
             "Content-Type: application/http; msgtype=response\n" +
-            "X-Lockss-ArtifactId: 74e3b795-c1e6-49ce-8b27-de7e747322b7\n" +
-            "X-Lockss-Collection: demo\n" +
-            "X-Lockss-AuId: testauid\n" +
-            "X-Lockss-Uri: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
-            "X-Lockss-Version: 1" +
+            "X-LockssRepo-Artifact-Id: 74e3b795-c1e6-49ce-8b27-de7e747322b7\n" +
+            "X-LockssRepo-Artifact-Collection: demo\n" +
+            "X-LockssRepo-Artifact-AuId: testauid\n" +
+            "X-LockssRepo-Artifact-Uri: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
+            "X-LockssRepo-Artifact-Version: 1" +
             "\n" +
             ARTIFACT_HTTP_ENCODED;
 
