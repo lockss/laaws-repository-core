@@ -62,7 +62,7 @@ public class ArtifactDataUtil {
      * @throws IOException
      * @throws HttpException
      */
-    public static InputStream getHttpResponseStreamFromArtifact(ArtifactData artifactData) throws IOException, HttpException {
+    public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData) throws IOException, HttpException {
         InputStream httpResponse = getHttpResponseStreamFromHttpResponse(
                 getHttpResponseFromArtifactData(artifactData)
         );

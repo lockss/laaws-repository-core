@@ -157,7 +157,7 @@ public class RestLockssRepository implements LockssRepository {
         try {
             Resource artifactPartResource = new NamedInputStreamResource(
                     "content",
-                    ArtifactDataUtil.getHttpResponseStreamFromArtifact(artifactData)
+                    ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData)
             );
 
             // Add artifact multipart to multiparts list
@@ -222,11 +222,8 @@ public class RestLockssRepository implements LockssRepository {
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
-          // TODO: Is this InputStream backed by memory? Or over a threshold, is it backed by disk?
-          ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getHeaders(), response.getBody().getInputStream());
-          ad.setContentLength(Long.valueOf(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
-          ad.setContentDigest(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
-          return ad;
+          // TODO: Is response.getBody.getInputStream() backed by memory? Or over a threshold, is it backed by disk?
+          return ArtifactDataFactory.fromTransportResponseEntity(response);
         }
     
         if (status.equals(HttpStatus.NOT_FOUND)) {

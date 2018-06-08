@@ -834,7 +834,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 for (ArchiveRecord record : WARCReaderFactory.get("WarcArtifactDataStore", bufferedStream, true)) {
                     // Parse the JSON into a RepositoryArtifactMetadata object
                     RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
-                            IOUtils.toString(record)
+                            IOUtils.toString(record, "UTF-8")
                     );
 
                     String artifactId = repoState.getArtifactId();

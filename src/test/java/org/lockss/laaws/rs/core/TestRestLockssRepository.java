@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
@@ -41,6 +42,7 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.util.ArtifactConstants;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -331,24 +333,74 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactData_success() throws Exception {
-        // TODO: Expand the transport response headers tested here
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(321));
+        // Setup reference artifact data headers
+        HttpHeaders referenceHeaders = new HttpHeaders();
+        referenceHeaders.add("key1", "value1");
+        referenceHeaders.add("key2", "value2");
 
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifactid1", BASEURL)))
+        // Setup reference artifact data
+        ArtifactData reference = new ArtifactData(
+                new ArtifactIdentifier("artifact1", "collection1", "auid1", "url1", 2),
+                referenceHeaders,
+                new ByteArrayInputStream("hello world".getBytes()),
+                new BasicStatusLine(new ProtocolVersion("HTTP", 1, 1), 200, "OK"),
+                "storageUrl1",
+                new RepositoryArtifactMetadata("{\"artifactId\":\"artifact1\",\"committed\":\"true\",\"deleted\":\"false\"}")
+        );
+
+        // Convenience variables
+        ArtifactIdentifier refId = reference.getIdentifier();
+        RepositoryArtifactMetadata refRepoMd = reference.getRepositoryMetadata();
+
+        // Setup mocked artifact data headers
+        HttpHeaders transportHeaders = new HttpHeaders();
+
+        transportHeaders.set(ArtifactConstants.ARTIFACT_ID_KEY, refId.getId());
+        transportHeaders.set(ArtifactConstants.ARTIFACT_COLLECTION_KEY, refId.getCollection());
+        transportHeaders.set(ArtifactConstants.ARTIFACT_AUID_KEY, refId.getAuid());
+        transportHeaders.set(ArtifactConstants.ARTIFACT_URI_KEY, refId.getUri());
+        transportHeaders.set(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(refId.getVersion()));
+
+        transportHeaders.set(ArtifactConstants.ARTIFACT_STATE_COMMITTED, String.valueOf(refRepoMd.getCommitted()));
+        transportHeaders.set(ArtifactConstants.ARTIFACT_STATE_DELETED, String.valueOf(refRepoMd.getDeleted()));
+
+        transportHeaders.set(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(reference.getContentLength()));
+        transportHeaders.set(ArtifactConstants.ARTIFACT_DIGEST_KEY, reference.getContentDigest());
+
+        // Setup mocked artifact data response
+        mockServer.expect(requestTo(String.format("%s/collections/%s/artifacts/%s", BASEURL, refId.getCollection(), refId.getId())))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(
-                        withSuccess("HTTP/1.1 200 OK\nContent-Length: 123", MediaType.APPLICATION_JSON)
-                        .headers(headers)
+                        withSuccess(
+                            IOUtils.toByteArray(ArtifactDataUtil.getHttpResponseStreamFromArtifactData(reference)),
+                            MediaType.parseMediaType("application/http; msgtype=response")
+                        ).headers(transportHeaders)
                 );
 
-        ArtifactData result = repository.getArtifactData("collection1", "artifactid1");
+        // Fetch artifact data through the code we wish to test
+        ArtifactData result = repository.getArtifactData(refId.getCollection(), refId.getId());
         mockServer.verify();
 
+        // Verify the artifact data we got matches the reference
         assertNotNull(result);
+
+        assertEquals(refId.getId(), result.getIdentifier().getId());
+        assertEquals(refId.getCollection(), result.getIdentifier().getCollection());
+        assertEquals(refId.getAuid(), result.getIdentifier().getAuid());
+        assertEquals(refId.getUri(), result.getIdentifier().getUri());
+        assertEquals(refId.getVersion(), result.getIdentifier().getVersion());
+
+        assertEquals(refRepoMd.getArtifactId(), result.getRepositoryMetadata().getArtifactId());
+        assertEquals(refRepoMd.getCommitted(), result.getRepositoryMetadata().getCommitted());
+        assertEquals(refRepoMd.getDeleted(), result.getRepositoryMetadata().getDeleted());
+
+        assertEquals(reference.getContentLength(), result.getContentLength());
+        assertEquals(reference.getContentDigest(), result.getContentDigest());
+
+        assertTrue(referenceHeaders.entrySet().containsAll(result.getMetadata().entrySet())
+                && result.getMetadata().entrySet().containsAll(referenceHeaders.entrySet()));
+
         assertEquals(200, result.getHttpStatus().getStatusCode());
-        assertEquals(321, result.getContentLength());
-        assertEquals(123, result.getMetadata().getContentLength());
     }
 
     @Test

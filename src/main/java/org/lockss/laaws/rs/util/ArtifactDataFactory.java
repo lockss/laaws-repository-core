@@ -41,8 +41,11 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +54,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -163,7 +167,7 @@ public class ArtifactDataFactory {
                 response.getStatusLine()
         );
 
-        artifactData.setContentLength(response.getEntity().getContentLength());
+//        artifactData.setContentLength(response.getEntity().getContentLength());
 
         return artifactData;
     }
@@ -254,10 +258,8 @@ public class ArtifactDataFactory {
      */
     private static HttpHeaders transformHeaderArrayToHttpHeaders(Header[] headerArray) {
         HttpHeaders headers = new HttpHeaders();
-        for (Header header : headerArray)
-            headers.add(header.getName(), header.getValue());
+        Arrays.stream(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
 
-        //Stream.of(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
         return headers;
     }
 
@@ -390,5 +392,25 @@ public class ArtifactDataFactory {
 
         // Could not return an artifact elsewhere
         return null;
+    }
+
+    public static ArtifactData fromTransportResponseEntity(ResponseEntity<Resource> response) throws IOException {
+        ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getBody().getInputStream());
+
+        ad.setIdentifier(buildArtifactIdentifier(response.getHeaders()));
+        ad.setRepositoryMetadata(buildRepositoryMetadata(response.getHeaders()));
+        ad.setContentLength(Long.valueOf(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+        ad.setContentDigest(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+//        ad.setStorageUrl();
+
+        return ad;
+    }
+
+    private static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
+        return new RepositoryArtifactMetadata(
+                buildArtifactIdentifier(headers),
+                headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED).equalsIgnoreCase(String.valueOf(true)),
+                headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED).equalsIgnoreCase(String.valueOf(true))
+        );
     }
 }
