@@ -99,20 +99,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <type>pom</type>
       <scope>test</scope>
     </dependency>
-  
+
     <dependency>
-      <groupId>org.lockss</groupId>
-      <artifactId>lockss-spring-bundle</artifactId>
-      <version>${lockss.spring.bundleVersion}</version>
-      <type>pom</type>
-      <exclusions>
-        <exclusion>
-          <groupId>org.lockss</groupId>
-          <artifactId>lockss-core-bundle</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webmvc</artifactId>
+      <version>${lockss.spring.version}</version>
     </dependency>
-  
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <version>${lockss.spring.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-annotations</artifactId>
+      <version>1.5.10</version>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>
