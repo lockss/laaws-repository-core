@@ -46,6 +46,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.*;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.logging.*;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
@@ -97,6 +98,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     protected static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
+    protected static final String ENV_THRESHOLD_WARC_SIZE = "REPO_MAX_WARC_SIZE";
     protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
 
     protected ArtifactIndex artifactIndex;
@@ -108,6 +110,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected Pattern fileAndOffsetStorageUrlPat;
 
     protected JmsConsumer jmsConsumer;
+    
     static {
         try {
             CRLF_BYTES = CRLF.getBytes(DEFAULT_ENCODING);
@@ -117,9 +120,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     protected WarcArtifactDataStore() {
-      // nothing
-      this.thresholdWarcSize = DEFAULT_THRESHOLD_WARC_SIZE;
-
+      setThresholdWarcSize(NumberUtils.toLong(System.getenv(ENV_THRESHOLD_WARC_SIZE), DEFAULT_THRESHOLD_WARC_SIZE));
+      
       try {
         jmsConsumer= JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC).setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
       }
@@ -133,16 +135,33 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       this.basePath = basePath;
     }
 
-  public JmsConsumer getJmsConsumer() { return jmsConsumer;}
+  public JmsConsumer getJmsConsumer() {
+    return jmsConsumer;
+  }
+  
   public String getBasePath() {
     return basePath;
   }
-    
+
+  public long getThresholdWarcSize() {
+    return thresholdWarcSize;
+  }
+  
+  /**
+   * <p>
+   * Sets the threshold size above which a new WARC file should be started.
+   * Legal values are a positive number of bytes and zero for unlimited;
+   * negative values are illegal.
+   * </p>
+   * 
+   * @param threshold
+   * @throws IllegalArgumentException if the given value is negative.
+   */
   public void setThresholdWarcSize(long threshold) {
-    if (threshold < 1L) {
-      throw new IllegalArgumentException("Threshold size must be strictly positive");
+    if (threshold < 0L) {
+      throw new IllegalArgumentException("Threshold size must be positive (or zero for unlimited)");
     }
-    this.thresholdWarcSize = threshold;
+    thresholdWarcSize = threshold;
   }
 
     @Override
@@ -200,11 +219,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Determine if a WARC seal was triggered by WARC size threshold; set artifact data's storage URL as appropriate
     long warcFileLength = offset + bytesWritten;
-    if (warcFileLength >= thresholdWarcSize) {
+    if (warcFileLength >= thresholdWarcSize && thresholdWarcSize > 0L) {
       log.info(String.format(
               "Seal WARC triggered by size threshold [Threshold: %d bytes, Length: %d bytes] for [Collection: %s, AUID: %s]",
+              getThresholdWarcSize(),
               warcFileLength,
-              thresholdWarcSize,
               artifactId.getCollection(),
               artifactId.getAuid()
       ));

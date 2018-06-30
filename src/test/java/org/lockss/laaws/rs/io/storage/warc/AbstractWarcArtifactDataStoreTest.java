@@ -75,13 +75,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testSetThresholdWarcSize() throws Exception {
-    // Use privileged access to peek
     assertEquals(100L * FileUtils.ONE_MB, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
-    assertEquals(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE, store.thresholdWarcSize);
+    assertEquals(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE, store.getThresholdWarcSize());
     assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(-1234L));
-    assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(0L));
+    store.setThresholdWarcSize(0L);
+    assertEquals(0L, store.getThresholdWarcSize());
     store.setThresholdWarcSize(10L * FileUtils.ONE_KB);
-    assertEquals(10L * FileUtils.ONE_KB, store.thresholdWarcSize);
+    assertEquals(10L * FileUtils.ONE_KB, store.getThresholdWarcSize());
   }
   
   @Test
@@ -435,4 +435,5 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    assertThat(art1i.getStorageUrl(), startsWith(sealedWarcDirPath));
     assertThat(art1i.getStorageUrl(), startsWith(store.makeStorageUrl(sealedWarcDirPath)));
   }
+  
 }
