@@ -183,7 +183,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
     if (!fs.exists(file)) {
         log.info(String.format("Creating new HDFS file: %s", file));
-        mkdirsIfNeeded(file.getParent().toString());
+        mkdirsIfNeeded(new Path(filePath).getParent().toString());
         fs.createNewFile(file);
     }
   }
