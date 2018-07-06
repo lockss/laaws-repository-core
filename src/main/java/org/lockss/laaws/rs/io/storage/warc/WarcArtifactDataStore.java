@@ -70,6 +70,10 @@ import com.google.common.io.CountingOutputStream;
  * An abstract class that implements methods common to WARC implementations of ArtifactDataStore.
  */
 public abstract class WarcArtifactDataStore implements ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata>, WARCConstants {
+  /**
+   * Delay between retries when creating the JMS consumer.
+   */
+  public static final long DEFAULT_RETRY_DELAY = 30000;
 
   private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
 
@@ -110,7 +114,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected Pattern fileAndOffsetStorageUrlPat;
 
     protected JmsConsumer jmsConsumer;
-    
+
+    /**
+     * The interval to wait between consecutive retries when creating the JMS
+     * consumer.
+     */
+    private long retryDelay = DEFAULT_RETRY_DELAY;
+
     static {
         try {
             CRLF_BYTES = CRLF.getBytes(DEFAULT_ENCODING);
@@ -123,10 +133,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       setThresholdWarcSize(NumberUtils.toLong(System.getenv(ENV_THRESHOLD_WARC_SIZE), DEFAULT_THRESHOLD_WARC_SIZE));
       
       try {
-        jmsConsumer= JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC).setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
+	// Create the JMS consumer.
+	makeJmsConsumer();
       }
       catch (JMSException e) {
-        log.error("Creating a JMS Consumer failed - JMS messaging not available.");
+        log.info("Creating a JMS Consumer failed - JMS messaging not available.");
+        // Failure to create the JMS consumer synchronously: Keep trying to
+        // create it in a separate thread.
+	makeJmsConsumerAsynchronously();
       }
     }
     
@@ -892,6 +906,46 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 throw e;
             }
         }
+    }
+
+    /**
+     * Creates the JMS consumer.
+     * 
+     * @throws JMSExcption
+     *           if there are problems creating the JMS consumer.
+     */
+    private void makeJmsConsumer() throws JMSException {
+      jmsConsumer = JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC)
+  	.setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
+    }
+
+    /**
+     * Creates the JMS consumer in a separate thread, re-trying as necessary.
+     */
+    private void makeJmsConsumerAsynchronously() {
+      new Thread(new Runnable() {
+	/**
+	 * Creates the JMS consumer, re-trying as necessary.
+	 */
+	public void run() {
+	  // Keep trying until success.
+	  while (jmsConsumer == null) {
+	    try {
+	      makeJmsConsumer();
+	    } catch (JMSException e) {
+	      // The JMS consumer could not be created: Try again.
+	      try {
+		// Wait until the next retry.
+		Thread.sleep(retryDelay);
+	      } catch (InterruptedException ie) {
+		// Continue with the next retry.
+	      }
+	    }
+	  }
+
+	  log.info("JMS Consumer created - JMS messaging is available.");
+	}
+      }).start();
     }
 
   public static final String KEY_AUID = "auid";
