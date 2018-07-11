@@ -319,6 +319,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       OutputStream out = getAppendableOutputStream(auMetadataWarcPath);
     ) {
       writeWarcRecord(metadataRecord, out);
+      out.flush();
     }
 
     return artifactMetadata;

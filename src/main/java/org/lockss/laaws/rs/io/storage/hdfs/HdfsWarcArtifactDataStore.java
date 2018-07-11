@@ -181,11 +181,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public void createFileIfNeeded(String filePath) throws IOException {
     Path file = new Path(getBasePath() + filePath);
 
-    if (!fs.exists(file)) {
-        log.info(String.format("Creating new HDFS file: %s", file));
-        mkdirsIfNeeded(new Path(filePath).getParent().toString());
-        fs.createNewFile(file);
-    }
+    log.info(String.format("Creating new HDFS file: %s", file));
+    fs.createNewFile(file);
   }
 
   @Override
