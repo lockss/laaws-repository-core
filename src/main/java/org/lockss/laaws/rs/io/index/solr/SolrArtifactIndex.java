@@ -41,6 +41,7 @@ import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrInputDocument;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactData;
@@ -148,13 +149,6 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws SolrServerException
      */
     private static void createSolrField(SolrClient solr, String fieldName, String fieldType, Map<String,Object> fieldAttributes) throws IOException, SolrServerException {
-        log.info(String.format(
-                "Attempting to add field to schema: (name: %s, type: %s) to %s",
-                fieldName,
-                fieldType,
-                solr
-        ));
-
         // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
         Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
         newFieldAttributes.put("name", fieldName);
@@ -168,9 +162,19 @@ public class SolrArtifactIndex implements ArtifactIndex {
         if (fieldAttributes != null)
             newFieldAttributes.putAll(fieldAttributes);
 
-        // Create and submit add field request
-        SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
-        addFieldReq.process(solr);
+        // Get a list of fields from the Solr schema
+        SchemaRequest.Fields fieldsReq = new SchemaRequest.Fields();
+        SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
+
+        // Only create the field if it does not exist
+        if (!fieldsResponse.getFields().contains(newFieldAttributes)) {
+            // Create and process new field request
+            log.info(String.format("Adding field to Solr schema: %s", newFieldAttributes));
+            SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
+            addFieldReq.process(solr);
+        } else {
+            log.warn(String.format("Field already exists in Solr schema: %s; skipping field addition", newFieldAttributes));
+        }
     }
 
     /**
