@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.io.storage.hdfs;
 
 import java.io.*;
+import java.net.ConnectException;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -50,6 +51,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
     public final static String DEFAULT_REPO_BASEDIR = "/";
+    private static final long DEFAULT_TIMEOUT = 10;
 
     protected FileSystem fs;
 
@@ -85,6 +87,20 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         this.fs = fs;
         this.fileAndOffsetStorageUrlPat =
             Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
+
+        while (true) {
+            try {
+                fs.getStatus();
+                break;
+            } catch (ConnectException e) {
+                log.warn(String.format("Could not connect to HDFS; retrying in %d seconds...", DEFAULT_TIMEOUT));
+                try {
+                    Thread.sleep(DEFAULT_TIMEOUT * 1000);
+                } catch (InterruptedException f) {
+                    throw new RuntimeException("Interrupted before we could retry connecting to HDFS");
+                }
+            }
+        }
 
         initializeLockssRepository();
     }

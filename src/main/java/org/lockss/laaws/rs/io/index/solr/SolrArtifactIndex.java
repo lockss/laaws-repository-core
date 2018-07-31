@@ -56,6 +56,7 @@ import java.util.*;
  */
 public class SolrArtifactIndex implements ArtifactIndex {
     private static final Log log = LogFactory.getLog(Artifact.class);
+    private static final long DEFAULT_TIMEOUT = 10;
     private final SolrClient solr;
 
     private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
@@ -79,6 +80,22 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A {@code SolrClient} to use to artifactIndex artifacts.
      */
     public SolrArtifactIndex(SolrClient client) {
+        while (true) {
+            try {
+                client.ping();
+                break;
+            } catch (SolrServerException e) {
+                log.warn(String.format("Could not connect to Solr; retrying in %d seconds...", DEFAULT_TIMEOUT));
+                try {
+                    Thread.sleep(DEFAULT_TIMEOUT * 1000);
+                } catch (InterruptedException f) {
+                    throw new RuntimeException("Interrupted before we could retry connecting to Solr");
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Caught IOException attempting to ping Solr");
+            }
+        }
+
         // Modify the schema to support an artifact artifactIndex
         createArtifactSchema(client);
         this.solr = client;
