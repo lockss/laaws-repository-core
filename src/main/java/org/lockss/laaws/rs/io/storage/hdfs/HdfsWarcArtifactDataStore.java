@@ -49,82 +49,95 @@ import org.springframework.web.util.UriComponentsBuilder;
  * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
  */
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
-    private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
-    public final static String DEFAULT_REPO_BASEDIR = "/";
-    private static final long DEFAULT_TIMEOUT = 10;
+  private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
+  public final static String DEFAULT_REPO_BASEDIR = "/";
+  private static final long DEFAULT_TIMEOUT = 10;
 
-    protected FileSystem fs;
+  protected FileSystem fs;
 
-    public HdfsWarcArtifactDataStore(Configuration config) throws IOException {
-        this(config, DEFAULT_REPO_BASEDIR);
-    }
+  public HdfsWarcArtifactDataStore(Configuration config) throws IOException {
+    this(config, DEFAULT_REPO_BASEDIR);
+  }
 
-    /**
-     * Constructor.
-     *
-     * @param config
-     *          A Apache Hadoop {@code Configuration}
-     * @param basePath
-     *          A {@code String} to the base directory of the LOCKSS repository under HDFS
-     */
-    public HdfsWarcArtifactDataStore(Configuration config, String basePath) throws IOException {
-        this(FileSystem.get(config), basePath);
-    }
+  /**
+   * Constructor that takes a Hadoop {@code Configuration} and base path.
+   *
+   * @param config   An Apache Hadoop {@code Configuration}.
+   * @param basePath A {@code String} containing the base path of the LOCKSS repository under HDFS.
+   */
+  public HdfsWarcArtifactDataStore(Configuration config, String basePath) throws IOException {
+    this(FileSystem.get(config), basePath);
+  }
 
-    public HdfsWarcArtifactDataStore(FileSystem fs) throws IOException {
-        this(fs, DEFAULT_REPO_BASEDIR);
-    }
+  /**
+   * Constructor that takes a Hadoop {@code FileSystem} and uses the default repository base path.
+   *
+   * @param fs An Apache Hadoop {@code FileSystem}.
+   * @throws IOException
+   */
+  public HdfsWarcArtifactDataStore(FileSystem fs) throws IOException {
+    this(fs, DEFAULT_REPO_BASEDIR);
+  }
 
-    public HdfsWarcArtifactDataStore(FileSystem fs, String basePath) throws IOException {
-        super(basePath);
+  /**
+   * Constructor that takes a Hadoop {@code FileSystem} and base path.
+   *
+   * @param fs       An Apache Hadoop {@code FileSystem}.
+   * @param basePath A {@code String} containing the base path of the LOCKSS repository under HDFS.
+   * @throws IOException
+   */
+  public HdfsWarcArtifactDataStore(FileSystem fs, String basePath) throws IOException {
+    super(basePath);
 
-        log.info(String.format(
-                "Instantiating a HDFS artifact data store under %s%s",
-                fs.getUri(),
-                this.basePath
-        ));
+    log.info(String.format(
+        "Instantiating a HDFS artifact data store under %s%s",
+        fs.getUri(),
+        this.basePath
+    ));
 
-        this.fs = fs;
-        this.fileAndOffsetStorageUrlPat =
-            Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
+    this.fs = fs;
+    this.fileAndOffsetStorageUrlPat =
+        Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
-        while (true) {
-            try {
-                fs.getStatus();
-                break;
-            } catch (ConnectException e) {
-                log.warn(String.format("Could not connect to HDFS; retrying in %d seconds...", DEFAULT_TIMEOUT));
-                try {
-                    Thread.sleep(DEFAULT_TIMEOUT * 1000);
-                } catch (InterruptedException f) {
-                    throw new RuntimeException("Interrupted before we could retry connecting to HDFS");
-                }
-            }
+    // Block until we can reach the HDFS cluster
+    while (true) {
+      try {
+        fs.getStatus();
+        break;
+      } catch (ConnectException e) {
+        log.warn(String.format("Could not connect to HDFS; retrying in %d seconds...", DEFAULT_TIMEOUT));
+        try {
+          Thread.sleep(DEFAULT_TIMEOUT * 1000);
+        } catch (InterruptedException f) {
+          throw new RuntimeException("Interrupted before we could retry connecting to HDFS");
         }
-
-        initializeLockssRepository();
+      }
     }
 
-    /**
-     * Initializes a LOCKSS repository structure under the configured HDFS base path.
-     *
-     * @throws IOException
-     */
-    public void initializeLockssRepository() throws IOException {
-        mkdirsIfNeeded("/");
-        mkdirsIfNeeded(getSealedWarcPath());
-    }
+    // Initialize the base path with a LOCKSS repository structure
+    initializeLockssRepository();
+  }
 
-    /**
-     * Recursively finds artifact WARC files under a given base path.
-     *
-     * @param basePath The base path to scan recursively for WARC files.
-     * @return A collection of paths to WARC files under the given base path.
-     * @throws IOException
-     */
-    @Override
-    public Collection<String> scanDirectories(String basePath) throws IOException {
-        Collection<String> warcFiles = new ArrayList<>();
+  /**
+   * Initializes a LOCKSS repository structure under the configured base path.
+   *
+   * @throws IOException
+   */
+  public void initializeLockssRepository() throws IOException {
+    mkdirsIfNeeded("/");
+    mkdirsIfNeeded(getSealedWarcPath());
+  }
+
+  /**
+   * Recursively finds artifact WARC files under a given base path.
+   *
+   * @param basePath The base path to scan recursively for WARC files.
+   * @return A collection of paths to WARC files under the given base path.
+   * @throws IOException
+   */
+  @Override
+  public Collection<String> scanDirectories(String basePath) throws IOException {
+    Collection<String> warcFiles = new ArrayList<>();
 
 //        RemoteIterator<LocatedFileStatus> files = fs.listFiles(base, false);
 //
@@ -138,43 +151,41 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 //            }
 //        }
 
-        RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
-        while(files.hasNext()) {
-            LocatedFileStatus status = files.next();
-            if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
-                warcFiles.add(status.getPath().toString().substring((fs.getUri() + getBasePath()).length()));
-        }
-
-        // Return WARC files at this level
-        return warcFiles;
+    RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
+    while (files.hasNext()) {
+      LocatedFileStatus status = files.next();
+      if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+        warcFiles.add(status.getPath().toString().substring((fs.getUri() + getBasePath()).length()));
     }
 
-    /**
-     * Ensures a directory exists at the given path by creating one if nothing exists there. Throws a
-     * RunTimeExceptionError if something exists at the path but is not a directory, because there is no way to safely
-     * recover from this situation.
-     *
-     * @param dirPath Path to the directory to create, if it doesn't exist yet.
-     */
-    @Override
-    public void mkdirsIfNeeded(String dirPath) throws IOException {
-      Path dir = new Path(getBasePath() + dirPath);
+    // Return WARC files at this level
+    return warcFiles;
+  }
 
+  /**
+   * Ensures a directory exists at the given path by creating one if nothing exists there. Throws RunTimeExceptionError
+   * if something exists at the path but is not a directory (there is no way to safely handle this situation).
+   *
+   * @param dirPath Path to the directory to create, if it doesn't exist yet.
+   */
+  @Override
+  public void mkdirsIfNeeded(String dirPath) throws IOException {
+    Path dir = new Path(getBasePath() + dirPath);
 
-      if (fs.isDirectory(dir)) {
-        return;
-      }
-      if (!fs.mkdirs(dir)) {
-        throw new IOException(String.format("Error creating %s: fs.mkdirs() did not succeed", dirPath));
-      }
+    if (fs.isDirectory(dir)) {
+      return;
     }
+
+    if (!fs.mkdirs(dir)) {
+      throw new IOException(String.format("Error creating %s: fs.mkdirs() did not succeed", dirPath));
+    }
+  }
 
   @Override
   public long getFileLength(String filePath) throws IOException {
     try {
       return fs.getFileStatus(new Path(getBasePath() + filePath)).getLen();
-    }
-    catch (FileNotFoundException fnfe) {
+    } catch (FileNotFoundException fnfe) {
       return 0L;
     }
   }
@@ -188,9 +199,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-      UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + getBasePath() + filePath);
-      uriBuilder.queryParams(params);
-      return uriBuilder.toUriString();
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + getBasePath() + filePath);
+    uriBuilder.queryParams(params);
+    return uriBuilder.toUriString();
   }
 
   @Override
@@ -237,25 +248,23 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     return makeNewFileAndOffsetStorageUrl(newPath, artifact);
   }
 
-    /**
-     * Creates a new WARC file, and begins it with a warcinfo WARC record.
-     *
-     * @param warcFilePath
-     *          A {@code Path} to the new WARC file to create.
-     * @throws IOException
-     */
-    public void createWarcFile(Path warcFilePath) throws IOException {
-        if (!fs.exists(warcFilePath)) {
-            // Create a new WARC file
-            fs.createNewFile(warcFilePath);
+  /**
+   * Creates a new WARC file, and begins it with a warcinfo WARC record.
+   *
+   * @param warcFilePath A {@code Path} to the new WARC file to create.
+   * @throws IOException
+   */
+  public void createWarcFile(Path warcFilePath) throws IOException {
+    if (!fs.exists(warcFilePath)) {
+      // Create a new WARC file
+      fs.createNewFile(warcFilePath);
 
-            // TODO: Write a warcinfo WARC record
+      // TODO: Write a warcinfo WARC record
 
-        } else {
-            if (!fs.isFile(warcFilePath)) {
-                log.warn(String.format("%s is not a file", warcFilePath));
-            }
-        }
+    } else {
+      if (!fs.isFile(warcFilePath)) {
+        log.warn(String.format("%s is not a file", warcFilePath));
+      }
     }
-
+  }
 }
