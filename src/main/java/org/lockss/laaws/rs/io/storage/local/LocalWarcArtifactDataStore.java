@@ -49,6 +49,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     private static final Log log = LogFactory.getLog(LocalWarcArtifactDataStore.class);
+    private boolean initialized;
 
     public LocalWarcArtifactDataStore(File basePath) throws IOException {
         this(basePath.getAbsolutePath());
@@ -66,9 +67,32 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         this.fileAndOffsetStorageUrlPat =
                 Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
-        // Initialize LOCKSS repository structure
-        mkdirsIfNeeded("/");
-        mkdirsIfNeeded(getSealedWarcPath());
+        init();
+    }
+
+    public synchronized void init() {
+      if (!initialized) {
+        try {
+          // Initialize LOCKSS repository structure
+          mkdirsIfNeeded("/");
+          mkdirsIfNeeded(getSealedWarcPath());
+          initialized = true;
+        } catch (IOException e) {
+          log.warn("Caught IOException while attempting init local filesystem artifact datastore");
+        }
+      } else {
+        log.info("Already initialized LOCKSS repository");
+      }
+    }
+
+  /**
+   * Returns a boolean indicating whether this artifact store is ready.
+   *
+   * @return
+   */
+  @Override
+    public boolean isReady() {
+        return initialized;
     }
 
     /**

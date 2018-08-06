@@ -30,6 +30,9 @@
 
 package org.lockss.laaws.rs.io.storage;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.lockss.laaws.rs.core.Ready;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 
@@ -45,8 +48,8 @@ import java.io.IOException;
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
-public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> {
-  
+public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
+
     /**
      * Adds an artifact to this artifact store.
      *
@@ -115,4 +118,19 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     MD deleteArtifactData(Artifact artifact) throws IOException;
     
     void setArtifactIndex(ArtifactIndex artifactIndex);
+
+    @Override
+    default void waitReady() {
+        Log log = LogFactory.getLog(ArtifactDataStore.class);
+
+        while (!isReady()) {
+            log.info("Waiting for artifact store to become ready; retrying in 5 seconds");
+
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for artifact store to become ready");
+            }
+        }
+    }
 }

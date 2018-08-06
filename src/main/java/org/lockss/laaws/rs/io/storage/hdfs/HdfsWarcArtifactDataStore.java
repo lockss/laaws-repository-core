@@ -51,9 +51,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
   public final static String DEFAULT_REPO_BASEDIR = "/";
-  private static final long DEFAULT_TIMEOUT = 10;
 
   protected FileSystem fs;
+  private boolean initialized = false;
 
   public HdfsWarcArtifactDataStore(Configuration config) throws IOException {
     this(config, DEFAULT_REPO_BASEDIR);
@@ -100,22 +100,22 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
     // Block until we can reach the HDFS cluster
-    while (true) {
-      try {
-        fs.getStatus();
-        break;
-      } catch (ConnectException e) {
-        log.warn(String.format("Could not connect to HDFS; retrying in %d seconds...", DEFAULT_TIMEOUT));
-        try {
-          Thread.sleep(DEFAULT_TIMEOUT * 1000);
-        } catch (InterruptedException f) {
-          throw new RuntimeException("Interrupted before we could retry connecting to HDFS");
-        }
-      }
-    }
+//    while (true) {
+//      try {
+//        fs.getStatus();
+//        break;
+//      } catch (ConnectException e) {
+//        log.warn(String.format("Could not connect to HDFS; retrying in %d seconds...", DEFAULT_TIMEOUT));
+//        try {
+//          Thread.sleep(DEFAULT_TIMEOUT * 1000);
+//        } catch (InterruptedException f) {
+//          throw new RuntimeException("Interrupted before we could retry connecting to HDFS");
+//        }
+//      }
+//    }
 
     // Initialize the base path with a LOCKSS repository structure
-    initializeLockssRepository();
+    init();
   }
 
   /**
@@ -123,9 +123,27 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    *
    * @throws IOException
    */
-  public void initializeLockssRepository() throws IOException {
-    mkdirsIfNeeded("/");
-    mkdirsIfNeeded(getSealedWarcPath());
+  public synchronized void init() {
+    if (!initialized) {
+      try {
+        mkdirsIfNeeded("/");
+        mkdirsIfNeeded(getSealedWarcPath());
+        initialized = true;
+      } catch (IOException e) {
+        log.warn(String.format("Could not initialize HDFS artifact store: %s", e));
+      }
+    }
+  }
+
+  /**
+   * Returns a boolean indicating whether this artifact store is ready.
+   *
+   * @return
+   */
+  @Override
+  public boolean isReady() {
+    init();
+    return initialized;
   }
 
   /**
