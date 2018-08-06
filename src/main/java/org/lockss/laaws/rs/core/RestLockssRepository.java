@@ -801,4 +801,16 @@ public class RestLockssRepository implements LockssRepository {
 
         return new Long(0);
     }
+
+    /**
+     * Returns a boolean indicating whether this repository is ready.
+     *
+     * TODO: Always return true?
+     *
+     * @return
+     */
+    @Override
+    public boolean isReady() {
+      return true;
+    }
 }

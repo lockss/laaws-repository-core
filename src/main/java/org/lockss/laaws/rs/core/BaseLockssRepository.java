@@ -69,9 +69,13 @@ public class BaseLockssRepository implements LockssRepository {
      *          An instance of {@code ArtifactDataStore}.
      */
     public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store) {
-        this.index = index;
-        this.store = store;
-        this.store.setArtifactIndex(this.index);
+      if ((index == null) || (store == null)) {
+          throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
+      }
+
+      this.index = index;
+      this.store = store;
+      this.store.setArtifactIndex(this.index);
     }
 
     /**
@@ -394,5 +398,9 @@ public class BaseLockssRepository implements LockssRepository {
             throw new IllegalArgumentException("Null collection id or au id");
         return index.auSize(collection, auid);
     }
-    
+
+  @Override
+  public boolean isReady() {
+    return store.isReady() && index.isReady();
+  }
 }

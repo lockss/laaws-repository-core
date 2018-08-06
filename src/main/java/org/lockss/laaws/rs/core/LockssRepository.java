@@ -30,6 +30,8 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 
@@ -40,8 +42,8 @@ import java.io.IOException;
  *
  * This is the interface of the abstract LOCKSS repository service.
  */
-public interface LockssRepository {
-  
+public interface LockssRepository extends Ready {
+
     /**
      * Adds an artifact to this LOCKSS repository.
      * @param artifactData
@@ -295,4 +297,19 @@ public interface LockssRepository {
      * @return A {@code Long} with the total size of the specified AU in bytes.
      */
     Long auSize(String collection, String auid) throws IOException;
+
+    @Override
+    default void waitReady() {
+        Log log = LogFactory.getLog(LockssRepository.class);
+
+        while (!isReady()) {
+            log.info("Waiting for repository to become ready; retrying in 5 seconds");
+
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for repository to become ready");
+            }
+        }
+    }
 }
