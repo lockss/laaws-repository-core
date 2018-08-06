@@ -549,4 +549,14 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     public String toString() {
         return "[VolatileArtifactIndex index=" + index + "]";
     }
+
+    /**
+     * Returns a boolean indicating whether this artifact index is ready.
+     *
+     * Always returns true in the violate implementation.
+     */
+    @Override
+    public boolean isReady() {
+        return true;
+    }
 }

@@ -32,6 +32,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.index;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.lockss.laaws.rs.core.Ready;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.laaws.rs.model.Artifact;
@@ -42,7 +45,7 @@ import java.util.UUID;
 /**
  * Interface of the artifact index.
  */
-public interface ArtifactIndex {
+public interface ArtifactIndex extends Ready {
 
     /**
      * Adds an artifact to the index.
@@ -322,4 +325,19 @@ public interface ArtifactIndex {
      * @return A {@code Long} with the total size of the specified AU in bytes.
      */
     Long auSize(String collection, String auid) throws IOException;
+
+    @Override
+    default void waitReady() {
+        Log log = LogFactory.getLog(ArtifactIndex.class);
+
+        while (!isReady()) {
+            log.info("Waiting for artifact index to become ready; retrying in 5 seconds");
+
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for artifact index to become ready");
+            }
+        }
+    }
 }
