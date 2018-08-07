@@ -99,21 +99,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     this.fileAndOffsetStorageUrlPat =
         Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
-    // Block until we can reach the HDFS cluster
-//    while (true) {
-//      try {
-//        fs.getStatus();
-//        break;
-//      } catch (ConnectException e) {
-//        log.warn(String.format("Could not connect to HDFS; retrying in %d seconds...", DEFAULT_TIMEOUT));
-//        try {
-//          Thread.sleep(DEFAULT_TIMEOUT * 1000);
-//        } catch (InterruptedException f) {
-//          throw new RuntimeException("Interrupted before we could retry connecting to HDFS");
-//        }
-//      }
-//    }
-
     // Initialize the base path with a LOCKSS repository structure
     init();
   }
@@ -136,6 +121,22 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   /**
+   * Checks whether the HDFS cluster is available by getting its status.
+   *
+   * @return
+   */
+  private boolean checkAlive() {
+    try {
+      fs.getStatus();
+      return true;
+    } catch (IOException e) {
+      log.warn(String.format("Could not get HDFS status: %s", e));
+    }
+
+    return false;
+  }
+
+  /**
    * Returns a boolean indicating whether this artifact store is ready.
    *
    * @return
@@ -143,7 +144,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean isReady() {
     init();
-    return initialized;
+    return initialized && checkAlive();
   }
 
   /**

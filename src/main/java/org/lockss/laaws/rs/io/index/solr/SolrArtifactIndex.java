@@ -81,24 +81,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A {@code SolrClient} to use to artifactIndex artifacts.
      */
     public SolrArtifactIndex(SolrClient client) {
-//        while (true) {
-//            try {
-//                client.ping();
-//                break;
-//            } catch (SolrServerException e) {
-//                log.warn(String.format("Could not connect to Solr; retrying in %d seconds...", DEFAULT_TIMEOUT));
-//                try {
-//                    Thread.sleep(DEFAULT_TIMEOUT * 1000);
-//                } catch (InterruptedException f) {
-//                    throw new RuntimeException("Interrupted before we could retry connecting to Solr");
-//                }
-//            } catch (IOException e) {
-//                throw new RuntimeException("Caught IOException attempting to ping Solr");
-//            }
-//        }
-
         this.solr = client;
-
         init();
     }
 
@@ -138,6 +121,22 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
   /**
+   * Checks whether the Solr cluster is alive by calling {@code SolrClient#ping()}.
+   *
+   * @return
+   */
+  private boolean checkAlive() {
+    try {
+      solr.ping();
+      return true;
+    } catch (Exception e) {
+      log.warn(String.format("Could not ping Solr: %s", e));
+    }
+
+    return false;
+  }
+
+  /**
    * Returns a boolean indicating whether this artifact index is ready.
    *
    * @return
@@ -145,7 +144,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
   @Override
     public boolean isReady() {
       init();
-      return initialized;
+      return initialized && checkAlive();
     }
 
     /**
