@@ -34,8 +34,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.util.lang.Ready;
+import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * The LOCKSS Repository API:
@@ -298,18 +301,31 @@ public interface LockssRepository extends Ready {
      */
     Long auSize(String collection, String auid) throws IOException;
 
-    @Override
-    default void waitReady() {
-        Log log = LogFactory.getLog(LockssRepository.class);
+  long DEFAULT_WAITREADY = 5000;
 
-        while (!isReady()) {
-            log.info("Waiting for repository to become ready; retrying in 5 seconds");
+  @Override
+  default void waitReady(Deadline deadline) throws TimeoutException {
+    Log log = LogFactory.getLog(LockssRepository.class);
 
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException("Interrupted while waiting for repository to become ready");
-            }
-        }
+    while (!isReady()) {
+      if (deadline.expired()) {
+        throw new TimeoutException("Deadline for repository to become ready expired");
+      }
+
+      long remainingTime = deadline.getRemainingTime();
+      long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
+
+      log.info(String.format(
+          "Waiting for repository to become ready; retrying in %d ms (deadline in %d ms)",
+          sleepTime,
+          remainingTime
+      ));
+
+      try {
+        Thread.sleep(sleepTime);
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted while waiting for repository to become ready");
+      }
     }
+  }
 }

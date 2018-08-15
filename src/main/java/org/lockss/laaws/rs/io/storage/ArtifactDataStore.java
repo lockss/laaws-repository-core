@@ -32,11 +32,13 @@ package org.lockss.laaws.rs.io.storage;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.lockss.laaws.rs.core.Ready;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.util.lang.Ready;
+import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * ArtifactData storage interface.
@@ -119,17 +121,30 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     
     void setArtifactIndex(ArtifactIndex artifactIndex);
 
+    long DEFAULT_WAITREADY = 5000;
+
     @Override
-    default void waitReady() {
+    default void waitReady(Deadline deadline) throws TimeoutException {
         Log log = LogFactory.getLog(ArtifactDataStore.class);
 
         while (!isReady()) {
-            log.info("Waiting for artifact store to become ready; retrying in 5 seconds");
+            if (deadline.expired()) {
+                throw new TimeoutException("Deadline for artifact data store to become ready expired");
+            }
+
+            long remainingTime = deadline.getRemainingTime();
+            long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
+
+            log.info(String.format(
+                "Waiting for artifact data store to become ready; retrying in %d ms (deadline in %d ms)",
+                sleepTime,
+                remainingTime
+            ));
 
             try {
-                Thread.sleep(5000);
+                Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
-                throw new RuntimeException("Interrupted while waiting for artifact store to become ready");
+                throw new RuntimeException("Interrupted while waiting for artifact data store to become ready");
             }
         }
     }
