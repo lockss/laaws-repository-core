@@ -801,4 +801,26 @@ public class RestLockssRepository implements LockssRepository {
 
         return new Long(0);
     }
+
+    /**
+     * Checks if the remote repository is alive.
+     *
+     * TODO: Implement and check Status API rather than retrieving list of collection IDs.
+     *
+     * @return
+     */
+    private boolean checkAlive() {
+        Iterable<String> collectionIds = getCollectionIds();
+        return collectionIds != null;
+    }
+
+    /**
+     * Returns a boolean indicating whether this repository is ready.
+     *
+     * @return
+     */
+    @Override
+    public boolean isReady() {
+      return checkAlive();
+    }
 }

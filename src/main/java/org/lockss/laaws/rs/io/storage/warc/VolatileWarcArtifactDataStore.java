@@ -370,5 +370,16 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public String makeNewStorageUrl(String newPath, Artifact artifact) {
     throw new UnsupportedOperationException();
   }
-  
+
+  /**
+   * Returns a boolean indicating whether this artifact store is ready.
+   *
+   * Always true in volatile implementation.
+   *
+   * @return
+   */
+  @Override
+  public boolean isReady() {
+    return true;
+  }
 }

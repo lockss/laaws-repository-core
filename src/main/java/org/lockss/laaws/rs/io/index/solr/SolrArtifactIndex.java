@@ -61,6 +61,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
     private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
+    private boolean initialized = false;
 
     /**
      * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -80,57 +81,70 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A {@code SolrClient} to use to artifactIndex artifacts.
      */
     public SolrArtifactIndex(SolrClient client) {
-        while (true) {
-            try {
-                client.ping();
-                break;
-            } catch (SolrServerException e) {
-                log.warn(String.format("Could not connect to Solr; retrying in %d seconds...", DEFAULT_TIMEOUT));
-                try {
-                    Thread.sleep(DEFAULT_TIMEOUT * 1000);
-                } catch (InterruptedException f) {
-                    throw new RuntimeException("Interrupted before we could retry connecting to Solr");
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("Caught IOException attempting to ping Solr");
-            }
-        }
-
-        // Modify the schema to support an artifact artifactIndex
-        createArtifactSchema(client);
         this.solr = client;
+        init();
     }
 
     /**
      * Modifies the schema of a collection pointed to by a SolrClient, to support artifact indexing.
      *
-     * @param solr
-     *          An instance of {@code SolrClient} pointing to the Solr Core or Collection to be modified.
      */
-    private static void createArtifactSchema(SolrClient solr) {
-        try {
+    private synchronized void init() {
+      if (!initialized) {
+          // Modify Solr schema to handle artifact metadata
+          try {
 //            createSolrField(solr,"artfactId", "string");
-            createSolrField(solr,"collection", "string");
-            createSolrField(solr,"auid", "string");
-            createSolrField(solr,"uri", "string");
-            createSolrField(solr,"committed", "boolean");
-            createSolrField(solr,"storageUrl", "string");
-            createSolrField(solr, "contentLength", "plong");
-            createSolrField(solr, "contentDigest", "string");
+              createSolrField(solr, "collection", "string");
+              createSolrField(solr, "auid", "string");
+              createSolrField(solr, "uri", "string");
+              createSolrField(solr, "committed", "boolean");
+              createSolrField(solr, "storageUrl", "string");
+              createSolrField(solr, "contentLength", "plong");
+              createSolrField(solr, "contentDigest", "string");
 
-            // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
-            // sorting when the field is a single value field. See the link below for more information:
-            // https://lucene.apache.org/solr/guide/6_6/field-types-included-with-solr.html
-            Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
-            versionFieldAttributes.put("docValues", true);
-//            createSolrField(solr,"version", "pdate", versionFieldAttributes);
-            createSolrField(solr,"version", "pint");
+              // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
+              // sorting when the field is a single value field. See the link below for more information:
+              // https://lucene.apache.org/solr/guide/6_6/field-types-included-with-solr.html
+//              Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
+//              versionFieldAttributes.put("docValues", true);
+//              createSolrField(solr,"version", "pdate", versionFieldAttributes);
+              createSolrField(solr, "version", "pint");
 
-        } catch (IOException e) {
-            throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
-        } catch (SolrServerException e) {
-            throw new RuntimeException("SolrServerException caught while attempting to create the fields in the Solr schema");
-        }
+              initialized = true;
+
+          } catch (IOException e) {
+              throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
+          } catch (SolrServerException e) {
+            log.warn(String.format("Could not initialize Solr artifact index: %s", e));
+          }
+      }
+    }
+
+  /**
+   * Checks whether the Solr cluster is alive by calling {@code SolrClient#ping()}.
+   *
+   * @return
+   */
+  private boolean checkAlive() {
+    try {
+      solr.ping();
+      return true;
+    } catch (Exception e) {
+      log.warn(String.format("Could not ping Solr: %s", e));
+    }
+
+    return false;
+  }
+
+  /**
+   * Returns a boolean indicating whether this artifact index is ready.
+   *
+   * @return
+   */
+  @Override
+    public boolean isReady() {
+      init();
+      return initialized && checkAlive();
     }
 
     /**
