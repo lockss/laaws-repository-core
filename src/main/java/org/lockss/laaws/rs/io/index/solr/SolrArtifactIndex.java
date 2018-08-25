@@ -758,7 +758,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             QueryResponse response = solr.query(q);
             FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
 
-            return (Long)contentLengthStats.getSum();
+            return ((Double)contentLengthStats.getSum()).longValue();
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
