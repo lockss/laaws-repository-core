@@ -54,21 +54,13 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
 
     @BeforeEach
     void setUp() throws IOException {
-        testBaseDir = makeTempDir();
+        testBaseDir = getTempDir();
         index = new LocalArtifactIndex(testBaseDir, PERSISTED_INDEX_NAME);
     }
 
     @AfterEach
     void tearDown() {
         quietlyDeleteDir(testBaseDir);
-    }
-
-    protected File makeTempDir() throws IOException {
-        File tempFile = File.createTempFile(getClass().getSimpleName(), null);
-        tempFile.deleteOnExit();
-        File tempDir = new File(tempFile.getAbsolutePath() + ".d");
-        tempDir.mkdirs();
-        return tempDir;
     }
 
     protected static void quietlyDeleteDir(File dir) {

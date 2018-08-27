@@ -45,17 +45,9 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
     // The local repository root directory.
     private File repoBaseDir = null;
 
-    protected File makeTempDir() throws IOException {
-        File tmpFile = File.createTempFile("TestLocalLockssRepository", null, null);
-        File tmpDir = new File(tmpFile.getPath() + ".d");
-        tmpDir.mkdir();
-        tmpFile.delete();
-        return tmpDir;
-    }
-
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
-        repoBaseDir = makeTempDir();
+        repoBaseDir = getTempDir();
         return new LocalLockssRepository(repoBaseDir, "persist.ser");
     }
 
