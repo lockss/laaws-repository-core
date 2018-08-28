@@ -178,14 +178,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       throws Exception;
 
 
-  protected File makeTempDir() throws IOException {
-    File tempFile = File.createTempFile(getClass().getSimpleName(), null);
-    tempFile.deleteOnExit();
-    File tempDir = new File(tempFile.getAbsolutePath() + ".d");
-    tempDir.mkdirs();
-    return tempDir;
-  }
-
   protected static void quietlyDeleteDir(File dir) {
     try {
       FileUtils.deleteDirectory(dir);
