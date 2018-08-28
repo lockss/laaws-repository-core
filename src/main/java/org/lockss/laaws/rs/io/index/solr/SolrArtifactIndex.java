@@ -426,7 +426,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
     @Override
     public Iterable<String> getCollectionIds() throws IOException {
         try {
-            // Cannot perform facet field query on an empty Solr index
+            // Cannot perform facet field query on an empty Solr index; one or more artifacts must exist for a
+            // collection to exist
             if (isEmptySolrIndex()) {
               return IterableUtils.emptyIterable();
             }
@@ -449,7 +450,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                     ff.getValueCount()
             ));
 
-            // Transform facet field values into iterable
+            // Transform facet field value names into iterable
             return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).sorted().iterator());
 
         } catch (SolrServerException e) {
