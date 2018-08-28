@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -397,7 +398,25 @@ public class SolrArtifactIndex implements ArtifactIndex {
       // Return updated Artifact
       return getArtifact(artifactId);
     }
-    
+
+  /**
+   * Returns a boolean indicating whether the Solr index is empty.
+   *
+   * @return A boolean indicating whether the Solr index is empty.
+   * @throws IOException
+   * @throws SolrServerException
+   */
+    private boolean isEmptySolrIndex() throws IOException, SolrServerException {
+      // Match all documents but set the number of documents to be returned to zero
+      SolrQuery q = new SolrQuery();
+      q.setQuery("*:*");
+      q.setRows(0);
+
+      // Return the number of documents our query matched
+      QueryResponse result = solr.query(q);
+      return result.getResults().getNumFound() == 0;
+    }
+
     /**
      * Provides the collection identifiers of the committed artifacts in the artifactIndex.
      *
@@ -406,12 +425,20 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Iterable<String> getCollectionIds() throws IOException {
-        SolrQuery q = new SolrQuery();
-        q.addFacetQuery("committed:true");
-        q.addFacetField("collection");
-        q.setRows(0); // Do not return matched documents
-
         try {
+            // Cannot perform facet field query on an empty Solr index
+            if (isEmptySolrIndex()) {
+              return IterableUtils.emptyIterable();
+            }
+
+            // Perform a Solr facet query on the collection ID field
+            SolrQuery q = new SolrQuery();
+            q.setQuery("*:*");
+            q.setRows(0);
+            q.addFacetQuery("committed:true");
+            q.addFacetField("collection");
+
+            // Get the facet field from the result
             QueryResponse result = solr.query(q);
             FacetField ff = result.getFacetField("collection");
 
@@ -422,6 +449,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
                     ff.getValueCount()
             ));
 
+            // Transform facet field values into iterable
             return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).sorted().iterator());
 
         } catch (SolrServerException e) {
