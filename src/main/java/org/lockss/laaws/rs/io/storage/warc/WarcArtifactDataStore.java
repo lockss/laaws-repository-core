@@ -47,7 +47,6 @@ import org.apache.commons.io.*;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.commons.logging.*;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
 import org.archive.format.warc.WARCConstants;
@@ -59,7 +58,8 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
-
+import org.lockss.log.L4JLogger;
+import org.lockss.util.time.*;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -73,9 +73,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Delay between retries when creating the JMS consumer.
    */
-  public static final long DEFAULT_RETRY_DELAY = 30000;
+  public static final long DEFAULT_RETRY_DELAY = 30 * TimeUtil.SECOND;
+  
+  public static final String SYSPROP_JMS_URI = "org.lockss.jmsUri";
 
-  private final static Log log = LogFactory.getLog(WarcArtifactDataStore.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
   protected static final DateTimeFormatter FMT_TIMESTAMP =
@@ -131,17 +133,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     protected WarcArtifactDataStore() {
       setThresholdWarcSize(NumberUtils.toLong(System.getenv(ENV_THRESHOLD_WARC_SIZE), DEFAULT_THRESHOLD_WARC_SIZE));
-      
-      try {
-	// Create the JMS consumer.
-	makeJmsConsumer();
-      }
-      catch (JMSException e) {
-        log.info("Creating a JMS Consumer failed - JMS messaging not available.");
-        // Failure to create the JMS consumer synchronously: Keep trying to
-        // create it in a separate thread.
-	makeJmsConsumerAsynchronously();
-      }
+      makeJmsConsumer();
     }
     
     public WarcArtifactDataStore(String basePath) {
@@ -911,41 +903,37 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     /**
      * Creates the JMS consumer.
-     * 
-     * @throws JMSExcption
-     *           if there are problems creating the JMS consumer.
      */
-    private void makeJmsConsumer() throws JMSException {
-      jmsConsumer = JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC)
-  	.setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
-    }
-
-    /**
-     * Creates the JMS consumer in a separate thread, re-trying as necessary.
-     */
-    private void makeJmsConsumerAsynchronously() {
+    private void makeJmsConsumer() {
       new Thread(new Runnable() {
-	/**
-	 * Creates the JMS consumer, re-trying as necessary.
-	 */
-	public void run() {
-	  // Keep trying until success.
-	  while (jmsConsumer == null) {
-	    try {
-	      makeJmsConsumer();
-	    } catch (JMSException e) {
-	      // The JMS consumer could not be created: Try again.
-	      try {
-		// Wait until the next retry.
-		Thread.sleep(retryDelay);
-	      } catch (InterruptedException ie) {
-		// Continue with the next retry.
-	      }
-	    }
-	  }
-
-	  log.info("JMS Consumer created - JMS messaging is available.");
-	}
+        @Override
+        public void run() {
+          while (jmsConsumer == null) {
+            JmsConsumer jmsc = null;
+            try {
+              String uri = System.getProperty(SYSPROP_JMS_URI);
+              log.debug("Establishing JMS connection with " + uri);
+              jmsc = JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC);
+              jmsc.setConnectUri(uri);
+              jmsc.setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
+              jmsc.connect();
+              jmsConsumer = jmsc;
+              log.info("Successfully established JMS connection with " + uri);
+            }
+            catch (JMSException jmse) {
+              log.debug("Could not establish JMS connection; sleeping and retrying");
+              if (jmsc != null) {
+                try {
+                  jmsc.closeConnection();
+                }
+                catch (JMSException jmse2) {
+                  // ignore
+                }
+              }
+              TimerUtil.guaranteedSleep(retryDelay);
+            }
+          }
+        }
       }).start();
     }
 

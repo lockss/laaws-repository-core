@@ -37,12 +37,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.jms.*;
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.lockss.log.L4JLogger;
 
 public class JmsConsumer {
 
-  private static final Log log = LogFactory.getLog(JmsConsumer.class);
+  private static final L4JLogger log = L4JLogger.getLogger();
 
   protected String mClientId;
   protected Connection mConnection;
