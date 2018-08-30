@@ -958,6 +958,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         String auId = (String)msgMap.get(KEY_AUID);
         String event = (String)msgMap.get(KEY_TYPE);
         String repospec = (String)msgMap.get(KEY_REPO_SPEC);
+        log.debug("Received notification: [AuEvent: {} AU: {} change: {}]", event, auId, repospec);
         if(auId != null && repospec != null && CONTENT_CHANGED.equals(event)) {
           Matcher m1 = REPO_SPEC_PATTERN.matcher(repospec);
           if(m1.matches()) {
