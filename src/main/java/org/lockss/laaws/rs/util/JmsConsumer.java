@@ -26,41 +26,33 @@
 
 package org.lockss.laaws.rs.util;
 
-import com.nurkiewicz.asyncretry.AsyncRetryExecutor;
-import com.nurkiewicz.asyncretry.RetryExecutor;
 import java.io.Serializable;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.*;
+
 import javax.jms.*;
+
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.lockss.log.L4JLogger;
 
 public class JmsConsumer {
 
   private static final L4JLogger log = L4JLogger.getLogger();
-
-  protected String mClientId;
-  protected Connection mConnection;
-  protected MessageConsumer mMessageConsumer;
-  protected Session mSession;
-  protected String mConnectUri;
-  protected String mTopicName;
-  protected MessageListener mMsgListener;
-  protected ScheduledExecutorService mScheduler;
+  public static final String SYSPROP_JMS_URI = "org.lockss.jmsUri";
+  
+  protected String clientId;
+  protected Connection connection;
+  protected MessageConsumer messageConsumer;
+  protected Session session;
 
   public static JmsConsumer createTopicConsumer(String clientId,
-      String topicName)
+                                                 String topicName)
       throws JMSException {
     return JmsConsumer.createTopicConsumer(clientId, topicName, null);
   }
 
   public static JmsConsumer createTopicConsumer(String clientId,
-      String topicName,
-      MessageListener listener)
+                                                 String topicName,
+                                                 MessageListener listener)
       throws JMSException {
     JmsConsumer res = new JmsConsumer();
     res.createTopic(clientId, topicName, listener);
@@ -68,102 +60,57 @@ public class JmsConsumer {
   }
 
   private JmsConsumer createTopic(String clientId,
-      String topicName,
-      MessageListener listener)
+                                 String topicName,
+                                 MessageListener listener)
       throws JMSException {
 
-    mClientId = clientId;
-    mTopicName = topicName;
-    mMsgListener = listener;
-    return this;
-  }
+    this.clientId = clientId;
 
-  public JmsConsumer setConnectUri(String uri) {
-    mConnectUri = uri;
-    return this;
-  }
-
-  public String getConnectUri() {
-    return mConnectUri;
-  }
-
-  protected Connection getConnection() {
-    return mConnection;
-  }
-
-  public JmsConsumer connect() throws JMSException {
-
-    mScheduler = Executors.newSingleThreadScheduledExecutor();
-
-    RetryExecutor executor = new AsyncRetryExecutor(mScheduler).
-        abortOn(NullPointerException.class).
-        retryOn(JMSException.class).
-        withExponentialBackoff(10, 2).
-        withUniformJitter(). //add between +/- 100 ms randomly
-        withMaxRetries(20);
-
-    CompletableFuture<Connection> futureCon = executor.
-        getWithRetry(() -> startConsumer());
-      futureCon.whenComplete((con, ex) -> {
-        if (con !=null) {
-          mConnection = con;
-        }
-        else if (ex != null) {
-          log.error("Unable to establish connection: " + ex.getMessage());
-        }
-      });
-
-    return this;
-  }
-
-
-  private Connection  startConsumer() throws JMSException {
-    String uri = getConnectUri();
+    String connectUri = Objects.requireNonNull(System.getProperty(SYSPROP_JMS_URI));
     // create a Connection Factory
-    log.debug("Creating consumer for topic: " + mTopicName +
-        ", client: " + mClientId + " at " + uri);
+    log.debug("Creating JmsConsumer for topic: " + topicName +
+              ", client: " + clientId + " at " +
+              connectUri);
     ConnectionFactory connectionFactory =
-        new ActiveMQConnectionFactory(uri);
-    mConnection = connectionFactory.createConnection();
-    // we have a valid mConnection
-    mConnection.setClientID(mClientId);
-    if (log.isTraceEnabled()) {
-      log.trace("Created mSession for topic: " + mTopicName +
-          ", client: " + mClientId + " at " + uri);
-    }
+      new ActiveMQConnectionFactory(connectUri);
+
+    // create a Connection
+    connection = connectionFactory.createConnection();
+    connection.setClientID(clientId);
+    log.trace("Created session for topic: " + topicName +
+               ", client: " + clientId + " at " +
+               connectUri);
+
     // create a Session
-    mSession = mConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
     // create the Topic from which messages will be received
-    Topic topic = mSession.createTopic(mTopicName);
+    Topic topic = session.createTopic(topicName);
 
     // create a MessageConsumer for receiving messages
-    mMessageConsumer = mSession.createConsumer(topic);
-    if (mMsgListener != null) {
-      mMessageConsumer.setMessageListener(mMsgListener);
+    messageConsumer = session.createConsumer(topic);
+    if (listener != null) {
+      messageConsumer.setMessageListener(listener);
     }
-    // start the mConnection in order to receive messages
-    mConnection.start();
-    return mConnection;
+
+    // start the connection in order to receive messages
+    connection.start();
+    return this;
   }
 
   public void closeConnection() throws JMSException {
-    if (mConnection != null) {
-      mConnection.close();
-    }
+    if(connection != null)
+      connection.close();
   }
 
-  public JmsConsumer setListener(MessageListener listener) throws JMSException {
-    mMsgListener = listener;
-
-    if (mMessageConsumer != null) {
-      mMessageConsumer.setMessageListener(listener);
+  public void setListener(MessageListener listener) throws JMSException {
+    if(messageConsumer != null) {
+      messageConsumer.setMessageListener(listener);
     }
-    return this;
   }
 
   public Object receive(int timeout) throws JMSException {
-    Message message = mMessageConsumer.receive(timeout);
+    Message message = messageConsumer.receive(timeout);
     if (message != null) {
       return convertMessage(message);
     }
@@ -188,7 +135,7 @@ public class JmsConsumer {
     }
     else if (message instanceof MapMessage) {
       MapMessage mapMessage = (MapMessage) message;
-      Map<String, Object> map = new HashMap<>();
+      Map<String, Object> map = new HashMap<String, Object>();
       Enumeration<String> en = mapMessage.getMapNames();
       while (en.hasMoreElements()) {
         String key = en.nextElement();
@@ -215,16 +162,16 @@ public class JmsConsumer {
     Object received = receive(timeout);
 
     // check if a message was received
-    if (received instanceof String) {
+    if (received != null && received instanceof String) {
       // cast the message to the correct type
       String text = (String) received;
       if (log.isDebugEnabled()) {
-        log.debug(mClientId + ": received text ='" + text + "'");
+        log.debug(clientId + ": received text ='" + text + "'");
       }
       return text;
     }
     else {
-      log.debug(mClientId + ": String message not received");
+      log.debug(clientId + ": String message not received");
     }
     return null;
   }
@@ -242,11 +189,11 @@ public class JmsConsumer {
     Object received = receive(timeout);
     // check if a message was received
     if (received != null && received instanceof Map) {
-      log.debug(mClientId + ": received map.");
+      log.debug(clientId + ": received map.");
       return (Map<String, Object>) received;
     }
     else {
-      log.debug(mClientId + ": Map not received");
+      log.debug(clientId + ": Map not received");
     }
     return null;
   }
@@ -260,23 +207,23 @@ public class JmsConsumer {
    */
   public byte[] receiveBytes(int timeout) throws JMSException {
     Object received = receive(timeout);
-    if (received instanceof byte[]) {
+    if (received != null && received instanceof byte[]) {
       byte[] bytes = (byte[]) received;
       if (log.isDebugEnabled()) {
-        log.debug(mClientId + ": received bytes ='" + bytes + "'");
+        log.debug(clientId + ": received bytes ='" + bytes + "'");
       }
       return bytes;
     }
     else {
-      log.debug(mClientId + ": no bytes received");
+      log.debug(clientId + ": no bytes received");
     }
-    return new byte[0];
+    return null;
   }
 
   /**
    * Return a serializable object from the message queue.
    *
-   * @param timeout for the message consumer receive
+   * @param timeout for the message JmsConsumer receive
    * @return the resulting Serializable object
    * @throws JMSException if thrown by JMS methods
    */
@@ -286,14 +233,13 @@ public class JmsConsumer {
     if (received != null && received instanceof Serializable) {
       Serializable obj = (Serializable) received;
       if (log.isDebugEnabled()) {
-        log.debug(mClientId + ": received serializable object ='" +
-            obj.toString() + "'");
+        log.debug(clientId + ": received serializable object ='" +
+                  obj.toString() + "'");
       }
       return obj;
     }
     else {
-      if(log.isDebugEnabled())
-        log.debug(mClientId + ": no message received");
+      log.debug(clientId + ": no message received");
     }
     return null;
   }

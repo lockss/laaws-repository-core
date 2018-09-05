@@ -73,10 +73,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Delay between retries when creating the JMS consumer.
    */
-  public static final long DEFAULT_RETRY_DELAY = 30 * TimeUtil.SECOND;
+  public static final long DEFAULT_RETRY_DELAY = 1 * TimeUtil.SECOND;
   
-  public static final String SYSPROP_JMS_URI = "org.lockss.jmsUri";
-
   private final static L4JLogger log = L4JLogger.getLogger();
 
   // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
@@ -908,28 +906,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       new Thread(new Runnable() {
         @Override
         public void run() {
+          String uri = System.getProperty(JmsConsumer.SYSPROP_JMS_URI);
+          log.info("Establishing JMS connection with {}", uri);
           while (jmsConsumer == null) {
-            JmsConsumer jmsc = null;
             try {
-              String uri = System.getProperty(SYSPROP_JMS_URI);
-              log.debug("Establishing JMS connection with " + uri);
-              jmsc = JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC);
-              jmsc.setConnectUri(uri);
-              jmsc.setListener(new DataStoreCrawlListener(CLIENT_ID + "AUEvent"));
-              jmsc.connect();
-              jmsConsumer = jmsc;
-              log.info("Successfully established JMS connection with " + uri);
+              log.trace("Attempting to establish JMS connection with {}", uri);
+              jmsConsumer = JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC, new DataStoreCrawlListener("AuEvent Listener"));
+              log.info("Successfully established JMS connection with {}", uri);
             }
-            catch (JMSException jmse) {
-              log.debug("Could not establish JMS connection; sleeping and retrying");
-              if (jmsc != null) {
-                try {
-                  jmsc.closeConnection();
-                }
-                catch (JMSException jmse2) {
-                  // ignore
-                }
-              }
+            catch (JMSException|NullPointerException exc) {
+              log.trace("Could not establish JMS connection with {}; sleeping and retrying", uri);
               TimerUtil.guaranteedSleep(retryDelay);
             }
           }

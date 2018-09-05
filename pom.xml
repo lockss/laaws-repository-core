@@ -261,12 +261,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>com.nurkiewicz.asyncretry</groupId>
-      <artifactId>asyncretry</artifactId>
-      <version>0.0.7</version>
-    </dependency>
-
     <!-- https://mvnrepository.com/artifact/org.junit.platform/junit-platform-console-standalone -->
     <dependency>
       <groupId>org.junit.platform</groupId>
