@@ -44,6 +44,7 @@ import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.CursorMarkParams;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -803,12 +804,35 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     private Iterator<Artifact> query(SolrQuery q) throws IOException {
         try {
+          // Set paging parameters
+          q.setRows(10);
+          q.setSort(SolrQuery.SortClause.asc("id"));
+
+          String cursorMark = CursorMarkParams.CURSOR_MARK_START;
+          List<Artifact> artifacts = new ArrayList<>();
+
+          while (true) {
+            // Set the query's cursor mark and perform the query
+            q.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
             QueryResponse response = solr.query(q);
+            String nextCursorMark = response.getNextCursorMark();
+
             // TODO: Potential to exhaust memory for large enough query results; find a better way to do this
-            List<Artifact> documents = response.getBeans(Artifact.class);
-            return documents.iterator();
+            artifacts.addAll(response.getBeans(Artifact.class));
+
+            // Determine whether there are more pages to retrieve from Solr
+            if (!cursorMark.equals(nextCursorMark)) {
+              // Update the cursor mark for the next page
+              cursorMark = nextCursorMark;
+            } else {
+              // We have reached the end - break out of the while loop
+              break;
+            }
+          }
+
+          return artifacts.iterator();
         } catch (SolrServerException e) {
-            throw new IOException(e);
+          throw new IOException(e);
         }
     }
 }
