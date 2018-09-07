@@ -514,7 +514,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addSort(VERSION_DESC);
 
         // Ensure the result is not empty for the collapse filter query
-        if (!query(q).hasNext()) {
+        if (isEmptyResult(q)) {
             log.debug(String.format(
                     "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
                     collection,
@@ -583,7 +583,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addSort(VERSION_DESC);
 
         // Ensure the result is not empty for the collapse filter query
-        if (!query(q).hasNext()) {
+        if (isEmptyResult(q)) {
             log.debug(String.format(
                     "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s, uri (prefix): %s)",
                     collection,
@@ -681,10 +681,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
-        Iterator<Artifact> result = query(q);
-
         // Ensure the result is not empty for the collapse filter query
-        if (!result.hasNext()) {
+        if (isEmptyResult(q)) {
             log.debug(String.format(
                     "Solr returned null result set after filtering by (collection: %s, auid: %s, uri: %s)",
                     collection,
@@ -697,7 +695,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         // Perform a collapse filter query (must have documents in result set to operate on)
         q.addFilterQuery("{!collapse field=uri max=version}");
-        result = query(q);
+        Iterator<Artifact> result = query(q);
 
         // Return the latest artifact
         if (result.hasNext()) {
@@ -768,7 +766,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
 
         // Ensure the result is not empty for the collapse filter query
-        if (!query(q).hasNext()) {
+        if (isEmptyResult(q)) {
             log.debug(String.format(
                     "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
                     collection,
@@ -834,5 +832,18 @@ public class SolrArtifactIndex implements ArtifactIndex {
         } catch (SolrServerException e) {
           throw new IOException(e);
         }
+    }
+
+    private boolean isEmptyResult(SolrQuery q) throws IOException {
+      // Override number of rows to return
+      q.setRows(0);
+
+      // Perform query and find the number of documents
+      try {
+        QueryResponse response = solr.query(q);
+        return response.getResults().getNumFound() == 0;
+      } catch (SolrServerException e) {
+        throw new IOException(String.format("Caught SolrServerException attempting to execute Solr query: %s", q));
+      }
     }
 }
