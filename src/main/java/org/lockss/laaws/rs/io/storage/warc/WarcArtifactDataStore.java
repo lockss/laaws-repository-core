@@ -361,21 +361,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         renameFile(currentPath, newPath);
 
         // Iterate over all the artifacts in the sealed WARC and update their storage URLs in the index
-        for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid)) {
-            String newStorageUrl = makeNewStorageUrl(newPath, artifact);
+        for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid, true)) {
+          String newStorageUrl = makeNewStorageUrl(newPath, artifact);
 
+          if (newStorageUrl != null) {
             log.info(String.format(
-                    "Updating storage URL for artifact %s: %s -> %s",
-                    artifact.getId(),
-                    artifact.getStorageUrl(),
-                    newStorageUrl
+                "Updating storage URL for artifact %s: %s -> %s",
+                artifact.getId(),
+                artifact.getStorageUrl(),
+                newStorageUrl
             ));
 
-            if (newStorageUrl != null) {
-                artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
-            }
+            artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
+          }
         }
-
 
         return newPath;
     }
