@@ -238,6 +238,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Boolean artifactExists(String collectionId, String artifactId) throws IOException {
     if ((collectionId == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
+
     return index.artifactExists(artifactId);
   }
 
@@ -251,9 +252,12 @@ public class BaseLockssRepository implements LockssRepository {
   public Boolean isArtifactCommitted(String collectionId, String artifactId) throws IOException {
     if ((collectionId == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
+
     Artifact artifact = index.getArtifact(artifactId);
+
     if ((artifact == null))
       throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+
     return artifact.getCommitted();
   }
 
@@ -279,6 +283,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Iterable<String> getAuIds(String collection) throws IOException {
     if (collection == null)
       throw new IllegalArgumentException("Null collection");
+
     return index.getAuIds(collection);
   }
 
@@ -294,6 +299,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
+
     return index.getAllArtifacts(collection, auid);
   }
 
@@ -308,6 +314,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
+
     return index.getAllArtifactsAllVersions(collection, auid);
   }
 
@@ -325,6 +332,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
     if ((collection == null) || (auid == null) || (prefix == null))
       throw new IllegalArgumentException("Null collection id, au id or prefix");
+
     return index.getAllArtifactsWithPrefix(collection, auid, prefix);
   }
 
@@ -342,6 +350,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
     if ((collection == null) || (auid == null) || (prefix == null))
       throw new IllegalArgumentException("Null collection id, au id or prefix");
+
     return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
   }
 
@@ -358,6 +367,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
     if ((collection == null) || (auid == null) || (url == null))
       throw new IllegalArgumentException("Null collection id, au id or url");
+
     return index.getArtifactAllVersions(collection, auid, url);
   }
 
@@ -374,6 +384,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Artifact getArtifact(String collection, String auid, String url) throws IOException {
     if ((collection == null) || (auid == null) || (url == null))
       throw new IllegalArgumentException("Null collection id, au id or url");
+
     return index.getArtifact(collection, auid, url);
   }
 
@@ -391,6 +402,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) ||
         (url == null) || version == null)
       throw new IllegalArgumentException("Null collection id, au id, url or version");
+
     return index.getArtifactVersion(collection, auid, url, version);
   }
 
@@ -405,6 +417,7 @@ public class BaseLockssRepository implements LockssRepository {
   public Long auSize(String collection, String auid) throws IOException {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
+
     return index.auSize(collection, auid);
   }
 
