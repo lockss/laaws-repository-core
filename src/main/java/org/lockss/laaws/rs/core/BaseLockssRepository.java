@@ -300,7 +300,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
 
-    return index.getAllArtifacts(collection, auid);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getAllArtifacts(collection, auid);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -315,7 +322,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
 
-    return index.getAllArtifactsAllVersions(collection, auid);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getAllArtifactsAllVersions(collection, auid);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -333,7 +347,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (prefix == null))
       throw new IllegalArgumentException("Null collection id, au id or prefix");
 
-    return index.getAllArtifactsWithPrefix(collection, auid, prefix);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getAllArtifactsWithPrefix(collection, auid, prefix);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -351,7 +372,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (prefix == null))
       throw new IllegalArgumentException("Null collection id, au id or prefix");
 
-    return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -368,7 +396,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (url == null))
       throw new IllegalArgumentException("Null collection id, au id or url");
 
-    return index.getArtifactAllVersions(collection, auid, url);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getArtifactAllVersions(collection, auid, url);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -385,7 +420,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (url == null))
       throw new IllegalArgumentException("Null collection id, au id or url");
 
-    return index.getArtifact(collection, auid, url);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getArtifact(collection, auid, url);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -403,7 +445,14 @@ public class BaseLockssRepository implements LockssRepository {
         (url == null) || version == null)
       throw new IllegalArgumentException("Null collection id, au id, url or version");
 
-    return index.getArtifactVersion(collection, auid, url, version);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.getArtifactVersion(collection, auid, url, version);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
@@ -418,7 +467,14 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
 
-    return index.auSize(collection, auid);
+    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
+    auidLock.lock();
+
+    try {
+      return index.auSize(collection, auid);
+    } finally {
+      auidLock.unlock();
+    }
   }
 
   /**
