@@ -298,6 +298,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   
   @Override
   public long getFileLength(String filePath) throws IOException {
+    // TODO
     throw new UnsupportedOperationException();
   }
   
@@ -353,11 +354,21 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   
   @Override
   public void createFileIfNeeded(String filePath) throws IOException {
-    throw new UnsupportedOperationException();
+      // Intentionally left blank to indicate success
   }
   
   @Override
   public void renameFile(String srcPath, String dstPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void copyFile(String srcPath, String dstPath) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void deleteFile(String path) throws IOException {
     throw new UnsupportedOperationException();
   }
 

@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -136,7 +137,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     @Override
     public long getFileLength(String filePath) {
+      // Acquire lock to avoid returning a length while write is in progress
+      Lock warcLock = warcLockMap.getLock(filePath);
+      warcLock.lock();
+
+      try {
         return new File(getBasePath() + filePath).length();
+      } finally {
+        warcLock.unlock();
+      }
     }
 
     @Override
@@ -192,6 +201,36 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
             throw new IOException(String.format("Error renaming %s to %s", realSrcPath, realDstPath));
         }
     }
+
+  @Override
+  public void copyFile(String srcPath, String dstPath) throws IOException {
+    String realSrcPath = getBasePath() + srcPath;
+    String realDstPath = getBasePath() + dstPath;
+
+    // Acquire lock to avoid further writes to the source while copy is in progress
+    Lock warcLock = warcLockMap.getLock(srcPath);
+    warcLock.lock();
+
+    try {
+      FileUtils.copyFile(new File(realSrcPath), new File(realDstPath));
+    } finally {
+      warcLock.unlock();
+    }
+  }
+
+  @Override
+  public void deleteFile(String path) throws IOException {
+    // Acquire lock to avoid delete while
+    Lock warcLock = warcLockMap.getLock(path);
+    warcLock.lock();
+
+    try {
+      File file = new File(getBasePath() + path);
+      FileUtils.forceDelete(file);
+    } finally {
+      warcLock.unlock();
+    }
+  }
 
     @Override
     public String makeNewStorageUrl(String newPath, Artifact artifact) {
