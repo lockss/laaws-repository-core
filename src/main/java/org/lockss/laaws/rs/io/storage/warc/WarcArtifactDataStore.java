@@ -906,6 +906,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         @Override
         public void run() {
           String uri = System.getProperty(JmsConsumer.SYSPROP_JMS_URI);
+          log.trace("uri: {}", uri);
+
+          if (uri == null || uri.trim().isEmpty()) {
+            return;
+          }
+
           log.info("Establishing JMS connection with {}", uri);
           while (jmsConsumer == null) {
             try {
