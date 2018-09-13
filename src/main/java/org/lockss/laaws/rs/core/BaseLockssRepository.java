@@ -150,7 +150,6 @@ public class BaseLockssRepository implements LockssRepository {
       return null;
     }
 
-    // TODO: An AU level lock is overkill here
     Artifact artifact = index.getArtifact(artifactId);
     Lock auidLock = auidLockMap.getLock(new RepoAuid(artifact.getCollection(), artifact.getAuid()));
     auidLock.lock();
@@ -300,14 +299,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getAllArtifacts(collection, auid);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getAllArtifacts(collection, auid);
   }
 
   /**
@@ -322,14 +314,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getAllArtifactsAllVersions(collection, auid);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getAllArtifactsAllVersions(collection, auid);
   }
 
   /**
@@ -347,14 +332,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (prefix == null))
       throw new IllegalArgumentException("Null collection id, au id or prefix");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getAllArtifactsWithPrefix(collection, auid, prefix);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getAllArtifactsWithPrefix(collection, auid, prefix);
   }
 
   /**
@@ -372,14 +350,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (prefix == null))
       throw new IllegalArgumentException("Null collection id, au id or prefix");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
   }
 
   /**
@@ -396,14 +367,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (url == null))
       throw new IllegalArgumentException("Null collection id, au id or url");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getArtifactAllVersions(collection, auid, url);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getArtifactAllVersions(collection, auid, url);
   }
 
   /**
@@ -420,14 +384,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null) || (url == null))
       throw new IllegalArgumentException("Null collection id, au id or url");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getArtifact(collection, auid, url);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getArtifact(collection, auid, url);
   }
 
   /**
@@ -445,14 +402,7 @@ public class BaseLockssRepository implements LockssRepository {
         (url == null) || version == null)
       throw new IllegalArgumentException("Null collection id, au id, url or version");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.getArtifactVersion(collection, auid, url, version);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.getArtifactVersion(collection, auid, url, version);
   }
 
   /**
@@ -467,14 +417,7 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (auid == null))
       throw new IllegalArgumentException("Null collection id or au id");
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(collection, auid));
-    auidLock.lock();
-
-    try {
-      return index.auSize(collection, auid);
-    } finally {
-      auidLock.unlock();
-    }
+    return index.auSize(collection, auid);
   }
 
   /**

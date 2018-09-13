@@ -306,7 +306,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     List<String> cids3 = IteratorUtils.toList(index3.getCollectionIds().iterator());
     List<String> cids4 = IteratorUtils.toList(index4.getCollectionIds().iterator());
     if (!(cids3.containsAll(cids4) && cids4.containsAll(cids3))) {
-      fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+      fail(String.format("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs: %s vs %s", cids3, cids4));
     }
 
     // Iterate over the collection IDs
