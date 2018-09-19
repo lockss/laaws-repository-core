@@ -57,7 +57,7 @@ import java.util.Objects;
  */
 public class ArtifactData implements Comparable<ArtifactData> {
     private final static Log log = LogFactory.getLog(ArtifactData.class);
-    protected static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
+    public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
     // Core artifact attributes
     private ArtifactIdentifier identifier;
