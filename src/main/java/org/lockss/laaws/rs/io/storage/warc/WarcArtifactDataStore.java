@@ -44,6 +44,7 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.io.*;
 import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
@@ -394,42 +395,120 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return repoMetadata;
   }
 
-    public String sealWarc(String collection, String auid) throws IOException {
-        // Current and new (sealed) path of artifacts WARC file
-        String tmpArtifactsWarc = getAuArtifactsWarcPath(collection, auid);
+  /**
+   * Seals the committed (and unsealed) artifacts of an AU to one or more static WARC files.
+   *
+   * @param collection
+   *          A {@code String} containing the collection ID of the AU.
+   * @param auid
+   *          A {@code String} containing the AUID.
+   * @return
+   *          An {@code Iterable<Artifact>} containing artifacts of this AU that were sealed.
+   * @throws IOException
+   */
+  public Iterable<Artifact> sealWarc(String collection, String auid) throws IOException {
+    // Keep track of all artifacts sealed within this invocation
+    List<Artifact> sealedArtifacts = new ArrayList<>();
 
-        log.info(String.format("Sealing WARC %s", tmpArtifactsWarc));
+    // Keep track of sealed WARC files created by within this invocation
+    List<String> sealedWarcs = new ArrayList<>();
 
-        // Write terminating warcinfo record
-        writeTerminateWarcFile(tmpArtifactsWarc);
+    // Determine the artifacts to seal (all committed unsealed artifacts)
+    Iterable<Artifact> auArtifacts = artifactIndex.getAllArtifactsAllVersions(collection, auid, false);
+    Iterable<Artifact> sealableArtifacts = IterableUtils.filteredIterable(auArtifacts, artifact ->
+        // Include this artifact for sealing only if it isn't already sealed
+        !artifact.getStorageUrl().startsWith(makeStorageUrl(getSealedWarcPath()))
+    );
 
-        // Move the default artifacts.warc file to the sealed WARCs directory
-        String sealedWarcPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
-        log.info(String.format("Moving sealed WARC %s to %s", tmpArtifactsWarc, sealedWarcPath));
+    // Get an iterator over the sealable artifacts
+    Iterator<Artifact> sealableArtifactsIterator = sealableArtifacts.iterator();
 
-        // TODO: This could be happen in a thread
-        copyFile(tmpArtifactsWarc, sealedWarcPath);
+    if (!sealableArtifactsIterator.hasNext()) {
+      // Yes - There are no artifacts to seal; return an empty iterable (and avoid creating an empty sealed WARC file)
+      log.info("No artifacts to seal");
+      return IterableUtils.emptyIterable();
+    }
 
-        // Iterate over all the artifacts in the sealed WARC and update their storage URLs in the index
-        for (Artifact artifact : artifactIndex.getAllArtifactsAllVersions(collection, auid, true)) {
-          String newStorageUrl = makeNewStorageUrl(sealedWarcPath, artifact);
+    log.info(String.format("Sealing committed artifacts in [Collection: %s, AUID: %s]", collection, auid));
 
-          if (newStorageUrl != null) {
-            log.info(String.format(
-                "Updating storage URL for artifact %s: %s -> %s",
-                artifact.getId(),
-                artifact.getStorageUrl(),
-                newStorageUrl
-            ));
+    // Determine the initial sealed WARC file
+    String sealedWarcPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
 
-            artifactIndex.updateStorageUrl(artifact.getId(), newStorageUrl);
-          }
+    // Initialize the sealed WARC file
+    initWarc(sealedWarcPath);
+
+    // Add sealed WARC file path to the list of sealed WARC files created
+    sealedWarcs.add(sealedWarcPath);
+
+    // Iterate over all sealable artifacts and seal
+    while (sealableArtifactsIterator.hasNext()) {
+      // Get an artifact to seal from the iterator
+      Artifact artifact = sealableArtifactsIterator.next();
+
+      // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
+      long offset = getFileLength(sealedWarcPath);
+      long bytesWritten;
+
+      // Copy artifact data from source WARC to sealed WARC
+      try (
+        // Get an (appending) OutputStream to the sealed WARC file
+        OutputStream out = getAppendableOutputStream(sealedWarcPath)
+      ) {
+        // TODO: Do we need to strictly adhere to size threshold?
+        // Write artifact to sealed artifacts WARC file
+        bytesWritten = writeArtifactData(getArtifactData(artifact), out);
+        out.flush();
+
+        log.info(String.format(
+            "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+            bytesWritten,
+            offset,
+            sealedWarcPath,
+            offset + bytesWritten
+        ));
+
+        String oldStorageUrl = artifact.getStorageUrl();
+
+        // Set the artifact's new storage URL and add it to the list of sealed artifacts
+        artifact.setStorageUrl(makeStorageUrl(sealedWarcPath, offset));
+        sealedArtifacts.add(artifact);
+
+        // Did we cross the WARC file size threshold and still have more artifacts to seal?
+        if (offset + bytesWritten >= getThresholdWarcSize() && sealableArtifactsIterator.hasNext()) {
+          // Yes - write following artifacts to new sealed WARC file
+          sealedWarcPath = getSealedWarcPath() + SEPARATOR + getSealedWarcName(collection, auid);
+          initWarc(sealedWarcPath);
+          sealedWarcs.add(sealedWarcPath);
         }
 
-        deleteFile(tmpArtifactsWarc);
+        log.info(String.format(
+            "Updating storage URL for artifact %s: %s -> %s",
+            artifact.getId(),
+            oldStorageUrl,
+            artifact.getStorageUrl()
+        ));
 
-        return sealedWarcPath;
+        // TODO: Should the data store be allowed to modify the index?
+        // Update storage URLs of newly sealed artifacts in the artifact index
+        artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+      }
     }
+
+    log.info(String.format("Sealed %d artifacts", sealedArtifacts.size()));
+
+    // TODO: Is this really necessary for *sealed* WARCs?
+    // Write terminating WARC metadata record to each sealed WARC file
+    sealedWarcs.forEach(warcPath -> {
+      try {
+        writeTerminateWarcFile(warcPath);
+      } catch (IOException e) {
+        // Not catastrophic if a terminating WARC metadata record could not be written
+        log.warn(String.format("Could not write terminating WARC medata record to %s: %s", warcPath, e));
+      }
+    });
+
+    return sealedArtifacts;
+  }
 
   /**
    * Writes a WARC metadata record to the end of a WARC file, indicating the WARC as sealed.
@@ -970,7 +1049,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             String collection = m1.group(2);
             if(collection != null) {
               try {
-                String ignorePath = sealWarc(collection, auId);
+                Iterable<Artifact> sealedArtifacts = sealWarc(collection, auId);
               }
               catch (IOException e) {
                 log.error("JmsConsumer: Unable to seal warc for collection " + collection+ " and au " + auId);
