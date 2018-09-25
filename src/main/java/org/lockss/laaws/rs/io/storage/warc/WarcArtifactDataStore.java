@@ -510,36 +510,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     public abstract void moveWarc(String srcPath, String dstPath) throws IOException;
     public abstract long getFileLength(String filePath) throws IOException;
 
-    /**
-     * Returns the WARC-Record-Id of the WARC record backing a given ArtifactData.
-     *
-     * @param file URL to a WARC file.
-     * @param offset Absolute byte offset of WARC record in WARC file.
-     * @return The value of the mandatory WARC-Record-Id header.
-     * @throws IOException
-     */
-    public static String getWarcRecordId(URL file, long offset) throws IOException {
-        WARCRecord record = getWarcRecord(file, offset);
-        ArchiveRecordHeader recordHeader = record.getHeader();
-        return (String) recordHeader.getHeaderValue(WARCConstants.HEADER_KEY_ID);
-    }
-
-    /**
-     * Returns a WARCRecord object representing the WARC record at a given URL and offset.
-     *
-     * Support for different protocols is handled by implementing URLConnection, URLStreamHandler, and
-     * URLStreamHandlerFactory, then registering the custom URLStreamHandlerFactory with URL#setURLStreamHandlerFactory.
-     *
-     * @param file URL to a WARC file.
-     * @param offset Absolute byte offset of WARC record in WARC file.
-     * @return A WARCRecord object representing the WARC record in the WARC file, at the given offset.
-     * @throws IOException
-     */
-    public static WARCRecord getWarcRecord(URL file, long offset) throws IOException {
-        InputStream warcStream = file.openStream();
-        warcStream.skip(offset);
-        return new WARCRecord(file.openStream(), "WarcArtifactDataStore", 0);
-    }
+    public abstract Collection<String> scanDirectories(String basePath) throws IOException;
 
     /**
      * Creates a WARCRecordInfo object representing a WARC metadata record with a JSON object as its payload.
