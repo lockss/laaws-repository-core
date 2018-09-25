@@ -52,7 +52,6 @@ import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
-import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.*;
 import org.archive.util.anvl.Element;
 import org.lockss.laaws.rs.io.WarcFileLockMap;
@@ -314,10 +313,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
   
   @Override
-  public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier ident,
-                                                           RepositoryArtifactMetadata artifactMetadata)
-      throws IOException {
-    Objects.requireNonNull(ident, "Artifact identifier is null");
+  public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) throws IOException {
+    Objects.requireNonNull(artifactId, "Artifact identifier is null");
     Objects.requireNonNull(artifactMetadata, "Repository artifact metadata is null");
 
     WARCRecordInfo metadataRecord = createWarcMetadataRecord(ident.getId(), artifactMetadata);
@@ -343,16 +340,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public RepositoryArtifactMetadata commitArtifactData(Artifact artifact) throws IOException {
     Objects.requireNonNull(artifact, "Artifact is null");
-    ArtifactData artifactData = getArtifactData(artifact);
-    RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
 
-    // Set the commit flag and write the metadata to disk
-    if (!repoMetadata.isDeleted()) {
-      repoMetadata.setCommitted(true);
-      updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
+    // Retrieve artifact data from current WARC file
+    ArtifactData artifactData = getArtifactData(artifact);
+    RepositoryArtifactMetadata artifactState = artifactData.getRepositoryMetadata();
+
+    if (!artifactState.isDeleted()) {
+      // Write new state to artifact data repository metadata journal
+      artifactState.setCommitted(true);
+      updateArtifactMetadata(artifact.getIdentifier(), artifactState);
+    } else {
+      log.warn(String.format("Artifact is already committed (Artifact ID: %s)", artifact.getId()));
     }
 
-    return repoMetadata;
+    return artifactState;
   }
 
   /**
@@ -377,8 +378,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       repoMetadata.setDeleted(true);
       updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
 
-      // TODO: Remove artifact from storage. A more likely design is a garbage collector with customizable policy
-      // because it is expensive to cut and splice artifacts.
+      // Update artifact index
+//      artifactIndex.deleteArtifact(artifact.getId());
+
+      // TODO: Actually remove artifact from storage. A more likely design is a garbage collector with customizable
+      // policy because it is expensive to cut and splice artifacts.
+    } else {
+      log.warn(String.format("Artifact is already deleted (Artifact ID: %s)", artifact.getId()));
     }
 
     return repoMetadata;
@@ -663,12 +669,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Write the header-body separator
         out.write(CRLF_BYTES);
 
-        // Write the body
         if (record.getContentStream() != null) {
-            // TODO: Put logic here to check and enforce WARC file lengths
+            // Write the WARC payload
             int bytesWritten = IOUtils.copy(record.getContentStream(), out);
-            if (bytesWritten != record.getContentLength())
-                log.warn(String.format("Expected %d bytes, but wrote %d", record.getContentLength(), bytesWritten));
+
+            // Sanity check
+            if (bytesWritten != record.getContentLength()) {
+              log.warn(String.format("Expected to write %d bytes, but wrote %d", record.getContentLength(), bytesWritten));
+            }
         }
 
         // Write the two blank lines required at end of every record
