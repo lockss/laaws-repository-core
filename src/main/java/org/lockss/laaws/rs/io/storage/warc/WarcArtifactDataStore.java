@@ -585,11 +585,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         IOUtils.copy(httpResponse, dfos);
 
+        dfos.flush();
+        dfos.close();
+
         // Get the temporary file created, if it exists, so that we can delete
         // it after it's no longer needed.
         File dfosFile = dfos.getFile();
-
-        dfos.close();
 
         // Set the length of the artifact data
         long contentLength = artifactData.getBytesRead();
