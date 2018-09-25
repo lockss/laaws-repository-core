@@ -101,24 +101,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
     // Initialize the base path with a LOCKSS repository structure
-    init();
-  }
-
-  /**
-   * Initializes a LOCKSS repository structure under the configured base path.
-   *
-   * @throws IOException
-   */
-  public synchronized void init() {
-    if (!initialized) {
-      try {
-        mkdirsIfNeeded("/");
-        mkdirsIfNeeded(getSealedWarcPath());
-        initialized = true;
-      } catch (IOException e) {
-        log.warn(String.format("Could not initialize HDFS artifact store: %s", e));
-      }
-    }
+    initRepository();
   }
 
   /**
@@ -144,7 +127,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    init();
+    initRepository();
     return initialized && checkAlive();
   }
 
@@ -230,12 +213,63 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     return uriBuilder.toUriString();
   }
 
-  @Override
-  public void createFileIfNeeded(String filePath) throws IOException {
-    Path file = new Path(getBasePath() + filePath);
+  /**
+   * Initializes a new LOCKSS repository structure under the configured base path.
+   *
+   * @throws IOException
+   */
+  public synchronized void initRepository() {
+    if (!initialized) {
+      try {
+        mkdirs("/");
+        mkdirs(getSealedWarcPath());
+        initialized = true;
+      } catch (IOException e) {
+        log.warn(String.format("Could not initialize HDFS artifact store: %s", e));
+      }
+    }
+  }
 
-    if (fs.createNewFile(file)) {
-      log.info(String.format("Created new HDFS file: %s", file));
+  /**
+   * Initializes a new AU collection under this LOCKSS repository.
+   *
+   * @param collectionId
+   *          A {@code String} containing the collection ID.
+   * @throws IOException
+   */
+  @Override
+  public void initCollection(String collectionId) throws IOException {
+    mkdirs(getCollectionPath(collectionId));
+  }
+
+  /**
+   * Initializes an AU in the specified AU collection.
+   *
+   * @param collectionId
+   *          A {@code String} containing the collection ID of this AU.
+   * @param auid
+   *          A {@code String} containing the AUID of this AU.
+   * @throws IOException
+   */
+  @Override
+  public void initAu(String collectionId, String auid) throws IOException {
+    initCollection(collectionId);
+    mkdirs(getAuPath(collectionId, auid));
+  }
+
+  /**
+   * Initializes a new WARC file at the provided path.
+   *
+   * @param warcPath
+   *          A {@code String} containing the path of the WARC file to be initialized.
+   * @throws IOException
+   */
+  @Override
+  public void initWarc(String warcPath) throws IOException {
+    Path fullPath = new Path(getBasePath() + warcPath);
+
+    if (fs.createNewFile(fullPath)) {
+      log.info(String.format("Created new WARC file under HDFS: %s", fullPath));
     }
   }
 

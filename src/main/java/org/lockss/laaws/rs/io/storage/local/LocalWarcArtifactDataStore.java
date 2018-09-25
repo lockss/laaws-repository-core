@@ -68,23 +68,34 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         this.fileAndOffsetStorageUrlPat =
                 Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
-        init();
+        initRepository();
     }
 
-    public synchronized void init() {
+    public synchronized void initRepository() {
       if (!initialized) {
         try {
           // Initialize LOCKSS repository structure
-          mkdirsIfNeeded("/");
-          mkdirsIfNeeded(getSealedWarcPath());
+          mkdirs("/");
+          mkdirs(getSealedWarcPath());
           initialized = true;
         } catch (IOException e) {
-          log.warn("Caught IOException while attempting init local filesystem artifact datastore");
+          log.warn("Caught IOException while attempting initRepository local filesystem artifact datastore");
         }
       } else {
         log.info("Already initialized LOCKSS repository");
       }
     }
+
+  @Override
+  public void initCollection(String collectionId) throws IOException {
+    mkdirs(getCollectionPath(collectionId));
+  }
+
+  @Override
+  public void initAu(String collectionId, String auid) throws IOException {
+    initCollection(collectionId);
+    mkdirs(getAuPath(collectionId, auid));
+  }
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.
@@ -185,10 +196,10 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void createFileIfNeeded(String filePath) throws IOException {
-        File file = new File(getBasePath() + filePath);
+    public void initWarc(String storageUrl) throws IOException {
+        File file = new File(getBasePath() + storageUrl);
         if (!file.exists()) {
-            mkdirsIfNeeded(new File(filePath).getParent());
+            mkdirs(new File(storageUrl).getParent());
             FileUtils.touch(file);
         }
     }

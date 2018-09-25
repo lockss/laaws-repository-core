@@ -67,9 +67,19 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
         super(basePath);
         this.repository = new HashMap<>();
         this.repositoryMetadata = new HashMap<>();
-    }    
-    
-    /**
+    }
+
+  @Override
+  public void initCollection(String collectionId) throws IOException {
+    // TODO
+  }
+
+  @Override
+  public void initAu(String collectionId, String auid) throws IOException {
+    // TODO
+  }
+
+  /**
      * {@inheritDoc}
      */
     @Override
@@ -353,7 +363,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
   
   @Override
-  public void createFileIfNeeded(String filePath) throws IOException {
+  public void initWarc(String storageUrl) throws IOException {
       // Intentionally left blank to indicate success
   }
   

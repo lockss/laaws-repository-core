@@ -53,6 +53,24 @@ import java.util.concurrent.TimeoutException;
 public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
 
     /**
+     * Initializes a collection storage structure in an artifact data store implementation.
+     *
+     * @param collectionId
+     *          A {@code String} containing the collection ID of the collection to initialize.
+     */
+    void initCollection(String collectionId) throws IOException;
+
+    /**
+     * Initializes an Archival Unit (AU) storage structure in an artifact data store implementation.
+     *
+     * @param collectionId
+     *          A {@code String} containing the collection ID of this AU.
+     * @param auid
+     *          A {@code String} containing the AU ID of the AU to initialize.
+     */
+    void initAu(String collectionId, String auid) throws IOException;
+
+    /**
      * Adds an artifact to this artifact store.
      *
      * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
