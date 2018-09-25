@@ -171,16 +171,17 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    *
    * @param dirPath Path to the directory to create, if it doesn't exist yet.
    */
-  @Override
-  public void mkdirsIfNeeded(String dirPath) throws IOException {
-    Path dir = new Path(getBasePath() + dirPath);
+  public void mkdirs(String dirPath) throws IOException {
+    Path fullPath = new Path(getBasePath() + dirPath);
 
-    if (fs.isDirectory(dir)) {
+    if (fs.isDirectory(fullPath)) {
       return;
     }
 
-    if (!fs.mkdirs(dir)) {
-      throw new IOException(String.format("Error creating %s: fs.mkdirs() did not succeed", dirPath));
+    if (fs.mkdirs(fullPath)) {
+      log.debug(String.format("Created directory: %s", fullPath));
+    } else {
+      throw new IOException(String.format("Error creating directory: %s", fullPath));
     }
   }
 
@@ -298,47 +299,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void renameFile(String srcPath, String dstPath) throws IOException {
+  public void moveWarc(String srcPath, String dstPath) throws IOException {
     if (!fs.rename(new Path(getBasePath() + srcPath), new Path(getBasePath() + dstPath))) {
       throw new IOException(String.format("Error renaming %s to %s", srcPath, dstPath));
-    }
-  }
-
-  @Override
-  public void copyFile(String srcPath, String dstPath) throws IOException {
-    // Lock to block further writes to the source file
-    Lock warcLock = warcLockMap.getLock(srcPath);
-    warcLock.lock();
-
-    try {
-      // Get an InputStream of the source
-      FSDataInputStream in = fs.open(new Path(getBasePath() + srcPath));
-
-      // Create the destination file and get an OutputStream
-      createFileIfNeeded(dstPath);
-      OutputStream out = getAppendableOutputStream(dstPath);
-
-      // Copy from input to output stream
-      IOUtils.copy(in, out);
-
-      // Flush output stream and close
-      out.flush();
-      out.close();
-    } finally {
-      warcLock.unlock();
-    }
-  }
-
-  @Override
-  public void deleteFile(String path) throws IOException {
-    // Acquire lock to ensure no one is using this file
-    Lock warcLock = warcLockMap.getLock(path);
-    warcLock.lock();
-
-    try {
-      fs.delete(new Path(getBasePath() + path), false);
-    } finally {
-      warcLock.unlock();
     }
   }
 

@@ -85,9 +85,9 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 //    String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
 //    File dir = new File(dirPath);
 //    assertFalse(dir.exists());
-//    LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath);
+//    LocalWarcArtifactDataStore.mkdirs(dirPath);
 //    assertTrue(dir.isDirectory());
-//    LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath); // should not fail or throw
+//    LocalWarcArtifactDataStore.mkdirs(dirPath); // should not fail or throw
 //    quietlyDeleteDir(tmp1);
 //  }
 

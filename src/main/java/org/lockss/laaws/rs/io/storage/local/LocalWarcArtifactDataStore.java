@@ -135,12 +135,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         return warcFiles;
     }
 
-    @Override
-    public void mkdirsIfNeeded(String dirPath) throws IOException {
+    public void mkdirs(String dirPath) throws IOException {
         File dir = new File(getBasePath() + dirPath);
+
         if (dir.isDirectory()) {
             return;
         }
+
         if (!dir.mkdirs()) {
             throw new IOException(String.format("Error creating %s: mkdirs did not succeed", dir.getAbsolutePath()));
         }
@@ -205,43 +206,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void renameFile(String srcPath, String dstPath) throws IOException {
+    public void moveWarc(String srcPath, String dstPath) throws IOException {
         String realSrcPath = getBasePath() + srcPath;
         String realDstPath = getBasePath() + dstPath;
         if (!new File(realSrcPath).renameTo(new File(realDstPath))) {
             throw new IOException(String.format("Error renaming %s to %s", realSrcPath, realDstPath));
         }
     }
-
-  @Override
-  public void copyFile(String srcPath, String dstPath) throws IOException {
-    String realSrcPath = getBasePath() + srcPath;
-    String realDstPath = getBasePath() + dstPath;
-
-    // Acquire lock to avoid further writes to the source while copy is in progress
-    Lock warcLock = warcLockMap.getLock(srcPath);
-    warcLock.lock();
-
-    try {
-      FileUtils.copyFile(new File(realSrcPath), new File(realDstPath));
-    } finally {
-      warcLock.unlock();
-    }
-  }
-
-  @Override
-  public void deleteFile(String path) throws IOException {
-    // Acquire lock to avoid delete while
-    Lock warcLock = warcLockMap.getLock(path);
-    warcLock.lock();
-
-    try {
-      File file = new File(getBasePath() + path);
-      FileUtils.forceDelete(file);
-    } finally {
-      warcLock.unlock();
-    }
-  }
 
     @Override
     public String makeNewStorageUrl(String newPath, Artifact artifact) {

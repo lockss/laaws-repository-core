@@ -138,9 +138,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 //  String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
 //  File dir = new File(dirPath);
 //  assertFalse(dir.exists());
-//  LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath);
+//  LocalWarcArtifactDataStore.mkdirs(dirPath);
 //  assertTrue(dir.isDirectory());
-//  LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath); // should not fail or throw
+//  LocalWarcArtifactDataStore.mkdirs(dirPath); // should not fail or throw
 //  quietlyDeleteDir(tmp1);
 //}
 
@@ -302,11 +302,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     }
     
   @Override
-  public void mkdirsIfNeeded(String dirPath) throws IOException {
-    // Intentionally left blank
-  }
-  
-  @Override
   public long getFileLength(String filePath) throws IOException {
     // TODO
     throw new UnsupportedOperationException();
@@ -368,17 +363,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
   
   @Override
-  public void renameFile(String srcPath, String dstPath) throws IOException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void copyFile(String srcPath, String dstPath) throws IOException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void deleteFile(String path) throws IOException {
+  public void moveWarc(String srcPath, String dstPath) throws IOException {
     throw new UnsupportedOperationException();
   }
 
