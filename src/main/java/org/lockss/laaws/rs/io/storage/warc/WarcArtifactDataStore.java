@@ -147,11 +147,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public JmsConsumer getJmsConsumer() {
     return jmsConsumer;
   }
-  
+
+  /**
+   * Returns the base path of this LOCKSS repository.
+   *
+   * @return A {@code String} containing the base path of this LOCKSS repository.
+   */
   public String getBasePath() {
     return basePath;
   }
 
+  /**
+   * Returns the number of bytes
+   * @return
+   */
   public long getThresholdWarcSize() {
     return thresholdWarcSize;
   }
@@ -180,7 +189,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
       this.artifactIndex = artifactIndex;
     }
-    
+
   @Override
   public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
     Objects.requireNonNull(artifactData, "Artifact data is null");
@@ -330,7 +339,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     return artifactMetadata;
   }
-    
+
   @Override
   public RepositoryArtifactMetadata commitArtifactData(Artifact artifact) throws IOException {
     Objects.requireNonNull(artifact, "Artifact is null");
@@ -346,14 +355,24 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return repoMetadata;
   }
 
+  /**
+   * Removes an artifact from this artifact data store.
+   *
+   * @param artifact
+   *          The {@code Artifact} whose {@code ArtifactData} will be removed from this artifact store.
+   * @return
+   * @throws IOException
+   */
   @Override
   public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact) throws IOException {
     Objects.requireNonNull(artifact, "Artifact is null");
+
+    // Retrieve artifact data from current WARC file
     ArtifactData artifactData = getArtifactData(artifact);
     RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
 
     if (!repoMetadata.isDeleted()) {
-      // Update repository metadata journal for this artifact
+      // Write new state to artifact data repository metadata journal
       repoMetadata.setCommitted(false);
       repoMetadata.setDeleted(true);
       updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
@@ -402,6 +421,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         return sealedWarcPath;
     }
 
+  /**
+   * Writes a WARC metadata record to the end of a WARC file, indicating the WARC as sealed.
+   *
+   * @param warcfilePath
+   * @throws IOException
+   */
     private void writeTerminateWarcFile(String warcfilePath) throws IOException {
       Lock warcLock = warcLockMap.getLock(warcfilePath);
       warcLock.lock();
@@ -448,7 +473,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return dir + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
     }
 
-    public String getAuArtifactsWarcPath(ArtifactIdentifier artifactIdent) throws IOException {
+    public String getAuArtifactsWarcPath(ArtifactIdentifier artifactIdent) {
       return getAuArtifactsWarcPath(artifactIdent.getCollection(), artifactIdent.getAuid());
     }
 
@@ -470,28 +495,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     public abstract String makeStorageUrl(String filePath, String offset);
-
     public abstract String makeStorageUrl(String filePath, MultiValueMap<String,String> params);
-
     public abstract String makeNewStorageUrl(String newPath, Artifact artifact);
     
-    public abstract void mkdirsIfNeeded(String dirPath) throws IOException;
-    
-    public abstract long getFileLength(String filePath) throws IOException;
-    
-    public abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
-    
     public abstract InputStream getInputStream(String filePath) throws IOException;
-    
     public abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
-    
     public abstract InputStream getWarcRecordInputStream(String storageUrl) throws IOException;
-    
-    public abstract void createFileIfNeeded(String filePath) throws IOException;
-    
-    public abstract void renameFile(String srcPath, String dstPath) throws IOException;
-    public abstract void copyFile(String srcPath, String dstPath) throws IOException;
-    public abstract void deleteFile(String path) throws IOException;
+    public abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
+
+    public abstract void initWarc(String warcPath) throws IOException;
+    public abstract void moveWarc(String srcPath, String dstPath) throws IOException;
+    public abstract long getFileLength(String filePath) throws IOException;
 
     /**
      * Returns the WARC-Record-Id of the WARC record backing a given ArtifactData.
@@ -585,8 +599,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         record.addExtraHeader(ArtifactConstants.ARTIFACT_URI_KEY, artifactId.getUri());
         record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
-        // We're required to pre-compute the WARC payload (which is an artifact encoded as an HTTP response stream) but
-        // it is not possible to determine the final size without reading the InputStream entirely, so we use a
+        // We're required to pre-compute the WARC payload size (which is an artifact encoded as an HTTP response stream)
+        // but it is not possible to determine the final size without exhausting the InputStream, so we use a
         // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
         DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifactData", null, new File("/tmp"));
 
@@ -657,7 +671,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 log.warn(String.format("Expected %d bytes, but wrote %d", record.getContentLength(), bytesWritten));
         }
 
-        // Write the two blank lines at end of all records
+        // Write the two blank lines required at end of every record
         out.write(CRLF_BYTES);
         out.write(CRLF_BYTES);
     }
@@ -777,18 +791,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     /**
      * Parses a storage URL containing a byte offset
+     *
      * @param storageUrl
      * @return
      * @throws IOException
      */
   protected InputStream getFileAndOffsetWarcRecordInputStream(String storageUrl) throws IOException {
     Matcher mat = fileAndOffsetStorageUrlPat.matcher(storageUrl);
+
     if (!mat.matches()) {
       // Shouldn't happen because all these artifacts are in existing directories
       String msg = "Internal error: " + storageUrl;
       log.error(msg);
       throw new IOException(msg);
     }
+
     return getInputStreamAndSeek(mat.group(3), Long.parseLong(mat.group(4)));
   }
 
@@ -811,7 +828,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         rebuildIndex(index, getBasePath());
     }
 
-    public abstract Collection<String> scanDirectories(String basePath) throws IOException;
 
     /**
      * Rebuilds the index by traversing a repository base path for artifacts and metadata WARC files.

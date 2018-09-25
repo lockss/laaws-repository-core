@@ -142,26 +142,20 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public Collection<String> scanDirectories(String basePath) throws IOException {
     Collection<String> warcFiles = new ArrayList<>();
 
-//        RemoteIterator<LocatedFileStatus> files = fs.listFiles(base, false);
-//
-//        while (files.hasNext()) {
-//            LocatedFileStatus status = files.next();
-//            if (status.isDirectory()) {
-//                warcFiles.addAll(scanDirectories(status.getPath()));
-//            } else {
-//                if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_SUFFIX))
-//                    warcFiles.add(status.getPath());
-//            }
-//        }
-
     RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
+
     while (files.hasNext()) {
+      // Get located file status and name
       LocatedFileStatus status = files.next();
-      if (status.isFile() && status.getPath().getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+      String fileName = status.getPath().getName();
+
+      // Add this file to the list of WARC files found
+      if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
         warcFiles.add(status.getPath().toString().substring((fs.getUri() + getBasePath()).length()));
+      }
     }
 
-    // Return WARC files at this level
+    // Return WARC files
     return warcFiles;
   }
 

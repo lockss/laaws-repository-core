@@ -340,6 +340,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     return new ArtifactData(ident, null, is, status);
   }
 
+  /**
+   * Tests WARC file sealing operation.
+   *
+   * @throws Exception
+   */
   @Test
   public void testWarcSealing() throws Exception {
     // Use a volatile artifact index with this data store
@@ -388,7 +393,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // The storage URL of the artifact data should match the storage url returned by artifact representing the artifact
     // data, and it should be belong to the correct AU's WARC file.
     assertEquals(dat1.getStorageUrl(), art1.getStorageUrl());
-//    assertThat(art1.getStorageUrl(), startsWith(auArtifactsWarcPath));
     assertThat(art1.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
 
     // Add another artifact to the store - this will add another 586 bytes while should trigger a seal
