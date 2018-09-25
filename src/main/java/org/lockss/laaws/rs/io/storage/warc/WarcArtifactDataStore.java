@@ -575,7 +575,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      * @throws IOException
      * @throws HttpException
      */
-    public static long writeArtifactData(ArtifactData artifactData, OutputStream outputStream) throws IOException, HttpException {
+    public static long writeArtifactData(ArtifactData artifactData, OutputStream outputStream) throws IOException {
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 

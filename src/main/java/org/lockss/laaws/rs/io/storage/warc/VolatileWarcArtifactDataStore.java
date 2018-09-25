@@ -97,19 +97,14 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
         // Get the AU
         Map<String, byte[]> au = getInitialize(collection, ident.getAuid(), new HashMap<>());
 
-        try {
-            // ByteArrayOutputStream to capture the WARC record
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        // ByteArrayOutputStream to capture the WARC record
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-            // Write artifact as a WARC record stream to the OutputStream
-            long bytesWritten = writeArtifactData(artifactData, baos);
+        // Write artifact as a WARC record stream to the OutputStream
+        long bytesWritten = writeArtifactData(artifactData, baos);
 
-            // Store artifact
-            au.put(ident.getId(), baos.toByteArray());
-        } catch (HttpException e) {
-            log.error(String.format("Caught an HttpException while attempt to write an ArtifactData to an OutputStream: %s", e.getMessage()));
-            throw new IOException(e);
-        }
+        // Store artifact
+        au.put(ident.getId(), baos.toByteArray());
 
         // Create and set the artifact's repository metadata
         RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(ident, false, false);
