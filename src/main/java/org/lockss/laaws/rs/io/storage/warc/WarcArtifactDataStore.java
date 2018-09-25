@@ -284,11 +284,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public ArtifactData getArtifactData(Artifact artifact) throws IOException {
     Objects.requireNonNull(artifact, "Artifact is null");
-    log.info(String.format("Retrieving artifact from store (artifactId: %s)", artifact.getId()));
 
-    String storageUrl = artifact.getStorageUrl();
+    log.info(String.format("Retrieving artifact data for artifact ID: %s", artifact.getId()));
 
-    InputStream warcStream = getWarcRecordInputStream(storageUrl);
+    // Open an InputStream from the WARC file and get the WARC record representing this artifact data
+    InputStream warcStream = getWarcRecordInputStream(artifact.getStorageUrl());
     WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0);
 
     // Convert the WARCRecord object to an ArtifactData
@@ -317,17 +317,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Objects.requireNonNull(artifactId, "Artifact identifier is null");
     Objects.requireNonNull(artifactMetadata, "Repository artifact metadata is null");
 
-    WARCRecordInfo metadataRecord = createWarcMetadataRecord(ident.getId(), artifactMetadata);
+    // TODO: Generalize this to arbitrary metadata
+    String auMetadataWarcPath = getAuMetadataWarcPath(artifactId, artifactMetadata);
 
     String auMetadataWarcPath = getAuMetadataWarcPath(ident, artifactMetadata);
 
+    // Avoid multiple writers to the same file
     Lock warcLock = warcLockMap.getLock(auMetadataWarcPath);
     warcLock.lock();
 
     try (
       OutputStream out = getAppendableOutputStream(auMetadataWarcPath);
     ) {
-      // Append WARC metadata record to AU's metadata file
+      // Append WARC metadata record to metadata file
+      WARCRecordInfo metadataRecord = createWarcMetadataRecord(artifactId.getId(), artifactMetadata);
       writeWarcRecord(metadataRecord, out);
       out.flush();
     } finally {
