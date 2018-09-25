@@ -320,7 +320,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // TODO: Generalize this to arbitrary metadata
     String auMetadataWarcPath = getAuMetadataWarcPath(artifactId, artifactMetadata);
 
-    String auMetadataWarcPath = getAuMetadataWarcPath(ident, artifactMetadata);
+    // Initialize metadata WARC file
+    initWarc(auMetadataWarcPath);
 
     // Avoid multiple writers to the same file
     Lock warcLock = warcLockMap.getLock(auMetadataWarcPath);
