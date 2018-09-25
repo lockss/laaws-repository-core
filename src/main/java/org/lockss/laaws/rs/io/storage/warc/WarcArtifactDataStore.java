@@ -473,22 +473,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + "_" + AU_ARTIFACTS_WARC_NAME;
     }
     
-    public String getAuArtifactsWarcPath(String collection, String auid) throws IOException {
-      String dir = getAuPath(collection, auid);
-      mkdirsIfNeeded(dir);
-      return dir + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
+    public String getAuArtifactsWarcPath(String collection, String auid) {
+      return getAuPath(collection, auid) + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
     }
 
     public String getAuArtifactsWarcPath(ArtifactIdentifier artifactIdent) {
       return getAuArtifactsWarcPath(artifactIdent.getCollection(), artifactIdent.getAuid());
     }
 
-    public String getAuMetadataWarcPath(ArtifactIdentifier ident,
-                                        RepositoryArtifactMetadata artifactMetadata)
-        throws IOException {
-      String dir = getAuPath(ident);
-      mkdirsIfNeeded(dir);
-      return dir + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
+    public String getAuMetadataWarcPath(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
+      return getAuPath(artifactId) + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
     }
     
     public String makeStorageUrl(String filePath, long offset) {
@@ -782,19 +776,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
 
     protected String makeNewFileAndOffsetStorageUrl(String newPath, Artifact artifact) {
-        Matcher mat = fileAndOffsetStorageUrlPat.matcher(artifact.getStorageUrl());
+      Matcher mat = fileAndOffsetStorageUrlPat.matcher(artifact.getStorageUrl());
 
-        try {
-            if (mat.matches() && mat.group(3).equals(getAuArtifactsWarcPath(artifact.getIdentifier()))) {
-                return makeStorageUrl(newPath, mat.group(4));
-            }
-        } catch (IOException e) {
-            // Shouldn't happen because all these artifacts are in existing directories
-            log.error("Internal error", e);
-            throw new UncheckedIOException(e);
-        }
+      if (mat.matches() && mat.group(3).equals(getAuArtifactsWarcPath(artifact.getIdentifier()))) {
+        return makeStorageUrl(newPath, mat.group(4));
+      }
 
-        return null;
+      return null;
     }
 
     /**
