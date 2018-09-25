@@ -193,7 +193,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
     Objects.requireNonNull(artifactData, "Artifact data is null");
-      
+
+    // Bytes written by this operation (i.e., size of the WARC record written to a WARC file)
+    long bytesWritten;
+
+    // Get the artifact identifier
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
     // Set new artifactId - any existing artifactId is meaningless in this context and should be discarded
@@ -208,66 +212,48 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         artifactId.getVersion()
     ));
 
-    String auArtifactsWarcPath = getAuArtifactsWarcPath(artifactId);
-    log.info(String.format("Appending artifact data to %s", auArtifactsWarcPath));
-    createFileIfNeeded(auArtifactsWarcPath);
+    // Initialize supporting data storage structures
+    initCollection(artifactId.getCollection());
+    initAu(artifactId.getCollection(), artifactId.getAuid());
 
-    // Set the offset for the record to be appended to the length of the WARC file (i.e., the end)
-    long offset = getFileLength(auArtifactsWarcPath);
-    long bytesWritten;
+    // Get the path to a WARC designated to hold uncommitted artifacts
+    String warcPath = getAuArtifactsWarcPath(artifactId.getCollection(), artifactId.getAuid());
 
-    Lock warcLock = warcLockMap.getLock(auArtifactsWarcPath);
+    // Initialize the WARC file
+    initWarc(warcPath);
+
+    // Acquire a lock for this WARC file, so multiple threads cannot simultaneously write to it
+    Lock warcLock = warcLockMap.getLock(warcPath);
     warcLock.lock();
 
+    // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
+    long offset = getFileLength(warcPath);
+
     try (
-      // Get an appending OutputStream to the WARC file
-      OutputStream out = getAppendableOutputStream(auArtifactsWarcPath);
+      // Get an (appending) OutputStream to the WARC file
+      OutputStream output = getAppendableOutputStream(warcPath);
     ) {
-      // Write artifact to WARC file
-      bytesWritten = writeArtifactData(artifactData, out);
-      out.flush();
+      // Write artifact to uncommitted artifacts WARC file
+      bytesWritten = writeArtifactData(artifactData, output);
+      output.flush();
 
       log.info(String.format(
           "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
           bytesWritten,
           offset,
-          auArtifactsWarcPath,
+          warcPath,
           offset + bytesWritten
       ));
-    } catch (HttpException e) {
-      throw new IOException("Caught HttpException while attempting to write artifact to WARC file", e);
     } finally {
       warcLock.unlock();
     }
 
-    // Calculate new WARC file length
-    long warcFileLength = offset + bytesWritten;
-
-    // Determine if a WARC seal was triggered by WARC size threshold; set artifact data's storage URL as appropriate
-    if (warcFileLength >= thresholdWarcSize && thresholdWarcSize > 0L) {
-      log.info(String.format(
-              "Seal WARC triggered by size threshold [Threshold: %d bytes, Length: %d bytes] for [Collection: %s, AUID: %s]",
-              getThresholdWarcSize(),
-              warcFileLength,
-              artifactId.getCollection(),
-              artifactId.getAuid()
-      ));
-
-      // Seal the artifacts WARC
-      String newPath = sealWarc(artifactId.getCollection(), artifactId.getAuid());
-
-      // Set the storage URL of the artifact we're adding to the sealed WARC path
-      artifactData.setStorageUrl(makeStorageUrl(newPath, offset));
-    } else {
-      // Set the storage URL of the artifact we're adding to default artifacts WARC path
-      artifactData.setStorageUrl(makeStorageUrl(auArtifactsWarcPath, offset));
-    }
-        
-    // Attach repository metadata
-    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
+    // Set artifact data storage URL
+    artifactData.setStorageUrl(makeStorageUrl(warcPath, offset));
 
     // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
-    createFileIfNeeded(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
+    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
+    initWarc(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
     updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
     // Create a new Artifact object to return; should reflect artifact data as it is in the data store
