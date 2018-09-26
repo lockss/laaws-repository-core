@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -67,23 +68,35 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         this.fileAndOffsetStorageUrlPat =
                 Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
 
-        init();
+        initRepository();
     }
 
-    public synchronized void init() {
+    public synchronized void initRepository() {
       if (!initialized) {
         try {
           // Initialize LOCKSS repository structure
-          mkdirsIfNeeded("/");
-          mkdirsIfNeeded(getSealedWarcPath());
+          mkdirs("/");
+          mkdirs(getSealedWarcPath());
           initialized = true;
         } catch (IOException e) {
-          log.warn("Caught IOException while attempting init local filesystem artifact datastore");
+          log.warn("Caught IOException while attempting initRepository local filesystem artifact datastore");
         }
       } else {
         log.info("Already initialized LOCKSS repository");
       }
     }
+
+  @Override
+  public void initCollection(String collectionId) throws IOException {
+    mkdirs(getCollectionPath(collectionId));
+    mkdirs(getCollectionTmpPath(collectionId));
+  }
+
+  @Override
+  public void initAu(String collectionId, String auid) throws IOException {
+    initCollection(collectionId);
+    mkdirs(getAuPath(collectionId, auid));
+  }
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.
@@ -123,12 +136,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         return warcFiles;
     }
 
-    @Override
-    public void mkdirsIfNeeded(String dirPath) throws IOException {
+    public void mkdirs(String dirPath) throws IOException {
         File dir = new File(getBasePath() + dirPath);
+
         if (dir.isDirectory()) {
             return;
         }
+
         if (!dir.mkdirs()) {
             throw new IOException(String.format("Error creating %s: mkdirs did not succeed", dir.getAbsolutePath()));
         }
@@ -136,7 +150,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     @Override
     public long getFileLength(String filePath) {
+      // Acquire lock to avoid returning a length while write is in progress
+      Lock warcLock = warcLockMap.getLock(filePath);
+      warcLock.lock();
+
+      try {
         return new File(getBasePath() + filePath).length();
+      } finally {
+        warcLock.unlock();
+      }
     }
 
     @Override
@@ -176,16 +198,16 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void createFileIfNeeded(String filePath) throws IOException {
-        File file = new File(getBasePath() + filePath);
+    public void initWarc(String storageUrl) throws IOException {
+        File file = new File(getBasePath() + storageUrl);
         if (!file.exists()) {
-            mkdirsIfNeeded(new File(filePath).getParent());
+            mkdirs(new File(storageUrl).getParent());
             FileUtils.touch(file);
         }
     }
 
     @Override
-    public void renameFile(String srcPath, String dstPath) throws IOException {
+    public void moveWarc(String srcPath, String dstPath) throws IOException {
         String realSrcPath = getBasePath() + srcPath;
         String realDstPath = getBasePath() + dstPath;
         if (!new File(realSrcPath).renameTo(new File(realDstPath))) {

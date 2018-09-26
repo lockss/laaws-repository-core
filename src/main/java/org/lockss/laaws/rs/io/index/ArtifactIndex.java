@@ -127,8 +127,18 @@ public interface ArtifactIndex extends Ready {
      */
     boolean artifactExists(String artifactId) throws IOException;
 
+    /**
+     * Updates the storage URL for an existing artifact.
+     *
+     * @param artifactId
+     *          A {@code String) with the artifact ID to update.
+     * @param storageUrl
+     *          A {@code String} containing the new storage URL for this artifact.
+     * @return {@code Artifact} with the new storage URL.
+     * @throws IOException
+     */
     Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException;
-    
+
     /**
      * Provides the collection identifiers of the committed artifacts in the index.
      *

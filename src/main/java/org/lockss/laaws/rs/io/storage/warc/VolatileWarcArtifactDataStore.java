@@ -67,9 +67,19 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
         super(basePath);
         this.repository = new HashMap<>();
         this.repositoryMetadata = new HashMap<>();
-    }    
-    
-    /**
+    }
+
+  @Override
+  public void initCollection(String collectionId) throws IOException {
+    // TODO
+  }
+
+  @Override
+  public void initAu(String collectionId, String auid) throws IOException {
+    // TODO
+  }
+
+  /**
      * {@inheritDoc}
      */
     @Override
@@ -87,19 +97,14 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
         // Get the AU
         Map<String, byte[]> au = getInitialize(collection, ident.getAuid(), new HashMap<>());
 
-        try {
-            // ByteArrayOutputStream to capture the WARC record
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        // ByteArrayOutputStream to capture the WARC record
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-            // Write artifact as a WARC record stream to the OutputStream
-            long bytesWritten = writeArtifactData(artifactData, baos);
+        // Write artifact as a WARC record stream to the OutputStream
+        long bytesWritten = writeArtifactData(artifactData, baos);
 
-            // Store artifact
-            au.put(ident.getId(), baos.toByteArray());
-        } catch (HttpException e) {
-            log.error(String.format("Caught an HttpException while attempt to write an ArtifactData to an OutputStream: %s", e.getMessage()));
-            throw new IOException(e);
-        }
+        // Store artifact
+        au.put(ident.getId(), baos.toByteArray());
 
         // Create and set the artifact's repository metadata
         RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(ident, false, false);
@@ -128,9 +133,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 //  String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
 //  File dir = new File(dirPath);
 //  assertFalse(dir.exists());
-//  LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath);
+//  LocalWarcArtifactDataStore.mkdirs(dirPath);
 //  assertTrue(dir.isDirectory());
-//  LocalWarcArtifactDataStore.mkdirsIfNeeded(dirPath); // should not fail or throw
+//  LocalWarcArtifactDataStore.mkdirs(dirPath); // should not fail or throw
 //  quietlyDeleteDir(tmp1);
 //}
 
@@ -292,12 +297,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     }
     
   @Override
-  public void mkdirsIfNeeded(String dirPath) throws IOException {
-    // Intentionally left blank
-  }
-  
-  @Override
   public long getFileLength(String filePath) throws IOException {
+    // TODO
     throw new UnsupportedOperationException();
   }
   
@@ -352,12 +353,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
   
   @Override
-  public void createFileIfNeeded(String filePath) throws IOException {
-    throw new UnsupportedOperationException();
+  public void initWarc(String storageUrl) throws IOException {
+      // Intentionally left blank to indicate success
   }
   
   @Override
-  public void renameFile(String srcPath, String dstPath) throws IOException {
+  public void moveWarc(String srcPath, String dstPath) throws IOException {
     throw new UnsupportedOperationException();
   }
 

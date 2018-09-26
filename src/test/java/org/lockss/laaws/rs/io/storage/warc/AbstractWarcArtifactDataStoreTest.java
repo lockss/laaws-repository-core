@@ -37,8 +37,10 @@ import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -306,7 +308,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     List<String> cids3 = IteratorUtils.toList(index3.getCollectionIds().iterator());
     List<String> cids4 = IteratorUtils.toList(index4.getCollectionIds().iterator());
     if (!(cids3.containsAll(cids4) && cids4.containsAll(cids3))) {
-      fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+      fail(String.format("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs: %s vs %s", cids3, cids4));
     }
 
     // Iterate over the collection IDs
@@ -340,14 +342,19 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     return new ArtifactData(ident, null, is, status);
   }
 
+  /**
+   * Tests WARC file sealing operation.
+   *
+   * @throws Exception
+   */
   @Test
   public void testWarcSealing() throws Exception {
     // Use a volatile artifact index with this data store
     ArtifactIndex index = new VolatileArtifactIndex();
     store.setArtifactIndex(index);
 
-    // The WARC records for the two artifacts here end up being 586 bytes each.
-    store.setThresholdWarcSize(1024L);
+    // The WARC records for the two artifacts here end up being 782 bytes each.
+    store.setThresholdWarcSize(512L);
 
     // Setup repository paths relative to a base dir
     String auBaseDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
@@ -388,10 +395,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // The storage URL of the artifact data should match the storage url returned by artifact representing the artifact
     // data, and it should be belong to the correct AU's WARC file.
     assertEquals(dat1.getStorageUrl(), art1.getStorageUrl());
-//    assertThat(art1.getStorageUrl(), startsWith(auArtifactsWarcPath));
     assertThat(art1.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
 
-    // Add another artifact to the store - this will add another 586 bytes while should trigger a seal
+    // Add another artifact to the store - this will add another 782 bytes to the WARC file
     ArtifactIdentifier ident2 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u2", 1);
     org.apache.commons.io.output.ByteArrayOutputStream baos2 = new ByteArrayOutputStream(150);
     for (int i = 0 ; i < 150 ; ++i) {
@@ -401,31 +407,61 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact art2 = store.addArtifactData(dat2);
     baos2.close(); // to satisfy static analyzers
 
+    assertEquals(dat2.getStorageUrl(), art2.getStorageUrl());
+    assertThat(art2.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
+
     // Register the second artifact in the index
     index.indexArtifact(dat2);
     index.commitArtifact(art2.getId());
     assertNotNull(index.getArtifact(art2.getId()));
 
-    // If seal was triggered, AU directory should exist but its default artifacts.warc should have been moved (i.e., no
-    // longer exists at the original location)
+    // Invoke a seal to WARC
+    Iterable<Artifact> sealedArtifactsIter = store.sealWarc("coll1", "auid1");
+
+    // Invoking seal to WARC again without any more committed artifacts should result in no sealed artifacts
+    assertEmpty(store.sealWarc("coll1", "auid1"));
+
+    // After a seal, both the AU directory and its default artifacts.warc should still exist
     assertTrue(isDirectory(auBaseDirPath));
-    assertFalse(pathExists(auArtifactsWarcPath));
-    assertTrue(isFile(auMetadataWarcPath)); // TODO: What to do with the repository metadata? For now check that it's left in place
+    assertTrue(pathExists(auArtifactsWarcPath));
+
+    // TODO: What to do with the repository metadata? For now check that it's left in place
+    assertTrue(isFile(auMetadataWarcPath));
     assertTrue(isDirectory(sealedWarcDirPath));
 
-    // ...the second artifact and its artifact data should point to a record in a sealed WARC
-    assertEquals(dat2.getStorageUrl(), art2.getStorageUrl());
+    // There should be two sealed artifacts because we had two committed (and unsealed) artifacts
+    List<Artifact> sealedArtifacts = IterableUtils.toList(sealedArtifactsIter);
+    assertEquals(2, sealedArtifacts.size());
 
-    // ...the sealed WARC should be located in the directory for sealed WARCs
-//    assertThat(art2.getStorageUrl(), startsWith(sealedWarcDirPath));
-    assertThat(art2.getStorageUrl(), startsWith(store.makeStorageUrl(sealedWarcDirPath)));
+    // Assert things about each sealed artifact...
+    for (Artifact sealedArtifact : sealedArtifacts) {
+      // ...the storage URL of a sealed artifact should be under the sealed WARCs path
+      assertThat(sealedArtifact.getStorageUrl(), startsWith(store.makeStorageUrl(sealedWarcDirPath)));
 
-    // ...and the storage URL for the first artifact should have been updated
+      // ...check that the sealed WARC file exists
+      Matcher mat = store.fileAndOffsetStorageUrlPat.matcher(sealedArtifact.getStorageUrl());
+      assertTrue(mat.matches());
+      String relativeWarcPath = mat.group(3);
+      assertTrue(isFile(relativeWarcPath));
+
+      // ...the index should reflect the new storage URL
+      Artifact fromIndex = index.getArtifact(sealedArtifact.getId());
+      assertNotNull(fromIndex);
+      assertEquals(fromIndex.getStorageUrl(), sealedArtifact.getStorageUrl());
+    }
+
+    // The storage URL for the first artifact should have been updated
     Artifact art1i = index.getArtifact(art1.getId());
-    assertNotNull(art1i);
     assertNotEquals(art1.getStorageUrl(), art1i.getStorageUrl());
-//    assertThat(art1i.getStorageUrl(), startsWith(sealedWarcDirPath));
-    assertThat(art1i.getStorageUrl(), startsWith(store.makeStorageUrl(sealedWarcDirPath)));
+
+    // The storage URL for the second artifact should have been updated
+    Artifact art2i = index.getArtifact(art2.getId());
+    assertNotEquals(art2.getStorageUrl(), art2i.getStorageUrl());
+
+    // The storage URL for the third artifact should NOT have been updated (it was not committed)
+//    Artifact art3i = index.getArtifact(art3.getId());
+//    assertNotEquals(art3.getStorageUrl(), art3i.getStorageUrl());
+
   }
   
 }
