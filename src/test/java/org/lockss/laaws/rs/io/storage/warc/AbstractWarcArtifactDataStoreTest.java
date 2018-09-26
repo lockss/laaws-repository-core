@@ -33,11 +33,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.io.storage.warc;
 
 import java.io.*;
-import java.net.URL;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
 import java.util.List;
+import java.util.regex.Matcher;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IterableUtils;
@@ -439,8 +439,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertThat(sealedArtifact.getStorageUrl(), startsWith(store.makeStorageUrl(sealedWarcDirPath)));
 
       // ...check that the sealed WARC file exists
-      URL storageUrl = new URL(sealedArtifact.getStorageUrl());
-      String relativeWarcPath = storageUrl.getPath().substring(store.getBasePath().length());
+      Matcher mat = store.fileAndOffsetStorageUrlPat.matcher(sealedArtifact.getStorageUrl());
+      assertTrue(mat.matches());
+      String relativeWarcPath = mat.group(3);
       assertTrue(isFile(relativeWarcPath));
 
       // ...the index should reflect the new storage URL
