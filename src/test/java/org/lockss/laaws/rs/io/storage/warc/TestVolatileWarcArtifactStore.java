@@ -44,6 +44,8 @@ import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 
 import java.io.*;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
@@ -63,10 +65,15 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     private StatusLine httpStatus;
 
     @Override
-    protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore() {
+    protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
       return new VolatileWarcArtifactDataStore();
     }
-    
+
+    @Override
+    protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(VolatileWarcArtifactDataStore other) throws IOException {
+      return other;
+    }
+
     @BeforeEach
     public void setUp() throws Exception {
         uuid = UUID.randomUUID();
@@ -87,6 +94,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
         artifactData2 = new ArtifactData(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
 
         store = new VolatileWarcArtifactDataStore();
+        store.initArtifactDataStore();
     }
 
     @Test
@@ -209,13 +217,21 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
             );
 
             // Commit artifact
-            RepositoryArtifactMetadata metadata = store.commitArtifactData(indexData);
+//            RepositoryArtifactMetadata metadata = store.commitArtifactData(indexData);
+
+            Future<Artifact> artifactFuture = store.commitArtifactData(indexData);
+            Artifact art = artifactFuture.get();
+            assertNotNull(art);
 
             // Verify that the store has recorded it as committed
-            assertTrue(metadata.isCommitted());
+            assertTrue(art.getCommitted());
             assertTrue(store.getArtifactData(indexData).getRepositoryMetadata().isCommitted());
         } catch (IOException e) {
             fail("Unexpected IOException caught");
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        } catch (ExecutionException e) {
+          e.printStackTrace();
         }
     }
 
@@ -327,6 +343,12 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   @Disabled
   public void testMakeNewStorageUrl() throws Exception {
     
+  }
+
+  @Disabled
+  @Override
+  @Test
+  public void testReloadTempWarcs() throws Exception {
   }
 
   @Override

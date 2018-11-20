@@ -33,6 +33,8 @@ package org.lockss.laaws.rs.core;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 
+import java.io.IOException;
+
 /**
  * Volatile ("in-memory") implementation of the LOCKSS Repository API.
  */
@@ -41,7 +43,10 @@ public class VolatileLockssRepository extends BaseLockssRepository {
     /**
      * Constructor.
      */
-    public VolatileLockssRepository() {
+    public VolatileLockssRepository() throws IOException {
         super(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+
+        // Initialize data store
+        store.initArtifactDataStore();
     }
 }

@@ -33,7 +33,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.http.HttpException;
 import org.archive.io.warc.WARCRecord;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
@@ -44,6 +43,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.*;
 import java.net.URLEncoder;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 /**
  * A volatile ("in-memory") implementation of WarcArtifactDataStore.
@@ -65,9 +66,18 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
      */
     protected VolatileWarcArtifactDataStore(String basePath) {
         super(basePath);
-        this.repository = new HashMap<>();
-        this.repositoryMetadata = new HashMap<>();
     }
+
+  @Override
+  public void initArtifactDataStore() throws IOException {
+    this.repository = new HashMap<>();
+    this.repositoryMetadata = new HashMap<>();
+  }
+
+  @Override
+  public boolean removeWarc(String warcPath) {
+    return false;
+  }
 
   @Override
   public void initCollection(String collectionId) throws IOException {
@@ -221,17 +231,25 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
      * @return A {@code RepositoryArtifactMetadata} updated to indicate the new commit status as it is now stored.
      */
     @Override
-    public RepositoryArtifactMetadata commitArtifactData(Artifact artifact) {
-        if (artifact == null) {
-          throw new NullPointerException("artifact is null");
-        }
+    public Future<Artifact> commitArtifactData(Artifact artifact) {
+      if (artifact == null) {
+        throw new NullPointerException("artifact is null");
+      }
 
-        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifact.getId());
-        metadata.setCommitted(true);
+      RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifact.getId());
+      metadata.setCommitted(true);
+      artifact.setCommitted(true);
 
-        // TODO: Use updateArtifactMetadata
-        repositoryMetadata.replace(artifact.getId(), metadata);
-        return metadata;
+      // TODO: Use updateArtifactMetadata
+      repositoryMetadata.replace(artifact.getId(), metadata);
+
+      // Update storage URL
+      artifact.setStorageUrl(makeStorageUrl(artifact.getStorageUrl()));
+
+      CompletableFuture<Artifact> future = new CompletableFuture<>();
+      future.complete(artifact);
+
+      return future;
     }
 
     /**

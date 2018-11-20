@@ -92,6 +92,11 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(HdfsWarcArtifactDataStore other) throws IOException {
+        return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), other.getBasePath());
+    }
+
+    @Override
     protected boolean pathExists(String path) throws IOException {
         Path hdfsPath = new Path(store.getBasePath() + path);
         return store.fs.exists(hdfsPath);

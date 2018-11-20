@@ -36,7 +36,8 @@ import java.io.*;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -44,8 +45,6 @@ import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
@@ -54,20 +53,253 @@ import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
-  private final static Log log = LogFactory.getLog(AbstractWarcArtifactDataStoreTest.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   protected WADS store;
 
   protected abstract WADS makeWarcArtifactDataStore() throws IOException;
+  protected abstract WADS makeWarcArtifactDataStore(WADS otherStore) throws IOException;
 
   @BeforeEach
   public void setupTestContext() throws IOException {
     store = makeWarcArtifactDataStore();
+  }
+
+  /**
+   * Tests for the temporary WARC reloading mechanism in {@code WarcArtifactDataStore}.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testReloadTempWarcs() throws Exception {
+    runTestReloadTempWarcs(true, true);
+    runTestReloadTempWarcs(true, false);
+    runTestReloadTempWarcs(false, true);
+    runTestReloadTempWarcs(false, false);
+  }
+
+  /**
+   * Runs tests against the temporary WARC reloading mechanism of {@code WarcArtifactDataStore} implementations. It does
+   * this by asserting against the effect of adding one artifact then reloading the temporary WARC.
+   *
+   * @param commit A {@code boolean} indicating whether the artifact should be committed.
+   * @param expire A {@code boolean} indicating whether the artifact should be expired.
+   * @throws Exception
+   */
+  private void runTestReloadTempWarcs(boolean commit, boolean expire) throws Exception {
+    // Instantiate a new WARC artifact data store
+    store = makeWarcArtifactDataStore();
+    assertNotNull(store);
+
+    // Temporary WARCs directory storage paths
+    String fullTmpWarcPath = store.getBasePath() + store.getTempWarcPath();
+    String tmpWarcsPathUrl = store.makeStorageUrl(store.getTempWarcPath());
+
+    // Configure WARC artifact data store with a newly instantiated volatile artifact index
+    ArtifactIndex index = new VolatileArtifactIndex();
+    store.setArtifactIndex(index);
+    assertEquals(index, store.getArtifactIndex());
+
+    // Initialize the data store
+    store.initArtifactDataStore();
+    assertTrue(store.isReady());
+
+    // Assert empty temporary WARCs directory
+    Collection<String> tmpWarcs = store.scanDirectories(fullTmpWarcPath);
+    assertEquals(0, tmpWarcs.size());
+
+    // Add an artifact to the store and index
+    ArtifactData ad = generateArtifactData("coll1", "auid1");
+    store.addArtifactData(ad);
+    Artifact artifact = index.indexArtifact(ad);
+
+    // Get the artifact ID
+    String artifactId = artifact.getId();
+
+    if (commit) {
+      // Commit to artifact data store
+      Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
+
+      // Wait for data store commit (copy from temporary to permanent storage) to complete
+      artifact = artifactFuture.get(); // TODO: Enable a timeout
+      assertNotNull(artifact);
+      assertTrue(artifact.getCommitted());
+
+      // Mark artifact as committed in the artifact index and update its storage URL
+//      index.commitArtifact(artifactId);
+//      index.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+
+      // Assert that the storage URL points to a WARC that is not in the temporary WARCs directory
+      assertFalse(artifact.getStorageUrl().startsWith(tmpWarcsPathUrl));
+    } else {
+      // Assert that the storage URL points to a WARC within the temporary WARCs directory
+      assertTrue(artifact.getStorageUrl().startsWith(tmpWarcsPathUrl));
+    }
+
+    // Retrieve the artifact from the index
+    artifact = index.getArtifact(artifactId);
+    assertNotNull(artifact);
+
+    // Assert commit status of artifact
+    assertEquals(commit, artifact.getCommitted());
+
+    // Assert one temporary WARC file has been created
+    tmpWarcs = store.scanDirectories(fullTmpWarcPath);
+    assertEquals(1, tmpWarcs.size());
+
+    // Restart WARC data store
+    log.info("Reloading WARC data store");
+    store = makeWarcArtifactDataStore(store);
+    store.setArtifactIndex(index);
+
+    if (expire) {
+      // Set the data store to expire artifacts immediately
+      store.setUncommittedArtifactExpiration(0);
+      assertEquals(0, store.getUncommittedArtifactExpiration());
+    }
+
+    // Initialize the data store again
+    store.initArtifactDataStore();
+    assertTrue(store.isReady());
+
+    // Scan directories for temporary WARC files and assert its state
+    tmpWarcs = store.scanDirectories(fullTmpWarcPath);
+
+    if (!expire && !commit) {
+      // Artifact is neither expired nor committed yet: temporary WARC containing it should NOT have been removed
+      assertEquals(1, tmpWarcs.size());
+    } else {
+      // Artifact is either expired or committed (or both): the temporary WARC containing it should have been removed
+      log.info("commit = {}, expire = {}", commit, expire);
+      assertEquals(0, tmpWarcs.size());
+    }
+  }
+
+  /**
+   * Generates an {@code ArtifactData} belonging to a random collection and AUID.
+   *
+   * @param collections
+   * @param auids
+   * @return
+   * @throws IOException
+   */
+  private ArtifactData generateArtifactData(List<String> collections, List<String> auids) throws IOException {
+    Random randomSrc = new Random();
+    String collection = collections.get(randomSrc.nextInt(collections.size()));
+    String auid = auids.get(randomSrc.nextInt(auids.size()));
+    return generateArtifactData(collection, auid);
+  }
+
+  private ArtifactData generateArtifactData(String collection, String auid) throws IOException {
+    // HTTP status (200 OK) for use volatile ArtifactData's we'll add to the repository
+    StatusLine statusOK = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
+
+    // Pick random parameters for this artifact
+    int contentLength = (int) Math.floor(Math.random() * FileUtils.ONE_MB * 10);
+
+    // Create an artifact and add it to the data store
+    String artifactUri = UUID.randomUUID().toString();
+    ArtifactIdentifier id = new ArtifactIdentifier(collection, auid, artifactUri, 1);
+
+    // Generate this artifact's data
+    ByteArrayOutputStream baos1 = new ByteArrayOutputStream(contentLength);
+    for (int i = 0 ; i < contentLength; ++i) {
+      baos1.write('a');
+    }
+    ArtifactData ad = new ArtifactData(id, null, baos1.toInputStream(), statusOK);
+    baos1.close(); // to satisfy static analyzers
+
+    return ad;
+  }
+
+
+  private class AddArtifactDataRunnable implements Runnable {
+    private final long numArtifacts;
+    private final ArtifactDataStore store;
+    private final ArtifactIndex index;
+    private final List<String> collections;
+    private final List<String> auids;
+
+    private Thread t;
+
+    public AddArtifactDataRunnable(ArtifactDataStore store, ArtifactIndex index, List collections, List auids, long artifacts) {
+      this.store = store;
+      this.index = index;
+      this.numArtifacts = artifacts;
+
+      this.collections = collections;
+      this.auids = auids;
+    }
+
+    @Override
+    public void run() {
+      for (int i = 0; i < numArtifacts; i++) {
+        try {
+
+          ArtifactData dat1 = generateArtifactData(collections, auids);
+          Artifact art1 = store.addArtifactData(dat1);
+          index.indexArtifact(dat1);
+          store.commitArtifactData(art1);
+          index.commitArtifact(art1.getId());
+          assertNotNull(index.getArtifact(art1.getId()));
+
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+
+    public Thread start() throws InterruptedException {
+      if (t == null) {
+        t = new Thread(this);
+        t.start();
+      }
+
+      return t;
+    }
+  }
+
+  @Test
+  public void testAddArtifactData() throws Exception {
+    /*
+    ArtifactIndex index = new VolatileArtifactIndex();
+
+    store.setThresholdWarcSize(FileUtils.ONE_MB);
+
+    List<String> collections = new ArrayList<>();
+    collections.add("coll1");
+
+    List<String> auids = new ArrayList<>();
+    auids.add("auid1");
+    auids.add("auid2");
+
+
+    List<Thread> threads = new ArrayList<>();
+
+    for (int j = 0; j < 20; j++) {
+      AddArtifactDataRunnable r = new AddArtifactDataRunnable(store, index, collections, auids, 10);
+
+//      Thread.sleep((long) (Math.random() * 250));
+      threads.add(r.start());
+    }
+
+    threads.forEach(t -> {
+      try {
+        t.join();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
+
+    store.execsvc.awaitTermination(60, TimeUnit.SECONDS);
+    */
   }
 
   @Test
@@ -228,7 +460,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
     List<String> cids2 = IteratorUtils.toList(index2.getCollectionIds().iterator());
     if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
-      fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+      fail(String.format("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs: %s vs %s", cids1, cids2));
     }
 
     // Iterate over the collection IDs
@@ -356,6 +588,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // The WARC records for the two artifacts here end up being 782 bytes each.
     store.setThresholdWarcSize(512L);
 
+    store.initArtifactDataStore();
+
     // Setup repository paths relative to a base dir
     String auBaseDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
     String auArtifactsWarcPath = auBaseDirPath + "/artifacts.warc";
@@ -383,19 +617,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Register the artifact in the index
     index.indexArtifact(dat1);
+    store.commitArtifactData(art1);
     index.commitArtifact(art1.getId());
     assertNotNull(index.getArtifact(art1.getId()));
 
     // Directories for the AU should now exist
     assertTrue(isDirectory(auBaseDirPath));
-    assertTrue(isFile(auArtifactsWarcPath));
+//    assertTrue(isFile(auArtifactsWarcPath));
     assertTrue(isFile(auMetadataWarcPath));
     assertTrue(isDirectory(sealedWarcDirPath));
 
     // The storage URL of the artifact data should match the storage url returned by artifact representing the artifact
     // data, and it should be belong to the correct AU's WARC file.
     assertEquals(dat1.getStorageUrl(), art1.getStorageUrl());
-    assertThat(art1.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
+//    assertThat(art1.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
 
     // Add another artifact to the store - this will add another 782 bytes to the WARC file
     ArtifactIdentifier ident2 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u2", 1);
@@ -408,10 +643,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     baos2.close(); // to satisfy static analyzers
 
     assertEquals(dat2.getStorageUrl(), art2.getStorageUrl());
-    assertThat(art2.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
+//    assertThat(art2.getStorageUrl(), startsWith(store.makeStorageUrl(auArtifactsWarcPath)));
 
     // Register the second artifact in the index
     index.indexArtifact(dat2);
+    store.commitArtifactData(art2);
     index.commitArtifact(art2.getId());
     assertNotNull(index.getArtifact(art2.getId()));
 
@@ -423,7 +659,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // After a seal, both the AU directory and its default artifacts.warc should still exist
     assertTrue(isDirectory(auBaseDirPath));
-    assertTrue(pathExists(auArtifactsWarcPath));
+//    assertTrue(pathExists(auArtifactsWarcPath));
 
     // TODO: What to do with the repository metadata? For now check that it's left in place
     assertTrue(isFile(auMetadataWarcPath));

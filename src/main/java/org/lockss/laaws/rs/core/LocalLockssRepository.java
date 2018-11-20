@@ -54,9 +54,13 @@ public class LocalLockssRepository extends BaseLockssRepository {
      *          A String with the name of the file where to persist the index.
      */
     public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
-        super(new LocalArtifactIndex(basePath, persistedIndexName), new LocalWarcArtifactDataStore(basePath));
-        log.info("basePath = " + basePath);
-        log.info("persistedIndexName = " + persistedIndexName);
+      super(new LocalArtifactIndex(basePath, persistedIndexName), new LocalWarcArtifactDataStore(basePath));
+
+      log.debug("basePath = " + basePath);
+      log.debug("persistedIndexName = " + persistedIndexName);
+
+      // Initialize data store
+      store.initArtifactDataStore();
     }
 
     /**
@@ -68,6 +72,10 @@ public class LocalLockssRepository extends BaseLockssRepository {
      *          An {@code ArtifactIndex} to use as this repository's artifact index.
      */
     public LocalLockssRepository(File basePath, ArtifactIndex index) throws IOException {
-        super(index, new LocalWarcArtifactDataStore(basePath));
+      super(index, new LocalWarcArtifactDataStore(basePath));
+
+      // Initialize data store
+      store.setArtifactIndex(index);
+      store.initArtifactDataStore();
     }
 }

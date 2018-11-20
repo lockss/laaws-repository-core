@@ -60,7 +60,7 @@ public class BaseLockssRepository implements LockssRepository {
   /**
    * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
    */
-  public BaseLockssRepository() {
+  public BaseLockssRepository() throws IOException {
     this(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
   }
 
@@ -70,7 +70,7 @@ public class BaseLockssRepository implements LockssRepository {
    * @param index An instance of {@code ArtifactIndex}.
    * @param store An instance of {@code ArtifactDataStore}.
    */
-  public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store) {
+  public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) throws IOException {
     if ((index == null) || (store == null)) {
       throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
     }
@@ -79,6 +79,8 @@ public class BaseLockssRepository implements LockssRepository {
     this.store = store;
     this.store.setArtifactIndex(this.index);
     this.auidLockMap = new AuidLockMap();
+
+    store.initArtifactDataStore();
   }
 
   /**

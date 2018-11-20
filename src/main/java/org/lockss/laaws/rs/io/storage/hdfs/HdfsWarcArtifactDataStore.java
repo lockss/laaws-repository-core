@@ -35,13 +35,12 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.FileSystem;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -50,12 +49,19 @@ import org.springframework.web.util.UriComponentsBuilder;
  * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
  */
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
-  private final static Log log = LogFactory.getLog(HdfsWarcArtifactDataStore.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
+
   public final static String DEFAULT_REPO_BASEDIR = "/";
 
   protected FileSystem fs;
   private boolean initialized = false;
 
+  /**
+   * Constructor that takes a Hadoop {@code Configuration}. Uses a default LOCKSS repository base path.
+   *
+   * @param config A Hadoop {@code Configuration} instance.
+   * @throws IOException
+   */
   public HdfsWarcArtifactDataStore(Configuration config) throws IOException {
     this(config, DEFAULT_REPO_BASEDIR);
   }
@@ -99,9 +105,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     this.fs = fs;
     this.fileAndOffsetStorageUrlPat =
         Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
-
-    // Initialize the base path with a LOCKSS repository structure
-    initRepository();
   }
 
   /**
@@ -127,7 +130,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    initRepository();
+//    initArtifactDataStore();
     return initialized && checkAlive();
   }
 
@@ -213,11 +216,17 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    *
    * @throws IOException
    */
-  public synchronized void initRepository() {
+  @Override
+  public synchronized void initArtifactDataStore() {
     if (!initialized) {
       try {
         mkdirs("/");
+        mkdirs(getTempWarcPath());
         mkdirs(getSealedWarcPath());
+
+        // Reload temporary WARCs
+        reloadTempWarcs();
+
         initialized = true;
       } catch (IOException e) {
         log.warn(String.format("Could not initialize HDFS artifact store: %s", e));
@@ -298,6 +307,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     if (!fs.rename(new Path(getBasePath() + srcPath), new Path(getBasePath() + dstPath))) {
       throw new IOException(String.format("Error renaming %s to %s", srcPath, dstPath));
     }
+  }
+
+  @Override
+  public boolean removeWarc(String path) throws IOException {
+    return fs.delete(new Path(getBasePath() + path), false);
   }
 
   @Override

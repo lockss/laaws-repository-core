@@ -49,7 +49,7 @@ public class LockssRepositoryFactory {
      *
      * @return A {@code VolatileLockssRepository} instance.
      */
-    public static LockssRepository createVolatileRepository() {
+    public static LockssRepository createVolatileRepository() throws IOException {
         return new VolatileLockssRepository();
     }
 

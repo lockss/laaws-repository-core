@@ -47,6 +47,11 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return new LocalWarcArtifactDataStore(testRepoBaseDir);
   }
 
+  @Override
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(LocalWarcArtifactDataStore other) throws IOException {
+    return new LocalWarcArtifactDataStore(other.getBasePath());
+  }
+
   @BeforeAll
   protected void makeLocalTempDir() throws IOException {
     File tempFile = File.createTempFile(getClass().getSimpleName(), null);

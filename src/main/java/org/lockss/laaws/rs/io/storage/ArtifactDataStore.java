@@ -38,6 +38,7 @@ import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -51,6 +52,11 @@ import java.util.concurrent.TimeoutException;
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
 public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
+    /**
+     *
+     * @throws IOException
+     */
+    void initArtifactDataStore() throws IOException;
 
     /**
      * Initializes a collection storage structure in an artifact data store implementation.
@@ -123,7 +129,7 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * @throws NullPointerException
      *          if the given {@link Artifact} instance is null
      */
-    MD commitArtifactData(Artifact artifact) throws IOException;
+    Future<Artifact> commitArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Permanently removes an artifact from this artifact store.

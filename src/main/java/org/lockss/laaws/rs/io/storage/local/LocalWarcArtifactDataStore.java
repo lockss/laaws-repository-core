@@ -38,9 +38,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.*;
-import org.apache.commons.logging.*;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -49,7 +49,8 @@ import org.springframework.web.util.UriComponentsBuilder;
  * Local filesystem implementation of WarcArtifactDataStore.
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
-    private static final Log log = LogFactory.getLog(LocalWarcArtifactDataStore.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
+
     private boolean initialized;
 
     public LocalWarcArtifactDataStore(File basePath) throws IOException {
@@ -61,25 +62,29 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
      *
      * @param basePath The base path of the local repository.
      */
-    public LocalWarcArtifactDataStore(String basePath) throws IOException {
+    public LocalWarcArtifactDataStore(String basePath) {
         super(basePath);
         log.info(String.format("Instantiating a local data store under %s", basePath));
 
         this.fileAndOffsetStorageUrlPat =
                 Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
-
-        initRepository();
     }
 
-    public synchronized void initRepository() {
+    @Override
+    public synchronized void initArtifactDataStore() {
       if (!initialized) {
         try {
           // Initialize LOCKSS repository structure
           mkdirs("/");
+          mkdirs(getTempWarcPath());
           mkdirs(getSealedWarcPath());
+
+          // Reload temporary WARCs
+          reloadTempWarcs();
+
           initialized = true;
         } catch (IOException e) {
-          log.warn("Caught IOException while attempting initRepository local filesystem artifact datastore");
+          log.warn("Caught IOException while attempting initArtifactDataStore local filesystem artifact datastore");
         }
       } else {
         log.info("Already initialized LOCKSS repository");
@@ -117,20 +122,23 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     @Override
     public Collection<String> scanDirectories(String basePath) {
         Collection<String> warcFiles = new ArrayList<>();
+        File basePathFile = new File(basePath);
 
-        // DFS recursion through directories
-        Arrays.stream(new File(basePath).listFiles(x -> x.isDirectory()))
-                .map(x -> scanDirectories(x.getPath()))
-                .forEach(warcFiles::addAll);
+        if (basePathFile.exists() && basePathFile.isDirectory()) {
+          // DFS recursion through directories
+          Arrays.stream(basePathFile.listFiles(x -> x.isDirectory()))
+              .map(x -> scanDirectories(x.getPath()))
+              .forEach(warcFiles::addAll);
 
-        // Add WARC files from this directory
-        warcFiles.addAll(
-                Arrays.asList(
-                        new File(basePath).listFiles(
-                                x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION)
-                        )
-                ).stream().map(x -> x.getPath().substring(getBasePath().length())).collect(Collectors.toSet())
-        );
+          // Add WARC files from this directory
+          warcFiles.addAll(
+              Arrays.asList(
+                  basePathFile.listFiles(
+                      x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION)
+                  )
+              ).stream().map(x -> x.getPath().substring(getBasePath().length())).collect(Collectors.toSet())
+          );
+        }
 
         // Return WARC files at this level
         return warcFiles;
@@ -213,6 +221,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         if (!new File(realSrcPath).renameTo(new File(realDstPath))) {
             throw new IOException(String.format("Error renaming %s to %s", realSrcPath, realDstPath));
         }
+    }
+
+    @Override
+    public boolean removeWarc(String path) {
+      String fullPath = getBasePath() + path;
+      return new File(fullPath).delete();
     }
 
     @Override
