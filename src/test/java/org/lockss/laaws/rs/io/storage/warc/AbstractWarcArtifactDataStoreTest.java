@@ -337,7 +337,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   
   @Test
   public void testGetSealedWarcPath() throws Exception {
-    assertEquals("/sealed", store.getSealedWarcPath());
+    assertEquals("/sealed", store.getSealedWarcsPath());
   }
   
   @Test
@@ -359,8 +359,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String expectedAuDirPath = store.getBasePath() + "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
     String expectedAuArtifactsWarcPath = expectedAuDirPath + "/artifacts.warc";
     assertFalse(pathExists(expectedAuDirPath)); // Not created until an artifact data is added
-    assertEquals(expectedAuArtifactsWarcPath, store.getBasePath() + store.getAuArtifactsWarcPath(ident1));
-    // FIXME assert that getAuArtifactsWarcPath() returns the same for ident1 and ident1.getCollection()+ident1.getAuid()
+    assertEquals(expectedAuArtifactsWarcPath, store.getBasePath() + store.getActiveWarcPath(ident1));
+    // FIXME assert that getActiveWarcPath() returns the same for ident1 and ident1.getCollection()+ident1.getAuid()
     // FIXME assert that the path exists now
   }
   
@@ -381,7 +381,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testMakeStorageUrl() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
-    String artifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
+    String artifactsWarcPath = store.getActiveWarcPath(ident1);
     String expected = testMakeStorageUrl_getExpected(ident1, 1234L);
     String actual = store.makeStorageUrl(artifactsWarcPath, 1234L);
     assertEquals(expected, actual);

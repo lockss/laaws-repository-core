@@ -289,7 +289,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
     String expectedAuArtifactsWarcName = "artifacts.warc";
     String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
-    String actualAuArtifactsWarcPath = store.getAuArtifactsWarcPath(ident1);
+    String actualAuArtifactsWarcPath = store.getActiveWarcPath(ident1);
     assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
 //    quietlyDeleteDir(tmp1);
   }

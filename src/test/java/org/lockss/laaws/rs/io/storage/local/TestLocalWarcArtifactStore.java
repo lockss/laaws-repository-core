@@ -102,7 +102,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
       throws Exception {
     return String.format("file://%s%s?offset=%d",
                          (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-                         store.getAuArtifactsWarcPath(ident),
+                         store.getActiveWarcPath(ident),
                          offset);
   }
 
@@ -113,7 +113,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
                                 Boolean.TRUE,
                                 String.format("file://%s%s/%s?offset=1234",
                                               store.getBasePath(),
-                                              store.getSealedWarcPath(),
+                                              store.getSealedWarcsPath(),
                                               store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
                                 123L,
                                 "0x12345");
@@ -126,7 +126,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     Artifact art = new Artifact(ident,
                                 Boolean.TRUE,
                                 String.format("file://%s?offset=1234",
-                                              store.getAuArtifactsWarcPath(ident)),
+                                              store.getActiveWarcPath(ident)),
                                 123L,
                                 "0x12345");
     return art;

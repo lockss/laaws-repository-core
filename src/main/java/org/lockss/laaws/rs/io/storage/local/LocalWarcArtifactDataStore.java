@@ -77,7 +77,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
           // Initialize LOCKSS repository structure
           mkdirs("/");
           mkdirs(getTempWarcPath());
-          mkdirs(getSealedWarcPath());
+          mkdirs(getSealedWarcsPath());
 
           // Reload temporary WARCs
           reloadTempWarcs();

@@ -126,7 +126,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 //                store.getBasePath(),
                 store.fs.getUri(),
                 (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-                store.getAuArtifactsWarcPath(ident),
+                store.getActiveWarcPath(ident),
                 offset);
     }
 
@@ -136,7 +136,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
                 Boolean.TRUE,
                 String.format("hdfs://%s%s/%s?offset=1234",
                         store.getBasePath(),
-                        store.getSealedWarcPath(),
+                        store.getSealedWarcsPath(),
                         store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
                 123L,
                 "0x12345");
@@ -148,7 +148,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         Artifact art = new Artifact(ident,
                 Boolean.TRUE,
                 String.format("hdfs://%s?offset=1234",
-                        store.getAuArtifactsWarcPath(ident)),
+                        store.getActiveWarcPath(ident)),
                 123L,
                 "0x12345");
         return art;

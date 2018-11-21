@@ -49,6 +49,7 @@ import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
+import org.lockss.laaws.rs.io.RepoAuid;
 import org.lockss.laaws.rs.io.WarcFileLockMap;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -145,6 +146,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected WarcFilePool tmpWarcPool;
   protected ExecutorService execsvc;
 
+  protected Map<RepoAuid, String> auActiveWarcMap;
 
   /**
    * The interval to wait between consecutive retries when creating the JMS
@@ -167,6 +169,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public WarcArtifactDataStore() {
     this.warcLockMap = new WarcFileLockMap();
     this.execsvc = new StripedExecutorService();
+    this.auActiveWarcMap = new HashMap<>();
 
     setThresholdWarcSize(NumberUtils.toLong(System.getenv(ENV_THRESHOLD_WARC_SIZE), DEFAULT_THRESHOLD_WARC_SIZE));
 
@@ -651,7 +654,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   private class CommitArtifactTask implements StripedCallable<Artifact> {
     private Artifact artifact;
-    private String dst;
 
     /**
      * Constructor of {@code CommitArtifactTask}.
@@ -661,9 +663,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     public CommitArtifactTask(Artifact artifact) {
       this.artifact = artifact;
 
-      // This could be AUID but we use WARC file paths
-      // TODO: Unique WARC paths
-      this.dst = getAuArtifactsWarcPath(artifact.getCollection(), artifact.getAuid());
     }
 
     /**
@@ -673,7 +672,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      */
     @Override
     public Object getStripe() {
-      return dst;
+      return artifact.getAuid();
     }
 
     /**
@@ -686,6 +685,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // TODO: If a failure occurs here we need to handle it and requeue for a later time
     @Override
     public Artifact call() throws Exception {
+      // Get the current active permanent WARC for this AU
+      String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+
       // Read artifact data from current WARC file
       ArtifactData artifactData = getArtifactData(artifact);
 
@@ -718,21 +720,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifact.setStorageUrl(makeStorageUrl(dst, offset));
       artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
+      // Seal active WARC if size threshold has been met or exceeded
+      if (offset + bytesWritten >= getThresholdWarcSize()) {
+        sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+      }
+
       return artifact;
-    }
-  }
-
-  /**
-   * TODO: Implement this class
-   */
-  private class SealWarcsTask implements StripedRunnable {
-    @Override
-    public Object getStripe() {
-      return null;
-    }
-
-    @Override
-    public void run() {
     }
   }
 
@@ -777,6 +770,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return An {@code Iterable<Artifact>} containing artifacts of the AU that were affected by this seal.
    * @throws IOException
    */
+  @Deprecated
   public Iterable<Artifact> sealWarc(String collection, String auid) throws IOException {
     // Keep track of the sealed artifacts in each sealed WARC generated
     Map<String, List<Artifact>> sealedArtifacts = new HashMap<>();
@@ -785,7 +779,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Iterable<Artifact> auArtifacts = artifactIndex.getAllArtifactsAllVersions(collection, auid, false);
     Iterable<Artifact> sealableArtifacts = IterableUtils.filteredIterable(auArtifacts, artifact ->
         // Include this artifact for sealing only if it isn't already sealed
-        !artifact.getStorageUrl().startsWith(makeStorageUrl(getSealedWarcPath()))
+        !artifact.getStorageUrl().startsWith(makeStorageUrl(getSealedWarcsPath()))
     );
 
     // Get an iterator over the sealable artifacts
@@ -802,7 +796,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Determine the initial sealed WARC file name and path
     String sealedWarcName = getSealedWarcName(collection, auid);
     String tmpSealedWarcPath = getCollectionTmpPath(collection) + SEPARATOR + sealedWarcName;
-    String sealedWarcPath = getSealedWarcPath() + SEPARATOR + sealedWarcName;
+    String sealedWarcPath = getSealedWarcsPath() + SEPARATOR + sealedWarcName;
 
     // Initialize the sealed WARC file
     initWarc(tmpSealedWarcPath);
@@ -847,7 +841,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           // Yes - write following artifacts to new sealed WARC file
           sealedWarcName = getSealedWarcName(collection, auid);
           tmpSealedWarcPath = getCollectionTmpPath(collection) + SEPARATOR + sealedWarcName;
-          sealedWarcPath = getSealedWarcPath() + SEPARATOR + sealedWarcName;
+          sealedWarcPath = getSealedWarcsPath() + SEPARATOR + sealedWarcName;
           initWarc(tmpSealedWarcPath);
         }
       }
@@ -858,7 +852,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try {
         // Construct source and target sealed WARC paths
         String source = getCollectionTmpPath(collection) + SEPARATOR + warcFileName;
-        String target = getSealedWarcPath() + SEPARATOR + warcFileName;
+        String target = getSealedWarcsPath() + SEPARATOR + warcFileName;
 
         // TODO: Is this still necessary?
         writeTerminateWarcFile(source);
@@ -942,7 +936,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return getAuPath(artifactIdent.getCollection(), artifactIdent.getAuid());
   }
 
-  public String getSealedWarcPath() {
+  public String getSealedWarcsPath() {
     return SEPARATOR + SEALED_WARC_DIR;
   }
 
@@ -952,12 +946,139 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return collection + "_" + AU_DIR_PREFIX + auidHash + "_" + timestamp + "_" + AU_ARTIFACTS_WARC_NAME;
   }
 
-  public String getAuArtifactsWarcPath(String collection, String auid) {
-    return getAuPath(collection, auid) + SEPARATOR + AU_ARTIFACTS_WARC_NAME;
+  /**
+   * Returns the path to the active WARC of an AU, in permanent storage.
+   *
+   * @param collection
+   * @param auid
+   * @return
+   */
+  public String getActiveWarcPath(String collection, String auid) {
+    synchronized (auActiveWarcMap) {
+      RepoAuid repoAuid = new RepoAuid(collection, auid);
+      String activeWarcName = auActiveWarcMap.putIfAbsent(repoAuid, generateActiveWarcName(collection, auid));
+
+      return getAuPath(collection, auid) + SEPARATOR + activeWarcName;
+    }
   }
 
-  public String getAuArtifactsWarcPath(ArtifactIdentifier artifactIdent) {
-    return getAuArtifactsWarcPath(artifactIdent.getCollection(), artifactIdent.getAuid());
+  public String getActiveWarcPath(ArtifactIdentifier artifactIdent) {
+    return getActiveWarcPath(artifactIdent.getCollection(), artifactIdent.getAuid());
+  }
+
+  protected String generateActiveWarcName(String collection, String auid) {
+    String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(FMT_TIMESTAMP);
+    return String.format("artifacts_%s-%s_%s.warc", collection, auid, timestamp);
+  }
+
+
+  /**
+   * Seals the active WARC being maintained in permanent storage for an AU from further writes, and starts a new active
+   * WARC for the AU.
+   *
+   * @param auid
+   */
+  public void sealActiveWarc(String collection, String auid) throws IOException {
+    // Key into the active WARC map
+    RepoAuid au = new RepoAuid(collection, auid);
+
+    // Prevent a commit thread (via getActiveWarcPath(...)) from getting the active WARC and writing to it further
+    synchronized (auActiveWarcMap) {
+      // Acquire a write lock to the active WARC, ensuring it isn't still being written to by another thread
+      Lock activeWarcLock = warcLockMap.getLock(auActiveWarcMap.get(au));
+      activeWarcLock.lock();
+
+      try {
+        // Queue delivery of this active WARC to third-party applications
+        execsvc.submit(new DeliverSealedWarcTask(collection, auid));
+
+        // Set new active WARC name
+        auActiveWarcMap.put(au, generateActiveWarcName(collection, auid));
+
+        // Initialize the active WARC file
+        initWarc(getActiveWarcPath(collection, auid));
+
+      } finally {
+        // Must always release the lock
+         activeWarcLock.unlock();
+
+         // TODO: Implement the ability to remove write locks that no longer needed
+//         warcLockMap.remove(activeWarcLock);
+      }
+    }
+  }
+
+  /**
+   * This implementation of {@code StripedRunnable} wraps {@codesealActiveWarc()} so that out-of-band requests to seal
+   * the active WARC of an AU are handled in the correct chronological order. This is achieved by using the same stripe
+   * used by {@code CommitArtifactTask}.
+   */
+  private class SealActiveWarcTask implements StripedRunnable {
+    private final String collection;
+    private final String auid;
+
+    public SealActiveWarcTask(String collection, String auid) {
+      this.collection = collection;
+      this.auid = auid;
+    }
+
+    @Override
+    public Object getStripe() {
+      return auid;
+    }
+
+    @Override
+    public void run() {
+      try {
+        sealActiveWarc(collection, auid);
+      } catch (IOException e) {
+        log.error("Failed to seal active WARC for [Collection: {}, AUID: {}]: {}", collection, auid, e);
+      }
+    }
+  }
+
+  /**
+   * This implementation of {@code Runnable} encapsulates the steps to deliver a sealed WARC from permanent storage to
+   * an external storage location for consumption by third-party services.
+   *
+   * It is not striped to allow for the simultaneous delivery of multiple sealed WARCs.
+   */
+  private class DeliverSealedWarcTask implements Runnable {
+    private final String collection;
+    private final String auid;
+
+    private final String src;
+    private final String dst;
+
+    public DeliverSealedWarcTask(String collection, String auid) {
+      this.collection = collection;
+      this.auid = auid;
+
+      // TODO: Calling getActiveWarcPath() here feels less than ideal:
+      this.src = getActiveWarcPath(collection, auid);
+      this.dst = getSealedWarcsPath() + SEPARATOR + getSealedWarcName(collection, auid);
+    }
+
+    @Override
+    public void run() {
+      try {
+        // Get input and output streams
+        InputStream in = getInputStream(src);
+        OutputStream out = getAppendableOutputStream(dst);
+
+        // Stream bytes from InputStream to OutputStream
+        IOUtils.copy(in, out);
+
+        // Close streams
+        in.close();
+        out.flush();
+        out.close();
+      } catch (IOException e) {
+        log.error("Could not deliver sealed WARC {} to {}: {}", src, dst, e);
+      }
+
+      log.info("Delivered sealed WARC {} to {}", src, dst);
+    }
   }
 
   public String getAuMetadataWarcPath(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
@@ -1212,7 +1333,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected String makeNewFileAndOffsetStorageUrl(String newPath, Artifact artifact) {
     Matcher mat = fileAndOffsetStorageUrlPat.matcher(artifact.getStorageUrl());
 
-    if (mat.matches() && mat.group(3).equals(getAuArtifactsWarcPath(artifact.getIdentifier()))) {
+    if (mat.matches() && mat.group(3).equals(getActiveWarcPath(artifact.getIdentifier()))) {
       return makeStorageUrl(newPath, mat.group(4));
     }
 
@@ -1435,11 +1556,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           if (m1.matches()) {
             String collection = m1.group(2);
             if (collection != null) {
-              try {
-                Iterable<Artifact> sealedArtifacts = sealWarc(collection, auId);
-              } catch (IOException e) {
-                log.error("JmsConsumer: Unable to seal warc for collection " + collection + " and au " + auId);
-              }
+              execsvc.submit(new SealActiveWarcTask(collection, auId));
             }
           }
         }
