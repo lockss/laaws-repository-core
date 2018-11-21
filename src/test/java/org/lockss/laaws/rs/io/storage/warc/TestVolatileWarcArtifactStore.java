@@ -287,7 +287,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 //    WarcArtifactDataStore store = makeWarcArtifactDataStore(tmp1.getAbsolutePath());
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
     String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    String expectedAuArtifactsWarcName = "artifacts.warc";
+    String expectedAuArtifactsWarcName = store.getActiveWarcName("coll1", "auid1");
     String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
     String actualAuArtifactsWarcPath = store.getActiveWarcPath(ident1);
     assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
