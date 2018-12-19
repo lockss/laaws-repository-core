@@ -35,6 +35,7 @@ import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,6 +51,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
+  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
 
   public final static String DEFAULT_REPO_BASEDIR = "/";
 
@@ -99,7 +101,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     log.info(String.format(
         "Instantiating a HDFS artifact data store under %s%s",
         fs.getUri(),
-        this.basePath
+        getBasePath()
     ));
 
     this.fs = fs;
@@ -195,6 +197,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     } finally {
       warcLock.unlock();
     }
+  }
+
+  @Override
+  protected long getBlockSize() {
+    return DEFAULT_BLOCKSIZE;
   }
 
   @Override

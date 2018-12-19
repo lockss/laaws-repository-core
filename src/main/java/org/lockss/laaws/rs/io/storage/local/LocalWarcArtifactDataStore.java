@@ -50,6 +50,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     private final static L4JLogger log = L4JLogger.getLogger();
+    private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
     private boolean initialized;
 
@@ -70,7 +71,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
                 Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
     }
 
-    @Override
+  @Override
+  protected long getBlockSize() {
+    return DEFAULT_BLOCKSIZE;
+  }
+
+  @Override
     public synchronized void initArtifactDataStore() {
       if (!initialized) {
         try {

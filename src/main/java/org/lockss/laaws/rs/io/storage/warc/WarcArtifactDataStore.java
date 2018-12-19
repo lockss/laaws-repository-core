@@ -127,6 +127,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
 
   protected static final String ENV_THRESHOLD_WARC_SIZE = "REPO_MAX_WARC_SIZE";
+  private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
   protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
   protected static final String ENV_UNCOMMITTED_ARTIFACT_EXPIRATION = "REPO_UNCOMMITTED_ARTIFACT_EXPIRATION";
   protected static final long DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION = TimeUtil.WEEK;
@@ -223,12 +224,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Examine each temporary WARC file...
     for (String tmpWarc : tmpWarcs) {
-      // TODO: Two things to do here: 1) Determine if temp WARC is removable 2) Requeue copy tasks
+      // TODO: Determine if temp WARC is removable
+      // TODO: Requeue pending copies / commits
+      // TODO: Validate WARCs (handle recovering from truncated WARC records, etc)
+
+      // FIXME: Iterate over the WARC records here to avoid iterating over them multiple times
       if (isTempWarcRemovable(tmpWarc)) {
         log.info("Removing temporary WARC: {}", tmpWarc);
         removeWarc(tmpWarc);
       } else {
-        // TODO: Handle recovering from truncated WARC records
         //validateAndRepairWarc(tmpWarc);
 
         // TODO: Requeue pending copies / commits
@@ -474,15 +478,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   @Override
   public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
-    Objects.requireNonNull(artifactData, "Artifact data is null");
-
-    // Bytes written by this operation (i.e., size of the WARC record written to a WARC file)
-    long bytesWritten;
+    Objects.requireNonNull(artifactData, "Called with null ArtifactData");
 
     // Get the artifact identifier
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
     // Assign new artifact ID (ignore existing artifact ID if present; allow copies of same artifact data)
+    // FIXME: Collisions with existing artifact
     artifactId.setId(UUID.randomUUID().toString());
 
     log.info(String.format(
@@ -498,40 +500,51 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     initCollection(artifactId.getCollection());
     initAu(artifactId.getCollection(), artifactId.getAuid());
 
+    // Create a DFOS to contain our serialized artifact
+    DeferredFileOutputStream dfos = new DeferredFileOutputStream(
+        (int)DEFAULT_DFOS_THRESHOLD,
+        "addArtifactData",
+        null,
+        new File("/tmp")
+    );
+
+
+    // Serialize artifact to WARC record and get the number of bytes in the serialization
+    long bytesWritten = writeArtifactData(artifactData, dfos);
+    dfos.close();
+
     // Get an available temporary WARC from the temporary WARC pool
-    // TODO: Implement bytes expected
-    WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(0);
+    WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(bytesWritten);
+    String tmpWarcFilePath = tmpWarcFile.getPath();
 
     // Initialize the WARC
-    String warcPath = tmpWarcFile.getPath();
-    initWarc(warcPath);
+    initWarc(tmpWarcFilePath);
 
     // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
-    long offset = getFileLength(warcPath);
-//    long offset = tmpWarcFile.getLength();
+    long offset = getFileLength(tmpWarcFilePath);
 
     try (
-        // Get an (appending) OutputStream to the WARC file
-        OutputStream output = getAppendableOutputStream(warcPath);
+        // Get an (appending) OutputStream to the temporary WARC file
+        OutputStream output = getAppendableOutputStream(tmpWarcFilePath)
     ) {
-      // Write artifact to uncommitted artifacts WARC file
-      bytesWritten = writeArtifactData(artifactData, output);
-      output.flush();
+      // Write serialized artifact to temporary WARC file
+      dfos.writeTo(output);
 
       log.info(String.format(
           "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
           bytesWritten,
           offset,
-          warcPath,
+          tmpWarcFilePath,
           offset + bytesWritten
       ));
     }
 
+    // Update temporary WARC stats and return to pool
     tmpWarcFile.setLength(offset + bytesWritten);
     tmpWarcPool.returnWarcFile(tmpWarcFile);
 
     // Set artifact data storage URL
-    artifactData.setStorageUrl(makeStorageUrl(warcPath, offset));
+    artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset));
 
     // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
     artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
@@ -681,53 +694,103 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      * @return
      * @throws Exception
      */
-    // TODO: Future does not capture exceptions - handle them here
-    // TODO: If a failure occurs here we need to handle it and requeue for a later time
     @Override
     public Artifact call() throws Exception {
-      // Get the current active permanent WARC for this AU
-      String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
-
-      // Read artifact data from current WARC file
-      ArtifactData artifactData = getArtifactData(artifact);
-
-      // Initialize the destination WARC file
-      initWarc(dst);
-
-      // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
-      long offset = getFileLength(dst);
-      long bytesWritten = 0;
-
-      try (
-          // Get an (appending) OutputStream to the WARC file
-          OutputStream output = getAppendableOutputStream(dst)
-      ) {
-        // Write artifact to uncommitted artifacts WARC file
-        bytesWritten = writeArtifactData(artifactData, output);
-        output.flush();
-
-        log.info(String.format(
-            "Committed: %s: Wrote %d bytes starting at byte offset %d to %s; size is now %d",
-            artifact.getIdentifier().getId(),
-            bytesWritten,
-            offset,
-            dst,
-            offset + bytesWritten
-        ));
-      }
-
-      // Set the artifact's new storage URL and update the index
-      artifact.setStorageUrl(makeStorageUrl(dst, offset));
-      artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
-
-      // Seal active WARC if size threshold has been met or exceeded
-      if (offset + bytesWritten >= getThresholdWarcSize()) {
-        sealActiveWarc(artifact.getCollection(), artifact.getAuid());
-      }
-
-      return artifact;
+      // TODO: Futures (resulting from submitting this Callable to an ExecutorService) do not capture exceptions: Any
+      //  problems need to be handled here. Requeue tasks to try again later.
+      return moveToPermanentStorage(artifact);
     }
   }
+
+  /**
+   * Moves the WARC record of an artifact from temporary storage to a WARC in permanent storage, and updates the
+   * storage URL if successful.
+   *
+   * @param artifact The {@code Artifact} whose backing WARC record should be moved from temporary to permanent storage.
+   * @return The {@code Artifact} with an updated storage URL.
+   * @throws IOException
+   */
+  private Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
+    // Read artifact data from current WARC file
+    ArtifactData artifactData = getArtifactData(artifact);
+
+    // Create a DFOS to contain our serialized artifact
+    DeferredFileOutputStream dfos = new DeferredFileOutputStream(
+        (int)DEFAULT_DFOS_THRESHOLD,
+        "moveToPermanentStorage",
+        null,
+        new File("/tmp")
+    );
+
+    // Serialize artifact to WARC record and get the number of bytes in the serialization
+    long bytesWritten = writeArtifactData(artifactData, dfos);
+    dfos.close();
+
+    // Get the current active permanent WARC for this AU
+    String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    initWarc(dst);
+
+    // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
+    long offset = getFileLength(dst);
+
+    if (bytesWritten + offset > getThresholdWarcSize()) {
+      // If the WARC record alone is over the size threshold, then we're going to be writing a WARC that goes past the
+      // threshold anyway. So we have two options: 1) write to a new WARC or, 2) the current one. Which one? The one
+      // that maximizes the last block.
+      if (!((bytesWritten > getThresholdWarcSize()) &&
+          (getBytesUsedLastBlock(bytesWritten + offset) > getBytesUsedLastBlock(bytesWritten)))) {
+
+        // Seal the active WARC
+        sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+
+        // Initialize the new active WARC and retrieve its size
+        dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+        initWarc(dst);
+        offset = getFileLength(dst);
+      }
+    }
+
+    try (
+        // Get an (appending) OutputStream to the WARC file
+        OutputStream output = getAppendableOutputStream(dst)
+    ) {
+      // Write serialized artifact to permanent WARC file
+      dfos.writeTo(output);
+      output.flush();
+
+      log.info(String.format(
+          "Committed: %s: Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+          artifact.getIdentifier().getId(),
+          bytesWritten,
+          offset,
+          dst,
+          offset + bytesWritten
+      ));
+    }
+
+    // Set the artifact's new storage URL and update the index
+    artifact.setStorageUrl(makeStorageUrl(dst, offset));
+    artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+
+    // Immediately seal active WARC if size threshold has been met or exceeded
+    if (offset + bytesWritten >= getThresholdWarcSize()) {
+      sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+    }
+
+    return artifact;
+  }
+
+  /**
+   * Computes the bytes used in the last block, assuming all previous blocks are maximally filled.
+   *
+   * @param size
+   * @return
+   */
+  private long getBytesUsedLastBlock(long size) {
+    return ((size - 1) % getBlockSize()) + 1;
+  }
+
+  protected abstract long getBlockSize();
 
   /**
    * Removes an artifact from this artifact data store.
@@ -769,17 +832,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   private void writeTerminateWarcFile(String warcfilePath) throws IOException {
-    Lock warcLock = warcLockMap.getLock(warcfilePath);
-    warcLock.lock();
-
-    try {
-      OutputStream warcOutput = getAppendableOutputStream(warcfilePath);
-      writeWarcRecord(createWARCInfoRecord(null, MediaType.TEXT_PLAIN, SEALED_MARK), warcOutput);
-      warcOutput.flush();
-      warcOutput.close();
-    } finally {
-      warcLock.unlock();
-    }
+    OutputStream warcOutput = getAppendableOutputStream(warcfilePath);
+    writeWarcRecord(createWARCInfoRecord(null, MediaType.TEXT_PLAIN, SEALED_MARK), warcOutput);
+    warcOutput.flush();
+    warcOutput.close();
   }
 
   public String getCollectionPath(String collection) {
@@ -820,6 +876,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return
    */
   public String getActiveWarcPath(String collection, String auid) {
+    // TODO: Use Path instead of String concatenation for this type of pattern?
     return getAuPath(collection, auid) + SEPARATOR + getActiveWarcName(collection, auid);
   }
 
@@ -853,34 +910,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Prevent a commit thread (via getActiveWarcPath(...)) from getting the active WARC and writing to it further
     synchronized (auActiveWarcMap) {
-      // Acquire a write lock to the active WARC, ensuring it isn't still being written to by another thread
-      Lock activeWarcLock = warcLockMap.getLock(auActiveWarcMap.get(au));
-      activeWarcLock.lock();
+      // Queue delivery of current active WARC to third-party applications
+      execsvc.submit(new DeliverSealedWarcTask(collection, auid));
 
-      try {
-        // Queue delivery of this active WARC to third-party applications
-        execsvc.submit(new DeliverSealedWarcTask(collection, auid));
+      // Set new active WARC
+      auActiveWarcMap.put(au, generateActiveWarcName(collection, auid));
 
-        // Set new active WARC name
-        auActiveWarcMap.put(au, generateActiveWarcName(collection, auid));
-
-        // Initialize the active WARC file
-        initWarc(getActiveWarcPath(collection, auid));
-
-      } finally {
-        // Must always release the lock
-         activeWarcLock.unlock();
-
-         // TODO: Implement the ability to remove write locks that no longer needed
-//         warcLockMap.remove(activeWarcLock);
-      }
+      // Initialize the active WARC file
+      initWarc(getActiveWarcPath(collection, auid));
     }
   }
 
   /**
-   * This implementation of {@code StripedRunnable} wraps {@codesealActiveWarc()} so that out-of-band requests to seal
-   * the active WARC of an AU are handled in the correct chronological order. This is achieved by using the same stripe
-   * used by {@code CommitArtifactTask}.
+   * This implementation of {@code StripedRunnable} wraps {@codesealActiveWarc()} to allow for out-of-band requests to
+   * seal the active WARC of an AU are handled in the correct chronological order. This is achieved by using the same
+   * stripe used by {@code CommitArtifactTask}.
    */
   private class SealActiveWarcTask implements StripedRunnable {
     private final String collection;
@@ -910,7 +954,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * This implementation of {@code Runnable} encapsulates the steps to deliver a sealed WARC from permanent storage to
    * an external storage location for consumption by third-party services.
    *
-   * It is not striped to allow for the simultaneous delivery of multiple sealed WARCs.
+   * It is NOT implemented as a {@code StripedRunnable} to allow for the simultaneous delivery of multiple sealed WARCs.
    */
   private class DeliverSealedWarcTask implements Runnable {
     private final String collection;
@@ -923,7 +967,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       this.collection = collection;
       this.auid = auid;
 
-      // TODO: Calling getActiveWarcPath() here feels less than ideal:
+      // FIXME: Calling getActiveWarcPath() here feels less than ideal since depends on what its set to at construction
       this.src = getActiveWarcPath(collection, auid);
       this.dst = getSealedWarcsPath() + SEPARATOR + getSealedWarcName(collection, auid);
     }
@@ -931,22 +975,22 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     @Override
     public void run() {
       try {
-        // Get input and output streams
-        InputStream in = getInputStream(src);
-        OutputStream out = getAppendableOutputStream(dst);
-
-        // Stream bytes from InputStream to OutputStream
-        IOUtils.copy(in, out);
-
-        // Close streams
-        in.close();
-        out.flush();
-        out.close();
+        // Initialize destination WARC
+        initWarc(dst);
       } catch (IOException e) {
-        log.error("Could not deliver sealed WARC {} to {}: {}", src, dst, e);
+        log.error("Could not initialize sealed WARC {}: {}", src, e);
       }
 
-      log.info("Delivered sealed WARC {} to {}", src, dst);
+      // Stream bytes from InputStream to OutputStream
+      try (InputStream in = getInputStream(src)) {
+        try (OutputStream out = getAppendableOutputStream(dst)) {
+          IOUtils.copy(in, out);
+          log.info("Delivered sealed WARC {} to {}", src, dst);
+        }
+      } catch (IOException e) {
+        log.error("Could not deliver sealed WARC {} to {}: {}", src, dst, e);
+        // TODO: Requeue task for later retry
+      }
     }
   }
 

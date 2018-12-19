@@ -30,12 +30,12 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.archive.io.warc.WARCRecord;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
+import org.lockss.log.L4JLogger;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -50,8 +50,10 @@ import java.util.concurrent.Future;
  * A volatile ("in-memory") implementation of WarcArtifactDataStore.
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
-    private final static Log log = LogFactory.getLog(VolatileWarcArtifactDataStore.class);
-    private Map<String, Map<String, Map<String, byte[]>>> repository;
+  private final static L4JLogger log = L4JLogger.getLogger();
+  private static final long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+
+  private Map<String, Map<String, Map<String, byte[]>>> repository;
     private Map<String, RepositoryArtifactMetadata> repositoryMetadata;
 
     /**
@@ -97,6 +99,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
         if (artifactData == null) {
           throw new NullPointerException("artifactData is null");
         }
+
+        ArtifactIdentifier artifactId = artifactData.getIdentifier();
+        artifactId.setId(UUID.randomUUID().toString());
 
         // Get artifact identifier
         ArtifactIdentifier ident = artifactData.getIdentifier();
@@ -252,6 +257,11 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
       return future;
     }
 
+  @Override
+  protected long getBlockSize() {
+    return DEFAULT_BLOCKSIZE;
+  }
+
     /**
      * Removes an artifact from this store.
      *
@@ -319,7 +329,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     // TODO
     throw new UnsupportedOperationException();
   }
-  
+
   public String makeStorageUrl(ArtifactIdentifier ident) {
     try {
       return makeStorageUrl(String.format("/%s/%s/%s/%s/%s",
