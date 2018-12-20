@@ -710,9 +710,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return The {@code Artifact} with an updated storage URL.
    * @throws IOException
    */
+  // FIXME: Stream WARC record instead of unserializing only to serialize again
   private Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
     // Read artifact data from current WARC file
     ArtifactData artifactData = getArtifactData(artifact);
+
 
     // Create a DFOS to contain our serialized artifact
     DeferredFileOutputStream dfos = new DeferredFileOutputStream(
@@ -738,7 +740,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // threshold anyway. So we have two options: 1) write to a new WARC or, 2) the current one. Which one? The one
       // that maximizes the last block.
       if (!((bytesWritten > getThresholdWarcSize()) &&
-          (getBytesUsedLastBlock(bytesWritten + offset) > getBytesUsedLastBlock(bytesWritten)))) {
+          (getBytesUsedLastBlock(bytesWritten + offset) > getBytesUsedLastBlock(bytesWritten) + getBytesUsedLastBlock(offset)))) {
 
         // Seal the active WARC
         sealActiveWarc(artifact.getCollection(), artifact.getAuid());
@@ -957,17 +959,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * It is NOT implemented as a {@code StripedRunnable} to allow for the simultaneous delivery of multiple sealed WARCs.
    */
   private class DeliverSealedWarcTask implements Runnable {
-    private final String collection;
-    private final String auid;
-
     private final String src;
     private final String dst;
 
     public DeliverSealedWarcTask(String collection, String auid) {
-      this.collection = collection;
-      this.auid = auid;
-
-      // FIXME: Calling getActiveWarcPath() here feels less than ideal since depends on what its set to at construction
+      // These must be bound at construction time
       this.src = getActiveWarcPath(collection, auid);
       this.dst = getSealedWarcsPath() + SEPARATOR + getSealedWarcName(collection, auid);
     }
