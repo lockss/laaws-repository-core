@@ -32,17 +32,16 @@ package org.lockss.laaws.rs.core;
 
 import java.io.*;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.LocalArtifactIndex;
 import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
+import org.lockss.log.L4JLogger;
 
 /**
  * Local filesystem implementation of the LOCKSS Repository API that uses a volatile artifact index.
  */
 public class LocalLockssRepository extends BaseLockssRepository {
-  private final static Log log = LogFactory.getLog(LocalLockssRepository.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
     /**
      * Constructor the takes a base path and uses a volatile artifact artifactIndex implementation. It automatically invokes a

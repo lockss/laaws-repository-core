@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.AuidLockMap;
 import org.lockss.laaws.rs.io.RepoAuid;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -42,6 +40,7 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.util.*;
@@ -51,7 +50,7 @@ import java.util.concurrent.locks.Lock;
  * Base implementation of the LOCKSS Repository service.
  */
 public class BaseLockssRepository implements LockssRepository {
-  private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
   protected ArtifactIndex index;

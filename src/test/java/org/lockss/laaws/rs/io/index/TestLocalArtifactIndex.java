@@ -31,13 +31,12 @@ package org.lockss.laaws.rs.io.index;
 
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 
 import java.io.File;
@@ -46,7 +45,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class TestLocalArtifactIndex extends LockssTestCase5 {
-    private final static Log log = LogFactory.getLog(TestLocalArtifactIndex.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String PERSISTED_INDEX_NAME = "repository-index.ser";
     private LocalArtifactIndex index;

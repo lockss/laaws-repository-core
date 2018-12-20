@@ -30,10 +30,9 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
@@ -305,7 +304,7 @@ public interface LockssRepository extends Ready {
 
   @Override
   default void waitReady(Deadline deadline) throws TimeoutException {
-    Log log = LogFactory.getLog(LockssRepository.class);
+    final L4JLogger log = L4JLogger.getLogger();
 
     while (!isReady()) {
       if (deadline.expired()) {

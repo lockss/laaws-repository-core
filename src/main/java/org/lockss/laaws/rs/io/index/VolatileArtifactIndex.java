@@ -30,14 +30,13 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.util.*;
@@ -48,7 +47,7 @@ import java.util.stream.Stream;
  * ArtifactData index implemented in memory, not persisted.
  */
 public class VolatileArtifactIndex implements ArtifactIndex {
-    private final static Log log = LogFactory.getLog(VolatileArtifactIndex.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     // Map from artifact ID to Artifact
     protected Map<String, Artifact> index = new LinkedHashMap<>();

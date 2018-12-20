@@ -31,8 +31,6 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
@@ -41,6 +39,7 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
 
 import java.io.*;
 import java.util.UUID;
@@ -51,8 +50,7 @@ import java.util.concurrent.Future;
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
  */
 public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<VolatileWarcArtifactDataStore> {
-  
-    private final static Log log = LogFactory.getLog(TestVolatileWarcArtifactStore.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private ArtifactIdentifier aid1;
     private ArtifactIdentifier aid2;

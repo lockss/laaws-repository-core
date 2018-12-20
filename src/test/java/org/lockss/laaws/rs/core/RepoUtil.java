@@ -29,25 +29,13 @@ in this Software without prior written authorization from Stanford University.
 package org.lockss.laaws.rs.core;
 
 import java.util.*;
-import java.io.*;
-import java.net.*;
-import java.security.*;
-import org.apache.http.*;
-import org.apache.http.message.*;
-import org.apache.commons.logging.*;
+import org.lockss.log.L4JLogger;
 import org.springframework.http.HttpHeaders;
-import org.springframework.util.StringUtils;
-
-import org.lockss.laaws.rs.core.*;
-import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.*;
-
-
 
 /** Utilities for V2 repository
  */
 public class RepoUtil {
-  private final static Log log = LogFactory.getLog(TestVolatileLockssRepository.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   /** Build a Spring HttpHeaders from CIProperties */
   public static HttpHeaders httpHeadersFromMap(Map map) {

@@ -31,10 +31,9 @@
 package org.lockss.laaws.rs.model;
 
 import java.io.Serializable;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
+import org.lockss.log.L4JLogger;
 
 /**
  * LOCKSS repository Artifact
@@ -43,7 +42,7 @@ import org.apache.solr.client.solrj.beans.Field;
  */
 public class Artifact implements Serializable {
     private static final long serialVersionUID = 1961138745993115018L;
-    private static final Log log = LogFactory.getLog(Artifact.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     @Field("id")
     private String id;

@@ -30,17 +30,15 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.lockss.log.L4JLogger;
 import org.springframework.util.FileSystemUtils;
 import java.io.File;
-import java.io.IOException;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
  */
 public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
-    private final static Log log = LogFactory.getLog(TestLocalLockssRepository.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     // The local repository root directory.
     private File repoBaseDir = null;

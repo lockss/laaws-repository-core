@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -40,13 +38,14 @@ import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.log.L4JLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
 public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
-    private final static Log log = LogFactory.getLog(TestHdfsWarcArtifactStore.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private MiniDFSCluster hdfsCluster;
 

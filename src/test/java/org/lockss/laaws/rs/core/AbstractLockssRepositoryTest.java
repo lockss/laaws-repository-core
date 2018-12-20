@@ -47,12 +47,12 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.commons.lang3.tuple.*;
-import org.apache.commons.logging.*;
 import org.apache.http.*;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.test.*;
 import org.springframework.http.HttpHeaders;
 
@@ -73,8 +73,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
    * appropriate repository type */
   public abstract LockssRepository makeLockssRepository() throws Exception;
 
-  private final static Log log =
-    LogFactory.getLog(AbstractLockssRepositoryTest.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   static boolean AVOID_STREAM_CLOSED_BUG = false;
 

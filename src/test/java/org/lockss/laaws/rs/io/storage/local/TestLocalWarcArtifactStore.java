@@ -36,8 +36,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
+  private final static L4JLogger log = L4JLogger.getLogger();
   private File testsRootDir;
 
   @Override
