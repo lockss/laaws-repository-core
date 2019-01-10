@@ -1,33 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 
+<!--
 
-Copyright (c) 2000-2018, Board of Trustees of Leland Stanford Jr. University
+Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
 
 2. Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 3. Neither the name of the copyright holder nor the names of its contributors
 may be used to endorse or promote products derived from this software without
 specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -38,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   <parent>
     <groupId>org.lockss</groupId>
     <artifactId>lockss-parent-pom</artifactId>
-    <version>1.9.0-SNAPSHOT</version>
+    <version>1.10.0-SNAPSHOT</version>
     <relativePath />
   </parent>
 
@@ -58,56 +59,58 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   </scm>
 
   <properties>
-    <skipTestJar>false</skipTestJar>
-    <hadoop.version>2.7.3</hadoop.version>
+    <build.java.jarTests.skip>false</build.java.jarTests.skip>
+    <version.local.spring-data-hadoop-store>2.4.0.RELEASE</version.local.spring-data-hadoop-store>
   </properties>
 
   <dependencies>
+  
     <dependency>
       <groupId>org.lockss</groupId>
       <artifactId>lockss-util</artifactId>
-      <version>${lockss.util.version}</version>
+      <version>${version.lockss.lockss-util}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
-      <!--<scope>compile</scope>-->
+      <version>${version.group.hadoop}</version>
       <exclusions>
-	<!-- hadoop-common has a dependency on this slf4j binding, which we
-	     don't want. -->
+	<!-- hadoop-common has a dependency on this slf4j binding, which we don't want -->
         <exclusion>
 	  <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
+    
+    <!-- FIXME classifier:tests + type:test-jar throughout doesn't seem right -->
+    
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
-      <!--<scope>compile</scope>-->
+      <version>${version.group.hadoop}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
       <exclusions>
-	<!-- Needs to be excluded in test scope also. -->
+	<!-- See above -->
         <exclusion>
 	  <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
-      <version>${hadoop.version}</version>
-      <!--<scope>compile</scope>-->
+      <version>${version.group.hadoop}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
-      <version>${hadoop.version}</version>
-      <!--<scope>compile</scope>-->
+      <version>${version.group.hadoop}</version>
       <classifier>tests</classifier>
       <type>test-jar</type>
     </dependency>
@@ -115,7 +118,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.lockss</groupId>
       <artifactId>lockss-junit5-bundle</artifactId>
-      <version>${lockss.junit5.bundleVersion}</version>
+      <version>${version.lockss.lockss-junit5-bundle}</version>
       <type>pom</type>
       <scope>test</scope>
     </dependency>
@@ -123,12 +126,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-webmvc</artifactId>
-      <version>${lockss.spring.version}</version>
+      <version>${version.group.spring}</version>
     </dependency>
+
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-test</artifactId>
-      <version>${lockss.spring.version}</version>
+      <version>${version.group.spring}</version><!-- FIXME is this needed in test scope only? -->
     </dependency>
 
     <dependency>
@@ -140,7 +144,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>
-      <version>4.4.6</version>
+      <version>${version.dependency.httpcore}</version>
     </dependency>
 
     <!-- 
@@ -178,13 +182,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.springframework.data</groupId>
       <artifactId>spring-data-hadoop-store</artifactId>
-      <version>2.4.0.RELEASE</version>
+      <version>${version.local.spring-data-hadoop-store}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-joda</artifactId>
-      <version>2.8.10</version>
+      <version>${version.dependency.jackson-datatype-joda}</version>
     </dependency>
 
 <!--     <dependency> -->
@@ -203,7 +207,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.netpreserve.commons</groupId>
       <artifactId>webarchive-commons</artifactId>
-      <version>1.1.8</version>
+      <version>${version.dependency.webarchive-commons}</version>
       <exclusions>
         <exclusion>
           <groupId>junit</groupId>
@@ -215,59 +219,62 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
-      <version>3.7</version>
+      <version>${version.dependency.commons-lang3}</version>
     </dependency>
  
     <dependency>
       <groupId>org.apache.solr</groupId>
       <artifactId>solr-solrj</artifactId>
-      <version>6.6.0</version>
+      <version>${version.group.solr}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-collections4</artifactId>
-      <version>4.1</version>
+      <version>${version.dependency.commons-collections4}</version>
     </dependency>
 
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <version>2.6</version>
+      <version>${version.dependency.commons-io}</version>
     </dependency>
 
     <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
-      <version>1.11</version>
+      <version>${version.dependency.commons-codec}</version>
     </dependency>
 
     <!-- JMS support classes -->
     <dependency>
       <groupId>org.apache.activemq</groupId>
       <artifactId>activemq-client</artifactId>
-      <version>${lockss.activemq.version}</version>
+      <version>${version.group.activemq}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.activemq</groupId>
       <artifactId>activemq-broker</artifactId>
-      <version>${lockss.activemq.version}</version>
+      <version>${version.group.activemq}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.activemq</groupId>
       <artifactId>activemq-kahadb-store</artifactId>
-      <version>${lockss.activemq.version}</version>
+      <version>${version.group.activemq}</version>
       <scope>test</scope>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.junit.platform/junit-platform-console-standalone -->
+    <!-- FIXME what is this needed for exactly? -->
     <dependency>
       <groupId>org.junit.platform</groupId>
       <artifactId>junit-platform-console-standalone</artifactId>
       <version>1.2.0</version>
       <scope>test</scope>
     </dependency>
+    
   </dependencies>
 
   <profiles>
