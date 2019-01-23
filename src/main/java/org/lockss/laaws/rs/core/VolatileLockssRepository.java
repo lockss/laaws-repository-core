@@ -45,8 +45,5 @@ public class VolatileLockssRepository extends BaseLockssRepository {
      */
     public VolatileLockssRepository() throws IOException {
         super(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
-
-        // Initialize data store
-        store.initArtifactDataStore();
     }
 }

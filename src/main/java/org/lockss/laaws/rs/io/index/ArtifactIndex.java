@@ -364,4 +364,8 @@ public interface ArtifactIndex extends Ready {
             }
         }
     }
+
+    default void initArtifactIndex() {
+        // No-op
+    }
 }

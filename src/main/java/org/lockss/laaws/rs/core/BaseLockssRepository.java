@@ -76,9 +76,10 @@ public class BaseLockssRepository implements LockssRepository {
 
     this.index = index;
     this.store = store;
-    this.store.setArtifactIndex(this.index);
     this.auidLockMap = new AuidLockMap();
 
+    // Initialize artifact index and data store
+    index.initArtifactIndex();
     store.initArtifactDataStore();
   }
 

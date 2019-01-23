@@ -142,8 +142,6 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      */
     MD deleteArtifactData(Artifact artifact) throws IOException;
     
-    void setArtifactIndex(ArtifactIndex artifactIndex);
-
     long DEFAULT_WAITREADY = 5000;
 
     @Override

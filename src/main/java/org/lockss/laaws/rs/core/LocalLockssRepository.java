@@ -57,9 +57,6 @@ public class LocalLockssRepository extends BaseLockssRepository {
 
       log.debug("basePath = " + basePath);
       log.debug("persistedIndexName = " + persistedIndexName);
-
-      // Initialize data store
-      store.initArtifactDataStore();
     }
 
     /**
@@ -72,9 +69,5 @@ public class LocalLockssRepository extends BaseLockssRepository {
      */
     public LocalLockssRepository(File basePath, ArtifactIndex index) throws IOException {
       super(index, new LocalWarcArtifactDataStore(basePath));
-
-      // Initialize data store
-      store.setArtifactIndex(index);
-      store.initArtifactDataStore();
     }
 }
