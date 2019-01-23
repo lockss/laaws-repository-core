@@ -52,6 +52,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
+  private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
 
   public final static String DEFAULT_REPO_BASEDIR = "/";
 
@@ -144,7 +145,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   @Override
-  public Collection<String> scanDirectories(String basePath) throws IOException {
+  public Collection<String> findWarcs(String basePath) throws IOException {
     Collection<String> warcFiles = new ArrayList<>();
 
     RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
@@ -186,17 +187,16 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public long getFileLength(String filePath) throws IOException {
-    // Acquire lock to avoid returning a file length while writing an artifact
-    Lock warcLock = warcLockMap.getLock(filePath);
-    warcLock.lock();
-
     try {
       return fs.getFileStatus(new Path(getBasePath() + filePath)).getLen();
     } catch (FileNotFoundException e) {
       return 0L;
-    } finally {
-      warcLock.unlock();
     }
+  }
+
+  @Override
+  protected String getTmpWarcBasePath() {
+    return DEFAULT_TMPWARCBASEPATH;
   }
 
   @Override
@@ -228,11 +228,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     if (!initialized) {
       try {
         mkdirs("/");
-        mkdirs(getTempWarcPath());
+        mkdirs(getTmpWarcBasePath());
         mkdirs(getSealedWarcsPath());
 
         // Reload temporary WARCs
-        reloadTempWarcs();
+        reloadTmpWarcs();
 
         initialized = true;
       } catch (IOException e) {
@@ -250,6 +250,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public void initCollection(String collectionId) throws IOException {
+    if (collectionId == null || collectionId.isEmpty()) {
+      throw new IllegalArgumentException("Collection ID is null or empty");
+    }
+
     mkdirs(getCollectionPath(collectionId));
     mkdirs(getCollectionTmpPath(collectionId));
   }
@@ -266,6 +270,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public void initAu(String collectionId, String auid) throws IOException {
     initCollection(collectionId);
+
+    if (auid == null || auid.isEmpty()) {
+      throw new IllegalArgumentException("AUID is null or empty");
+    }
+
     mkdirs(getAuPath(collectionId, auid));
   }
 
@@ -319,11 +328,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean removeWarc(String path) throws IOException {
     return fs.delete(new Path(getBasePath() + path), false);
-  }
-
-  @Override
-  public String makeNewStorageUrl(String newPath, Artifact artifact) {
-    return makeNewFileAndOffsetStorageUrl(newPath, artifact);
   }
 
   /**

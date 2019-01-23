@@ -71,6 +71,11 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
   @Override
+  protected String getTmpWarcBasePath() {
+    return null;
+  }
+
+  @Override
   public void initArtifactDataStore() throws IOException {
     this.repository = new HashMap<>();
     this.repositoryMetadata = new HashMap<>();
@@ -391,14 +396,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
     @Override
-    public Collection<String> scanDirectories(String basePath) throws IOException {
+    public Collection<String> findWarcs(String basePath) throws IOException {
         throw new UnsupportedOperationException();
     }
-
-    @Override
-  public String makeNewStorageUrl(String newPath, Artifact artifact) {
-    throw new UnsupportedOperationException();
-  }
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.

@@ -51,6 +51,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     private final static L4JLogger log = L4JLogger.getLogger();
     private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
+    private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
 
     private boolean initialized;
 
@@ -72,6 +73,11 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
   @Override
+  protected String getTmpWarcBasePath() {
+    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
+  }
+
+  @Override
   protected long getBlockSize() {
     return DEFAULT_BLOCKSIZE;
   }
@@ -82,11 +88,11 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         try {
           // Initialize LOCKSS repository structure
           mkdirs("/");
-          mkdirs(getTempWarcPath());
+          mkdirs(getTmpWarcBasePath());
           mkdirs(getSealedWarcsPath());
 
           // Reload temporary WARCs
-          reloadTempWarcs();
+          reloadTmpWarcs();
 
           initialized = true;
         } catch (IOException e) {
@@ -126,14 +132,14 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
      * @return A collection of paths to WARC files under the given base path.
      */
     @Override
-    public Collection<String> scanDirectories(String basePath) {
+    public Collection<String> findWarcs(String basePath) {
         Collection<String> warcFiles = new ArrayList<>();
         File basePathFile = new File(basePath);
 
         if (basePathFile.exists() && basePathFile.isDirectory()) {
           // DFS recursion through directories
           Arrays.stream(basePathFile.listFiles(x -> x.isDirectory()))
-              .map(x -> scanDirectories(x.getPath()))
+              .map(x -> findWarcs(x.getPath()))
               .forEach(warcFiles::addAll);
 
           // Add WARC files from this directory
@@ -164,15 +170,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     @Override
     public long getFileLength(String filePath) {
-      // Acquire lock to avoid returning a length while write is in progress
-      Lock warcLock = warcLockMap.getLock(filePath);
-      warcLock.lock();
-
-      try {
-        return new File(getBasePath() + filePath).length();
-      } finally {
-        warcLock.unlock();
-      }
+      return new File(getBasePath() + filePath).length();
     }
 
     @Override
@@ -233,11 +231,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     public boolean removeWarc(String path) {
       String fullPath = getBasePath() + path;
       return new File(fullPath).delete();
-    }
-
-    @Override
-    public String makeNewStorageUrl(String newPath, Artifact artifact) {
-        return makeNewFileAndOffsetStorageUrl(newPath, artifact);
     }
 
     /**
