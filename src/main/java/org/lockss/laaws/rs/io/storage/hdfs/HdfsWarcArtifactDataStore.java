@@ -329,24 +329,4 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public boolean removeWarc(String path) throws IOException {
     return fs.delete(new Path(getBasePath() + path), false);
   }
-
-  /**
-   * Creates a new WARC file, and begins it with a warcinfo WARC record.
-   *
-   * @param warcFilePath A {@code Path} to the new WARC file to create.
-   * @throws IOException
-   */
-  public void createWarcFile(Path warcFilePath) throws IOException {
-    if (!fs.exists(warcFilePath)) {
-      // Create a new WARC file
-      fs.createNewFile(warcFilePath);
-
-      // TODO: Write a warcinfo WARC record
-
-    } else {
-      if (!fs.isFile(warcFilePath)) {
-        log.warn(String.format("%s is not a file", warcFilePath));
-      }
-    }
-  }
 }

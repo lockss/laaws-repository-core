@@ -31,10 +31,9 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.archive.io.warc.WARCRecord;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -43,255 +42,296 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.*;
 import java.net.URLEncoder;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A volatile ("in-memory") implementation of WarcArtifactDataStore.
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
-  private static final long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+  private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
 
-  private Map<String, Map<String, Map<String, byte[]>>> repository;
-    private Map<String, RepositoryArtifactMetadata> repositoryMetadata;
+  protected Map<String, Map<String, Map<String, byte[]>>> repository;
+  protected Map<String, byte[]> tempFiles;
+  protected Map<String, RepositoryArtifactMetadata> repositoryMetadata;
 
-    /**
-     * Constructor.
-     */
-    public VolatileWarcArtifactDataStore() {
-      this("volatile:///");
-    }
+  /**
+   * Constructor.
+   */
+  public VolatileWarcArtifactDataStore() {
+    this("volatile:///");
+  }
 
-    /**
-     * For testing; this kind of data store ignores the base path.
-     */
-    protected VolatileWarcArtifactDataStore(String basePath) {
-        super(basePath);
-    }
-
-  @Override
-  protected String getTmpWarcBasePath() {
-    return null;
+  /**
+   * For testing; this kind of data store ignores the base path.
+   */
+  protected VolatileWarcArtifactDataStore(String basePath) {
+      super(basePath);
   }
 
   @Override
-  public void initArtifactDataStore() throws IOException {
+  public void initArtifactDataStore() {
     this.repository = new HashMap<>();
     this.repositoryMetadata = new HashMap<>();
+    this.tempFiles = new HashMap<>();
+  }
+
+  @Override
+  public void initCollection(String collectionId) {
+    synchronized (repository) {
+      repository.putIfAbsent(collectionId, new HashMap<>());
+    }
+  }
+
+  @Override
+  public void initAu(String collectionId, String auid) {
+    synchronized (repository) {
+      initCollection(collectionId);
+      Map<String, Map<String, byte[]>> collection = repository.get(collectionId);
+      collection.putIfAbsent(auid, new HashMap<>());
+    }
+  }
+
+  @Override
+  public void initWarc(String path) throws IOException {
+    log.info("initWarc(String path): path = {}", path);
+
+    VolatilePath vp = new VolatilePath(path);
+    vp.storeByteArray(new byte[0]);
+  }
+
+  private class VolatilePath {
+    private String path;
+
+    public VolatilePath(String path) {
+      this.path = path;
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    public byte[] getByteArray() {
+      if (inTmp()) {
+        synchronized (tempFiles) {
+          return tempFiles.get(getTmpFileName());
+        }
+      }
+
+      Pattern p = Pattern.compile("^/collections/(.*)/(.*)/(.*)$");
+      Matcher m = p.matcher(getPath());
+
+      if (m.matches()) {
+        String collection = m.group(1);
+        String auid = m.group(2);
+        String file = m.group(3);
+
+        log.info("collection = {}", collection);
+        log.info("auid = {}", auid);
+        log.info("file = {}", file);
+
+        synchronized (repository) {
+          Map<String, Map<String, byte[]>> aus = repository.get(collection);
+          Map<String, byte[]> au = aus.get(auid);
+          return au.get(file);
+        }
+      }
+
+      return null;
+    }
+
+    public OutputStream getAppendableOutputStream() throws IOException {
+      synchronized (repository) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        IOUtils.copy(getInputStream(), baos);
+
+        return baos;
+      }
+    }
+
+    public InputStream getInputStream() {
+      synchronized (repository) {
+        byte[] bytes = getByteArray();
+
+        log.info("bytes.length = {}", bytes.length);
+
+        return new ByteArrayInputStream(bytes);
+      }
+    }
+
+    public void storeByteArray(byte[] bytes) throws IOException {
+      if (inTmp()) {
+        synchronized (tempFiles) {
+          tempFiles.put(getTmpFileName(), bytes);
+        }
+      }
+
+      Pattern p = Pattern.compile("^/collections/(.*)/(.*)/(.*)$");
+      Matcher m = p.matcher(getPath());
+
+      if (m.matches()) {
+        String collection = m.group(1);
+        String auid = m.group(2);
+        String file = m.group(3);
+
+        log.info("collection = {}", collection);
+        log.info("auid = {}", auid);
+        log.info("file = {}", file);
+
+        initAu(collection, auid);
+
+        synchronized (repository) {
+          Map<String, Map<String, byte[]>> aus = repository.get(collection);
+          Map<String, byte[]> au = aus.get(auid);
+          au.put(file, bytes);
+        }
+      }
+    }
+
+    private String getTmpFileName() {
+      if (inTmp()) {
+        Pattern p = Pattern.compile("^" + getTmpWarcBasePath() + "/(.*)$");
+        Matcher m = p.matcher(getPath());
+
+        if (m.matches()) {
+          return m.group(1);
+        }
+      }
+
+      return null;
+    }
+
+    private boolean inTmp() {
+      return path.startsWith(getTmpWarcBasePath());
+    }
   }
 
   @Override
   public boolean removeWarc(String warcPath) {
+    synchronized (repository) {
+      VolatilePath vp = new VolatilePath(warcPath);
+    }
+
     return false;
   }
 
   @Override
-  public void initCollection(String collectionId) throws IOException {
-    // TODO
-  }
+  public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
+    if (artifactData == null) {
+      throw new IllegalArgumentException("Null artifact data");
+    }
 
-  @Override
-  public void initAu(String collectionId, String auid) throws IOException {
-    // TODO
+    // Get the artifact identifier
+    ArtifactIdentifier artifactId = artifactData.getIdentifier();
+
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Artifact data has null identifier");
+    }
+
+    log.info(String.format(
+        "Adding artifact (%s, %s, %s, %s, %s)",
+        artifactId.getId(),
+        artifactId.getCollection(),
+        artifactId.getAuid(),
+        artifactId.getUri(),
+        artifactId.getVersion()
+    ));
+
+    // Serialize artifact to WARC record and get the number of bytes in the serialization
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    long bytesWritten = writeArtifactData(artifactData, baos);
+    baos.close();
+
+    // Get an available temporary WARC from the temporary WARC pool
+    WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(bytesWritten);
+    String tmpWarcFilePath = tmpWarcFile.getPath();
+
+    // Initialize the WARC
+    initWarc(tmpWarcFilePath);
+
+    // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
+    long offset = getFileLength(tmpWarcFilePath);
+
+    log.info("tmpWarcFilePath = {}, offset = {}", tmpWarcFilePath, offset);
+
+    try (
+        // Get an (appending) OutputStream to the temporary WARC file
+        OutputStream output = getAppendableOutputStream(tmpWarcFilePath)
+    ) {
+      // Write serialized artifact to temporary WARC file
+      baos.writeTo(output);
+
+      // Save byte array
+      VolatilePath tmpWarcPath = new VolatilePath(tmpWarcFilePath);
+      tmpWarcPath.storeByteArray(((ByteArrayOutputStream)output).toByteArray());
+
+      log.info(String.format(
+          "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+          bytesWritten,
+          offset,
+          tmpWarcFilePath,
+          offset + bytesWritten
+      ));
+    }
+
+    // Update temporary WARC stats and return to pool
+    tmpWarcFile.setLength(offset + bytesWritten);
+    tmpWarcPool.returnWarcFile(tmpWarcFile);
+
+    // Set artifact data storage URL
+    artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset));
+
+    // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
+    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
+    initWarc(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
+    updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
+
+    // Create a new Artifact object to return; should reflect artifact data as it is in the data store
+    Artifact artifact = new Artifact(
+        artifactId,
+        false,
+        artifactData.getStorageUrl(),
+        artifactData.getContentLength(),
+        artifactData.getContentDigest()
+    );
+
+    return artifact;
   }
 
   /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
-        if (artifactData == null) {
-          throw new NullPointerException("artifactData is null");
-        }
-
-        ArtifactIdentifier artifactId = artifactData.getIdentifier();
-        artifactId.setId(UUID.randomUUID().toString());
-
-        // Get artifact identifier
-        ArtifactIdentifier ident = artifactData.getIdentifier();
-
-        // Get the collection
-        Map<String, Map<String, byte[]>> collection = getInitialize(repository, ident.getCollection(), new HashMap<>());
-
-        // Get the AU
-        Map<String, byte[]> au = getInitialize(collection, ident.getAuid(), new HashMap<>());
-
-        // ByteArrayOutputStream to capture the WARC record
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        // Write artifact as a WARC record stream to the OutputStream
-        long bytesWritten = writeArtifactData(artifactData, baos);
-
-        // Store artifact
-        au.put(ident.getId(), baos.toByteArray());
-
-        // Create and set the artifact's repository metadata
-        RepositoryArtifactMetadata repoMetadata = new RepositoryArtifactMetadata(ident, false, false);
-        repositoryMetadata.put(ident.getId(), repoMetadata);
-        artifactData.setRepositoryMetadata(repoMetadata);
-
-        // Construct volatile storage URL for this WARC record
-        String storageUrl = makeStorageUrl(ident);
-
-        // Set the artifact's storage URL
-        artifactData.setStorageUrl(storageUrl);
-
-        // Create an Artifact to return
-        Artifact artifact = new Artifact(
-                ident,
-                false,
-                storageUrl,
-                artifactData.getContentLength(),
-                artifactData.getContentDigest()
-        );
-
-        return artifact;
-    }//  @Test
-//  public void testMkdirsIfNeeded() throws Exception {
-//  File tmp1 = makeTempDir();
-//  String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
-//  File dir = new File(dirPath);
-//  assertFalse(dir.exists());
-//  LocalWarcArtifactDataStore.mkdirs(dirPath);
-//  assertTrue(dir.isDirectory());
-//  LocalWarcArtifactDataStore.mkdirs(dirPath); // should not fail or throw
-//  quietlyDeleteDir(tmp1);
-//}
-
-
-    @Override
-    public ArtifactData getArtifactData(Artifact artifact) throws IOException {
-        // Cannot work with a null Artifact
-        if (artifact == null) {
-            throw new NullPointerException("artifact is null");
-        }
-        // ArtifactData to return; defaults to null if one could not be found
-        ArtifactData artifactData = null;
-
-        // Get the map representing an artifact collection
-        if (repository.containsKey(artifact.getCollection())) {
-            // Get the collection of artifacts
-            Map<String, Map<String, byte[]>> collection = repository.get(artifact.getCollection());
-
-            // Get the map representing an AU from collection
-            if (collection.containsKey(artifact.getAuid())) {
-                Map<String, byte[]> au = collection.getOrDefault(artifact.getAuid(), new HashMap<>());
-
-                // Retrieve the artifact's byte stream (artifact is encoded as a WARC record stream here)
-                byte[] artifactBytes = au.get(artifact.getId());
-
-                // Adapt byte array to ArtifactData
-                if (artifactBytes != null) {
-                    InputStream warcRecordStream = new ByteArrayInputStream(artifactBytes);
-
-                    // Assemble a WARCRecord object using the WARC record bytestream in memory
-                    WARCRecord record = new WARCRecord(
-                            warcRecordStream,
-                            null,
-                            0,
-                            true,
-                            true
-                    );
-
-                    // Generate an artifact from the HTTP response stream
-                    artifactData = ArtifactDataFactory.fromHttpResponseStream(record);
-
-                    // Save the underlying input stream so that it can be closed when needed.
-                    artifactData.setClosableInputStream(warcRecordStream);
-
-                    // Set ArtifactData properties
-                    artifactData.setIdentifier(artifact.getIdentifier());
-                    artifactData.setStorageUrl(artifact.getStorageUrl());
-                    artifactData.setContentLength(artifact.getContentLength());
-                    artifactData.setContentDigest(artifact.getContentDigest());
-                    artifactData.setRepositoryMetadata(repositoryMetadata.get(artifact.getId()));
-                }
-            }
-        }
-
-        return artifactData;
+   * Updates and writes associated metadata of an artifact to this store.
+   *
+   * @param artifactId
+   *          A (@code ArtifactIdentifier) that identifies the artifact to update.
+   * @param artifactMetadata
+   *          RepositoryArtifactMetadata update the artifact with, and write to the store.
+   * @return A representation of the RepositoryArtifactMetadata as it is now stored.
+   */
+//  @Override
+  public RepositoryArtifactMetadata updateArtifactMetadata2(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
+    if (artifactId == null) {
+      throw new NullPointerException("artifactId is null");
     }
 
-    /**
-     * Updates and writes associated metadata of an artifact to this store.
-     *
-     * @param artifactId
-     *          A (@code ArtifactIdentifier) that identifies the artifact to update.
-     * @param artifactMetadata
-     *          RepositoryArtifactMetadata update the artifact with, and write to the store.
-     * @return A representation of the RepositoryArtifactMetadata as it is now stored.
-     */
-    public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
-        if (artifactId == null) {
-          throw new NullPointerException("artifactId is null");
-        }
-        if (artifactMetadata == null) {
-          throw new NullPointerException("artifactMetadata is null");
-        }
-        repositoryMetadata.replace(artifactId.getId(), artifactMetadata);
-        return repositoryMetadata.get(artifactId.getId());
+    if (artifactMetadata == null) {
+      throw new NullPointerException("artifactMetadata is null");
     }
 
-    /**
-     * Commits an artifact to this artifact store.
-     *
-     * @param artifact
-     *          A (@code ArtifactIdentifier) that identifies the artifact to commit and store permanently.
-     * @return A {@code RepositoryArtifactMetadata} updated to indicate the new commit status as it is now stored.
-     */
-    @Override
-    public Future<Artifact> commitArtifactData(Artifact artifact) {
-      if (artifact == null) {
-        throw new NullPointerException("artifact is null");
-      }
+    repositoryMetadata.replace(artifactId.getId(), artifactMetadata);
+    return repositoryMetadata.get(artifactId.getId());
+  }
 
-      RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifact.getId());
-      metadata.setCommitted(true);
-      artifact.setCommitted(true);
-
-      // TODO: Use updateArtifactMetadata
-      repositoryMetadata.replace(artifact.getId(), metadata);
-
-      // Update storage URL
-      artifact.setStorageUrl(makeStorageUrl(artifact.getStorageUrl()));
-
-      CompletableFuture<Artifact> future = new CompletableFuture<>();
-      future.complete(artifact);
-
-      return future;
-    }
+  @Override
+  protected String getTmpWarcBasePath() {
+    return DEFAULT_TMPWARCBASEPATH;
+  }
 
   @Override
   protected long getBlockSize() {
     return DEFAULT_BLOCKSIZE;
   }
-
-    /**
-     * Removes an artifact from this store.
-     *
-     * @param artifact
-     *          A {@code Artifact} referring to the artifact to remove from this store.
-     * @return A {@code RepositoryArtifactMetadata} updated to indicate the deleted status of this artifact.
-     */
-    @Override
-    public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact) {
-        if (artifact == null) {
-            throw new NullPointerException("artifact is null");
-        }
-        
-        Map<String, Map<String, byte[]>> collection = repository.get(artifact.getCollection());
-        Map<String, byte[]> au = collection.get(artifact.getAuid());
-        au.remove(artifact.getId());
-
-        // TODO: Use updateArtifactMetadata
-        RepositoryArtifactMetadata metadata = repositoryMetadata.get(artifact.getId());
-        metadata.setDeleted(true);
-        repositoryMetadata.replace(artifact.getId(), metadata);
-
-        repositoryMetadata.remove(artifact.getId());
-        return metadata;
-    }
 
   /**
    * <p>
@@ -324,15 +364,16 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    *         value used to initialize a mapping with the key if they key was not
    *         associated with a value or was associated with {@code null}.
    */
-    protected static <K, T> T getInitialize(Map<K, T> map, K key, T initial) {
-      T current = map.putIfAbsent(key, initial);
-      return current == null ? initial : current;
-    }
+  protected static <K, T> T getInitialize(Map<K, T> map, K key, T initial) {
+    T current = map.putIfAbsent(key, initial);
+    return current == null ? initial : current;
+  }
     
   @Override
   public long getFileLength(String filePath) throws IOException {
-    // TODO
-    throw new UnsupportedOperationException();
+      log.info("getFileLength().filePath = {}", filePath);
+      VolatilePath vp = new VolatilePath(filePath);
+      return vp.getByteArray().length;
   }
 
   public String makeStorageUrl(ArtifactIdentifier ident) {
@@ -345,9 +386,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
                                           ident.getId()),
                             0L);
     }
-    catch (UnsupportedEncodingException shouldnt) {
-      log.error("Internal error", shouldnt);
-      throw new UncheckedIOException(shouldnt);
+    catch (UnsupportedEncodingException e) {
+      log.error("Internal error", e);
+      throw new UncheckedIOException(e);
     }
   }
   
@@ -358,16 +399,17 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     return makeStorageUrl(filePath, params);
   }
 
-    @Override
-    public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-      UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + getBasePath() + filePath);
-      uriBuilder.queryParams(params);
-      return uriBuilder.toUriString();
-    }
+  @Override
+  public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + getBasePath() + filePath);
+    uriBuilder.queryParams(params);
+    return uriBuilder.toUriString();
+  }
 
-    @Override
+  @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
-    throw new UnsupportedOperationException();
+      VolatilePath vp = new VolatilePath(filePath);
+      return vp.getAppendableOutputStream();
   }
 
   @Override
@@ -382,23 +424,124 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   
   @Override
   public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
-    throw new UnsupportedOperationException();
+    log.info("storageUrl = {}", storageUrl);
+    VolatileStorageUrl vsu = new VolatileStorageUrl(storageUrl);
+    return vsu.getInputStream();
   }
-  
+
+  private class VolatileStorageUrl {
+    private String path;
+    private long offset;
+
+    public VolatileStorageUrl(String storageUrl) {
+      Pattern p = Pattern.compile("volatile://volatile(/.*)\\?offset=(\\d+)$");
+      Matcher m = p.matcher(storageUrl);
+
+      if (m.matches()) {
+        this.path = m.group(1);
+        this.offset = Long.parseUnsignedLong(m.group(2));
+
+        log.info("path = {}", this.path);
+        log.info("offset = {}", this.offset);
+      } else {
+        throw new IllegalArgumentException("Malformed storage URL");
+      }
+    }
+
+    public InputStream getInputStream() throws IOException {
+      VolatilePath vp = new VolatilePath(getPath());
+      InputStream input = vp.getInputStream();
+      input.skip(getOffset());
+      return input;
+    }
+
+    public String getPath() {
+      return this.path;
+    }
+
+    public long getOffset() {
+      return this.offset;
+    }
+  }
+
   @Override
-  public void initWarc(String storageUrl) throws IOException {
-      // Intentionally left blank to indicate success
+  protected Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
+    // Read artifact data from current WARC file
+    ArtifactData artifactData = getArtifactData(artifact);
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    // Serialize artifact to WARC record and get the number of bytes in the serialization
+    long bytesWritten = writeArtifactData(artifactData, baos);
+    baos.close();
+
+    // Get the current active permanent WARC for this AU
+    String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    initWarc(dst);
+
+    // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
+    long offset = getFileLength(dst);
+
+    if (bytesWritten + offset > getThresholdWarcSize()) {
+      // If the WARC record alone is over the size threshold, then we're going to be writing a WARC that goes past the
+      // threshold anyway. So we have two options: 1) write to a new WARC or, 2) the current one. Which one? The one
+      // that maximizes the last block.
+      if (!((bytesWritten > getThresholdWarcSize()) &&
+          (getBytesUsedLastBlock(bytesWritten + offset) > getBytesUsedLastBlock(bytesWritten) + getBytesUsedLastBlock(offset)))) {
+
+        // Seal the active WARC
+        sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+
+        // Initialize the new active WARC and retrieve its size
+        dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+        initWarc(dst);
+        offset = getFileLength(dst);
+      }
+    }
+
+    try (
+        // Get an (appending) OutputStream to the WARC file
+        OutputStream output = getAppendableOutputStream(dst)
+    ) {
+      // Write serialized artifact to permanent WARC file
+      baos.writeTo(output);
+      output.flush();
+
+      // Save byte array
+      VolatilePath dst_vp = new VolatilePath(dst);
+      dst_vp.storeByteArray(((ByteArrayOutputStream)output).toByteArray());
+
+      log.info(String.format(
+          "Committed: %s: Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+          artifact.getIdentifier().getId(),
+          bytesWritten,
+          offset,
+          dst,
+          offset + bytesWritten
+      ));
+    }
+
+    // Set the artifact's new storage URL and update the index
+    artifact.setStorageUrl(makeStorageUrl(dst, offset));
+    artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+
+    // Immediately seal active WARC if size threshold has been met or exceeded
+    if (offset + bytesWritten >= getThresholdWarcSize()) {
+      sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+    }
+
+    return artifact;
   }
-  
+
   @Override
   public void moveWarc(String srcPath, String dstPath) throws IOException {
     throw new UnsupportedOperationException();
   }
 
-    @Override
-    public Collection<String> findWarcs(String basePath) throws IOException {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public Collection<String> findWarcs(String basePath) throws IOException {
+      throw new UnsupportedOperationException();
+  }
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.

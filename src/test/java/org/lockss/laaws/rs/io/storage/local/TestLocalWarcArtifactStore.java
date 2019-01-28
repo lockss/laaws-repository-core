@@ -54,6 +54,16 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return new LocalWarcArtifactDataStore(other.getBasePath());
   }
 
+  @Override
+  protected void runTestGetTmpWarcBasePath() {
+    assertEquals(getAbsolutePath("/tmp"), store.getTmpWarcBasePath());
+  }
+
+  @Override
+  protected boolean isValidStorageUrl(String storageUrl) {
+    return true;
+  }
+
   @BeforeAll
   protected void makeLocalTempDir() throws IOException {
     File tempFile = File.createTempFile(getClass().getSimpleName(), null);
@@ -70,20 +80,26 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 
   @Override
   protected boolean pathExists(String path) throws IOException {
-    File pathDir = new File(store.getBasePath(), path);
+    File pathDir = new File(path);
     return pathDir.exists();
   }
 
   @Override
   protected boolean isDirectory(String path) throws IOException {
-    File pathDir = new File(store.getBasePath(), path);
+    File pathDir = new File(path);
     return pathDir.isDirectory();
   }
 
   @Override
   protected boolean isFile(String path) throws IOException {
-    File pathDir = new File(store.getBasePath(), path);
+    File pathDir = new File(path);
     return pathDir.isFile();
+  }
+
+  @Override
+  protected String getAbsolutePath(String path) {
+    File pathDir = new File(store.getBasePath(), path);
+    return pathDir.toString();
   }
 
 //  @Test
@@ -107,41 +123,4 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
                          store.getActiveWarcPath(ident),
                          offset);
   }
-
-  @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident)
-      throws Exception {
-    Artifact art = new Artifact(ident,
-                                Boolean.TRUE,
-                                String.format("file://%s%s/%s?offset=1234",
-                                              store.getBasePath(),
-                                              store.getSealedWarcsPath(),
-                                              store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
-                                123L,
-                                "0x12345");
-    return art;
-  }
-  
-  @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident)
-      throws Exception {
-    Artifact art = new Artifact(ident,
-                                Boolean.TRUE,
-                                String.format("file://%s?offset=1234",
-                                              store.getActiveWarcPath(ident)),
-                                123L,
-                                "0x12345");
-    return art;
-  }
-  
-  @Override
-  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact,
-                                                               String newPath,
-                                                               String result)
-      throws Exception {
-    assertThat(result, startsWith(String.format("file://" + newPath)));
-  }
-  
-
-  
 }

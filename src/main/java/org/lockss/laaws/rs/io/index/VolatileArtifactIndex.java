@@ -222,9 +222,11 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) {
       Artifact artifact = index.get(artifactId);
+
       if (artifact == null) {
         throw new IllegalArgumentException("Cannot update storage URL: unknown artifact " + artifactId);
       }
+
       artifact.setStorageUrl(storageUrl);
       return artifact;
     }

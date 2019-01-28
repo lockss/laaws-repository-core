@@ -96,27 +96,42 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
+    protected void runTestGetTmpWarcBasePath() {
+        assertEquals("/tmp", store.getTmpWarcBasePath());
+    }
+
+    @Override
+    protected boolean isValidStorageUrl(String storageUrl) {
+        return true;
+    }
+
+    @Override
+    protected String getAbsolutePath(String path) {
+        return Path.mergePaths(new Path(store.getBasePath()), new Path(path)).toString();
+    }
+
+    @Override
     protected boolean pathExists(String path) throws IOException {
-        Path hdfsPath = new Path(store.getBasePath() + path);
-        return store.fs.exists(hdfsPath);
+//        Path hdfsPath = new Path(store.getBasePath() + path);
+        return store.fs.exists(new Path(path));
     }
 
     @Override
     protected boolean isDirectory(String path) throws IOException {
-        return store.fs.isDirectory(new Path(store.getBasePath() + path));
+//        Path fullPath = Path.mergePaths(new Path(store.getBasePath()), new Path(path));
+        return store.fs.isDirectory(new Path(path));
     }
 
     @Override
     protected boolean isFile(String path) throws IOException {
-        Path file = new Path(store.getBasePath() + path);
-        log.info(String.format("Checking whether %s is a file in HDFS", file));
+        Path file = new Path(path);
 
         if (!store.fs.exists(file)) {
             String errMsg = String.format("%s does not exist!", file);
             log.warn(errMsg);
         }
 
-        return store.fs.isFile(new Path(store.getBasePath() + path));
+        return store.fs.isFile(file);
     }
 
     @Override
@@ -127,34 +142,5 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
                 (store.getBasePath().equals("/") ? "" : store.getBasePath()),
                 store.getActiveWarcPath(ident),
                 offset);
-    }
-
-    @Override
-    protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident) throws Exception {
-        Artifact art = new Artifact(ident,
-                Boolean.TRUE,
-                String.format("hdfs://%s%s/%s?offset=1234",
-                        store.getBasePath(),
-                        store.getSealedWarcsPath(),
-                        store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
-                123L,
-                "0x12345");
-        return art;
-    }
-
-    @Override
-    protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident) throws Exception {
-        Artifact art = new Artifact(ident,
-                Boolean.TRUE,
-                String.format("hdfs://%s?offset=1234",
-                        store.getActiveWarcPath(ident)),
-                123L,
-                "0x12345");
-        return art;
-    }
-
-    @Override
-    protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact, String newPath, String result) throws Exception {
-        assertThat(result, startsWith(String.format("hdfs://" + newPath)));
     }
 }

@@ -159,6 +159,33 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   // *******************************************************************************************************************
+  // * ABSTRACT METHODS
+  // *******************************************************************************************************************
+
+  /**
+   * Returns the base path containing temporary WARCs.
+   *
+   * @return A {@code String} containing the base path for temporary WARCs.
+   */
+  protected abstract String getTmpWarcBasePath();
+  protected abstract String makeStorageUrl(String filePath, String offset);
+  protected abstract String makeStorageUrl(String filePath, MultiValueMap<String, String> params);
+
+  protected abstract InputStream getInputStream(String filePath) throws IOException;
+  protected abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
+  protected abstract InputStream getWarcRecordInputStream(String storageUrl) throws IOException;
+  protected abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
+
+  protected abstract void initWarc(String warcPath) throws IOException;
+  protected abstract void moveWarc(String srcPath, String dstPath) throws IOException;
+  protected abstract Collection<String> findWarcs(String basePath) throws IOException;
+  protected abstract boolean removeWarc(String warcPath) throws IOException;
+
+  protected abstract long getFileLength(String filePath) throws IOException;
+
+  protected abstract long getBlockSize();
+
+  // *******************************************************************************************************************
   // * CONSTRUCTORS
   // *******************************************************************************************************************
 
@@ -191,6 +218,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     this.basePath = basePath;
     this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePath());
   }
+
+  // *******************************************************************************************************************
+  // * METHODS
+  // *******************************************************************************************************************
 
   /**
    * Reads and reloads state from temporary WARCs, including the requeuing of copy tasks of committed artifacts from
@@ -342,10 +373,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return false;
   }
 
-  // *******************************************************************************************************************
-  // * SETTERS AND GETTERS
-  // *******************************************************************************************************************
-
   /**
    * Returns the number of milliseconds after the creation date of an artifact, that an uncommitted artifact will be
    * marked expired.
@@ -375,13 +402,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Returns the base path containing temporary WARCs.
-   *
-   * @return A {@code String} containing the base path for temporary WARCs.
-   */
-  protected abstract String getTmpWarcBasePath();
-
-  /**
    * Returns the number of bytes
    *
    * @return
@@ -404,6 +424,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     if (threshold < 0L) {
       throw new IllegalArgumentException("Threshold size must be positive (or zero for unlimited)");
     }
+
     thresholdWarcSize = threshold;
   }
 
@@ -418,6 +439,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     if (this.artifactIndex != null) {
       throw new IllegalStateException("Artifact index already set");
     }
+
     this.artifactIndex = artifactIndex;
   }
 
@@ -443,7 +465,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
     if (artifactData == null) {
-     throw new IllegalArgumentException("Called with null ArtifactData");
+     throw new IllegalArgumentException("Null artifact data");
     }
 
     // Get the artifact identifier
@@ -483,6 +505,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
     long offset = getFileLength(tmpWarcFilePath);
+
+    log.info("tmpWarcFilePath = {}, offset = {}", tmpWarcFilePath, offset);
 
     try (
         // Get an (appending) OutputStream to the temporary WARC file
@@ -590,6 +614,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public Future<Artifact> commitArtifactData(Artifact artifact) throws IOException {
     Objects.requireNonNull(artifact, "Artifact is null");
 
+    if (artifactIndex == null) {
+      throw new IllegalStateException("Artifact index is null");
+    }
+
     log.info("Committing {} of AUID {}", artifact.getId(), artifact.getAuid());
 
     // Read current state of repository metadata for this artifact
@@ -609,6 +637,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     updateArtifactMetadata(artifact.getIdentifier(), artifactState);
 
     // Mark the artifact as committed in the index
+    log.info("artifactIndex = {}", artifactIndex);
+    log.info("artifact = {}", artifact);
     artifactIndex.commitArtifact(artifact.getId());
 
     // Submit the task to copy the artifact data from temporary to permanent storage
@@ -666,10 +696,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   // FIXME: Stream WARC record instead of unserializing only to serialize again
-  private Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
+  protected Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
     // Read artifact data from current WARC file
     ArtifactData artifactData = getArtifactData(artifact);
-
 
     // Create a DFOS to contain our serialized artifact
     DeferredFileOutputStream dfos = new DeferredFileOutputStream(
@@ -743,11 +772,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param size
    * @return
    */
-  private long getBytesUsedLastBlock(long size) {
+  protected long getBytesUsedLastBlock(long size) {
     return ((size - 1) % getBlockSize()) + 1;
   }
-
-  protected abstract long getBlockSize();
 
   /**
    * Removes an artifact from this artifact data store.
@@ -934,21 +961,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public String getAuMetadataWarcPath(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
     return getAuPath(artifactId) + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
   }
-
-  public abstract String makeStorageUrl(String filePath, String offset);
-  public abstract String makeStorageUrl(String filePath, MultiValueMap<String, String> params);
-
-  public abstract InputStream getInputStream(String filePath) throws IOException;
-  public abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
-  public abstract InputStream getWarcRecordInputStream(String storageUrl) throws IOException;
-  public abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
-
-  public abstract void initWarc(String warcPath) throws IOException;
-  public abstract void moveWarc(String srcPath, String dstPath) throws IOException;
-  public abstract Collection<String> findWarcs(String basePath) throws IOException;
-  public abstract boolean removeWarc(String warcPath) throws IOException;
-
-  public abstract long getFileLength(String filePath) throws IOException;
 
   /**
    * Creates a WARCRecordInfo object representing a WARC metadata record with a JSON object as its payload.
@@ -1197,7 +1209,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Shouldn't happen because all these artifacts are in existing directories
       String msg = "Internal error: " + storageUrl;
       log.error(msg);
-      throw new IOException(msg);
+      throw new IllegalArgumentException(msg);
     }
 
     return getInputStreamAndSeek(mat.group(3), Long.parseLong(mat.group(4)));
