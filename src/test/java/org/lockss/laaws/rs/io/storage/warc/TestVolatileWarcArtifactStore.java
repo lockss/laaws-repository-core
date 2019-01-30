@@ -78,43 +78,18 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
-  protected boolean pathExists(String path) throws IOException {
-    return isFile(path);
+  protected boolean pathExists(String path) {
+    return isFile(path) || isDirectory(path);
   }
 
   @Override
-  protected boolean isDirectory(String path) throws IOException {
-    return true;
+  protected boolean isDirectory(String path) {
+    return store.warcs.keySet().stream().anyMatch(x -> x.startsWith(path + "/"));
   }
 
   @Override
-  protected boolean isFile(String path) throws IOException {
-    log.info("path = {}", path);
-
-    Pattern p = Pattern.compile("^/collections/(.*)/(.*)/(.*)$");
-    Matcher m = p.matcher(path);
-
-    if (m.matches()) {
-      String collection = m.group(1);
-      String auid = m.group(2);
-      String file = m.group(3);
-
-      Map<String, Map<String, byte[]>> aus = store.repository.get(collection);
-      Map<String, byte[]> au = aus.get(auid);
-
-      log.info("au.get(file) = {}", au.get(file));
-
-      return au.get(file) != null;
-    } else if (path.startsWith(store.getTmpWarcBasePath())) {
-      p = Pattern.compile("^" + store.getTmpWarcBasePath() + "/(.*)$");
-      m = p.matcher(path);
-
-      if (m.matches()) {
-        return store.tempFiles.get(m.group(1)) != null;
-      }
-    }
-
-    return false;
+  protected boolean isFile(String path) {
+    return store.warcs.get(path) != null;
   }
 
   @Override
