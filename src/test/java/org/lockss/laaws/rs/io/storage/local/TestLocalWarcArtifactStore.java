@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.util.UUID;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
@@ -41,6 +42,19 @@ import org.lockss.log.L4JLogger;
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
   private File testsRootDir;
+
+  @Test
+  public void testInitCollection() throws Exception {
+    store.initCollection("collection");
+    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
+  }
+
+  @Test
+  public void testInitAu() throws Exception {
+    store.initAu("collection", "auid");
+    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
+    assertTrue(isDirectory(getAbsolutePath(store.getAuPath("collection", "auid"))));
+  }
 
   @Override
   protected LocalWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
@@ -76,6 +90,14 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   @AfterAll
   public void tearDown() {
     quietlyDeleteDir(testsRootDir);
+  }
+
+  protected static void quietlyDeleteDir(File dir) {
+    try {
+      FileUtils.deleteDirectory(dir);
+    } catch (IOException e) {
+      // oh well.
+    }
   }
 
   @Override

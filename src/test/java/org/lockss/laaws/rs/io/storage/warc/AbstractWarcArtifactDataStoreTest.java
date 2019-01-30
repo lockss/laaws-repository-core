@@ -83,6 +83,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   @Test
+  public void testInitCollection() throws Exception {
+    store.initCollection("collection");
+  }
+
+  @Test
+  public void testInitAu() throws Exception {
+    store.initAu("collection", "auid");
+  }
+
+  @Test
   public void testInitWarc() throws Exception {
     String warcName = UUID.randomUUID().toString();
     String warcPath = store.getTmpWarcBasePath() + "/" + warcName;
@@ -500,21 +510,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   protected abstract boolean isValidStorageUrl(String storageUrl);
 
-
-
-  @Test
-  public void testInitCollection() throws Exception {
-    store.initCollection("collection");
-    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
-  }
-
-  @Test
-  public void testInitAu() throws Exception {
-    store.initAu("collection", "auid");
-    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
-    assertTrue(isDirectory(getAbsolutePath(store.getAuPath("collection", "auid"))));
-  }
-
   private String getPathFromStorageUrl(String storageUrl) throws URISyntaxException {
     return new URI(storageUrl).getPath();
   }
@@ -616,6 +611,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract boolean isFile(String path) throws IOException;
   protected abstract String getAbsolutePath(String path);
 
+  protected abstract String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception;
+
   @Test
   public void testMakeStorageUrl() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
@@ -623,19 +620,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String expected = testMakeStorageUrl_getExpected(ident1, 1234L);
     String actual = store.makeStorageUrl(artifactsWarcPath, 1234L);
     assertEquals(expected, actual);
-  }
-  
-  protected abstract String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
-                                                           long offset)
-      throws Exception;
-
-  protected static void quietlyDeleteDir(File dir) {
-    try {
-      FileUtils.deleteDirectory(dir);
-    }
-    catch (IOException ioe) {
-      // oh well.
-    }
   }
 
   @Test
