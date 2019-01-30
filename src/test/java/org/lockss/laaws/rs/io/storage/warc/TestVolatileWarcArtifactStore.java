@@ -31,39 +31,18 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.StatusLine;
-import org.apache.http.message.BasicStatusLine;
 import org.junit.jupiter.api.*;
-import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
 
 import java.io.*;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
  */
 public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<VolatileWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
-
-  private ArtifactIdentifier aid1;
-  private ArtifactIdentifier aid2;
-  private RepositoryArtifactMetadata md1;
-  private RepositoryArtifactMetadata md2;
-  private ArtifactData artifactData1;
-  private ArtifactData artifactData2;
-
-  private UUID uuid;
-  private StatusLine httpStatus;
 
   @Override
   protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
@@ -72,7 +51,9 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
   @Override
   protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(VolatileWarcArtifactDataStore other) throws IOException {
-    return other;
+    VolatileWarcArtifactDataStore n_store = new VolatileWarcArtifactDataStore();
+    n_store.warcs.putAll(other.warcs);
+    return n_store;
   }
 
   @Override
@@ -81,47 +62,6 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     assertEquals("/tmp", store.getTmpWarcBasePath());
   }
 
-  @BeforeEach
-  public void setUp() throws Exception {
-    uuid = UUID.randomUUID();
-
-    httpStatus = new BasicStatusLine(
-            new ProtocolVersion("HTTP", 1,1),
-            200,
-            "OK"
-    );
-
-    aid1 = new ArtifactIdentifier("id1", "coll1", "auid1", "uri1", 1);
-    aid2 = new ArtifactIdentifier(uuid.toString(), "coll2", "auid2", "uri2", 2);
-
-    md1 = new RepositoryArtifactMetadata(aid1, false, false);
-    md2 = new RepositoryArtifactMetadata(aid2, true, false);
-
-    artifactData1 = new ArtifactData(aid1, null, new ByteArrayInputStream("bytes1".getBytes()), httpStatus, "surl1", md1);
-    artifactData2 = new ArtifactData(aid2, null, new ByteArrayInputStream("bytes2".getBytes()), httpStatus, "surl2", md2);
-
-    store = new VolatileWarcArtifactDataStore();
-    store.initArtifactDataStore();
-  }
-
-
-
-  /*
-  @Override
-  @Test
-  public void testGetAuArtifactsWarcPath() throws Exception {
-//    File tmp1 = makeLocalTempDir();
-//    WarcArtifactDataStore store = makeWarcArtifactDataStore(tmp1.getAbsolutePath());
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    String expectedAuArtifactsWarcName = store.getActiveWarcName("coll1", "auid1");
-    String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + expectedAuArtifactsWarcName;
-    String actualAuArtifactsWarcPath = store.getActiveWarcPath(ident1);
-    assertEquals(expectedAuArtifactsWarcPath, actualAuArtifactsWarcPath);
-//    quietlyDeleteDir(tmp1);
-  }
-  */
-  
   @Override
   @Test
   public void testGetAuMetadataWarcPath() throws Exception {
@@ -183,48 +123,17 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
-  @Test
-  @Disabled
-  public void testMakeStorageUrl() throws Exception {
-    
-  }
-  
-  @Override
-  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
-                                                  long offset)
-      throws Exception {
-    throw new UnsupportedOperationException();
-  }
-  
-  @Disabled
-  @Override
-  @Test
-  public void testReloadTempWarcs() throws Exception {
+  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
+    return String.format(
+        "volatile://%s%s?offset=%d",
+        (store.getBasePath().equals("/") ? "" : store.getBasePath()),
+        store.getActiveWarcPath(ident),
+        offset
+    );
   }
 
   @Override
   protected boolean isValidStorageUrl(String storageUrl) {
     return true;
-  }
-
-  @Override
-  @Test
-  @Disabled
-  public void testWarcSealing() throws Exception {
-    // Intentionally left blank
-  }
-
-  @Override
-  @Test
-  @Disabled
-  public void testRebuildIndex() throws Exception {
-    // Intentionally left blank
-  }
-
-  @Override
-  @Test
-  @Disabled
-  public void testRebuildIndexSealed() throws Exception {
-    // Intentionally left blank
   }
 }

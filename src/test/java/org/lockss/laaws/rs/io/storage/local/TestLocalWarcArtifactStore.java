@@ -124,25 +124,12 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return pathDir.toString();
   }
 
-//  @Test
-//  public void testMkdirsIfNeeded() throws Exception {
-//    File tmp1 = makeTempDir();
-//    String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
-//    File dir = new File(dirPath);
-//    assertFalse(dir.exists());
-//    LocalWarcArtifactDataStore.mkdirs(dirPath);
-//    assertTrue(dir.isDirectory());
-//    LocalWarcArtifactDataStore.mkdirs(dirPath); // should not fail or throw
-//    quietlyDeleteDir(tmp1);
-//  }
-
-  @Override
-  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
-                                                  long offset)
-      throws Exception {
-    return String.format("file://%s%s?offset=%d",
-                         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-                         store.getActiveWarcPath(ident),
-                         offset);
+  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
+    return String.format(
+        "file://%s%s?offset=%d",
+         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
+         store.getActiveWarcPath(ident),
+         offset
+    );
   }
 }
