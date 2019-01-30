@@ -235,7 +235,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalStateException("Cannot reload temporary WARCs without an artifact index");
     }
 
-    String tmpWarcBasePath = getBasePath() + getTmpWarcBasePath();
+    String tmpWarcBasePath = new File(getBasePath(), getTmpWarcBasePath()).getPath();
     log.info("Reloading temporary WARCs from {}", tmpWarcBasePath);
 
     Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
@@ -436,7 +436,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param artifactIndex The {@code ArtifactIndex} instance to associate with this WARC artifact data store.
    */
   protected void setArtifactIndex(ArtifactIndex artifactIndex) {
-    if (this.artifactIndex != null) {
+    if (this.artifactIndex != null && this.artifactIndex != artifactIndex) {
       throw new IllegalStateException("Artifact index already set");
     }
 
@@ -485,11 +485,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ));
 
     // Create a DFOS to contain our serialized artifact
-    DeferredFileOutputStream dfos = new DeferredFileOutputStream(
+    DeferredFileOutputStream dfos = new DeferredFileOutputStream( // FIXME: Move into a try {...}
         (int)DEFAULT_DFOS_THRESHOLD,
         "addArtifactData",
         null,
-        new File("/tmp")
+        new File("/tmp") // FIXME: Refactor repository code to use a custom temp dir
     );
 
     // Serialize artifact to WARC record and get the number of bytes in the serialization
@@ -556,10 +556,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
     InputStream warcStream = getWarcRecordInputStream(artifact.getStorageUrl());
-    WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0);
+    WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0L);
 
     // Convert the WARCRecord object to an ArtifactData
-    ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord);
+    ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil
 
     // Save the underlying input stream so that it can be closed when needed.
     artifactData.setClosableInputStream(warcStream);
@@ -627,7 +627,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Proceed only if the artifact is not marked deleted
     // TODO: This is always false - see getArtifactData() implementation
     if (artifactState.isDeleted()) {
-      log.warn("Artifact is already committed (Artifact ID: {})", artifact.getId());
+      log.warn("Artifact is deleted (Artifact ID: {})", artifact.getId());
       return null;
     }
 
@@ -705,7 +705,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         (int)DEFAULT_DFOS_THRESHOLD,
         "moveToPermanentStorage",
         null,
-        new File("/tmp")
+        new File("/tmp") // FIXME: Refactor to use custom temporary directory
     );
 
     // Serialize artifact to WARC record and get the number of bytes in the serialization
@@ -742,7 +742,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ) {
       // Write serialized artifact to permanent WARC file
       dfos.writeTo(output);
-      output.flush();
 
       log.info(String.format(
           "Committed: %s: Wrote %d bytes starting at byte offset %d to %s; size is now %d",
@@ -758,10 +757,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     artifact.setStorageUrl(makeStorageUrl(dst, offset));
     artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
+    // TODO: Revisit seal strategy
     // Immediately seal active WARC if size threshold has been met or exceeded
-    if (offset + bytesWritten >= getThresholdWarcSize()) {
-      sealActiveWarc(artifact.getCollection(), artifact.getAuid());
-    }
+//    if (offset + bytesWritten >= getThresholdWarcSize()) {
+//      sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+//    }
 
     return artifact;
   }
@@ -1207,9 +1207,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     if (!mat.matches()) {
       // Shouldn't happen because all these artifacts are in existing directories
-      String msg = "Internal error: " + storageUrl;
-      log.error(msg);
-      throw new IllegalArgumentException(msg);
+      log.error("storageUrl = {}", storageUrl);
+      throw new IllegalArgumentException("Bad storage URL");
     }
 
     return getInputStreamAndSeek(mat.group(3), Long.parseLong(mat.group(4)));

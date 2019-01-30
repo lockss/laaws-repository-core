@@ -136,7 +136,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(store);
 
     // Temporary WARCs directory storage paths
-    String fullTmpWarcPath = store.getBasePath() + store.getTmpWarcBasePath();
+    String fullTmpWarcPath = new File(store.getBasePath(), store.getTmpWarcBasePath()).getPath();
     String tmpWarcsPathUrl = store.makeStorageUrl(store.getTmpWarcBasePath());
 
     // Configure WARC artifact data store with a newly instantiated volatile artifact index
@@ -430,7 +430,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       ArtifactData badArtifactData = store.getArtifactData(badArtifact);
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException e) {
-      assertEquals("Malformed storage URL", e.getMessage());
+      assertEquals("Bad storage URL", e.getMessage());
     }
 
     // Attempt a successful retrieval
@@ -561,7 +561,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS") does not parse in Java 8: https://bugs.openjdk.java.net/browse/JDK-8031085
     ZonedDateTime actual = ZonedDateTime.parse(timestamp, new DateTimeFormatterBuilder().appendPattern("yyyyMMddHHmmss").appendValue(ChronoField.MILLI_OF_SECOND, 3).toFormatter().withZone(ZoneId.of("UTC")));
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of("UTC"));
-    assertTrue(actual.isAfter(now.minusSeconds(10L)) && actual.isBefore(now));
+    assertTrue(actual.isAfter(now.minusSeconds(5L)) && actual.isBefore(now.plusSeconds(5L)));
   }
   
   @Test
