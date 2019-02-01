@@ -30,10 +30,11 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
+import it.unimi.dsi.fastutil.io.RepositionableStream;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.DeferredFileOutputStream;
@@ -42,9 +43,8 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
 import org.archive.format.warc.WARCConstants;
-import org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveRecord;
-import org.archive.io.ArchiveRecordHeader;
+import org.archive.io.*;
+import org.archive.io.warc.WARCReader;
 import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
@@ -491,48 +491,42 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ));
 
     // Create a DFOS to contain our serialized artifact
-    DeferredFileOutputStream dfos = new DeferredFileOutputStream( // FIXME: Move into a try {...}
+    try (DeferredFileOutputStream dfos = new DeferredFileOutputStream(
         (int)DEFAULT_DFOS_THRESHOLD,
         "addArtifactData",
         null,
         new File("/tmp") // FIXME: Refactor repository code to use a custom temp dir
-    );
+    )) {
+      // Serialize artifact to WARC record and get the number of bytes in the serialization
+      long bytesWritten = writeArtifactData(artifactData, dfos);
+      dfos.close();
 
-    // Serialize artifact to WARC record and get the number of bytes in the serialization
-    long bytesWritten = writeArtifactData(artifactData, dfos);
-    dfos.close();
+      // Get an available temporary WARC from the temporary WARC pool
+      WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(bytesWritten);
+      String tmpWarcFilePath = tmpWarcFile.getPath();
 
-    // Get an available temporary WARC from the temporary WARC pool
-    WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(bytesWritten);
-    String tmpWarcFilePath = tmpWarcFile.getPath();
+      // Initialize the WARC
+      initWarc(tmpWarcFilePath);
 
-    // Initialize the WARC
-    initWarc(tmpWarcFilePath);
+      // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
+      long offset = getFileLength(tmpWarcFilePath);
 
-    // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
-    long offset = getFileLength(tmpWarcFilePath);
-
-    log.info("tmpWarcFilePath = {}, offset = {}", tmpWarcFilePath, offset);
-
-    try (
-        // Get an (appending) OutputStream to the temporary WARC file
-        OutputStream output = getAppendableOutputStream(tmpWarcFilePath)
-    ) {
       // Write serialized artifact to temporary WARC file
-      dfos.writeTo(output);
+      try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
+        dfos.writeTo(output);
 
-      log.info(String.format(
-          "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
-          bytesWritten,
-          offset,
-          tmpWarcFilePath,
-          offset + bytesWritten
-      ));
-    }
+        log.info(String.format(
+            "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+            bytesWritten,
+            offset,
+            tmpWarcFilePath,
+            offset + bytesWritten
+        ));
+      }
 
-    // Update temporary WARC stats and return to pool
-    tmpWarcFile.setLength(offset + bytesWritten);
-    tmpWarcPool.returnWarcFile(tmpWarcFile);
+      // Update temporary WARC stats and return to pool
+      tmpWarcFile.setLength(offset + bytesWritten);
+      tmpWarcPool.returnWarcFile(tmpWarcFile);
 
       // Set artifact data storage URL
       artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, bytesWritten));
@@ -566,7 +560,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0L);
 
     // Convert the WARCRecord object to an ArtifactData
-    ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil
+    ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil or ArtifactData
 
     // Save the underlying input stream so that it can be closed when needed.
     artifactData.setClosableInputStream(warcStream);
@@ -716,7 +710,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     );
 
     // Serialize artifact to WARC record and get the number of bytes in the serialization
-    long bytesWritten = writeArtifactData(artifactData, dfos);
+    long recordLength = writeArtifactData(artifactData, dfos);
     dfos.close();
 
     // Get the current active permanent WARC for this AU
@@ -724,51 +718,69 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     initWarc(dst);
 
     // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
-    long offset = getFileLength(dst);
+    long warcLength = getFileLength(dst);
 
-    if (bytesWritten + offset > getThresholdWarcSize()) {
-      // If the WARC record alone is over the size threshold, then we're going to be writing a WARC that goes past the
-      // threshold anyway. So we have two options: 1) write to a new WARC or, 2) the current one. Which one? The one
-      // that maximizes the last block.
-      if (!((bytesWritten > getThresholdWarcSize()) &&
-          (getBytesUsedLastBlock(bytesWritten + offset) > getBytesUsedLastBlock(bytesWritten) + getBytesUsedLastBlock(offset)))) {
+    // Calculate waste space in last block
+    long wasteSealing = (getBlockSize() - (warcLength % getBlockSize())) % getBlockSize();
+    long wasteAppending = (getBlockSize() - ((warcLength + recordLength) % getBlockSize())) % getBlockSize();
 
-        // Seal the active WARC
-        sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+    boolean sealBeforeAppend = false;
 
-        // Initialize the new active WARC and retrieve its size
-        dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
-        initWarc(dst);
-        offset = getFileLength(dst);
+    if (warcLength < getThresholdWarcSize()) {
+      if (warcLength + recordLength <= getThresholdWarcSize()) {
+        // Append
+//        sealBeforeAppend = false;
+      } else {
+        if (wasteSealing > wasteAppending) {
+          // Append
+//          sealBeforeAppend = false;
+        } else {
+          // Seal then append
+          sealBeforeAppend = true;
+        }
+      }
+    } else {
+      if (recordLength <= wasteSealing) {
+        // Append
+//        sealBeforeAppend = false;
+      } else {
+        // Seal then append
+        sealBeforeAppend = true;
       }
     }
 
-    try (
-        // Get an (appending) OutputStream to the WARC file
-        OutputStream output = getAppendableOutputStream(dst)
-    ) {
+    if (sealBeforeAppend) {
+      // Seal active WARC and get path to new active WARC
+      sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+      dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+      warcLength = getFileLength(dst);
+    }
+
+    // Append WARC record to active WARC
+    try (OutputStream output = getAppendableOutputStream(dst)) {
       // Write serialized artifact to permanent WARC file
       dfos.writeTo(output);
 
       log.info(String.format(
           "Committed: %s: Wrote %d bytes starting at byte offset %d to %s; size is now %d",
           artifact.getIdentifier().getId(),
-          bytesWritten,
-          offset,
+          recordLength,
+          warcLength,
           dst,
-          offset + bytesWritten
+          warcLength + recordLength
       ));
     }
 
-    // Set the artifact's new storage URL and update the index
-    artifact.setStorageUrl(makeStorageUrl(dst, offset));
-    artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+    // Immediately seal if we've gone over the size threshold and filled all the blocks perfectly
+    if (!sealBeforeAppend) {
+      if ((warcLength + recordLength >= getThresholdWarcSize()) && ((warcLength + recordLength) % getBlockSize() == 0)) {
+        sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+      }
+    }
 
-    // TODO: Revisit seal strategy
-    // Immediately seal active WARC if size threshold has been met or exceeded
-//    if (offset + bytesWritten >= getThresholdWarcSize()) {
-//      sealActiveWarc(artifact.getCollection(), artifact.getAuid());
-//    }
+    // Set the artifact's new storage URL and update the index
+    artifact.setStorageUrl(makeStorageUrl(dst, warcLength, recordLength));
+    artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
     return artifact;
   }
