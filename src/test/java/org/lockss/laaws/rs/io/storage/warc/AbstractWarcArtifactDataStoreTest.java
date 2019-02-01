@@ -875,7 +875,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertThat(sealedArtifact.getStorageUrl(), startsWith(store.makeStorageUrl(sealedWarcDirPath)));
 
       // ...check that the sealed WARC file exists
-      Matcher mat = store.fileAndOffsetStorageUrlPat.matcher(sealedArtifact.getStorageUrl());
+      Matcher mat = store.storageUrlPattern.matcher(sealedArtifact.getStorageUrl());
       assertTrue(mat.matches());
       String relativeWarcPath = mat.group(3);
       assertTrue(isFile(relativeWarcPath));

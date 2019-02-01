@@ -32,7 +32,6 @@ package org.lockss.laaws.rs.io.storage.hdfs;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
@@ -40,9 +39,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.FileSystem;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
-import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -106,7 +103,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     ));
 
     this.fs = fs;
-    this.fileAndOffsetStorageUrlPat =
+    this.storageUrlPattern =
         Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
   }
 
@@ -304,11 +301,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     FSDataInputStream fsDataInputStream = fs.open(new Path(getBasePath() + filePath));
     fsDataInputStream.seek(seek);
     return fsDataInputStream;
-  }
-
-  @Override
-  public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
-    return getFileAndOffsetWarcRecordInputStream(storageUrl);
   }
 
   @Override

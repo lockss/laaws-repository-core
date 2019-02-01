@@ -32,7 +32,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
-import it.unimi.dsi.fastutil.io.RepositionableStream;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
@@ -63,9 +62,11 @@ import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
+
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StreamUtils;
 
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -127,7 +128,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected StripedExecutorService execsvc;
   protected Map<RepoAuid, String> auActiveWarcMap;
 
-  protected Pattern fileAndOffsetStorageUrlPat;
+  protected Pattern storageUrlPattern;
 
   /**
    * The interval to wait between consecutive retries when creating the JMS
@@ -169,7 +170,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected abstract InputStream getInputStream(String filePath) throws IOException;
   protected abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
-  protected abstract InputStream getWarcRecordInputStream(String storageUrl) throws IOException;
   protected abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
 
   protected abstract void initWarc(String warcPath) throws IOException;
@@ -553,7 +553,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info(String.format("Retrieving artifact data for artifact ID: %s", artifact.getId()));
 
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
-    InputStream warcStream = getWarcRecordInputStream(artifact.getStorageUrl());
+    InputStream warcStream = getInputStreamFromStorageUrl(artifact.getStorageUrl());
     WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0L);
 
     // Convert the WARCRecord object to an ArtifactData
@@ -1214,11 +1214,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return
    * @throws IOException
    */
-  protected InputStream getFileAndOffsetWarcRecordInputStream(String storageUrl) throws IOException {
-    Matcher mat = fileAndOffsetStorageUrlPat.matcher(storageUrl);
+  protected InputStream getInputStreamFromStorageUrl(String storageUrl) throws IOException {
+    Matcher mat = storageUrlPattern.matcher(storageUrl);
 
     if (!mat.matches()) {
-      // Shouldn't happen because all these artifacts are in existing directories
+      // Shouldn't happen since we're generating storage URLs internally
       log.error("storageUrl = {}", storageUrl);
       throw new IllegalArgumentException("Bad storage URL");
     }

@@ -33,7 +33,6 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -41,7 +40,6 @@ import org.apache.commons.io.*;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -68,7 +66,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         super(basePath);
         log.info(String.format("Instantiating a local data store under %s", basePath));
 
-        this.fileAndOffsetStorageUrlPat =
+        this.storageUrlPattern =
             Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
     }
 
@@ -195,11 +193,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         InputStream inputStream = getInputStream(filePath);
         inputStream.skip(seek);
         return inputStream;
-    }
-
-    @Override
-    public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
-        return getFileAndOffsetWarcRecordInputStream(storageUrl);
     }
 
     @Override

@@ -69,6 +69,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private VolatileWarcArtifactDataStore(String basePath) {
     super(basePath);
     this.warcs = new HashMap<>();
+
+    this.storageUrlPattern =
+        Pattern.compile("(volatile://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
   }
 
   @Override
@@ -166,7 +169,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
   
   @Override
-  public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
+  public InputStream getInputStreamFromStorageUrl(String storageUrl) throws IOException {
     log.info("storageUrl = {}", storageUrl);
 
     Pattern p = Pattern.compile("volatile://(.*)\\?offset=(\\d+)&length=(\\d+)$");
