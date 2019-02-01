@@ -98,12 +98,13 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
-  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
+  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset, long length) throws Exception {
     return String.format(
-        "volatile://%s%s?offset=%d",
+        "volatile://%s%s?offset=%d&length=%d",
         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
         store.getActiveWarcPath(ident),
-        offset
+        offset,
+        length
     );
   }
 

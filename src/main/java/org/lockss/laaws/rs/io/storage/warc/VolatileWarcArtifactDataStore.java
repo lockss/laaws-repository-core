@@ -124,14 +124,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public String makeStorageUrl(String filePath, String offset) {
-    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-    params.add("offset", offset);
-
-    return makeStorageUrl(filePath, params);
-  }
-
-  @Override
   public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
     UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + getBasePath() + filePath);
     uriBuilder.queryParams(params);
@@ -177,7 +169,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
     log.info("storageUrl = {}", storageUrl);
 
-    Pattern p = Pattern.compile("volatile://(.*)\\?offset=(\\d+)$");
+    Pattern p = Pattern.compile("volatile://(.*)\\?offset=(\\d+)&length=(\\d+)$");
     Matcher m = p.matcher(storageUrl);
 
     if (m.matches()) {

@@ -611,14 +611,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract boolean isFile(String path) throws IOException;
   protected abstract String getAbsolutePath(String path);
 
-  protected abstract String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception;
+  protected abstract String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset, long length) throws Exception;
 
   @Test
   public void testMakeStorageUrl() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
     String artifactsWarcPath = store.getActiveWarcPath(ident1);
-    String expected = testMakeStorageUrl_getExpected(ident1, 1234L);
-    String actual = store.makeStorageUrl(artifactsWarcPath, 1234L);
+    String expected = testMakeStorageUrl_getExpected(ident1, 1234L, 5678L);
+    String actual = store.makeStorageUrl(artifactsWarcPath, 1234L, 5678L);
     assertEquals(expected, actual);
   }
 

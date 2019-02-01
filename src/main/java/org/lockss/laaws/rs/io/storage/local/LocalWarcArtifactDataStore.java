@@ -69,7 +69,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         log.info(String.format("Instantiating a local data store under %s", basePath));
 
         this.fileAndOffsetStorageUrlPat =
-                Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
+            Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
     }
 
   @Override
@@ -171,13 +171,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     @Override
     public long getFileLength(String filePath) {
       return new File(getBasePath() + filePath).length();
-    }
-
-    @Override
-    public String makeStorageUrl(String filePath, String offset) {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("offset", offset);
-        return makeStorageUrl(filePath, params);
     }
 
     @Override

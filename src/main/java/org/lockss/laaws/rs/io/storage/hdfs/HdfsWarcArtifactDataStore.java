@@ -107,7 +107,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
     this.fs = fs;
     this.fileAndOffsetStorageUrlPat =
-        Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
+        Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
   }
 
   /**
@@ -202,13 +202,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   protected long getBlockSize() {
     return DEFAULT_BLOCKSIZE;
-  }
-
-  @Override
-  public String makeStorageUrl(String filePath, String offset) {
-    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-    params.add("offset", offset);
-    return makeStorageUrl(filePath, params);
   }
 
   @Override

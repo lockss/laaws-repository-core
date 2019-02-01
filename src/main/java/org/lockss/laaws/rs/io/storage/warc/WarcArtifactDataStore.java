@@ -168,7 +168,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@code String} containing the base path for temporary WARCs.
    */
   protected abstract String getTmpWarcBasePath();
-  protected abstract String makeStorageUrl(String filePath, String offset);
   protected abstract String makeStorageUrl(String filePath, MultiValueMap<String, String> params);
 
   protected abstract InputStream getInputStream(String filePath) throws IOException;
@@ -222,6 +221,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
   // * METHODS
   // *******************************************************************************************************************
+
+  public String makeStorageUrl(String filePath, long offset, long length) {
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    params.add("offset", Long.toString(offset));
+    params.add("length", Long.toString(length));
+    return makeStorageUrl(filePath, params);
+  }
 
   /**
    * Reads and reloads state from temporary WARCs, including the requeuing of copy tasks of committed artifacts from
@@ -528,8 +534,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     tmpWarcFile.setLength(offset + bytesWritten);
     tmpWarcPool.returnWarcFile(tmpWarcFile);
 
-    // Set artifact data storage URL
-    artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset));
+      // Set artifact data storage URL
+      artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, bytesWritten));
+    }
 
     // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
     artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
@@ -1184,10 +1191,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     return record;
-  }
-
-  public String makeStorageUrl(String filePath, long offset) {
-    return makeStorageUrl(filePath, Long.toString(offset));
   }
 
   public String makeStorageUrl(String filePath) {

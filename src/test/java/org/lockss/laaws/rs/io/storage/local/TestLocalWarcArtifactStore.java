@@ -124,12 +124,13 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return pathDir.toString();
   }
 
-  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
+  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset, long length) throws Exception {
     return String.format(
-        "file://%s%s?offset=%d",
-         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-         store.getActiveWarcPath(ident),
-         offset
+        "file://%s%s?offset=%d&length=%d",
+        (store.getBasePath().equals("/") ? "" : store.getBasePath()),
+        store.getActiveWarcPath(ident),
+        offset,
+        length
     );
   }
 }
