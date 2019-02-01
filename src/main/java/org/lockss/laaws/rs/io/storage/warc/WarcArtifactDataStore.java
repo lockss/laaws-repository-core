@@ -1268,7 +1268,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     for (String warcFile : artifactWarcFiles) {
       try {
         BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(warcFile));
-//        for (ArchiveRecord record : WARCReaderFactory.get("WarcArtifactDataStore", bufferedStream, true)) {
         for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", bufferedStream)) {
           log.info(String.format(
               "Re-indexing artifact from WARC %s record %s from %s",
@@ -1281,8 +1280,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
 
             if (artifactData != null) {
+              // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
+              // we add four bytes to the length
+              long recordLength = record.getHeader().getLength() + 4L;
+
               // Set ArtifactData storage URL
-              artifactData.setStorageUrl(makeStorageUrl(warcFile, record.getHeader().getOffset(), record.getHeader().getLength()));
+              artifactData.setStorageUrl(makeStorageUrl(warcFile, record.getHeader().getOffset(), recordLength));
 
               // Default repository metadata for all ArtifactData objects to be indexed
               artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
@@ -1322,9 +1325,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Load repository artifact metadata by "replaying" them
     for (String metadataFile : repoMetadataWarcFiles) {
       try {
-//        log.info("metadata = \"{}\"", IOUtils.toString(getInputStream(metadataFile)));
         BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(metadataFile));
-//        for (ArchiveRecord record : WARCReaderFactory.get("WarcArtifactDataStore", bufferedStream, true)) {
         for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", bufferedStream)) {
           // Parse the JSON into a RepositoryArtifactMetadata object
           RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
