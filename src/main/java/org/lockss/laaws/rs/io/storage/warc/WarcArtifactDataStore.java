@@ -56,10 +56,7 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-import org.lockss.laaws.rs.util.ArtifactConstants;
-import org.lockss.laaws.rs.util.ArtifactDataFactory;
-import org.lockss.laaws.rs.util.ArtifactDataUtil;
-import org.lockss.laaws.rs.util.JmsConsumer;
+import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
@@ -1380,8 +1377,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     @Override
     protected WARCRecord createArchiveRecord(InputStream is, long offset) throws IOException {
-      RepositionableStream rps = new RepositionableInputStream(is);
-      return (WARCRecord)currentRecord(new WARCRecord((InputStream) rps, getReaderIdentifier(), offset, isDigest(), isStrict()));
+      return (WARCRecord)currentRecord(new WARCRecord(new SimpleRepositionableStream(is), getReaderIdentifier(), offset, isDigest(), isStrict()));
     }
   }
 
