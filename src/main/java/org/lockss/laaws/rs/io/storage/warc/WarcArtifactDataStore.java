@@ -695,20 +695,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   // FIXME: Stream WARC record instead of unserializing only to serialize again
   protected Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
-    // Read artifact data from current WARC file
-    ArtifactData artifactData = getArtifactData(artifact);
+    String storageUrl = artifact.getStorageUrl();
 
-    // Create a DFOS to contain our serialized artifact
-    DeferredFileOutputStream dfos = new DeferredFileOutputStream(
-        (int)DEFAULT_DFOS_THRESHOLD,
-        "moveToPermanentStorage",
-        null,
-        new File("/tmp") // FIXME: Refactor to use custom temporary directory
-    );
+    Matcher m = storageUrlPattern.matcher(storageUrl);
 
-    // Serialize artifact to WARC record and get the number of bytes in the serialization
-    long recordLength = writeArtifactData(artifactData, dfos);
-    dfos.close();
+    if (!m.matches()) {
+      log.info("Bad storage URL");
+      throw new IllegalStateException("Bad storage URL");
+    }
+
+    long recordLength = Long.valueOf(m.group(5));
+
+    InputStream is = getInputStreamFromStorageUrl(storageUrl);
 
     // Get the current active permanent WARC for this AU
     String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
@@ -755,12 +753,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Append WARC record to active WARC
     try (OutputStream output = getAppendableOutputStream(dst)) {
-      // Write serialized artifact to permanent WARC file
-      dfos.writeTo(output);
+      long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
       log.info(String.format(
-          "Committed: %s: Wrote %d bytes starting at byte offset %d to %s; size is now %d",
+          "Committed: %s: Wrote %d of %d bytes starting at byte offset %d to %s; size is now %d",
           artifact.getIdentifier().getId(),
+          bytesWritten,
           recordLength,
           warcLength,
           dst,

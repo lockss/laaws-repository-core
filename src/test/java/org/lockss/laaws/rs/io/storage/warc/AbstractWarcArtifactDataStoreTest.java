@@ -40,6 +40,7 @@ import java.time.format.*;
 import java.time.temporal.*;
 import java.util.*;
 import java.util.concurrent.Future;
+import java.util.regex.Matcher;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IteratorUtils;
@@ -60,6 +61,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.springframework.util.StreamUtils;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
@@ -164,6 +166,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     if (commit) {
       // Commit to artifact data store
       Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
+      assertNotNull(artifactFuture);
 
       // Wait for data store commit (copy from temporary to permanent storage) to complete
       artifact = artifactFuture.get(); // TODO: Enable a timeout
@@ -367,16 +370,50 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Commit this artifact
     Future<Artifact> future = store.commitArtifactData(artifact_store);
     assertNotNull(future);
-    Artifact committedArtifact = future.get();
+
+    // Add second artifact to the store
+    ArtifactData ad2 = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
+    Artifact artifact_store2 = store.addArtifactData(ad2);
+    assertNotNull(artifact_store2);
+    assertFalse(artifact_store2.getCommitted());
+
+    // Add second artifact to index
+    Artifact artifact_index2 = index.indexArtifact(ad2);
+    assertNotNull(artifact_index2);
+    assertFalse(artifact_index2.getCommitted());
+
+    // And commit it
+    Future<Artifact> future2 = store.commitArtifactData(artifact_store2);
+    assertNotNull(future2);
+    Artifact committedArtifact2 = future2.get();
 
     // Verify that the store has recorded it as committed
+    Artifact committedArtifact = future.get();
     assertNotNull(committedArtifact);
     assertTrue(committedArtifact.getCommitted());
-    assertTrue(store.getArtifactData(committedArtifact).getRepositoryMetadata().isCommitted());
     assertTrue(index.getArtifact(committedArtifact.getId()).getCommitted());
+
+    // dumpWarcRecord(committedArtifact.getStorageUrl());
+
+    ArtifactData committedData = store.getArtifactData(committedArtifact);
+    assertTrue(committedData.getRepositoryMetadata().isCommitted());
 
     // TODO: Verify storage URL is not temporary
     log.info("storageURL = {}", committedArtifact.getStorageUrl());
+  }
+
+  private void dumpWarcRecord(String storageUrl) throws IOException {
+    Matcher m = store.storageUrlPattern.matcher(storageUrl);
+
+    if (m.matches()) {
+      long recordLength = Long.parseLong(m.group(5));
+
+      InputStream is = store.getInputStreamFromStorageUrl(storageUrl);
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      StreamUtils.copyRange(is, baos, 0, recordLength - 1);
+
+      log.info("warc-record: {}", baos.toString());
+    }
   }
 
   @Test
