@@ -94,7 +94,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testInitWarc() throws Exception {
-    String warcName = UUID.randomUUID().toString();
+    String warcName = UUID.randomUUID().toString(); // FIXME: Use File.createTempFile(...)
     String warcPath = store.getTmpWarcBasePath() + "/" + warcName;
 
     store.initWarc(warcPath);
@@ -338,7 +338,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
 
     try {
-      ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
+      ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
       Artifact artifact = store.addArtifactData(ad);
       store.commitArtifactData(artifact);
       fail("Expected IllegalStateException to be thrown");
@@ -351,7 +351,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store.setArtifactIndex(index);
 
     // Add an artifact to store
-    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
+    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
     Artifact artifact_store = store.addArtifactData(ad);
     assertNotNull(artifact_store);
     assertFalse(artifact_store.getCommitted());
@@ -374,7 +374,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(committedArtifact.getCommitted());
     assertTrue(store.getArtifactData(committedArtifact).getRepositoryMetadata().isCommitted());
     assertTrue(index.getArtifact(committedArtifact.getId()).getCommitted());
+
+    // TODO: Verify storage URL is not temporary
+    log.info("storageURL = {}", committedArtifact.getStorageUrl());
   }
+
   @Test
   public void testDeleteArtifact() throws Exception {
     try {
@@ -397,7 +401,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertTrue(metadata.isDeleted());
 
       // And verify we get a null when trying to retrieve it after delete
-//      assertNull(store.getArtifactData(artifact));
+//      TODO: assertNull(store.getArtifactData(artifact));
     } catch (IOException e) {
       fail("Unexpected IOException caught");
     }
@@ -494,9 +498,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(WARCConstants.WARCRecordType.response,
         WARCConstants.WARCRecordType.valueOf((String)headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE)));
 
-
-
-
     // Assert LOCKSS headers
     assertEquals(ai.getId(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY));
     assertEquals(ai.getCollection(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY));
@@ -505,7 +506,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(ai.getVersion(), Integer.valueOf((String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY)));
     assertEquals(ad.getContentLength(), Long.valueOf((String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY)).longValue());
 
-
+    // TODO: Assert content
   }
 
   protected abstract boolean isValidStorageUrl(String storageUrl);
@@ -679,8 +680,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         List<Artifact> artifacts2 = IteratorUtils.toList(index2.getAllArtifacts(cid, auid, true).iterator());
 
         // Debugging
-        artifacts1.forEach(artifact -> log.info(String.format("Artifact from artifact1: %s", artifact)));
-        artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
+        artifacts1.forEach(artifact -> log.info(String.format("Artifact from artifacts1: %s", artifact)));
+        artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifacts2: %s", artifact)));
 
         if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
           fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
@@ -760,8 +761,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         List<Artifact> artifacts4 = IteratorUtils.toList(index4.getAllArtifacts(cid, auid, true).iterator());
 
         // Debugging
-        artifacts3.forEach(artifact -> log.info(String.format("Artifact from artifact1: %s", artifact)));
-        artifacts4.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
+        artifacts3.forEach(artifact -> log.info(String.format("Artifact from artifacts3: %s", artifact)));
+        artifacts4.forEach(artifact -> log.info(String.format("Artifact from artifacts4: %s", artifact)));
 
         if (!(artifacts3.containsAll(artifacts4) && artifacts4.containsAll(artifacts3))) {
           fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
