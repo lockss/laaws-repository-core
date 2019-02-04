@@ -183,14 +183,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void moveWarc(String srcPath, String dstPath) {
-    synchronized (warcs) {
-      warcs.put(dstPath, warcs.get(srcPath));
-      warcs.remove(srcPath);
-    }
-  }
-
-  @Override
   public Collection<String> findWarcs(String basePath) {
     synchronized (warcs) {
       log.info("warcs.keySet() = {}", warcs.keySet());

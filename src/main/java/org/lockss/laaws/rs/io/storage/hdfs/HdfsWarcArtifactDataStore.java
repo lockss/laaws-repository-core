@@ -304,13 +304,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void moveWarc(String srcPath, String dstPath) throws IOException {
-    if (!fs.rename(new Path(getBasePath() + srcPath), new Path(getBasePath() + dstPath))) {
-      throw new IOException(String.format("Error renaming %s to %s", srcPath, dstPath));
-    }
-  }
-
-  @Override
   public boolean removeWarc(String path) throws IOException {
     return fs.delete(new Path(getBasePath() + path), false);
   }

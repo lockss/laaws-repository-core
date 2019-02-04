@@ -205,15 +205,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void moveWarc(String srcPath, String dstPath) throws IOException {
-        String realSrcPath = getBasePath() + srcPath;
-        String realDstPath = getBasePath() + dstPath;
-        if (!new File(realSrcPath).renameTo(new File(realDstPath))) {
-            throw new IOException(String.format("Error renaming %s to %s", realSrcPath, realDstPath));
-        }
-    }
-
-    @Override
     public boolean removeWarc(String path) {
       String fullPath = getBasePath() + path;
       return new File(fullPath).delete();

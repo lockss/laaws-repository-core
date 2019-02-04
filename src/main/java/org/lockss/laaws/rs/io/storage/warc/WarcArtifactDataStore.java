@@ -173,7 +173,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
 
   protected abstract void initWarc(String warcPath) throws IOException;
-  protected abstract void moveWarc(String srcPath, String dstPath) throws IOException;
   protected abstract Collection<String> findWarcs(String basePath) throws IOException;
   protected abstract boolean removeWarc(String warcPath) throws IOException;
 
