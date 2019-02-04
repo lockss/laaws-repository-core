@@ -173,10 +173,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
 
   protected abstract void initWarc(String warcPath) throws IOException;
+  protected abstract long getWarcLength(String warcPath) throws IOException;
   protected abstract Collection<String> findWarcs(String basePath) throws IOException;
   protected abstract boolean removeWarc(String warcPath) throws IOException;
-
-  protected abstract long getFileLength(String filePath) throws IOException;
 
   protected abstract long getBlockSize();
 
@@ -280,7 +279,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           removeWarc(tmpWarc);
         } else {
           // Return WARC to temporary WARC pool
-          long tmpWarcFileLen = getFileLength(tmpWarc);
+          long tmpWarcFileLen = getWarcLength(tmpWarc);
           tmpWarcPool.returnWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
         }
 
@@ -505,7 +504,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       initWarc(tmpWarcFilePath);
 
       // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
-      long offset = getFileLength(tmpWarcFilePath);
+      long offset = getWarcLength(tmpWarcFilePath);
 
       // Write serialized artifact to temporary WARC file
       try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
@@ -712,7 +711,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     initWarc(dst);
 
     // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
-    long warcLength = getFileLength(dst);
+    long warcLength = getWarcLength(dst);
 
     // Calculate waste space in last block
     long wasteSealing = (getBlockSize() - (warcLength % getBlockSize())) % getBlockSize();
@@ -747,7 +746,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Seal active WARC and get path to new active WARC
       sealActiveWarc(artifact.getCollection(), artifact.getAuid());
       dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
-      warcLength = getFileLength(dst);
+      warcLength = getWarcLength(dst);
     }
 
     // Append WARC record to active WARC

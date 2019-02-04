@@ -115,9 +115,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public long getFileLength(String path) {
+  public long getWarcLength(String warcPath) {
     synchronized (warcs) {
-      ByteArrayOutputStream warc = warcs.get(path);
+      ByteArrayOutputStream warc = warcs.get(warcPath);
       if (warc != null) {
         return warc.size();
       }

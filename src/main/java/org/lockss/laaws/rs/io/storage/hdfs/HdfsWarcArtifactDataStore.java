@@ -183,9 +183,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public long getFileLength(String filePath) throws IOException {
+  public long getWarcLength(String warcPath) throws IOException {
     try {
-      return fs.getFileStatus(new Path(getBasePath() + filePath)).getLen();
+      return fs.getFileStatus(new Path(getBasePath() + warcPath)).getLen();
     } catch (FileNotFoundException e) {
       return 0L;
     }
