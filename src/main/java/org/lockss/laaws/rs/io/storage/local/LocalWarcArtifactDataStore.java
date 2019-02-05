@@ -184,13 +184,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public InputStream getInputStream(String filePath) throws IOException {
-        return new FileInputStream(getBasePath() + filePath);
-    }
-
-    @Override
     public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-        InputStream inputStream = getInputStream(filePath);
+        InputStream inputStream = new FileInputStream(getBasePath() + filePath);
         inputStream.skip(seek);
         return inputStream;
     }

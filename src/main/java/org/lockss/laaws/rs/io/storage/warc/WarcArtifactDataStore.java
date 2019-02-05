@@ -168,7 +168,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected abstract String getTmpWarcBasePath();
   protected abstract String makeStorageUrl(String filePath, MultiValueMap<String, String> params);
 
-  protected abstract InputStream getInputStream(String filePath) throws IOException;
   protected abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
   protected abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
 
@@ -222,6 +221,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     params.add("offset", Long.toString(offset));
     params.add("length", Long.toString(length));
     return makeStorageUrl(filePath, params);
+  }
+
+  /**
+   * Convenince method that returns an {@code InputStream} containing the entire WARC file at the requested path.
+   *
+   * @param path A {@code String} containing the path of the WARC file.
+   * @return An {@code InputStream} containing the WARC file.
+   * @throws IOException
+   */
+  protected InputStream getInputStream(String path) throws IOException {
+    return getInputStreamAndSeek(path, 0L);
   }
 
   /**

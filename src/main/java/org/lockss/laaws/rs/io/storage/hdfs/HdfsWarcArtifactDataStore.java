@@ -292,11 +292,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public InputStream getInputStream(String filePath) throws IOException {
-    return fs.open(new Path(getBasePath() + filePath));
-  }
-
-  @Override
   public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
     FSDataInputStream fsDataInputStream = fs.open(new Path(getBasePath() + filePath));
     fsDataInputStream.seek(seek);

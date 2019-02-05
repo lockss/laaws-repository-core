@@ -142,18 +142,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public InputStream getInputStream(String path) {
-    synchronized (warcs) {
-      ByteArrayOutputStream warc = warcs.get(path);
-      if (warc != null) {
-        return warc.toInputStream();
-      }
-    }
-
-    return null;
-  }
-
-  @Override
   public InputStream getInputStreamAndSeek(String path, long seek) throws IOException {
     synchronized (warcs) {
       ByteArrayOutputStream warc = warcs.get(path);
