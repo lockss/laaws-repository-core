@@ -61,6 +61,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.lockss.util.time.TimeUtil;
 import org.springframework.util.StreamUtils;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -69,19 +70,93 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   protected WADS store;
 
-  protected abstract WADS makeWarcArtifactDataStore() throws IOException;
-  protected abstract WADS makeWarcArtifactDataStore(WADS otherStore) throws IOException;
+  // *******************************************************************************************************************
+  // * JUNIT
+  // *******************************************************************************************************************
 
   @BeforeEach
   public void setupTestContext() throws IOException {
     store = makeWarcArtifactDataStore();
   }
 
-  protected abstract void runTestGetTmpWarcBasePath();
+  // *******************************************************************************************************************
+  // * ABSTRACT METHODS
+  // *******************************************************************************************************************
+
+  protected abstract WADS makeWarcArtifactDataStore() throws IOException;
+  protected abstract WADS makeWarcArtifactDataStore(WADS otherStore) throws IOException;
+
+  protected abstract String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
+  protected abstract String expected_getTmpWarcBasePath() throws Exception;
+
+  // *******************************************************************************************************************
+  // * TESTS
+  // *******************************************************************************************************************
 
   @Test
-  public void testGetTmpWarcBasePath() {
-    runTestGetTmpWarcBasePath();
+  public void testGetTmpWarcBasePath() throws Exception {
+    assertNotNull(store.getTmpWarcBasePath());
+    assertEquals(expected_getTmpWarcBasePath(), store.getTmpWarcBasePath());
+  }
+
+  @Test
+  public void testMakeStorageUrl() throws Exception {
+    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+
+    String expected = expected_makeStorageUrl(aid, 1234L, 5678L);
+
+    String activeWarcPath = store.getActiveWarcPath(aid);
+    String actual = store.makeStorageUrl(activeWarcPath, 1234L, 5678L);
+
+    assertEquals(expected, actual);
+  }
+
+  /**
+   * Tests for getInputStreamAndSeek() and getAppendableOutputStream().
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testInputOutputStreams() throws Exception {
+    // Path to temporary WARC file
+    String warcName = String.format("%s.%s", UUID.randomUUID(), WARCConstants.WARC_FILE_EXTENSION); //FIXME
+    String warcPath = store.getTmpWarcBasePath() + "/" + warcName;
+
+    // Initialize WARC
+    store.initWarc(warcPath);
+
+    // Random offset and content length to write
+    long offset = (long) new Random().nextInt((int) FileUtils.ONE_MB) + store.getWarcLength(warcPath);
+    long length = (long) new Random().nextInt((int) FileUtils.ONE_KB);
+
+    // Get an OutputStream
+    OutputStream output = store.getAppendableOutputStream(warcPath);
+
+    // Write padding to offset
+    byte[] padding = new byte[(int) offset];
+    Arrays.fill(padding, (byte) 0x00);
+    output.write(padding);
+
+    // Write random bytes
+    byte[] expected = new byte[(int) length];
+    new Random().nextBytes(expected);
+    output.write(expected);
+    output.flush();
+    output.close();
+
+    // Compare InputStreams
+    InputStream is_actual = store.getInputStreamAndSeek(warcPath, offset);
+    InputStream is_expected = new ByteArrayInputStream(expected);
+    assertSameBytes(is_expected, is_actual);
+  }
+
+  @Test
+  public void testInitArtifactDataStore() throws Exception {
+    ArtifactIndex index = new VolatileArtifactIndex();
+    index.initArtifactIndex();
+
+    store.setArtifactIndex(index);
+    store.initArtifactDataStore();
   }
 
   @Test
@@ -100,6 +175,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String warcPath = store.getTmpWarcBasePath() + "/" + warcName;
 
     store.initWarc(warcPath);
+
     assertTrue(isFile(getAbsolutePath(warcPath)));
   }
 
@@ -264,6 +340,70 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactData ad = new ArtifactData(id, null, baos1.toInputStream(), statusOK);
 
     return ad;
+  }
+
+  @Test
+  public void testGetSetUncommittedArtifactExpiration() {
+    // Test default
+    assertEquals(TimeUtil.WEEK, WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION);
+
+    assertEquals(
+        WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION,
+        store.getUncommittedArtifactExpiration()
+    );
+
+    // Test bad input
+    assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(-1234L));
+
+    // Test for success
+    store.setUncommittedArtifactExpiration(0L);
+    assertEquals(0L, store.getUncommittedArtifactExpiration());
+    store.setUncommittedArtifactExpiration(TimeUtil.DAY);
+    assertEquals(TimeUtil.DAY, store.getUncommittedArtifactExpiration());
+  }
+
+  @Test
+  public void testGetBasePath() throws Exception {
+//    assertEquals(getAbsolutePath("/"), store.getBasePath());
+  }
+
+  @Test
+  public void testGetSetThresholdWarcSize() throws Exception {
+    // Test default
+    assertEquals(100L * FileUtils.ONE_MB, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+    assertEquals(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE, store.getThresholdWarcSize());
+
+    // Test bad input
+    assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(-1234L));
+
+    // Test for success
+    store.setThresholdWarcSize(0L);
+    assertEquals(0L, store.getThresholdWarcSize());
+    store.setThresholdWarcSize(10L * FileUtils.ONE_KB);
+    assertEquals(10L * FileUtils.ONE_KB, store.getThresholdWarcSize());
+  }
+
+  @Test
+  public void testGetSetArtifactIndex() throws Exception {
+    // By default, data store should not have an index set
+    assertNull(store.getArtifactIndex());
+
+    // Attempting to set the data store's artifact index to null should fail
+    assertThrows(IllegalArgumentException.class, () -> store.setArtifactIndex(null));
+
+    ArtifactIndex index1 = new VolatileArtifactIndex();
+    ArtifactIndex index2 = new VolatileArtifactIndex();
+
+    // Set the artifact index and check we get it back
+    store.setArtifactIndex(index1);
+    assertSame(index1, store.getArtifactIndex());
+
+    // Setting data store's index to the same index should be okay
+    store.setArtifactIndex(index1);
+    assertSame(index1, store.getArtifactIndex());
+
+    // Attempt to set to another index should fail
+    assertThrows(IllegalStateException.class, () -> store.setArtifactIndex(index2));
   }
 
   @Test
@@ -553,22 +693,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   @Test
-  public void testGetBasePath() throws Exception { // FIXME
-//    assertEquals(tmpRepoBaseDir.getAbsolutePath(), store.getBasePath());
-  }
-
-  @Test
-  public void testSetThresholdWarcSize() throws Exception {
-    assertEquals(100L * FileUtils.ONE_MB, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
-    assertEquals(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE, store.getThresholdWarcSize());
-    assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(-1234L));
-    store.setThresholdWarcSize(0L);
-    assertEquals(0L, store.getThresholdWarcSize());
-    store.setThresholdWarcSize(10L * FileUtils.ONE_KB);
-    assertEquals(10L * FileUtils.ONE_KB, store.getThresholdWarcSize());
-  }
-  
-  @Test
   public void testGetCollectionPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", null, null, 0);
     assertEquals("/collections/coll1", store.getCollectionPath(ident1));
@@ -648,17 +772,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract boolean isDirectory(String path) throws IOException;
   protected abstract boolean isFile(String path) throws IOException;
   protected abstract String getAbsolutePath(String path);
-
-  protected abstract String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset, long length) throws Exception;
-
-  @Test
-  public void testMakeStorageUrl() throws Exception {
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
-    String artifactsWarcPath = store.getActiveWarcPath(ident1);
-    String expected = testMakeStorageUrl_getExpected(ident1, 1234L, 5678L);
-    String actual = store.makeStorageUrl(artifactsWarcPath, 1234L, 5678L);
-    assertEquals(expected, actual);
-  }
 
   @Test
   public void testRebuildIndex() throws Exception {

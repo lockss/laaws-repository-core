@@ -43,17 +43,18 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   private final static L4JLogger log = L4JLogger.getLogger();
   private File testsRootDir;
 
-  @Test
-  public void testInitCollection() throws Exception {
-    store.initCollection("collection");
-    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
+  @BeforeAll
+  protected void makeLocalTempDir() throws IOException {
+    File tempFile = File.createTempFile(getClass().getSimpleName(), null);
+    tempFile.deleteOnExit();
+
+    testsRootDir = new File(tempFile.getAbsolutePath() + ".d");
+    testsRootDir.mkdirs();
   }
 
-  @Test
-  public void testInitAu() throws Exception {
-    store.initAu("collection", "auid");
-    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
-    assertTrue(isDirectory(getAbsolutePath(store.getAuPath("collection", "auid"))));
+  @AfterAll
+  public void tearDown() {
+    quietlyDeleteDir(testsRootDir);
   }
 
   @Override
@@ -68,28 +69,22 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return new LocalWarcArtifactDataStore(other.getBasePath());
   }
 
-  @Override
-  protected void runTestGetTmpWarcBasePath() {
-    assertEquals(getAbsolutePath("/tmp"), store.getTmpWarcBasePath());
+  @Test
+  public void testInitCollection() throws Exception {
+    store.initCollection("collection");
+    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
+  }
+
+  @Test
+  public void testInitAu() throws Exception {
+    store.initAu("collection", "auid");
+    assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
+    assertTrue(isDirectory(getAbsolutePath(store.getAuPath("collection", "auid"))));
   }
 
   @Override
   protected boolean isValidStorageUrl(String storageUrl) {
     return true;
-  }
-
-  @BeforeAll
-  protected void makeLocalTempDir() throws IOException {
-    File tempFile = File.createTempFile(getClass().getSimpleName(), null);
-    tempFile.deleteOnExit();
-
-    testsRootDir = new File(tempFile.getAbsolutePath() + ".d");
-    testsRootDir.mkdirs();
-  }
-
-  @AfterAll
-  public void tearDown() {
-    quietlyDeleteDir(testsRootDir);
   }
 
   protected static void quietlyDeleteDir(File dir) {
@@ -124,11 +119,16 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return pathDir.toString();
   }
 
-  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset, long length) throws Exception {
+  @Override
+  protected String expected_getTmpWarcBasePath() {
+    return getAbsolutePath("/tmp");
+  }
+
+  protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
     return String.format(
         "file://%s%s?offset=%d&length=%d",
         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-        store.getActiveWarcPath(ident),
+        store.getActiveWarcPath(aid),
         offset,
         length
     );

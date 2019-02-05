@@ -216,7 +216,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // * METHODS
   // *******************************************************************************************************************
 
-  public String makeStorageUrl(String filePath, long offset, long length) {
+  /**
+   * Convenience method that encodes the location and length of a WARC record into an internal URL.
+   *
+   * @param filePath A {@code String} containing the path to the WARC file containing the WARC record.
+   * @param offset A {@code long} containing the byte offset from the beginning of this WARC file to the beginning of
+   *               the WARC record.
+   * @param length A {@code length} containing the length of the WARC record.
+   * @return A {@code String} containing the internal storage URL to the WARC record.
+   */
+  protected String makeStorageUrl(String filePath, long offset, long length) {
     MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("offset", Long.toString(offset));
     params.add("length", Long.toString(length));
@@ -442,11 +451,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Configures the artifact index associated with this WARC artifact data store.
    *
-   * Depreciated. Using this may have unpredictable results.
+   * Should only be used in testing.
    *
    * @param artifactIndex The {@code ArtifactIndex} instance to associate with this WARC artifact data store.
    */
   protected void setArtifactIndex(ArtifactIndex artifactIndex) {
+    if (artifactIndex == null) {
+      throw new IllegalArgumentException("Null artifact index");
+    }
+
     if (this.artifactIndex != null && this.artifactIndex != artifactIndex) {
       throw new IllegalStateException("Artifact index already set");
     }
