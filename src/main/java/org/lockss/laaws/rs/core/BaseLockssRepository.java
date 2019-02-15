@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.lockss.laaws.rs.io.AuidLockMap;
-import org.lockss.laaws.rs.io.RepoAuid;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.*;
@@ -44,7 +42,8 @@ import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.locks.Lock;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -54,7 +53,6 @@ public class BaseLockssRepository implements LockssRepository {
 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
   protected ArtifactIndex index;
-  protected AuidLockMap auidLockMap;
 
   /**
    * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
@@ -76,7 +74,6 @@ public class BaseLockssRepository implements LockssRepository {
 
     this.index = index;
     this.store = store;
-    this.auidLockMap = new AuidLockMap();
 
     // Initialize artifact index and data store
     index.initArtifactIndex();
@@ -98,12 +95,8 @@ public class BaseLockssRepository implements LockssRepository {
 
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(artifactId.getCollection(), artifactId.getAuid()));
-    auidLock.lock();
-
-    try {
-      //// Determine the next artifact version
-
+    //// Determine the next artifact version
+    synchronized (index) {
       // Retrieve latest version in this URL lineage
       Artifact latestVersion = index.getArtifact(
           artifactId.getCollection(),
@@ -126,14 +119,11 @@ public class BaseLockssRepository implements LockssRepository {
       // Set the new artifact identifier
       artifactData.setIdentifier(newId);
 
-      //// Add the ArtifactData to the repository
-      Artifact storedArtifact = store.addArtifactData(artifactData);
-      // TODO: Artifact artifact = index.indexArtifact(storedArtifact);
-      Artifact artifact = index.indexArtifact(artifactData);
+      // Add the artifact the data store and index
+      Artifact artifact = store.addArtifactData(artifactData);
+      index.indexArtifact(artifactData);
 
       return artifact;
-    } finally {
-      auidLock.unlock();
     }
   }
 
@@ -154,15 +144,7 @@ public class BaseLockssRepository implements LockssRepository {
       return null;
     }
 
-    Artifact artifact = index.getArtifact(artifactId);
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(artifact.getCollection(), artifact.getAuid()));
-    auidLock.lock();
-
-    try {
-      return store.getArtifactData(index.getArtifact(artifactId));
-    } finally {
-      auidLock.unlock();
-    }
+    return store.getArtifactData(index.getArtifact(artifactId));
   }
 
   /**
@@ -179,13 +161,13 @@ public class BaseLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    // Get artifact as it is currently
-    Artifact artifact = index.getArtifact(artifactId);
+    synchronized (index) {
+      // Get artifact as it is currently
+      Artifact artifact = index.getArtifact(artifactId);
 
-    if (artifact == null) {
-      log.warn("Artifact not found in index");
-      return null;
-    }
+      if (artifact == null) {
+        log.warn("Artifact not found in index");
+      }
 
     Lock auidLock = auidLockMap.getLock(new RepoAuid(artifact.getCollection(), artifact.getAuid()));
     auidLock.lock();
@@ -198,10 +180,7 @@ public class BaseLockssRepository implements LockssRepository {
           false
       ));
 
-      // Update the commit status in index and return the updated artifact
-      return index.commitArtifact(artifactId);
-    } finally {
-      auidLock.unlock();
+      return artifact;
     }
   }
 
@@ -217,19 +196,16 @@ public class BaseLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    Artifact artifact = index.getArtifact(artifactId);
+    synchronized (index) {
+      Artifact artifact = index.getArtifact(artifactId);
 
-    if ((artifact == null))
-      throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+      if (artifact == null) {
+        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+      }
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(artifact.getCollection(), artifact.getAuid()));
-    auidLock.lock();
-
-    try {
-      store.deleteArtifactData(artifact);
+      // Remove from index and data store
       index.deleteArtifact(artifactId);
-    } finally {
-      auidLock.unlock();
+      store.deleteArtifactData(artifact);
     }
   }
 
@@ -245,7 +221,9 @@ public class BaseLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    return index.artifactExists(artifactId);
+    synchronized (index) {
+      return index.artifactExists(artifactId);
+    }
   }
 
   /**
@@ -260,12 +238,15 @@ public class BaseLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    Artifact artifact = index.getArtifact(artifactId);
+    synchronized (index) {
+      Artifact artifact = index.getArtifact(artifactId);
 
-    if ((artifact == null))
-      throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+      if (artifact == null) {
+        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+      }
 
-    return artifact.getCommitted();
+      return artifact.getCommitted();
+    }
   }
 
   /**
