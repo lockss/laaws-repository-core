@@ -1133,34 +1133,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Creates a WARCRecordInfo object representing a WARC metadata record with a JSON object as its payload.
-   *
-   * @param refersTo The WARC-Record-Id of the WARC record this metadata is attached to (i.e., for WARC-Refers-To).
-   * @param metadata A RepositoryArtifactMetadata with the artifact metadata.
-   * @return A WARCRecordInfo representing the given artifact metadata.
-   */
-  public static WARCRecordInfo createWarcMetadataRecord(String refersTo, RepositoryArtifactMetadata metadata) {
-    // Create a WARC record object
-    WARCRecordInfo record = new WARCRecordInfo();
-
-    // Set record content stream
-    byte[] metadataBytes = metadata.toJson().toString().getBytes();
-    record.setContentStream(new ByteArrayInputStream(metadataBytes));
-
-    // Mandatory WARC record headers
-    record.setRecordId(URI.create(UUID.randomUUID().toString()));
-    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
-    record.setType(WARCRecordType.metadata);
-    record.setContentLength(metadataBytes.length);
-    record.setMimetype(MimeType.JSON);
-
-    // Set the WARC-Refers-To field to the WARC-Record-ID of the artifact
-    record.addExtraHeader(WARCConstants.HEADER_KEY_REFERS_TO, refersTo);
-
-    return record;
-  }
-
-  /**
    * Writes an artifact as a WARC response record to a given OutputStream.
    *
    * @param artifactData {@code ArtifactData} to write to the {@code OutputStream}.
@@ -1242,123 +1214,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     return cout.getCount();
-  }
-
-  /**
-   * Writes a WARC record to a given OutputStream.
-   *
-   * @param record An instance of WARCRecordInfo to write to the OutputStream.
-   * @param out    An OutputStream.
-   * @throws IOException
-   */
-  public static void writeWarcRecord(WARCRecordInfo record, OutputStream out) throws IOException {
-    // Write the header
-    out.write(createRecordHeader(record).getBytes(WARC_HEADER_ENCODING));
-
-    // Write the header-body separator
-    out.write(CRLF_BYTES);
-
-    if (record.getContentStream() != null) {
-      // Write the WARC payload
-      int bytesWritten = IOUtils.copy(record.getContentStream(), out);
-
-      // Sanity check
-      if (bytesWritten != record.getContentLength()) {
-        log.warn(String.format("Expected to write %d bytes, but wrote %d", record.getContentLength(), bytesWritten));
-      }
-    }
-
-    // Write the two blank lines required at end of every record
-    out.write(CRLF_BYTES);
-    out.write(CRLF_BYTES);
-  }
-
-  /**
-   * Formats the WARC record ID to a representation that is used
-   *
-   * @param id
-   * @return
-   */
-  public static String formatWarcRecordId(String id) {
-    return String.format("<%s:%s>", SCHEME, id);
-  }
-
-  /**
-   * Composes a String object containing WARC record header of a given WARCRecordInfo.
-   *
-   * @param record A WARCRecordInfo representing a WARC record.
-   * @return The header for this WARCRecordInfo.
-   */
-  public static String createRecordHeader(WARCRecordInfo record) {
-    final StringBuilder sb = new StringBuilder();
-
-    // WARC record identifier
-    sb.append(WARC_ID).append(CRLF);
-
-    // WARC record mandatory headers
-    sb.append(HEADER_KEY_ID).append(COLON_SPACE).append(formatWarcRecordId(record.getRecordId().toString())).append(CRLF);
-//        sb.append(HEADER_KEY_ID).append(COLON_SPACE).append(record.getRecordId().toString()).append(CRLF);
-    sb.append(CONTENT_LENGTH).append(COLON_SPACE).append(Long.toString(record.getContentLength())).append(CRLF);
-    sb.append(HEADER_KEY_DATE).append(COLON_SPACE).append(record.getCreate14DigitDate()).append(CRLF);
-    sb.append(HEADER_KEY_TYPE).append(COLON_SPACE).append(record.getType()).append(CRLF);
-
-    // Optional WARC-Target-URI
-    if (!StringUtils.isEmpty(record.getUrl()))
-      sb.append(HEADER_KEY_URI).append(COLON_SPACE).append(record.getUrl()).append(CRLF);
-
-    // Optional Content-Type of WARC record payload
-    if (record.getContentLength() > 0)
-      sb.append(CONTENT_TYPE).append(COLON_SPACE).append(record.getMimetype()).append(CRLF);
-
-    // Extra WARC record headers
-    if (record.getExtraHeaders() != null) {
-//            record.getExtraHeaders().stream().map(x -> sb.append(x).append(CRLF));
-
-      for (final Iterator<Element> i = record.getExtraHeaders().iterator(); i.hasNext(); ) {
-        sb.append(i.next()).append(CRLF);
-      }
-    }
-
-    return sb.toString();
-  }
-
-  /**
-   * Creates a warcinfo type WARC record with metadata common to all following WARC records.
-   * <p>
-   * Adapted from iipc/webarchive-commons.
-   *
-   * @param extraHeaders
-   * @return
-   */
-  public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> extraHeaders) {
-    return createWARCInfoRecord(extraHeaders, null, null);
-  }
-
-  public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> headers, MediaType mimeType, byte[] content) {
-    WARCRecordInfo record = new WARCRecordInfo();
-
-    record.setRecordId(URI.create(UUID.randomUUID().toString()));
-    record.setType(WARCRecordType.warcinfo);
-    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
-    record.setContentLength(content == null ? 0 : (long) content.length);
-    record.setMimetype(mimeType.toString());
-
-    // Set extra WARC record headers
-    if (headers != null) {
-      headers.forEach((k, vs) -> vs.forEach(v -> record.addExtraHeader(k, v)));
-    }
-
-    // Set content length and input stream
-    if (content != null) {
-      record.setContentStream(new ByteArrayInputStream(content));
-    }
-
-    return record;
-  }
-
-  public String makeStorageUrl(String filePath) {
-    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-    return makeStorageUrl(filePath, params);
   }
 
   /**
@@ -1534,6 +1389,150 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     protected WARCRecord createArchiveRecord(InputStream is, long offset) throws IOException {
       return (WARCRecord)currentRecord(new WARCRecord(new SimpleRepositionableStream(is), getReaderIdentifier(), offset, isDigest(), isStrict()));
     }
+  }
+
+  // *******************************************************************************************************************
+  // * WARC
+  // *******************************************************************************************************************
+
+  /**
+   * Creates a WARCRecordInfo object representing a WARC metadata record with a JSON object as its payload.
+   *
+   * @param refersTo The WARC-Record-Id of the WARC record this metadata is attached to (i.e., for WARC-Refers-To).
+   * @param metadata A RepositoryArtifactMetadata with the artifact metadata.
+   * @return A WARCRecordInfo representing the given artifact metadata.
+   */
+  public static WARCRecordInfo createWarcMetadataRecord(String refersTo, RepositoryArtifactMetadata metadata) {
+    // Create a WARC record object
+    WARCRecordInfo record = new WARCRecordInfo();
+
+    // Set record content stream
+    byte[] metadataBytes = metadata.toJson().toString().getBytes();
+    record.setContentStream(new ByteArrayInputStream(metadataBytes));
+
+    // Mandatory WARC record headers
+    record.setRecordId(URI.create(UUID.randomUUID().toString()));
+    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
+    record.setType(WARCRecordType.metadata);
+    record.setContentLength(metadataBytes.length);
+    record.setMimetype(MimeType.JSON);
+
+    // Set the WARC-Refers-To field to the WARC-Record-ID of the artifact
+    record.addExtraHeader(WARCConstants.HEADER_KEY_REFERS_TO, refersTo);
+
+    return record;
+  }
+
+  /**
+   * Writes a WARC record to a given OutputStream.
+   *
+   * @param record An instance of WARCRecordInfo to write to the OutputStream.
+   * @param out    An OutputStream.
+   * @throws IOException
+   */
+  public static void writeWarcRecord(WARCRecordInfo record, OutputStream out) throws IOException {
+    // Write the header
+    out.write(createRecordHeader(record).getBytes(WARC_HEADER_ENCODING));
+
+    // Write the header-body separator
+    out.write(CRLF_BYTES);
+
+    if (record.getContentStream() != null) {
+      // Write the WARC payload
+      int bytesWritten = IOUtils.copy(record.getContentStream(), out);
+
+      // Sanity check
+      if (bytesWritten != record.getContentLength()) {
+        log.warn(String.format("Expected to write %d bytes, but wrote %d", record.getContentLength(), bytesWritten));
+      }
+    }
+
+    // Write the two blank lines required at end of every record
+    out.write(CRLF_BYTES);
+    out.write(CRLF_BYTES);
+  }
+
+  /**
+   * Formats the WARC record ID to a representation that is used
+   *
+   * @param id
+   * @return
+   */
+  public static String formatWarcRecordId(String id) {
+    return String.format("<%s:%s>", SCHEME, id);
+  }
+
+  /**
+   * Composes a String object containing WARC record header of a given WARCRecordInfo.
+   *
+   * @param record A WARCRecordInfo representing a WARC record.
+   * @return The header for this WARCRecordInfo.
+   */
+  public static String createRecordHeader(WARCRecordInfo record) {
+    final StringBuilder sb = new StringBuilder();
+
+    // WARC record identifier
+    sb.append(WARC_ID).append(CRLF);
+
+    // WARC record mandatory headers
+    sb.append(HEADER_KEY_ID).append(COLON_SPACE).append(formatWarcRecordId(record.getRecordId().toString())).append(CRLF);
+//        sb.append(HEADER_KEY_ID).append(COLON_SPACE).append(record.getRecordId().toString()).append(CRLF);
+    sb.append(CONTENT_LENGTH).append(COLON_SPACE).append(Long.toString(record.getContentLength())).append(CRLF);
+    sb.append(HEADER_KEY_DATE).append(COLON_SPACE).append(record.getCreate14DigitDate()).append(CRLF);
+    sb.append(HEADER_KEY_TYPE).append(COLON_SPACE).append(record.getType()).append(CRLF);
+
+    // Optional WARC-Target-URI
+    if (!StringUtils.isEmpty(record.getUrl()))
+      sb.append(HEADER_KEY_URI).append(COLON_SPACE).append(record.getUrl()).append(CRLF);
+
+    // Optional Content-Type of WARC record payload
+    if (record.getContentLength() > 0)
+      sb.append(CONTENT_TYPE).append(COLON_SPACE).append(record.getMimetype()).append(CRLF);
+
+    // Extra WARC record headers
+    if (record.getExtraHeaders() != null) {
+//            record.getExtraHeaders().stream().map(x -> sb.append(x).append(CRLF));
+
+      for (final Iterator<Element> i = record.getExtraHeaders().iterator(); i.hasNext(); ) {
+        sb.append(i.next()).append(CRLF);
+      }
+    }
+
+    return sb.toString();
+  }
+
+  /**
+   * Creates a warcinfo type WARC record with metadata common to all following WARC records.
+   * <p>
+   * Adapted from iipc/webarchive-commons.
+   *
+   * @param extraHeaders
+   * @return
+   */
+  public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> extraHeaders) {
+    return createWARCInfoRecord(extraHeaders, null, null);
+  }
+
+  public static WARCRecordInfo createWARCInfoRecord(MultiValueMap<String, String> headers, MediaType mimeType, byte[] content) {
+    WARCRecordInfo record = new WARCRecordInfo();
+
+    record.setRecordId(URI.create(UUID.randomUUID().toString()));
+    record.setType(WARCRecordType.warcinfo);
+    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
+    record.setContentLength(content == null ? 0 : (long) content.length);
+    record.setMimetype(mimeType.toString());
+
+    // Set extra WARC record headers
+    if (headers != null) {
+      headers.forEach((k, vs) -> vs.forEach(v -> record.addExtraHeader(k, v)));
+    }
+
+    // Set content length and input stream
+    if (content != null) {
+      record.setContentStream(new ByteArrayInputStream(content));
+    }
+
+    return record;
   }
 
   // *******************************************************************************************************************
