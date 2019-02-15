@@ -466,125 +466,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   @Test
-  public void testCommitArtifact() throws Exception {
-    try {
-      store.commitArtifactData(null);
-      fail("Expected NullPointerException to be thrown");
-    } catch (NullPointerException e) {
-      assertEquals("Artifact is null", e.getMessage());
-    }
-
-    try {
-      ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
-      Artifact artifact = store.addArtifactData(ad);
-      store.commitArtifactData(artifact);
-      fail("Expected IllegalStateException to be thrown");
-    } catch (IllegalStateException e) {
-      assertEquals("Artifact index is null", e.getMessage());
-    }
-
-    // Set an artifact index
-    ArtifactIndex index = new VolatileArtifactIndex();
-    store.setArtifactIndex(index);
-
-    // Add an artifact to store
-    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
-    Artifact artifact_store = store.addArtifactData(ad);
-    assertNotNull(artifact_store);
-    assertFalse(artifact_store.getCommitted());
-
-    // Add an artifact to index
-    Artifact artifact_index = index.indexArtifact(ad);
-    assertNotNull(artifact_index);
-    assertFalse(artifact_index.getCommitted());
-
-    // Assert artifact state in store and index are the same
-    assertEquals(artifact_index, artifact_store);
-
-    // Commit this artifact
-    Future<Artifact> future = store.commitArtifactData(artifact_store);
-    assertNotNull(future);
-
-    // Add second artifact to the store
-    ArtifactData ad2 = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
-    Artifact artifact_store2 = store.addArtifactData(ad2);
-    assertNotNull(artifact_store2);
-    assertFalse(artifact_store2.getCommitted());
-
-    // Add second artifact to index
-    Artifact artifact_index2 = index.indexArtifact(ad2);
-    assertNotNull(artifact_index2);
-    assertFalse(artifact_index2.getCommitted());
-
-    // And commit it
-    Future<Artifact> future2 = store.commitArtifactData(artifact_store2);
-    assertNotNull(future2);
-    Artifact committedArtifact2 = future2.get();
-
-    // Verify that the store has recorded it as committed
-    Artifact committedArtifact = future.get();
-    assertNotNull(committedArtifact);
-    assertTrue(committedArtifact.getCommitted());
-    assertTrue(index.getArtifact(committedArtifact.getId()).getCommitted());
-
-    // dumpWarcRecord(committedArtifact.getStorageUrl());
-
-    ArtifactData committedData = store.getArtifactData(committedArtifact);
-    assertTrue(committedData.getRepositoryMetadata().isCommitted());
-
-    // TODO: Verify storage URL is not temporary
-    log.info("storageURL = {}", committedArtifact.getStorageUrl());
-  }
-
-  private void dumpWarcRecord(String storageUrl) throws IOException {
-    Matcher m = store.storageUrlPattern.matcher(storageUrl);
-
-    if (m.matches()) {
-      long recordLength = Long.parseLong(m.group(5));
-
-      InputStream is = store.getInputStreamFromStorageUrl(storageUrl);
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      StreamUtils.copyRange(is, baos, 0, recordLength - 1);
-
-      log.info("warc-record: {}", baos.toString());
-    }
-  }
-
-  @Test
-  public void testDeleteArtifact() throws Exception {
-    try {
-      store.deleteArtifactData(null);
-      fail("Expected NullPointerException to be thrown");
-    } catch (NullPointerException npe) {
-      assertEquals("Artifact is null", npe.getMessage());
-    }
-
-    try {
-      // Add an artifact
-      ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
-      Artifact artifact = store.addArtifactData(ad);
-      assertNotNull(artifact);
-
-      // Delete the artifact from the artifact store
-      RepositoryArtifactMetadata metadata = store.deleteArtifactData(artifact);
-
-      // Verify that the repository metadata reflects the artifact is deleted
-      assertTrue(metadata.isDeleted());
-
-      // And verify we get a null when trying to retrieve it after delete
-//      TODO: assertNull(store.getArtifactData(artifact));
-    } catch (IOException e) {
-      fail("Unexpected IOException caught");
-    }
-  }
-
-  @Test
   public void testGetArtifactData() throws Exception {
     // Attempt retrieving the artifact with a null argument
     try {
       store.getArtifactData(null);
-      fail("Expected NullPointerException to be thrown");
-    } catch (NullPointerException e) {
+      fail("Expected IllegalArgumentException to be thrown");
+    } catch (IllegalArgumentException e) {
       assertEquals("Artifact is null", e.getMessage());
     }
 
@@ -630,6 +517,167 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expected.getContentDigest(), actual.getContentDigest());
     assertEquals(expected.getContentLength(), actual.getContentLength());
 //    assertSameBytes(expected.getInputStream(), actual.getInputStream());
+  }
+
+  @Test
+  public void testCommitArtifact() throws Exception {
+    assertThrows(IllegalArgumentException.class, () -> store.commitArtifactData(null));
+
+    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
+    Artifact artifact = store.addArtifactData(ad);
+
+    // Set an artifact index
+    ArtifactIndex index = new VolatileArtifactIndex();
+    store.setArtifactIndex(index);
+
+    // Add an artifact to store
+    ArtifactData ad1 = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
+    Artifact artifact_store1 = store.addArtifactData(ad1);
+    assertNotNull(artifact_store1);
+    assertFalse(artifact_store1.getCommitted());
+
+    // Add an artifact to index
+    Artifact artifact_index1 = index.indexArtifact(ad1);
+    assertNotNull(artifact_index1);
+    assertFalse(artifact_index1.getCommitted());
+
+    // Assert artifact state in store and index are the same
+    assertEquals(artifact_index1, artifact_store1);
+
+    // Commit this artifact
+    Future<Artifact> future1 = store.commitArtifactData(artifact_store1);
+    assertNotNull(future1);
+
+    // Add second artifact to the store
+    ArtifactData ad2 = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
+    Artifact artifact_store2 = store.addArtifactData(ad2);
+    assertNotNull(artifact_store2);
+    assertFalse(artifact_store2.getCommitted());
+
+    // Add second artifact to index
+    Artifact artifact_index2 = index.indexArtifact(ad2);
+    assertNotNull(artifact_index2);
+    assertFalse(artifact_index2.getCommitted());
+
+    // And commit it
+    Future<Artifact> future2 = store.commitArtifactData(artifact_store2);
+    assertNotNull(future2);
+    Artifact committedArtifact2 = future2.get();
+
+    // Verify that the store has recorded it as committed
+    Artifact committedArtifact1 = future1.get();
+    assertNotNull(committedArtifact1);
+    assertTrue(committedArtifact1.getCommitted());
+
+    // Verify repository metadata journal has artifact marked as committed
+//    assertTrue(index.getArtifact(committedArtifact1.getId()).getCommitted());
+
+    // dumpWarcRecord(committedArtifact.getStorageUrl());
+
+    ArtifactData committedData1 = store.getArtifactData(committedArtifact1);
+    assertTrue(committedData1.getRepositoryMetadata().isCommitted());
+
+    // TODO: Verify storage URL is not temporary
+    log.debug("storageURL = {}", committedArtifact1.getStorageUrl());
+  }
+
+  private void dumpWarcRecord(String storageUrl) throws IOException {
+    Matcher m = store.storageUrlPattern.matcher(storageUrl);
+
+    if (m.matches()) {
+      long recordLength = Long.parseLong(m.group(5));
+
+      InputStream is = store.getInputStreamFromStorageUrl(storageUrl);
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      StreamUtils.copyRange(is, baos, 0, recordLength - 1);
+
+      log.info("warc-record: {}", baos.toString());
+    }
+  }
+
+  @Test
+  public void testMoveToPermanentStorage_null() throws Exception {
+    // Assert moving a null artifact results in an IllegalArgumentException
+    assertThrows(IllegalArgumentException.class, () -> store.moveToPermanentStorage(null));
+
+    // Assert bad storage URL results in an IllegalArgumentException
+    Artifact badArtifact = new Artifact();
+    badArtifact.setStorageUrl("fake");
+    assertThrows(IllegalArgumentException.class, () -> store.moveToPermanentStorage(badArtifact));
+  }
+
+  @Test
+  public void testMoveToPermanentStorage_generic() throws Exception {
+    // Instantiate a volatile artifact index for use with this test
+    ArtifactIndex index = new VolatileArtifactIndex();
+    store.setArtifactIndex(index);
+
+    // Add an artifact to the data store and index
+    ArtifactData ad = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
+    Artifact artifact = store.addArtifactData(ad);
+    index.indexArtifact(ad);
+
+    // Add an artifact to the data store and index
+//    ArtifactData ad2 = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
+//    Artifact artifact2 = store.addArtifactData(ad2);
+//    index.indexArtifact(ad2);
+
+    // Assert the storage URL points to a WARC in temporary storage
+    String beforeUrl = artifact.getStorageUrl();
+
+    if (log.isDebugEnabled()) {
+      log.debug("beforeUrl = {}", beforeUrl);
+      log.debug("getPathFromStorageUrl(beforeUrl) = {}", getPathFromStorageUrl(beforeUrl));
+      log.debug("getTmpWarcBasePath() = {}", store.getTmpWarcBasePath());
+      log.debug("getAbsolutePath(getTmpWarcBasePath()) = {}", getAbsolutePath(store.getTmpWarcBasePath()));
+    }
+
+    assertTrue(getPathFromStorageUrl(beforeUrl).startsWith(getAbsolutePath(store.getTmpWarcBasePath())));
+
+    // Move it to permanent storage
+    store.moveToPermanentStorage(artifact);
+
+    // Assert the storage URL points to the current active WARC for this AU
+    String afterUrl = artifact.getStorageUrl();
+    assertEquals(
+        getAbsolutePath(store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid())),
+        getPathFromStorageUrl(afterUrl)
+    );
+
+    // Assert successful copy of record
+    InputStream before_stream = store.getInputStreamFromStorageUrl(beforeUrl);
+    InputStream after_stream = store.getInputStreamFromStorageUrl(afterUrl);
+    assertSameBytes(before_stream, after_stream);
+  }
+
+  @Test
+  public void testMoveToPermanentStorage_sealFirst() throws Exception {
+    // Instantiate a volatile artifact index for use with this test
+    ArtifactIndex index = new VolatileArtifactIndex();
+    store.setArtifactIndex(index);
+
+    // Set WARC file size threshold to 4KB
+    store.setThresholdWarcSize(FileUtils.ONE_KB * 4L);
+    store.getBlockSize();
+  }
+
+  @Test
+  public void testDeleteArtifact() throws Exception {
+    assertThrows(IllegalArgumentException.class, () -> store.deleteArtifactData(null));
+
+    // Add an artifact
+    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
+    Artifact artifact = store.addArtifactData(ad);
+    assertNotNull(artifact);
+
+    // Delete the artifact from the artifact store
+    RepositoryArtifactMetadata metadata = store.deleteArtifactData(artifact);
+
+    // Verify that the repository metadata reflects the artifact is deleted
+    assertTrue(metadata.isDeleted());
+
+    // TODO: And verify we get a null when trying to retrieve it after delete
+    // assertNull(store.getArtifactData(artifact));
   }
 
   @Test
@@ -925,13 +973,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testWarcSealing() throws Exception {
     // Use a volatile artifact index with this data store
     ArtifactIndex index = new VolatileArtifactIndex();
+    index.initArtifactIndex();
+
     store.setArtifactIndex(index);
+    store.initArtifactDataStore();
 
     // The WARC records for the two artifacts here end up being 782 bytes each.
     store.setThresholdWarcSize(512L);
-
-    index.initArtifactIndex();
-    store.initArtifactDataStore();
 
     // Setup repository paths relative to a base dir
     String auBaseDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
