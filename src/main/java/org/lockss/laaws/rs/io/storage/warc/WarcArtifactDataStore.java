@@ -233,7 +233,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Convenince method that returns an {@code InputStream} containing the entire WARC file at the requested path.
+   * Convenience method that returns an {@code InputStream} containing the entire WARC file at the requested path.
    *
    * @param path A {@code String} containing the path of the WARC file.
    * @return An {@code InputStream} containing the WARC file.
@@ -265,12 +265,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // True unless the WARC contains a record that cannot be removed (or if there's an error)
       boolean isTmpWarcRemoveable = true;
 
-      // Read from temporary WARC
+      // Open temporary WARC
       try (BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(tmpWarc))) {
 
+        // Get an ArchiveReader Iterable over ArchiveRecord objects
         ArchiveReader archiveReader = WARCReaderFactory.get(tmpWarc, bufferedStream, true);
 
-        // Handle WARC records
+        // Iterate over the WARC records
         for (ArchiveRecord record : archiveReader) {
           boolean recordRemoveable = isTempWarcRecordRemovable(record);
           isTmpWarcRemoveable &= recordRemoveable;
@@ -569,7 +570,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   @Override
   public ArtifactData getArtifactData(Artifact artifact) throws IOException {
-    Objects.requireNonNull(artifact, "Artifact is null");
+    if (artifact == null) {
+      throw new IllegalArgumentException("Artifact is null");
+    }
 
     log.info(String.format("Retrieving artifact data for artifact ID: %s", artifact.getId()));
 
@@ -631,13 +634,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   @Override
   public Future<Artifact> commitArtifactData(Artifact artifact) throws IOException {
-    Objects.requireNonNull(artifact, "Artifact is null");
-
-    if (artifactIndex == null) {
-      throw new IllegalStateException("Artifact index is null");
+    if (artifact == null) {
+      throw new IllegalArgumentException("Artifact is null");
     }
 
-    log.info("Committing {} of AUID {}", artifact.getId(), artifact.getAuid());
+    log.info("Committing artifact {} in AU {}", artifact.getId(), artifact.getAuid());
 
     // Read current state of repository metadata for this artifact
     ArtifactData artifactData = getArtifactData(artifact);
@@ -714,15 +715,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return The {@code Artifact} with an updated storage URL.
    * @throws IOException
    */
-  // FIXME: Stream WARC record instead of unserializing only to serialize again
   protected Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
     String storageUrl = artifact.getStorageUrl();
-
     Matcher m = storageUrlPattern.matcher(storageUrl);
 
     if (!m.matches()) {
-      log.info("Bad storage URL");
-      throw new IllegalStateException("Bad storage URL");
+      log.error("Artifact {} has bad storage URL: {}", artifact.getId(), artifact.getStorageUrl());
+      throw new IllegalArgumentException("Bad storage URL");
     }
 
     long recordLength = Long.valueOf(m.group(5));
@@ -747,6 +746,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Append
 //        sealBeforeAppend = false;
       } else {
+        // Appending this record would trip the file over the size threshold
         if (wasteSealing > wasteAppending) {
           // Append
 //          sealBeforeAppend = false;
@@ -756,11 +756,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       }
     } else {
+      // The WARC file already exceeds the WARC file size threshold
       if (recordLength <= wasteSealing) {
-        // Append
+        // Record fits within the space in the last, already allocated block: Fill it (append)
 //        sealBeforeAppend = false;
       } else {
-        // Seal then append
+        // Seal then append: Do not allocate new block(s) since we have already exceeded the size threshold
         sealBeforeAppend = true;
       }
     }
@@ -777,7 +778,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
       log.info(String.format(
-          "Committed: %s: Wrote %d of %d bytes starting at byte offset %d to %s; size is now %d",
+          "Moved artifact %s: Wrote %d of %d bytes starting at byte offset %d to %s; size of WARC file is now %d",
           artifact.getIdentifier().getId(),
           bytesWritten,
           recordLength,
@@ -820,7 +821,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   @Override
   public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact) throws IOException {
-    Objects.requireNonNull(artifact, "Artifact is null");
+    if (artifact == null) {
+      throw new IllegalArgumentException("Null artifact");
+    }
 
     // Retrieve artifact data from current WARC file
     ArtifactData artifactData = getArtifactData(artifact);

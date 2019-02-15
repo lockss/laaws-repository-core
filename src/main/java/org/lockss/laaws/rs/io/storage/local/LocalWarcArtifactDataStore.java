@@ -47,28 +47,29 @@ import org.springframework.web.util.UriComponentsBuilder;
  * Local filesystem implementation of WarcArtifactDataStore.
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
-    private final static L4JLogger log = L4JLogger.getLogger();
-    private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
-    private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
+  private final static L4JLogger log = L4JLogger.getLogger();
+  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
+  private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
 
-    private boolean initialized;
+  private boolean initialized;
 
     public LocalWarcArtifactDataStore(File basePath) throws IOException {
         this(basePath.getAbsolutePath());
     }
 
-    /**
-     * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
-     *
-     * @param basePath The base path of the local repository.
-     */
-    public LocalWarcArtifactDataStore(String basePath) {
-        super(basePath);
-        log.info(String.format("Instantiating a local data store under %s", basePath));
+  /**
+   * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
+   *
+   * @param basePath The base path of the local repository.
+   */
+  public LocalWarcArtifactDataStore(ArtifactIndex index, String basePath) {
+    super(index, basePath);
 
-        this.storageUrlPattern =
-            Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
-    }
+    log.info(String.format("Instantiating a local data store under %s", basePath));
+
+    this.storageUrlPattern =
+        Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
+  }
 
   @Override
   protected String getTmpWarcBasePath() {
@@ -81,25 +82,25 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-    public synchronized void initArtifactDataStore() {
-      if (!initialized) {
-        try {
-          // Initialize LOCKSS repository structure
-          mkdirs("/");
-          mkdirs(getTmpWarcBasePath());
-          mkdirs(getSealedWarcsPath());
+  public synchronized void initArtifactDataStore() {
+    if (!initialized) {
+      try {
+        // Initialize LOCKSS repository structure
+        mkdirs("/");
+        mkdirs(getTmpWarcBasePath());
+        mkdirs(getSealedWarcsPath());
 
           // Reload temporary WARCs
           reloadTmpWarcs();
 
-          initialized = true;
-        } catch (IOException e) {
-          log.warn("Caught IOException while attempting initArtifactDataStore local filesystem artifact datastore");
-        }
-      } else {
-        log.info("Already initialized LOCKSS repository");
+        initialized = true;
+      } catch (IOException e) {
+        log.warn("Caught IOException while attempting initArtifactDataStore local filesystem artifact datastore");
       }
+    } else {
+      log.info("Already initialized LOCKSS repository");
     }
+  }
 
   @Override
   public void initCollection(String collectionId) throws IOException {

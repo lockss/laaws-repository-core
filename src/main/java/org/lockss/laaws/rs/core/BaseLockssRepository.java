@@ -70,7 +70,7 @@ public class BaseLockssRepository implements LockssRepository {
    * @param store An instance of {@code ArtifactDataStore}.
    */
   public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) throws IOException {
-    if ((index == null) || (store == null)) {
+    if (index == null || store == null) {
       throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
     }
 
@@ -92,8 +92,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact addArtifact(ArtifactData artifactData) throws IOException {
-    if (artifactData == null)
+    if (artifactData == null) {
       throw new IllegalArgumentException("Null ArtifactData");
+    }
 
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
@@ -111,10 +112,10 @@ public class BaseLockssRepository implements LockssRepository {
           true
       );
 
-      // Create a new artifact identifier for this
+      // Create a new artifact identifier for this artifact
       ArtifactIdentifier newId = new ArtifactIdentifier(
           // Assign a new artifact ID
-          UUID.randomUUID().toString(),
+          UUID.randomUUID().toString(), // FIXME: Namespace collision unlikely but possible
           artifactId.getCollection(),
           artifactId.getAuid(),
           artifactId.getUri(),
@@ -122,6 +123,7 @@ public class BaseLockssRepository implements LockssRepository {
           (latestVersion == null) ? 1 : latestVersion.getVersion() + 1
       );
 
+      // Set the new artifact identifier
       artifactData.setIdentifier(newId);
 
       //// Add the ArtifactData to the repository
@@ -173,8 +175,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact commitArtifact(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null))
+    if ((collection == null) || (artifactId == null)) {
       throw new IllegalArgumentException("Null collection id or artifact id");
+    }
 
     // Get artifact as it is currently
     Artifact artifact = index.getArtifact(artifactId);
@@ -210,8 +213,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public void deleteArtifact(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null))
+    if (collection == null || artifactId == null) {
       throw new IllegalArgumentException("Null collection id or artifact id");
+    }
 
     Artifact artifact = index.getArtifact(artifactId);
 
@@ -237,8 +241,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Boolean artifactExists(String collectionId, String artifactId) throws IOException {
-    if ((collectionId == null) || (artifactId == null))
+    if (collectionId == null || artifactId == null) {
       throw new IllegalArgumentException("Null collection id or artifact id");
+    }
 
     return index.artifactExists(artifactId);
   }
@@ -251,8 +256,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Boolean isArtifactCommitted(String collectionId, String artifactId) throws IOException {
-    if ((collectionId == null) || (artifactId == null))
+    if (collectionId == null || artifactId == null) {
       throw new IllegalArgumentException("Null collection id or artifact id");
+    }
 
     Artifact artifact = index.getArtifact(artifactId);
 
@@ -282,8 +288,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<String> getAuIds(String collection) throws IOException {
-    if (collection == null)
+    if (collection == null) {
       throw new IllegalArgumentException("Null collection");
+    }
 
     return index.getAuIds(collection);
   }
@@ -298,8 +305,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
-    if ((collection == null) || (auid == null))
+    if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
+    }
 
     return index.getAllArtifacts(collection, auid);
   }
@@ -313,8 +321,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
-    if ((collection == null) || (auid == null))
+    if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
+    }
 
     return index.getAllArtifactsAllVersions(collection, auid);
   }
@@ -331,8 +340,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
-    if ((collection == null) || (auid == null) || (prefix == null))
+    if (collection == null || auid == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id, au id or prefix");
+    }
 
     return index.getAllArtifactsWithPrefix(collection, auid, prefix);
   }
@@ -349,8 +359,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
-    if ((collection == null) || (auid == null) || (prefix == null))
+    if (collection == null || auid == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id, au id or prefix");
+    }
 
     return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
   }
@@ -366,8 +377,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
-    if ((collection == null) || (auid == null) || (url == null))
+    if (collection == null || auid == null || url == null) {
       throw new IllegalArgumentException("Null collection id, au id or url");
+    }
 
     return index.getArtifactAllVersions(collection, auid, url);
   }
@@ -383,8 +395,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact getArtifact(String collection, String auid, String url) throws IOException {
-    if ((collection == null) || (auid == null) || (url == null))
+    if (collection == null || auid == null || url == null) {
       throw new IllegalArgumentException("Null collection id, au id or url");
+    }
 
     return index.getArtifact(collection, auid, url);
   }
@@ -400,9 +413,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
-    if ((collection == null) || (auid == null) ||
-        (url == null) || version == null)
+    if (collection == null || auid == null || url == null || version == null) {
       throw new IllegalArgumentException("Null collection id, au id, url or version");
+    }
 
     return index.getArtifactVersion(collection, auid, url, version);
   }
@@ -416,8 +429,9 @@ public class BaseLockssRepository implements LockssRepository {
    */
   @Override
   public Long auSize(String collection, String auid) throws IOException {
-    if ((collection == null) || (auid == null))
+    if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
+    }
 
     return index.auSize(collection, auid);
   }

@@ -265,13 +265,13 @@ public class RestLockssRepository implements LockssRepository {
 
         HttpStatus status = response.getStatusCode();
 
-        if (status.is2xxSuccessful()) {
-          return response.getBody();
+        if (!status.is2xxSuccessful()) {
+          String errMsg = String.format("Could not commit artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+          log.error(errMsg);
+          throw new IOException(errMsg);
         }
 
-        String errMsg = String.format("Could not commit artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
-        log.error(errMsg);
-        throw new IOException(errMsg);
+        return response.getBody();
     }
 
     /**

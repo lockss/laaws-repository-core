@@ -466,8 +466,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(store.getTmpWarcBasePath());
     assertNotNull(getAbsolutePath(store.getTmpWarcBasePath()));
 
-    log.info("artifactWarcPath = {}", artifactWarcPath);
-    log.info("getTmpWarcBasePath = {}", getAbsolutePath(store.getTmpWarcBasePath()));
     assertTrue(artifactWarcPath.startsWith(getAbsolutePath(store.getTmpWarcBasePath())));
   }
 

@@ -108,9 +108,7 @@ public interface LockssRepository extends Ready {
      * @return An {@code Artifact} containing the updated artifact state information.
      * @throws IOException
      */
-    Artifact commitArtifact(String collection,
-                            String artifactId)
-        throws IOException;
+    Artifact commitArtifact(String collection, String artifactId) throws IOException;
 
     /**
      * Permanently removes an artifact from this LOCKSS repository.

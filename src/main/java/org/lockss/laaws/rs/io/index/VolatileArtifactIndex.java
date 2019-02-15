@@ -175,6 +175,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
       if (StringUtils.isEmpty(artifactId)) {
         throw new IllegalArgumentException("Null or empty identifier");
       }
+
       boolean result = false;
 
       synchronized (this) {

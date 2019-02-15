@@ -30,7 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage;
 
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
