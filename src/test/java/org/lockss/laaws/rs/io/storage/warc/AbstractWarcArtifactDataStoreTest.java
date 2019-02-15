@@ -186,13 +186,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testReloadTempWarcs() throws Exception {
-    try {
-      store.setArtifactIndex(null);
-      store.reloadTmpWarcs();
-      fail("Expected IllegalStateException");
-    } catch (IllegalStateException e) {
-      // OK
-    }
+//    assertThrows(IllegalArgumentException.class, () -> store.setArtifactIndex(null));
+    assertThrows(IllegalStateException.class, () -> store.reloadDataStoreState());
 
     runTestReloadTempWarcs(true, true);
     runTestReloadTempWarcs(true, false);
@@ -215,7 +210,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Temporary WARCs directory storage paths
     String fullTmpWarcPath = new File(store.getBasePath(), store.getTmpWarcBasePath()).getPath();
-    String tmpWarcsPathUrl = store.makeStorageUrl(store.getTmpWarcBasePath());
 
     // Configure WARC artifact data store with a newly instantiated volatile artifact index
     ArtifactIndex index = new VolatileArtifactIndex();
@@ -254,11 +248,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //      index.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
       // Assert that the storage URL points to a WARC that is not in the temporary WARCs directory
-      assertFalse(artifact.getStorageUrl().startsWith(tmpWarcsPathUrl));
+      assertFalse(getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(store.getTmpWarcBasePath()));
       assertTrue(isFile(new URI(artifact.getStorageUrl()).getPath()));
     } else {
       // Assert that the storage URL points to a WARC within the temporary WARCs directory
-      assertTrue(artifact.getStorageUrl().startsWith(tmpWarcsPathUrl));
+      assertTrue(
+          getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(getAbsolutePath(store.getTmpWarcBasePath()))
+      );
     }
 
     // Retrieve the artifact from the index

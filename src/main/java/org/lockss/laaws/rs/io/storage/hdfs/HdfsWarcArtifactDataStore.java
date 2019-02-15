@@ -223,7 +223,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         mkdirs(getSealedWarcsPath());
 
         // Reload temporary WARCs
-        reloadTmpWarcs();
+        reloadDataStoreState();
 
         initialized = true;
       } catch (IOException e) {

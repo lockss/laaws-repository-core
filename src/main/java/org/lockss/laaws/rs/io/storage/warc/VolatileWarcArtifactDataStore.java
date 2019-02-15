@@ -82,7 +82,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public void initArtifactDataStore() throws IOException {
-    reloadTmpWarcs();
+    reloadDataStoreState();
   }
 
   @Override
@@ -179,7 +179,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public Collection<String> findWarcs(String basePath) {
     synchronized (warcs) {
-      log.info("warcs.keySet() = {}", warcs.keySet());
+      log.debug("basePath = {}", basePath);
+      log.debug("warcs.keySet() = {}", warcs.keySet());
 
       return warcs.keySet().stream()
           .filter(path -> path.startsWith(basePath))

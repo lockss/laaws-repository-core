@@ -74,7 +74,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getTmpWarcBasePath() {
-    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
+    return DEFAULT_TMPWARCBASEPATH;
   }
 
   @Override
@@ -91,8 +91,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         mkdirs(getTmpWarcBasePath());
         mkdirs(getSealedWarcsPath());
 
-          // Reload temporary WARCs
-          reloadTmpWarcs();
+        // Reload temporary WARCs
+        reloadDataStoreState();
 
         initialized = true;
       } catch (IOException e) {
