@@ -76,15 +76,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @BeforeEach
   public void setupTestContext() throws IOException {
-    store = makeWarcArtifactDataStore();
+    store = makeWarcArtifactDataStore(null);
   }
 
   // *******************************************************************************************************************
   // * ABSTRACT METHODS
   // *******************************************************************************************************************
 
-  protected abstract WADS makeWarcArtifactDataStore() throws IOException;
-  protected abstract WADS makeWarcArtifactDataStore(WADS otherStore) throws IOException;
+  protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index) throws IOException;
+  protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index, WADS otherStore) throws IOException;
 
   protected abstract String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
   protected abstract String expected_getTmpWarcBasePath() throws Exception;
@@ -210,7 +210,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   private void runTestReloadTempWarcs(boolean commit, boolean expire) throws Exception {
     // Instantiate a new WARC artifact data store
-    store = makeWarcArtifactDataStore();
+    store = makeWarcArtifactDataStore(null);
     assertNotNull(store);
 
     // Temporary WARCs directory storage paths
@@ -274,7 +274,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Restart WARC data store
     log.info("Reloading WARC data store");
-    store = makeWarcArtifactDataStore(store);
+    store = makeWarcArtifactDataStore(index, store);
     store.setArtifactIndex(index);
 
     if (expire) {

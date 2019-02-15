@@ -38,6 +38,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.FileSystem;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
@@ -62,8 +63,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param config A Hadoop {@code Configuration} instance.
    * @throws IOException
    */
-  public HdfsWarcArtifactDataStore(Configuration config) throws IOException {
-    this(config, DEFAULT_REPO_BASEDIR);
+  public HdfsWarcArtifactDataStore(ArtifactIndex index, Configuration config) throws IOException {
+    this(index, config, DEFAULT_REPO_BASEDIR);
   }
 
   /**
@@ -72,8 +73,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param config   An Apache Hadoop {@code Configuration}.
    * @param basePath A {@code String} containing the base path of the LOCKSS repository under HDFS.
    */
-  public HdfsWarcArtifactDataStore(Configuration config, String basePath) throws IOException {
-    this(FileSystem.get(config), basePath);
+  public HdfsWarcArtifactDataStore(ArtifactIndex index, Configuration config, String basePath) throws IOException {
+    this(index, FileSystem.get(config), basePath);
   }
 
   /**
@@ -82,8 +83,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param fs An Apache Hadoop {@code FileSystem}.
    * @throws IOException
    */
-  public HdfsWarcArtifactDataStore(FileSystem fs) throws IOException {
-    this(fs, DEFAULT_REPO_BASEDIR);
+  public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs) throws IOException {
+    this(index, fs, DEFAULT_REPO_BASEDIR);
   }
 
   /**
@@ -93,8 +94,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param basePath A {@code String} containing the base path of the LOCKSS repository under HDFS.
    * @throws IOException
    */
-  public HdfsWarcArtifactDataStore(FileSystem fs, String basePath) throws IOException {
-    super(basePath);
+  public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs, String basePath) throws IOException {
+    super(index, basePath);
 
     log.info(String.format(
         "Instantiating a HDFS artifact data store under %s%s",

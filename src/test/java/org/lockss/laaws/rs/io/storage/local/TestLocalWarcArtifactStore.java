@@ -35,6 +35,7 @@ import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
@@ -58,15 +59,15 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   }
 
   @Override
-  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
     File testRepoBaseDir = new File(testsRootDir + "/" + UUID.randomUUID());
     testRepoBaseDir.mkdirs();
-    return new LocalWarcArtifactDataStore(testRepoBaseDir);
+    return new LocalWarcArtifactDataStore(index, testRepoBaseDir);
   }
 
   @Override
-  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(LocalWarcArtifactDataStore other) throws IOException {
-    return new LocalWarcArtifactDataStore(other.getBasePath());
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, LocalWarcArtifactDataStore other) throws IOException {
+    return new LocalWarcArtifactDataStore(index, other.getBasePath());
   }
 
   @Test
@@ -121,7 +122,7 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 
   @Override
   protected String expected_getTmpWarcBasePath() {
-    return getAbsolutePath("/tmp");
+    return "/tmp";
   }
 
   protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {

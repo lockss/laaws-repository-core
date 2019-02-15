@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
@@ -53,9 +54,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   private boolean initialized;
 
-    public LocalWarcArtifactDataStore(File basePath) throws IOException {
-        this(basePath.getAbsolutePath());
-    }
+  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) {
+    this(index, basePath.getAbsolutePath());
+  }
 
   /**
    * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.

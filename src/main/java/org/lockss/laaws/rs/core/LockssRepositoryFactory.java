@@ -64,7 +64,7 @@ public class LockssRepositoryFactory {
      * @return A {@code LocalLockssRepository} instance.
      */
     public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
-        return new LocalLockssRepository(basePath, persistedIndexName);
+        return LocalLockssRepository.getInstance(basePath, persistedIndexName);
     }
 
     /**
@@ -78,7 +78,7 @@ public class LockssRepositoryFactory {
      * @return A {@code LocalLockssRepository} instance.
      */
     public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) throws IOException {
-        return new LocalLockssRepository(basePath, index);
+        return new LocalLockssRepository(index, basePath);
     }
 
     /**
@@ -98,7 +98,7 @@ public class LockssRepositoryFactory {
                                                                String basePath)
         throws IOException {
       ArtifactIndex index = new SolrArtifactIndex(solrClient);
-      ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, basePath);
+      ArtifactDataStore store = new HdfsWarcArtifactDataStore(index, hadoopConf, basePath);
       return new BaseLockssRepository(index, store);
     }
 

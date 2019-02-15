@@ -34,6 +34,7 @@ import java.io.*;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.LocalArtifactIndex;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.log.L4JLogger;
 
@@ -43,31 +44,33 @@ import org.lockss.log.L4JLogger;
 public class LocalLockssRepository extends BaseLockssRepository {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-    /**
-     * Constructor the takes a base path and uses a volatile artifact artifactIndex implementation. It automatically invokes a
-     * rebuild of the artifactIndex from the local filesystem base path.
-     *
-     * @param basePath
-     *          A {@code File} containing the base path of this LOCKSS repository.
-     * @param persistedIndexName
-     *          A String with the name of the file where to persist the index.
-     */
-    public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
-      super(new LocalArtifactIndex(basePath, persistedIndexName), new LocalWarcArtifactDataStore(basePath));
+  /**
+   * Takes a base path and persisted index name and instantiates a LocalLockssRepository.
+   *
+   * @param basePath
+   *          A {@code File} containing the base path of this LOCKSS repository.
+   * @param persistedIndexName
+   *          A String with the name of the file where to persist the index.
+   */
+  public static LockssRepository getInstance(File basePath, String persistedIndexName) throws IOException {
+    ArtifactIndex ai =  new LocalArtifactIndex(basePath, persistedIndexName);
+    ArtifactDataStore ads = new LocalWarcArtifactDataStore(ai, basePath);
+    return new LocalLockssRepository(ai, ads);
+  }
 
-      log.debug("basePath = " + basePath);
-      log.debug("persistedIndexName = " + persistedIndexName);
-    }
+  protected LocalLockssRepository(ArtifactIndex ai, ArtifactDataStore ads) throws IOException {
+    super(ai, ads); /*...*/
+  }
 
-    /**
-     * Constructor that takes a local filesystem base path, and an instance of an ArtifactIndex implementation.
-     *
-     * @param basePath
-     *          A {@code File} containing the base path of this LOCKSS repository.
-     * @param index
-     *          An {@code ArtifactIndex} to use as this repository's artifact index.
-     */
-    public LocalLockssRepository(File basePath, ArtifactIndex index) throws IOException {
-      super(index, new LocalWarcArtifactDataStore(basePath));
-    }
+  /**
+   * Constructor that takes a local filesystem base path, and an instance of an ArtifactIndex implementation.
+   *
+   * @param index
+   *          An {@code ArtifactIndex} to use as this repository's artifact index.
+   * @param basePath
+   *          A {@code File} containing the base path of this LOCKSS repository.
+   */
+  public LocalLockssRepository(ArtifactIndex index, File basePath) throws IOException {
+    super(index, new LocalWarcArtifactDataStore(index, basePath));
+  }
 }

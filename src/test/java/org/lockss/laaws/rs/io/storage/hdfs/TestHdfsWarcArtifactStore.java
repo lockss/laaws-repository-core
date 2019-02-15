@@ -35,6 +35,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -95,18 +96,18 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
         String repoBasePath = String.format("/tests/%s", UUID.randomUUID());
 
         log.info(String.format("Creating HDFS artifact data store with baseDir = %s", repoBasePath));
 
         assertNotNull(hdfsCluster);
-        return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), repoBasePath);
+        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), repoBasePath);
     }
 
     @Override
-    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(HdfsWarcArtifactDataStore other) throws IOException {
-        return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), other.getBasePath());
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, HdfsWarcArtifactDataStore other) throws IOException {
+        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), other.getBasePath());
     }
 
     @Override

@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
@@ -45,13 +46,13 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   private final static L4JLogger log = L4JLogger.getLogger();
 
   @Override
-  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
-    return new VolatileWarcArtifactDataStore();
+  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
+    return new VolatileWarcArtifactDataStore(index);
   }
 
   @Override
-  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(VolatileWarcArtifactDataStore other) throws IOException {
-    VolatileWarcArtifactDataStore n_store = new VolatileWarcArtifactDataStore();
+  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, VolatileWarcArtifactDataStore other) throws IOException {
+    VolatileWarcArtifactDataStore n_store = new VolatileWarcArtifactDataStore(index);
     n_store.warcs.putAll(other.warcs);
     return n_store;
   }
