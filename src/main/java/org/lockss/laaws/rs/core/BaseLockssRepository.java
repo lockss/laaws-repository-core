@@ -169,16 +169,25 @@ public class BaseLockssRepository implements LockssRepository {
         log.warn("Artifact not found in index");
       }
 
-    Lock auidLock = auidLockMap.getLock(new RepoAuid(artifact.getCollection(), artifact.getAuid()));
-    auidLock.lock();
+      if (!artifact.getCommitted()) {
+        // Commit artifact in data store and index
+        Future<Artifact> future = store.commitArtifactData(artifact);
+        index.commitArtifact(artifactId);
 
-    try {
-      // Record the changed status in store
-      store.updateArtifactMetadata(artifact.getIdentifier(), new RepositoryArtifactMetadata(
-          artifact.getIdentifier(),
-          true,
-          false
-      ));
+        if (future != null) {
+          try {
+            Artifact committedArtifact = future.get();
+            index.updateStorageUrl(artifact.getId(), committedArtifact.getStorageUrl());
+            return committedArtifact;
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+            // TODO: Requeue?
+          } catch (ExecutionException e) {
+            e.printStackTrace();
+            // TODO: Handle error
+          }
+        }
+      }
 
       return artifact;
     }
