@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2000-2018, Board of Trustees of Leland Stanford Jr. University,
+Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University,
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -34,7 +34,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import java.io.*;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
@@ -248,12 +247,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //      index.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
       // Assert that the storage URL points to a WARC that is not in the temporary WARCs directory
-      assertFalse(getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(store.getTmpWarcBasePath()));
+      assertFalse(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(store.getTmpWarcBasePath()));
       assertTrue(isFile(new URI(artifact.getStorageUrl()).getPath()));
     } else {
       // Assert that the storage URL points to a WARC within the temporary WARCs directory
       assertTrue(
-          getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(getAbsolutePath(store.getTmpWarcBasePath()))
+	  Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(getAbsolutePath(store.getTmpWarcBasePath()))
       );
     }
 
@@ -456,7 +455,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertFalse(storageUrl.isEmpty());
     assertTrue(isValidStorageUrl(storageUrl));
 
-    String artifactWarcPath = getPathFromStorageUrl(storageUrl);
+    String artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
     assertTrue(isFile(artifactWarcPath));
 
     assertNotNull(store.getTmpWarcBasePath());
@@ -627,12 +626,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     if (log.isDebugEnabled()) {
       log.debug("beforeUrl = {}", beforeUrl);
-      log.debug("getPathFromStorageUrl(beforeUrl) = {}", getPathFromStorageUrl(beforeUrl));
+      log.debug("getPathFromStorageUrl(beforeUrl) = {}", Artifact.getPathFromStorageUrl(beforeUrl));
       log.debug("getTmpWarcBasePath() = {}", store.getTmpWarcBasePath());
       log.debug("getAbsolutePath(getTmpWarcBasePath()) = {}", getAbsolutePath(store.getTmpWarcBasePath()));
     }
 
-    assertTrue(getPathFromStorageUrl(beforeUrl).startsWith(getAbsolutePath(store.getTmpWarcBasePath())));
+    assertTrue(Artifact.getPathFromStorageUrl(beforeUrl).startsWith(getAbsolutePath(store.getTmpWarcBasePath())));
 
     // Move it to permanent storage
     store.moveToPermanentStorage(artifact);
@@ -641,7 +640,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String afterUrl = artifact.getStorageUrl();
     assertEquals(
         getAbsolutePath(store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid())),
-        getPathFromStorageUrl(afterUrl)
+        Artifact.getPathFromStorageUrl(afterUrl)
     );
 
     // Assert successful copy of record
@@ -729,10 +728,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   protected abstract boolean isValidStorageUrl(String storageUrl);
-
-  private String getPathFromStorageUrl(String storageUrl) throws URISyntaxException {
-    return new URI(storageUrl).getPath();
-  }
 
   @Test
   public void testGetCollectionPath() throws Exception {

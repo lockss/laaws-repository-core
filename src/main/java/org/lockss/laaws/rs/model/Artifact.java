@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,6 +31,8 @@
 package org.lockss.laaws.rs.model;
 
 import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
@@ -249,6 +251,11 @@ public class Artifact implements Serializable {
 
     public void setContentDigest(String contentDigest) {
         this.contentDigest = contentDigest;
+    }
+
+    public static String getPathFromStorageUrl(String storageUrl)
+	throws URISyntaxException {
+      return new URI(storageUrl).getPath();
     }
 
     @Override

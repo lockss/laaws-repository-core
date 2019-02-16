@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -57,6 +57,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
@@ -72,6 +73,7 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import java.io.*;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -698,13 +700,50 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     log.info(String.format("Retrieving artifact data for artifact ID: %s", artifact.getId()));
+    
+    // Open an InputStream from the WARC file and get the WARC record representing this artifact data
+    String storageUrl = artifact.getStorageUrl();
+    InputStream warcStream = getInputStreamFromStorageUrl(storageUrl);
 
-    if (artifact.getStorageUrl().startsWith(getTmpWarcBasePath())) {
-      // TODO: Get a lock on this temporary WARC from being deleted
+    // Check whether the artifact is stored in a temporary WARC file.
+    if (storageUrl.startsWith(getTmpWarcBasePath())) {
+      try {
+	// Yes: Locate the temporary WARC file in the pool.
+	String warcFilePath = Artifact.getPathFromStorageUrl(storageUrl);
+	WarcFile warcFile = tmpWarcPool.findWarcFileByPath(warcFilePath);
+
+	// Check whether the temporary WARC file exists in the pool.
+	if (warcFile != null) {
+	  // Yes: Increment the counter of times that the file is in use.
+	  warcFile.incrementInUseCounter();
+	} else {
+	  // No: Report the problem.
+	  String message = "Pool does not contain a WARC file with the path '"
+	      + warcFilePath + "'";
+	  log.error(message);
+	  throw new IOException(message);
+	}
+
+	// Wrap the stream to be read to allow to register the end of this use
+	// of the file.
+	warcStream = new CloseCallbackInputStream(
+	    warcStream,
+	    new CloseCallbackInputStream.Callback() {
+	      // Called when the close() method of the stream is closed.
+	      @Override
+	      public void streamClosed(Object o) {
+		// Decrement the counter of times that the file is in use.
+		((WarcFile)o).decrementInUseCounter();
+	      }
+	    },
+	    warcFile);
+      } catch (URISyntaxException use) {
+	log.error("Cannot get path from storage URL '{}'", storageUrl, use);
+	throw new IllegalArgumentException("Invalid Artifact storage URL '"
+	    + storageUrl + "'");
+      }
     }
 
-    // Open an InputStream from the WARC file and get the WARC record representing this artifact data
-    InputStream warcStream = getInputStreamFromStorageUrl(artifact.getStorageUrl());
     WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0L);
 
     // Convert the WARCRecord object to an ArtifactData
