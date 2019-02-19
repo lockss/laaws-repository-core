@@ -53,8 +53,10 @@ public class RepositoryArtifactMetadata {
      * @param s JSON string
      */
     public RepositoryArtifactMetadata(String s) {
-      JSONObject json = new JSONObject(s);
+        this(new JSONObject(s));
+    }
 
+    public RepositoryArtifactMetadata(JSONObject json) {
       artifactId = json.getString(LOCKSS_MD_ARTIFACTID_KEY);
       committed = json.getBoolean(REPOSITORY_COMMITTED_KEY);
       deleted = json.getBoolean(REPOSITORY_DELETED_KEY);

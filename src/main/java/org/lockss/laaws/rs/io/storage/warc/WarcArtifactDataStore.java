@@ -48,6 +48,7 @@ import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
+import org.json.JSONObject;
 import org.lockss.laaws.rs.io.RepoAuid;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -1333,48 +1334,71 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Load repository artifact metadata by "replaying" them
     for (String metadataFile : repoMetadataWarcFiles) {
-      try {
-        BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(metadataFile));
-        for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", bufferedStream)) {
-          // Parse the JSON into a RepositoryArtifactMetadata object
-          RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(
-              IOUtils.toString(record, "UTF-8")
-          );
+      replayRepositoryMetadata(index, metadataFile);
+    }
+  }
 
-          String artifactId = repoState.getArtifactId();
+  public static final String LOCKSS_METADATA_ARTIFACTID_KEY = "artifactId";
 
-          log.info(String.format(
-              "Replaying repository metadata for artifact %s, from WARC %s record %s in %s",
-              artifactId,
-              record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
-              record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
-              metadataFile
-          ));
+  /**
+   * Reads the journal for a class of artifact metadata from a WARC file at a given path, and builds a map from artifact
+   * ID to its most recently journaled metadata.
+   *
+   * @param metadataFile A {@code String} containing the path to the WARC file containing artifact metadata.
+   * @return A {@code Map<String, JSONObject>} mapping artifact ID to its latest metadata.
+   * @throws IOException
+   */
+  private Map<String, JSONObject> readMetadataJournal(String metadataFile) throws IOException {
+    Map<String, JSONObject> metadata = new HashMap<>();
 
-          if (index.artifactExists(artifactId)) {
-            if (repoState.isDeleted()) {
-              log.info(String.format("Removing artifact %s from index", artifactId));
-              index.deleteArtifact(artifactId);
-              continue;
-            }
+    BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(metadataFile));
 
-            if (repoState.isCommitted()) {
-              log.info(String.format("Marking artifact %s as committed in index", artifactId));
-              index.commitArtifact(artifactId);
-            }
-          } else {
-            if (!repoState.isDeleted()) {
-              log.warn(String.format("Artifact %s not found in index; skipped replay", artifactId));
-            }
-          }
+    for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", bufferedStream)) {
+      JSONObject json = new JSONObject(IOUtils.toString(record, "UTF-8"));
+      String artifactId = json.getString(LOCKSS_METADATA_ARTIFACTID_KEY);
+      metadata.put(artifactId, json);
+    }
+
+    return metadata;
+  }
+
+  /**
+   * Reads and replays repository metadata to a given artifact index.
+   *
+   * @param index An {@code ArtifactIndex} to replay repository metadata to.
+   * @param metadataFile A {@code String} containing the path to a repository metadata journal WARC file.
+   * @throws IOException
+   */
+  private void replayRepositoryMetadata(ArtifactIndex index, String metadataFile) throws IOException {
+    for (JSONObject json : readMetadataJournal(metadataFile).values()) {
+      // Parse the JSON into a RepositoryArtifactMetadata object
+      RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(json);
+
+      // Get the artifact ID of this repository metadata
+      String artifactId = repoState.getArtifactId();
+
+      log.info(String.format(
+          "Replaying repository metadata for artifact %s from repository metadata file %s",
+          artifactId,
+          metadataFile
+      ));
+
+      // Replay to artifact index
+      if (index.artifactExists(artifactId)) {
+        if (repoState.isDeleted()) {
+          log.info(String.format("Removing artifact %s from index", artifactId));
+          index.deleteArtifact(artifactId);
+          continue;
         }
-      } catch (IOException e) {
-        log.error(String.format(
-            "IOException caught while attempt to re-index metadata WARC file %s",
-            metadataFile
-        ));
 
-        throw e;
+        if (repoState.isCommitted()) {
+          log.info(String.format("Marking artifact %s as committed in index", artifactId));
+          index.commitArtifact(artifactId);
+        }
+      } else {
+        if (!repoState.isDeleted()) {
+          log.warn(String.format("Artifact %s not found in index; skipped replay", artifactId));
+        }
       }
     }
   }
