@@ -331,7 +331,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info("Found {} temporary WARCs: {}", tmpWarcs.size(), tmpWarcs);
 
     for (String tmpWarc : tmpWarcs) {
-      boolean isTmpWarcRemovable = true;
+      // Mark this temporary WARC file as not removable if it is currently being
+      // accessed in another thread.
+      boolean isTmpWarcRemovable =
+	  !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
 
       // Open temporary WARC
       try (BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(tmpWarc))) {
@@ -404,6 +407,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   private boolean isTempWarcRemovable(String tmpWarc) throws IOException {
+    // Check whether this temporary WARC file is currently being accessed in
+    // another thread.
+    if (TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
+      // Yes: The temporary WARC file is still needed.
+      return false;
+    }
+
     try (BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(tmpWarc))) {
 
       // Get a WARCReader to the temporary WARC
@@ -708,21 +718,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Check whether the artifact is stored in a temporary WARC file.
     if (storageUrl.startsWith(getTmpWarcBasePath())) {
       try {
-	// Yes: Locate the temporary WARC file in the pool.
+	// Yes: Increment the counter of times that the file is in use.
 	String warcFilePath = Artifact.getPathFromStorageUrl(storageUrl);
-	WarcFile warcFile = tmpWarcPool.findWarcFileByPath(warcFilePath);
-
-	// Check whether the temporary WARC file exists in the pool.
-	if (warcFile != null) {
-	  // Yes: Increment the counter of times that the file is in use.
-	  warcFile.incrementInUseCounter();
-	} else {
-	  // No: Report the problem.
-	  String message = "Pool does not contain a WARC file with the path '"
-	      + warcFilePath + "'";
-	  log.error(message);
-	  throw new IOException(message);
-	}
+	TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
 
 	// Wrap the stream to be read to allow to register the end of this use
 	// of the file.
@@ -733,10 +731,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 	      @Override
 	      public void streamClosed(Object o) {
 		// Decrement the counter of times that the file is in use.
-		((WarcFile)o).decrementInUseCounter();
+		TempWarcInUseTracker.INSTANCE.markUseEnd((String)o);
 	      }
 	    },
-	    warcFile);
+	    warcFilePath);
       } catch (URISyntaxException use) {
 	log.error("Cannot get path from storage URL '{}'", storageUrl, use);
 	throw new IllegalArgumentException("Invalid Artifact storage URL '"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,9 +33,9 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.FileUtils;
 import org.lockss.log.L4JLogger;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public class WarcFilePool {
@@ -48,7 +48,7 @@ public class WarcFilePool {
   private final long blocksize;
   private final long sizeThreshold;
 
-  private final Map<String, WarcFile> warcFiles = new HashMap<>();
+  private final Set<WarcFile> warcFiles = new HashSet<>();
 
   public WarcFilePool(String poolBasePath) {
     this(poolBasePath, DEFAULT_BLOCKSIZE, DEFAULT_THRESHOLD);
@@ -69,7 +69,7 @@ public class WarcFilePool {
   public synchronized WarcFile findWarcFile(long bytesExpected) {
     // TODO: An argument check on bytesExpected
 
-    Optional<WarcFile> opt = warcFiles.values().stream()
+    Optional<WarcFile> opt = warcFiles.stream()
         .filter(warc -> warc.getLength() + bytesExpected < sizeThreshold)
         // TODO: Use stream().max()
         .sorted((w1, w2) ->
@@ -97,7 +97,7 @@ public class WarcFilePool {
    */
   protected synchronized WarcFile createWarcFile() {
     WarcFile warcFile = new WarcFile(poolBasePath + "/" + UUID.randomUUID().toString() + ".warc", 0);
-    warcFiles.put(warcFile.getPath(), warcFile);
+    warcFiles.add(warcFile);
     return warcFile;
   }
 
@@ -108,7 +108,7 @@ public class WarcFilePool {
    *          The {@code WarcFile} to add back to this pool.
    */
   public synchronized void returnWarcFile(WarcFile warcFile) {
-    warcFiles.put(warcFile.getPath(), warcFile);
+    warcFiles.add(warcFile);
   }
 
   /**
@@ -118,7 +118,7 @@ public class WarcFilePool {
    *          The instance of {@code WarcFile} to remove from this pool.
    */
   protected synchronized void removeWarcFile(WarcFile warcFile) {
-    warcFiles.remove(warcFile.getPath());
+    warcFiles.remove(warcFile);
   }
 
   /**
@@ -130,7 +130,7 @@ public class WarcFilePool {
     long numWarcFiles = 0;
 
     // Iterate over WarcFiles in this pool
-    for (WarcFile warc : warcFiles.values()) {
+    for (WarcFile warc : warcFiles) {
       long blocks = (long) Math.ceil(new Float(warc.getLength()) / new Float(blocksize));
       totalBlocksAllocated += blocks;
       totalBytesUsed += warc.getLength();
@@ -155,17 +155,5 @@ public class WarcFilePool {
         100.0f * new Float(totalBytesUsed) / new Float(totalBlocksAllocated * blocksize),
         numWarcFiles
     ));
-  }
-
-  /**
-   * Provides the WarcFile that has a given path.
-   *
-   * @param path
-   *          A String with the path of the WarcFile.
-   * @return A WarcFile with the WarcFile, or <code>null</code> if the pool does
-   *         not contain a WarcFile with the passed path.
-   */
-  public synchronized WarcFile findWarcFileByPath(String path) {
-    return warcFiles.get(path);
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,13 +30,10 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 public class WarcFile {
   private String path;
   private long length = 0;
   private long nextOffset = 0;
-  private final AtomicInteger inUseCounter = new AtomicInteger();
 
   public WarcFile(String path, long length) {
     this.path = path;
@@ -54,17 +51,5 @@ public class WarcFile {
 
   public void setLength(long length) {
     this.length = length;
-  }
-
-  public boolean isInUseCounterZero() {
-    return inUseCounter.get() == 0;
-  }
-
-  public void decrementInUseCounter() {
-    inUseCounter.decrementAndGet();
-  }
-
-  public void incrementInUseCounter() {
-    inUseCounter.incrementAndGet();
   }
 }
