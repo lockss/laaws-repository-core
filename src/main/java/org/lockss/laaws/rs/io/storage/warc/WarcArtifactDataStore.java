@@ -135,6 +135,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected ScheduledExecutorService scheduledExecutor;
   protected StripedExecutorService stripedExecutor;
 
+  // The Artifact life cycle states.
+  protected enum ArtifactState {
+    NOT_INDEXED,
+    UNCOMMITTED,
+    EXPIRED,
+    COMMITTED,
+    COPIED;
+  }
+
   /**
    * The interval to wait between consecutive retries when creating the JMS
    * consumer.
@@ -182,6 +191,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected abstract boolean removeWarc(String warcPath) throws IOException;
 
   protected abstract long getBlockSize();
+  protected abstract String getAbsolutePath(String path);
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS
@@ -332,10 +342,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info("Found {} temporary WARCs: {}", tmpWarcs.size(), tmpWarcs);
 
     for (String tmpWarc : tmpWarcs) {
-      // Mark this temporary WARC file as not removable if it is currently being
-      // accessed in another thread.
-      boolean isTmpWarcRemovable =
-	  !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
+      boolean isTmpWarcRemovable = true;
 
       // Open temporary WARC
       try (BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(tmpWarc))) {
@@ -347,44 +354,38 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         for (ArchiveRecord record : archiveReader) {
 
           boolean isRecordRemovable = false;
-          boolean committed = false;
-          boolean copied = false;
-
           ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
           String artifactId = artifactData.getIdentifier().getId();
-          boolean expired = isArtifactExpired(record);
 
-          Artifact artifact = artifactIndex.getArtifact(artifactData.getIdentifier().getId());
-
-          if (artifact != null) {
-            copied = !artifact.getStorageUrl().startsWith(getTmpWarcBasePath());
-            committed = artifact.getCommitted();
-          }
-
-          if (!committed && !expired) {
-            if (artifact == null) {
-              // Reindex artifact
-              log.warn( "Could not find artifact {} in index; reindexing", artifactId);
-              artifactIndex.indexArtifact(artifactData);
-            }
-          } else {
-            if (committed && !copied) {
-              // Requeue the copy of this artifact from temporary to permanent storage
-              log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
-              stripedExecutor.submit(new CommitArtifactTask(artifact));
-            } else {
-              // WARC record no longer needed
-              isRecordRemovable = true;
-            }
+          // Handle the different life cycle states in which the artifact may
+          // be.
+          switch (getArtifactState(isArtifactExpired(record),
+              artifactIndex.getArtifact(artifactId))) {
+          case NOT_INDEXED:
+            // Reindex artifact
+            log.warn( "Could not find artifact {} in index; reindexing", artifactId);
+            artifactIndex.indexArtifact(artifactData);
+            break;
+          case UNCOMMITTED:
+            break;
+          case COMMITTED:
+            // Requeue the copy of this artifact from temporary to permanent storage
+            log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
+            stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
+            break;
+          case EXPIRED:
+          case COPIED:
+            isRecordRemovable = true;
           }
 
           // All records must be removable for temporary WARC file to be removable
           isTmpWarcRemovable &= isRecordRemovable;
         }
 
+        bufferedStream.close();
+
         // Handle this WARC file
         if (isTmpWarcRemovable) {
-          bufferedStream.close();
           removeWarc(tmpWarc);
         } else {
           // Return WARC to temporary WARC pool
@@ -392,10 +393,63 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           tmpWarcPool.returnWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
         }
 
+      } catch (URISyntaxException use) {
+        log.error("Caught URISyntaxException while trying to reload temporary WARC: {}: {}", tmpWarc, use);
       } catch (IOException e) {
         log.error("Caught IOException while trying to reload temporary WARC: {}: {}", tmpWarc, e);
       }
     }
+  }
+
+  /**
+   * Provides the state of an Artifact in its life cycle.
+   * 
+   * @param expired
+   *          A boolean with the indication of whether the artifact record has
+   *          expired.
+   * @param artifact
+   *          An Artifact with the Artifact.
+   * @return an ArtifactState with the state of the Artifact.
+   */
+  protected ArtifactState getArtifactState(boolean expired,
+      Artifact artifact) throws URISyntaxException {
+    // Check whether the Artifact is in the index.
+    if (artifact != null) {
+      // Yes: Check whether its storage URL is not in a temporary WARC file.
+      if (!Artifact.getPathFromStorageUrl(artifact.getStorageUrl())
+	  .startsWith(getAbsolutePath(getTmpWarcBasePath()))) {
+	// Yes: It has been copied to permanent storage already.
+	log.debug2("ArtifactState = {}", ArtifactState.COPIED);
+	return ArtifactState.COPIED;
+      }
+
+      // No: Check whether the Artifact is committed.
+      if (artifact.getCommitted()) {
+	// Yes.
+	log.debug2("ArtifactState = {}", ArtifactState.COMMITTED);
+	return ArtifactState.COMMITTED;
+      }
+    }
+
+    // The Artifact is not committed or copied: Check whether the Artifact has
+    // expired.
+    if (expired) {
+      // Yes.
+      log.debug2("ArtifactState = {}", ArtifactState.EXPIRED);
+      return ArtifactState.EXPIRED;
+    }
+
+    // No, the Artifact has not expired: Check whether the Artifact is not in
+    // the index.
+    if (artifact == null) {
+      // Yes.
+      log.debug2("ArtifactState = {}", ArtifactState.NOT_INDEXED);
+      return ArtifactState.NOT_INDEXED;
+    }
+
+    // No: The Artifact is indexed.
+    log.debug2("ArtifactState = {}", ArtifactState.UNCOMMITTED);
+    return ArtifactState.UNCOMMITTED;
   }
 
   /**
@@ -408,27 +462,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   private boolean isTempWarcRemovable(String tmpWarc) throws IOException {
-    // Check whether this temporary WARC file is currently being accessed in
-    // another thread.
-    if (TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
-      // Yes: The temporary WARC file is still needed.
-      return false;
-    }
-
     try (BufferedInputStream bufferedStream = new BufferedInputStream(getInputStream(tmpWarc))) {
 
       // Get a WARCReader to the temporary WARC
       ArchiveReader archiveReader = WARCReaderFactory.get(tmpWarc, bufferedStream, true);
 
       for (ArchiveRecord record : archiveReader) {
-        if (isTempWarcRecordRemovable(record) == false) {
+        if (!isTempWarcRecordRemovable(record)) {
           // Temporary WARC contains a WARC record that is still needed
           return false;
         }
       }
 
       // Reached here because none of the records in the temporary WARC file are needed
-      return true;
+      // Check whether the temporary WARC file is in use elsewhere.
+      return !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
     }
   }
 
@@ -462,7 +510,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     String artifactId = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY);
 
     // Get the WARC record ID and type
-    String recordId = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_ID);
     String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
 
     // WARC records not of type "response" or "resource" are okay to remove
@@ -472,43 +519,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         return true;
     }
 
-    // Parse WARC-Date field and determine if this record / artifact is expired (same date should be in index)
-    boolean expired = isArtifactExpired(record);
-
     try {
-      // Get artifact state from index
-      Artifact artifact = artifactIndex.getArtifact(artifactId);
-
-      if (artifact != null) {
-        // YES: Artifact exists in index
-        boolean committed = artifact.getCommitted();
-
-        if (!expired && !committed) {
-          // Unexpired and uncommitted -> Keep this temp WARC record
-          return false;
-        } else {
-          // Expired and committed     -> Remove temp record (if successfully committed) + keep in index
-          // Unexpired and committed   -> Remove temp record (if successfully committed) + keep in index
-
-          if (committed) {
-            // Q: Should we verify the commit was successful? Do we trust the committed bit from the index?
-          } else if (expired) {
-            // Expired and uncommitted   -> Remove temp record + remove from index
-            // TODO: Remove artifact from index
-          }
-
-          // Remove temp this WARC record
-          return true;
-        }
-      } else {
-        // NO: Artifact does not exists in index
-
-        if (!expired) {
-          // TODO: Attempt to index as an uncommitted artifact
-
-          // Keep this temp WARC record
-          return false;
-        }
+      // Handle the different life cycle states in which the artifact may be.
+      switch (getArtifactState(isArtifactExpired(record),
+	  artifactIndex.getArtifact(artifactId))) {
+      case NOT_INDEXED:
+      case COMMITTED:
+      case UNCOMMITTED:
+        return false;
+      case EXPIRED:
+      case COPIED:
+        return true;
       }
 
       // Q: Should we verify committed and deleted status recorded in the repository metadata journal?
@@ -520,6 +541,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       boolean committed = artifactRepoMetadata.isCommitted();
       boolean deleted = artifactRepoMetadata.isDeleted();
       */
+    } catch (URISyntaxException use) {
+      log.error("Could not get artifact state: {}", use);
     } catch (IOException e) {
       log.error("Could not retrieve artifact from index: {}", e);
     }

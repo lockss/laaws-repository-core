@@ -50,13 +50,8 @@ public enum TempWarcInUseTracker {
    *          A String with the storage URL path to the temporary WARC file.
    */
   public synchronized void markUseStart(String path) {
-    Integer count = inUseMap.get(path);
-
-    if (count == null) {
-      inUseMap.put(path, 1);
-    } else {
-      inUseMap.put(path, count.intValue() + 1);
-    }
+    inUseMap.putIfAbsent(path, 0);
+    inUseMap.put(path, inUseMap.get(path) + 1);
   }
 
   /**
@@ -69,8 +64,8 @@ public enum TempWarcInUseTracker {
     Integer count = inUseMap.get(path);
 
     if (count == null) {
-      throw new IllegalArgumentException(
-	  "Cannot decrease use count of missing WARC file '" + path + "'");
+      throw new IllegalStateException(
+	  "Attempt to decrement past zero for WARC file '" + path + "'");
     } else if (count.intValue() == 1) {
       inUseMap.remove(path);
     } else {
@@ -86,12 +81,12 @@ public enum TempWarcInUseTracker {
    * @return <code>true</code> if the temporary WARC file is in use,
    *         <code>false</code> otherwise.
    */
-  public boolean isInUse(String path) {
+  public synchronized boolean isInUse(String path) {
     return inUseMap.get(path) != null;
   }
 
   @Override
-  public String toString() {
+  public synchronized String toString() {
     return "[TempWarcInUseTracker inUseMap=" + inUseMap + "]";
   }
 }

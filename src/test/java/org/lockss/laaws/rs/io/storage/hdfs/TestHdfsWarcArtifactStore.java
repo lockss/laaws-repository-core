@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -84,15 +84,15 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     @Test
     public void testInitCollection() throws Exception {
         store.initCollection("collection");
-        assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
+        assertTrue(isDirectory(store.getAbsolutePath(store.getCollectionPath("collection"))));
     }
 
     @Override
     @Test
     public void testInitAu() throws Exception {
         store.initAu("collection", "auid");
-        assertTrue(isDirectory(getAbsolutePath(store.getCollectionPath("collection"))));
-        assertTrue(isDirectory(getAbsolutePath(store.getAuPath("collection", "auid"))));
+        assertTrue(isDirectory(store.getAbsolutePath(store.getCollectionPath("collection"))));
+        assertTrue(isDirectory(store.getAbsolutePath(store.getAuPath("collection", "auid"))));
     }
 
     @Override
@@ -118,11 +118,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     @Override
     protected boolean isValidStorageUrl(String storageUrl) {
         return true;
-    }
-
-    @Override
-    protected String getAbsolutePath(String path) {
-        return Path.mergePaths(new Path(store.getBasePath()), new Path(path)).toString();
     }
 
     @Override

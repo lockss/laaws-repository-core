@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -302,5 +302,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean removeWarc(String path) throws IOException {
     return fs.delete(new Path(getBasePath() + path), false);
+  }
+
+  @Override
+  protected String getAbsolutePath(String path) {
+      return Path.mergePaths(new Path(getBasePath()), new Path(path)).toString();
   }
 }

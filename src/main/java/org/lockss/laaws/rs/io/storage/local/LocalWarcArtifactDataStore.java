@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -236,6 +236,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
         return metadata.isCommitted();
+    }
+
+    @Override
+    protected String getAbsolutePath(String path) {
+      File pathDir = new File(getBasePath(), path);
+      return pathDir.toString();
     }
 
 }

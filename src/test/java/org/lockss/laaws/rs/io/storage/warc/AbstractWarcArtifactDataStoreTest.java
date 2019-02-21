@@ -56,6 +56,7 @@ import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.ArtifactState;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
@@ -175,7 +176,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     store.initWarc(warcPath);
 
-    assertTrue(isFile(getAbsolutePath(warcPath)));
+    assertTrue(isFile(store.getAbsolutePath(warcPath)));
   }
 
   /**
@@ -209,6 +210,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Temporary WARCs directory storage paths
     String fullTmpWarcPath = new File(store.getBasePath(), store.getTmpWarcBasePath()).getPath();
+
+    String absoluteTmpWarcBasePath =
+	store.getAbsolutePath(store.getTmpWarcBasePath());
 
     // Configure WARC artifact data store with a newly instantiated volatile artifact index
     ArtifactIndex index = new VolatileArtifactIndex();
@@ -247,12 +251,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //      index.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
       // Assert that the storage URL points to a WARC that is not in the temporary WARCs directory
-      assertFalse(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(store.getTmpWarcBasePath()));
+      assertFalse(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(absoluteTmpWarcBasePath));
       assertTrue(isFile(new URI(artifact.getStorageUrl()).getPath()));
     } else {
       // Assert that the storage URL points to a WARC within the temporary WARCs directory
       assertTrue(
-	  Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(getAbsolutePath(store.getTmpWarcBasePath()))
+	  Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(absoluteTmpWarcBasePath)
       );
     }
 
@@ -447,7 +451,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(ad.getContentDigest(), a.getContentDigest());
 
     // Assert temporary WARC directory exists
-    assertTrue(isDirectory(getAbsolutePath(store.getTmpWarcBasePath())));
+    assertTrue(isDirectory(store.getAbsolutePath(store.getTmpWarcBasePath())));
 
     // Assert things about the artifact's storage URL
     String storageUrl = a.getStorageUrl();
@@ -459,9 +463,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(isFile(artifactWarcPath));
 
     assertNotNull(store.getTmpWarcBasePath());
-    assertNotNull(getAbsolutePath(store.getTmpWarcBasePath()));
+    assertNotNull(store.getAbsolutePath(store.getTmpWarcBasePath()));
 
-    assertTrue(artifactWarcPath.startsWith(getAbsolutePath(store.getTmpWarcBasePath())));
+    assertTrue(artifactWarcPath.startsWith(store.getAbsolutePath(store.getTmpWarcBasePath())));
   }
 
   @Test
@@ -628,10 +632,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       log.debug("beforeUrl = {}", beforeUrl);
       log.debug("getPathFromStorageUrl(beforeUrl) = {}", Artifact.getPathFromStorageUrl(beforeUrl));
       log.debug("getTmpWarcBasePath() = {}", store.getTmpWarcBasePath());
-      log.debug("getAbsolutePath(getTmpWarcBasePath()) = {}", getAbsolutePath(store.getTmpWarcBasePath()));
+      log.debug("getAbsolutePath(getTmpWarcBasePath()) = {}", store.getAbsolutePath(store.getTmpWarcBasePath()));
     }
 
-    assertTrue(Artifact.getPathFromStorageUrl(beforeUrl).startsWith(getAbsolutePath(store.getTmpWarcBasePath())));
+    assertTrue(Artifact.getPathFromStorageUrl(beforeUrl).startsWith(store.getAbsolutePath(store.getTmpWarcBasePath())));
 
     // Move it to permanent storage
     store.moveToPermanentStorage(artifact);
@@ -639,7 +643,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Assert the storage URL points to the current active WARC for this AU
     String afterUrl = artifact.getStorageUrl();
     assertEquals(
-        getAbsolutePath(store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid())),
+        store.getAbsolutePath(store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid())),
         Artifact.getPathFromStorageUrl(afterUrl)
     );
 
@@ -808,7 +812,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract boolean pathExists(String path) throws IOException;
   protected abstract boolean isDirectory(String path) throws IOException;
   protected abstract boolean isFile(String path) throws IOException;
-  protected abstract String getAbsolutePath(String path);
 
   @Test
   public void testRebuildIndex() throws Exception {
@@ -1087,5 +1090,82 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    assertNotEquals(art3.getStorageUrl(), art3i.getStorageUrl());
 
   }
-  
+
+  /**
+   * Tests for the determination of the life cycle state of an Artifact.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testGetArtifactState() throws Exception {
+    runTestGetArtifactState(true);
+    runTestGetArtifactState(false);
+  }
+
+  /**
+   * Runs tests for the determination of the life cycle state of an Artifact.
+   *
+   * @param expire A boolean indicating whether the artifact has expired.
+   * @throws Exception
+   */
+  private void runTestGetArtifactState(boolean expired) throws Exception {
+    // Instantiate a new WARC artifact data store
+    store = makeWarcArtifactDataStore(null);
+    assertNotNull(store);
+
+    // Get the state of an artifact that has not been indexed.
+    ArtifactState artifactState = store.getArtifactState(expired, null);
+    log.trace("artifactState = {}", artifactState);
+
+    // Verify.
+    if (expired) {
+      assertEquals(ArtifactState.EXPIRED, artifactState);
+    } else {
+      assertEquals(ArtifactState.NOT_INDEXED, artifactState);
+    }
+
+    // Configure WARC artifact data store with a newly instantiated volatile artifact index
+    ArtifactIndex index = new VolatileArtifactIndex();
+    store.setArtifactIndex(index);
+    assertEquals(index, store.getArtifactIndex());
+
+    // Initialize the data store
+    index.initArtifactIndex();
+
+    // Add an artifact to the store and index
+    ArtifactData ad = generateTestArtifactData("coll", "auid", "uri", 1, 512);
+    store.addArtifactData(ad);
+    Artifact artifact = index.indexArtifact(ad);
+
+    // Get the artifact state.
+    artifactState = store.getArtifactState(expired, artifact);
+    log.trace("artifactState = {}", artifactState);
+
+    // Verify.
+    if (expired) {
+      assertEquals(ArtifactState.EXPIRED, artifactState);
+    } else {
+      assertEquals(ArtifactState.UNCOMMITTED, artifactState);
+    }
+
+    // Commit the artifact.
+    artifact.setCommitted(true);
+
+    // Verify.
+    assertEquals(ArtifactState.COMMITTED,
+	store.getArtifactState(expired, artifact));
+
+    // Commit to artifact data store
+    Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
+    assertNotNull(artifactFuture);
+
+    // Wait for data store commit (copy from temporary to permanent storage) to complete
+    artifact = artifactFuture.get(); // TODO: Enable a timeout
+    assertNotNull(artifact);
+    assertTrue(artifact.getCommitted());
+
+    // Verify.
+    assertEquals(ArtifactState.COPIED,
+	store.getArtifactState(expired, artifact));
+  }
 }

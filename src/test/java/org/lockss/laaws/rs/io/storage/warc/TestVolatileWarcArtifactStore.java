@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -90,11 +90,6 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   @Override
   protected boolean isFile(String path) {
     return store.warcs.get(path) != null;
-  }
-
-  @Override
-  protected String getAbsolutePath(String path) {
-    return path;
   }
 
   @Override
