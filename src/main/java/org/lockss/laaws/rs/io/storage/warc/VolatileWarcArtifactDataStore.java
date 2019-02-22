@@ -42,7 +42,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -160,20 +159,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     return null;
-  }
-  
-  @Override
-  public InputStream getInputStreamFromStorageUrl(String storageUrl) throws IOException {
-    log.info("storageUrl = {}", storageUrl);
-
-    Pattern p = Pattern.compile("volatile://(.*)\\?offset=(\\d+)&length=(\\d+)$");
-    Matcher m = p.matcher(storageUrl);
-
-    if (m.matches()) {
-      return getInputStreamAndSeek(m.group(1), Long.parseUnsignedLong(m.group(2)));
-    } else {
-      throw new IllegalArgumentException("Bad storage URL");
-    }
   }
 
   @Override
