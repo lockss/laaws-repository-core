@@ -187,7 +187,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testReloadTempWarcs() throws Exception {
 //    assertThrows(IllegalArgumentException.class, () -> store.setArtifactIndex(null));
-    assertThrows(IllegalStateException.class, () -> store.reloadDataStoreState());
+    assertThrows(IllegalStateException.class, () -> store.reloadTemporaryWarcs());
 
     runTestReloadTempWarcs(true, true);
     runTestReloadTempWarcs(true, false);
@@ -282,9 +282,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertEquals(0, store.getUncommittedArtifactExpiration());
     }
 
-    // Initialize the data store again
-    store.initArtifactDataStore();
-    assertTrue(store.isReady());
+    // Reload temporary WARCs
+    store.reloadTemporaryWarcs();
 
     // Scan directories for temporary WARC files and assert its state
     tmpWarcs = store.findWarcs(fullTmpWarcPath);
@@ -1105,7 +1104,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   /**
    * Runs tests for the determination of the life cycle state of an Artifact.
    *
-   * @param expire A boolean indicating whether the artifact has expired.
+   * @param expired A boolean indicating whether the artifact has expired.
    * @throws Exception
    */
   private void runTestGetArtifactState(boolean expired) throws Exception {

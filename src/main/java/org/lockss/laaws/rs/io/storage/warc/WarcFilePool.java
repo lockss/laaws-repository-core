@@ -33,10 +33,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.FileUtils;
 import org.lockss.log.L4JLogger;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class WarcFilePool {
   private static final L4JLogger log = L4JLogger.getLogger();
@@ -61,44 +58,53 @@ public class WarcFilePool {
   }
 
   /**
-   * Finds a suitable WarcFile for the number of bytes pending to be written, or creates one if one could not be found.
-   *
-   * @param bytesExpected
-   * @return
-   */
-  public synchronized WarcFile findWarcFile(long bytesExpected) {
-    // TODO: An argument check on bytesExpected
-
-    Optional<WarcFile> opt = warcFiles.stream()
-        .filter(warc -> warc.getLength() + bytesExpected < sizeThreshold)
-        // TODO: Use stream().max()
-        .sorted((w1, w2) ->
-            // TODO: Write a method, unit test, and comment explain this:
-            (int)((((w2.getLength() - 1 + bytesExpected) % blocksize) + 1) - (((w1.getLength() - 1 + bytesExpected) % blocksize) + 1)))
-        .findFirst();
-
-    WarcFile warcFile;
-
-    if (opt.isPresent()) {
-      warcFile = opt.get();
-    } else {
-      warcFile = createWarcFile();
-    }
-
-    removeWarcFile(warcFile);
-
-    return warcFile;
-  }
-
-  /**
    * Creates a new WarcFile at the base path of this WarcFile pool.
    *
    * @return A new {@code WarcFile} instance
    */
   protected synchronized WarcFile createWarcFile() {
     WarcFile warcFile = new WarcFile(poolBasePath + "/" + UUID.randomUUID().toString() + ".warc", 0);
-    warcFiles.add(warcFile);
+    addWarcFile(warcFile);
     return warcFile;
+  }
+
+  /**
+   * Finds a suitable WarcFile for the number of bytes pending to be written, or creates one if one could not be found.
+   *
+   * @param bytesExpected A {@code long} representing the number of bytes expected to be written.
+   * @return A {@code WarcFile} from this pool.
+   */
+  public synchronized WarcFile borrowWarcFile(long bytesExpected) {
+    if (bytesExpected < 0) {
+      throw new IllegalArgumentException("bytesExpected must be a positive integer");
+    }
+
+    Optional<WarcFile> opt = warcFiles.stream()
+        .filter(warc -> warc.getLength() + bytesExpected <= sizeThreshold)
+        .max((w1, w2) ->
+            (int)(getBytesUsedLastBlock(w2.getLength() + bytesExpected) - getBytesUsedLastBlock(w1.getLength() + bytesExpected))
+        );
+
+    // Create a new WARC if there does not exist a WarcFile that can hold the expected number of bytes
+    WarcFile warcFile = opt.isPresent() ? opt.get() : createWarcFile();
+
+    // Remove WARC file from the pool
+    removeWarcFile(warcFile);
+
+    // Mark the WARC file as in use
+    TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
+
+    return warcFile;
+  }
+
+  /**
+   * Computes the bytes used in the last block, assuming all previous blocks are maximally filled.
+   *
+   * @param size
+   * @return
+   */
+  protected long getBytesUsedLastBlock(long size) {
+    return ((size - 1) % blocksize) + 1;
   }
 
   /**
@@ -108,7 +114,17 @@ public class WarcFilePool {
    *          The {@code WarcFile} to add back to this pool.
    */
   public synchronized void returnWarcFile(WarcFile warcFile) {
+    TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
     warcFiles.add(warcFile);
+  }
+
+  /**
+   * Adds a WarcFile object to this pool.
+   *
+   * @param warcFile The {@code WarcFile} to add to this pool.
+   */
+  public synchronized void addWarcFile(WarcFile... warcFile) {
+    warcFiles.addAll(Arrays.asList(warcFile));
   }
 
   /**

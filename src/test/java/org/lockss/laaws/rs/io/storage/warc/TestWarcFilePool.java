@@ -61,7 +61,7 @@ class TestWarcFilePool {
       try {
         for (int i = 0; i < 1000; i++) {
           long bytesExpected = (long) (Math.random() * FileUtils.ONE_MB * 20.1f);
-          WarcFile warcFile = warcFilePool.findWarcFile(bytesExpected);
+          WarcFile warcFile = warcFilePool.borrowWarcFile(bytesExpected);
 //          log.info(String.format("%s: Got: %s: Length: %d", threadName, warcFile.getPath(), warcFile.getLength()));
 
           warcFile.setLength(warcFile.getLength() + bytesExpected);
