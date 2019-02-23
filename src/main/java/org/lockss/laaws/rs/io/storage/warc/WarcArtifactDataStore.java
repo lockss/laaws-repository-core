@@ -255,7 +255,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   private class GarbageCollectTempWarcsTask implements Runnable {
     @Override
     public void run() {
-      log.info("Garbage collecting temporary files");
       garbageCollectTempWarcs();
     }
   }
@@ -656,14 +655,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact data has null identifier");
     }
 
-    log.info(String.format(
-        "Adding artifact (%s, %s, %s, %s, %s)",
+    log.info( "Adding artifact ({}, {}, {}, {}, {})",
         artifactId.getId(),
         artifactId.getCollection(),
         artifactId.getAuid(),
         artifactId.getUri(),
         artifactId.getVersion()
-    ));
+    );
 
     // Create a DFOS to contain our serialized artifact
     try (DeferredFileOutputStream dfos = new DeferredFileOutputStream(
@@ -690,14 +688,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
         dfos.writeTo(output);
 
-        log.info(String.format(
-            "Wrote %d bytes starting at byte offset %d to %s; size is now %d",
-            bytesWritten,
-            offset,
-            tmpWarcFilePath,
-            offset + bytesWritten
-        ));
-      }
+          log.info("Wrote {} bytes starting at byte offset {} to {}; size is now {}",
+              bytesWritten,
+              offset,
+              tmpWarcFilePath,
+              offset + bytesWritten
+          );
+        }
 
       // Update temporary WARC stats and return to pool
       tmpWarcFile.setLength(offset + bytesWritten);
@@ -733,7 +730,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact is null");
     }
 
-    log.info(String.format("Retrieving artifact data for artifact ID: %s", artifact.getId()));
+    log.info("Retrieving artifact data for artifact ID: {}", artifact.getId());
     
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
     String storageUrl = artifact.getStorageUrl();
@@ -970,15 +967,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       InputStream is = getInputStreamFromStorageUrl(storageUrl);
       long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
-      log.info(String.format(
-          "Moved artifact %s: Wrote %d of %d bytes starting at byte offset %d to %s; size of WARC file is now %d",
+      log.info("Moved artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is now {}",
           artifact.getIdentifier().getId(),
           bytesWritten,
           recordLength,
           warcLength,
           dst,
           warcLength + recordLength
-      ));
+      );
     }
 
     // Immediately seal if we've gone over the size threshold and filled all the blocks perfectly
@@ -1034,7 +1030,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // TODO: Actually remove artifact from storage. A more likely design is a garbage collector with customizable
       // policy because it is expensive to cut and splice artifacts.
     } else {
-      log.warn(String.format("Artifact is already deleted (Artifact ID: %s)", artifact.getId()));
+      log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
     }
 
     return repoMetadata;
@@ -1400,27 +1396,26 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Get the artifact ID of this repository metadata
       String artifactId = repoState.getArtifactId();
 
-      log.info(String.format(
-          "Replaying repository metadata for artifact %s from repository metadata file %s",
+      log.info("Replaying repository metadata for artifact {} from repository metadata file {}",
           artifactId,
           metadataFile
-      ));
+      );
 
       // Replay to artifact index
       if (index.artifactExists(artifactId)) {
         if (repoState.isDeleted()) {
-          log.info(String.format("Removing artifact %s from index", artifactId));
+          log.info("Removing artifact {} from index", artifactId);
           index.deleteArtifact(artifactId);
           continue;
         }
 
         if (repoState.isCommitted()) {
-          log.info(String.format("Marking artifact %s as committed in index", artifactId));
+          log.info("Marking artifact {} as committed in index", artifactId);
           index.commitArtifact(artifactId);
         }
       } else {
         if (!repoState.isDeleted()) {
-          log.warn(String.format("Artifact %s not found in index; skipped replay", artifactId));
+          log.warn("Artifact {} not found in index; skipped replay", artifactId);
         }
       }
     }
@@ -1466,18 +1461,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               index.indexArtifact(artifactData);
             }
           } catch (IOException e) {
-            log.error(String.format(
-                "IOException caught while attempting to re-index WARC record %s from %s",
+            log.error("IOException caught while attempting to re-index WARC record {} from {}",
                 record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
                 warcFile
-            ));
+            );
 
             throw e;
           }
-
         }
       } catch (IOException e) {
-        log.error(String.format("IOException caught while attempt to re-index WARC file %s", warcFile));
+        log.error("IOException caught while attempting to re-index WARC file {}: {}", warcFile, e.getStackTrace());
         throw e;
       }
     }
@@ -1547,7 +1540,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Sanity check
       if (bytesWritten != record.getContentLength()) {
-        log.warn(String.format("Expected to write %d bytes, but wrote %d", record.getContentLength(), bytesWritten));
+        log.warn("Expected to write {} bytes, but wrote {}", record.getContentLength(), bytesWritten);
       }
     }
 
