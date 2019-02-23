@@ -818,34 +818,42 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIndex index1 = new VolatileArtifactIndex();
     ArtifactIndex index2 = new VolatileArtifactIndex();
 
-    //// Create and populate first index by adding new artifacts to a repository
+    //// Create and populate first index by adding and indexing new artifacts
     store.setArtifactIndex(index1);
-    LockssRepository repository = new BaseLockssRepository(index1, store);
 
     // Add first artifact to the repository - don't commit
     ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
-    Artifact a1 = repository.addArtifact(ad1);
+    Artifact a1 = store.addArtifactData(ad1);
+    index1.indexArtifact(ad1);
 
     // Add second artifact to the repository - commit
     ArtifactData ad2 = generateTestArtifactData("collection1", "auid1", "uri2", 1, 1024);
-    Artifact a2 = repository.addArtifact(ad2);
-    repository.commitArtifact(a2);
+    Artifact a2 = store.addArtifactData(ad2);
+    index1.indexArtifact(ad2);
+    store.commitArtifactData(a2);
+    index1.commitArtifact(a2.getId());
 
     // Add third artifact to the repository - don't commit but immediately delete
     ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
-    Artifact a3 = repository.addArtifact(ad3);
-    repository.deleteArtifact(a3);
+    Artifact a3 = store.addArtifactData(ad3);
+    index1.indexArtifact(ad3);
+    store.deleteArtifactData(a3);
+    index1.deleteArtifact(a3.getId());
 
     // Add fourth artifact to the repository - commit and delete
     ArtifactData ad4 = generateTestArtifactData("collection1", "auid1", "uri4", 1, 1024);
-    Artifact a4 = repository.addArtifact(ad4);
-    repository.commitArtifact(a4);
-    repository.deleteArtifact(a4);
+    Artifact a4 = store.addArtifactData(ad4);
+    index1.indexArtifact(ad4);
+    store.commitArtifactData(a4);
+    index1.commitArtifact(a4.getId());
+    store.deleteArtifactData(a4);
+    index1.deleteArtifact(a4.getId());
 
-    // Populate second index by rebuilding
+    //// Populate second index by rebuilding
+    store = makeWarcArtifactDataStore(index2, store);
     store.rebuildIndex(index2);
 
-    //// Compare indexes
+    //// Compare and assert contents of indexes
 
     // Compare collections IDs
     List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
@@ -880,6 +888,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   @Test
+  @Disabled
   public void testRebuildIndexSealed() throws Exception {
     // Instances of artifact index to populate and compare
     ArtifactIndex index3 = new VolatileArtifactIndex();
