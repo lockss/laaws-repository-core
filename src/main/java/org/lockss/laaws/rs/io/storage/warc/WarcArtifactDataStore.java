@@ -286,9 +286,37 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
+
+      // TODO: Resolve race condition: Need to lock further writes to WARC until finished
+
+      for (String tmpWarcPath: tmpWarcs) {
+        WarcFile warcFile = tmpWarcPool.getWarcFile(tmpWarcPath);
+
+        if (warcFile != null) {
+          tmpWarcPool.removeWarcFile(warcFile);
+
+          try {
+            if (isTempWarcRemovable(tmpWarcPath)) {
+              log.info("Removing temporary WARC file: {}", tmpWarcPath);
+              removeWarc(tmpWarcPath);
+            } else {
+              tmpWarcPool.addWarcFile(warcFile);
+            }
+          } catch (IOException e) {
+            log.error("Caught IOException while trying to garbage collect temporary WARC file: {}", e);
+            tmpWarcPool.addWarcFile(warcFile);
+          }
+
+        } else {
+          // Could not find this WARC file in the pool: This can happen if another thread has checked it out, or we have
+          // not reloaded this temporary WARC into the pool yet.
+          log.warn("Could not check out temporary WARC file from pool: {}", tmpWarcPath);
+        }
+      }
+
+      /*
       for (String tmpWarc : tmpWarcs) {
         try {
-          // TODO: Resolve race condition: Need to lock further writes to WARC until finished
           if (isTempWarcRemovable(tmpWarc)) {
             log.info("Removing temporary WARC file: {}", tmpWarc);
             removeWarc(tmpWarc);
@@ -301,6 +329,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           );
         }
       }
+      */
 
     } catch (IOException e) {
       log.error("Caught IOException while trying to find temporary WARC files under {}: {}", tmpWarcBasePath, e);
