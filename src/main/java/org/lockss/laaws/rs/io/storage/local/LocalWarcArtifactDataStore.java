@@ -170,7 +170,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     @Override
     public long getWarcLength(String warcPath) {
-      return new File(getBasePath() + warcPath).length();
+      return new File(warcPath).length();
     }
 
     @Override
