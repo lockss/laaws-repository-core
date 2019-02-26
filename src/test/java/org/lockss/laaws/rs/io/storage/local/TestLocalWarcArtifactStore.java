@@ -73,14 +73,14 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   @Test
   public void testInitCollection() throws Exception {
     store.initCollection("collection");
-    assertTrue(isDirectory(store.getAbsolutePath(store.getCollectionPath("collection"))));
+    assertTrue(isDirectory(store.getCollectionPath("collection")));
   }
 
   @Test
   public void testInitAu() throws Exception {
     store.initAu("collection", "auid");
-    assertTrue(isDirectory(store.getAbsolutePath(store.getCollectionPath("collection"))));
-    assertTrue(isDirectory(store.getAbsolutePath(store.getAuPath("collection", "auid"))));
+    assertTrue(isDirectory(store.getCollectionPath("collection")));
+    assertTrue(isDirectory(store.getAuPath("collection", "auid")));
   }
 
   @Override
@@ -116,13 +116,12 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 
   @Override
   protected String expected_getTmpWarcBasePath() {
-    return "/tmp";
+    return store.getAbsolutePath("/tmp");
   }
 
   protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
     return String.format(
-        "file://%s%s?offset=%d&length=%d",
-        (store.getBasePath().equals("/") ? "" : store.getBasePath()),
+        "file://%s?offset=%d&length=%d",
         store.getActiveWarcPath(aid),
         offset,
         length

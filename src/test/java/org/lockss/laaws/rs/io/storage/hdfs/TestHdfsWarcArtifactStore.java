@@ -84,15 +84,15 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     @Test
     public void testInitCollection() throws Exception {
         store.initCollection("collection");
-        assertTrue(isDirectory(store.getAbsolutePath(store.getCollectionPath("collection"))));
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
     }
 
     @Override
     @Test
     public void testInitAu() throws Exception {
         store.initAu("collection", "auid");
-        assertTrue(isDirectory(store.getAbsolutePath(store.getCollectionPath("collection"))));
-        assertTrue(isDirectory(store.getAbsolutePath(store.getAuPath("collection", "auid"))));
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
     }
 
     @Override
@@ -112,7 +112,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected String expected_getTmpWarcBasePath() {
-        return "/tmp";
+        return store.getAbsolutePath("/tmp");
     }
 
     @Override
@@ -122,18 +122,20 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected boolean pathExists(String path) throws IOException {
-//        Path hdfsPath = new Path(store.getBasePath() + path);
-        return store.fs.exists(new Path(path));
+      log.debug("path = {}", path);
+      return store.fs.exists(new Path(path));
     }
 
     @Override
     protected boolean isDirectory(String path) throws IOException {
-//        Path fullPath = Path.mergePaths(new Path(store.getBasePath()), new Path(path));
+        log.debug("path = {}", path);
         return store.fs.isDirectory(new Path(path));
     }
 
     @Override
     protected boolean isFile(String path) throws IOException {
+        log.debug("path = {}", path);
+
         Path file = new Path(path);
 
         if (!store.fs.exists(file)) {
@@ -146,9 +148,8 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
-        return String.format("%s%s%s?offset=%d&length=%d",
+        return String.format("%s%s?offset=%d&length=%d",
             store.fs.getUri(),
-            (store.getBasePath().equals("/") ? "" : store.getBasePath()),
             store.getActiveWarcPath(aid),
             offset,
             length

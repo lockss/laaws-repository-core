@@ -111,7 +111,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getTmpWarcBasePath() {
-    return DEFAULT_TMPWARCBASEPATH;
+    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
   }
 
   @Override

@@ -155,7 +155,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
       // Add this file to the list of WARC files found
       if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
-        warcFiles.add(status.getPath().toString().substring((fs.getUri() + getBasePath()).length()));
+        warcFiles.add(status.getPath().toString().substring(fs.getUri().toString().length()));
       }
     }
 
@@ -170,7 +170,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param dirPath Path to the directory to create, if it doesn't exist yet.
    */
   public void mkdirs(String dirPath) throws IOException {
-    Path fullPath = new Path(getBasePath() + dirPath);
+    Path fullPath = new Path(dirPath);
 
     if (fs.isDirectory(fullPath)) {
       return;
@@ -194,7 +194,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getTmpWarcBasePath() {
-    return DEFAULT_TMPWARCBASEPATH;
+    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
   }
 
   @Override
@@ -204,7 +204,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + getBasePath() + filePath);
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + filePath);
     uriBuilder.queryParams(params);
     return uriBuilder.toUriString();
   }
@@ -218,7 +218,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public synchronized void initArtifactDataStore() {
     if (!initialized) {
       try {
-        mkdirs("/");
+        log.info("getBasePath() = ", getBasePath());
+
+        mkdirs(getBasePath());
         mkdirs(getTmpWarcBasePath());
         mkdirs(getSealedWarcsPath());
 
@@ -278,7 +280,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public void initWarc(String warcPath) throws IOException {
-    Path fullPath = new Path(getBasePath() + warcPath);
+    Path fullPath = new Path(warcPath);
 
     if (fs.createNewFile(fullPath)) {
       log.info(String.format("Created new WARC file under HDFS: %s", fullPath));
@@ -287,21 +289,24 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
-    Path extPath = new Path(getBasePath() + filePath);
+    Path extPath = new Path(filePath);
     log.info(String.format("Opening %s for appendable OutputStream", extPath));
     return fs.append(extPath);
   }
 
   @Override
   public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-    FSDataInputStream fsDataInputStream = fs.open(new Path(getBasePath() + filePath));
+    log.info("filePath = {}", filePath);
+    log.info("seek = {}", seek);
+
+    FSDataInputStream fsDataInputStream = fs.open(new Path(filePath));
     fsDataInputStream.seek(seek);
     return fsDataInputStream;
   }
 
   @Override
   public boolean removeWarc(String path) throws IOException {
-    return fs.delete(new Path(getBasePath() + path), false);
+    return fs.delete(new Path(path), false);
   }
 
   @Override
