@@ -978,8 +978,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       warcLength = getWarcLength(dst);
     }
 
+    String sUrl = makeStorageUrl(dst, warcLength, recordLength);
+    String outputPath = null;
+
+    try {
+      outputPath = Artifact.getPathFromStorageUrl(sUrl);
+    } catch (URISyntaxException use) {
+      throw new IOException("Could not get path from storage URL '"
+	  + sUrl + "'", use);
+    }
+
     // Append WARC record to active WARC
-    try (OutputStream output = getAppendableOutputStream(dst)) {
+    try (OutputStream output = getAppendableOutputStream(outputPath)) {
       InputStream is = getInputStreamFromStorageUrl(storageUrl);
       long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
@@ -1001,7 +1011,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Set the artifact's new storage URL and update the index
-    artifact.setStorageUrl(makeStorageUrl(dst, warcLength, recordLength));
+    artifact.setStorageUrl(sUrl);
     artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
     return artifact;
