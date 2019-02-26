@@ -978,18 +978,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       warcLength = getWarcLength(dst);
     }
 
-    String sUrl = makeStorageUrl(dst, warcLength, recordLength);
-    String outputPath = null;
-
-    try {
-      outputPath = Artifact.getPathFromStorageUrl(sUrl);
-    } catch (URISyntaxException use) {
-      throw new IOException("Could not get path from storage URL '"
-	  + sUrl + "'", use);
-    }
-
     // Append WARC record to active WARC
-    try (OutputStream output = getAppendableOutputStream(outputPath)) {
+    try (OutputStream output = getAppendableOutputStream(dst)) {
       InputStream is = getInputStreamFromStorageUrl(storageUrl);
       long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
@@ -1011,7 +1001,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Set the artifact's new storage URL and update the index
-    artifact.setStorageUrl(sUrl);
+    artifact.setStorageUrl(makeStorageUrl(dst, warcLength, recordLength));
     artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
     return artifact;
@@ -1118,7 +1108,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected String generateActiveWarcName(String collection, String auid) {
     String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(FMT_TIMESTAMP);
-    return String.format("artifacts_%s-%s_%s.warc", collection, auid, timestamp);
+    String auidHash = DigestUtils.md5Hex(auid);
+    return String.format("artifacts_%s-%s_%s.warc", collection, auidHash, timestamp);
   }
 
   /**
