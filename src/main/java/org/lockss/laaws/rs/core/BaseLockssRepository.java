@@ -58,7 +58,10 @@ public class BaseLockssRepository implements LockssRepository {
    * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
    */
   public BaseLockssRepository() throws IOException {
-    this(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+    index = new VolatileArtifactIndex();
+    store = new VolatileWarcArtifactDataStore(index);
+
+    this.initRepository();
   }
 
   /**
@@ -75,6 +78,10 @@ public class BaseLockssRepository implements LockssRepository {
     this.index = index;
     this.store = store;
 
+    this.initRepository();
+  }
+
+  protected void initRepository() throws IOException {
     // Initialize artifact index and data store
     index.initArtifactIndex();
     store.initArtifactDataStore();
