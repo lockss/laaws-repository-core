@@ -310,6 +310,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
   }
 
+  @Test
+  public void testGarbageCollectTempWarcs() throws Exception {
+
+  }
+
   /**
    * Generates an {@code ArtifactData} belonging to a random collection and AUID.
    *

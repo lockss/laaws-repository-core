@@ -46,6 +46,7 @@ public class WarcFilePool {
   private final long sizeThreshold;
 
   private final Set<WarcFile> warcFiles = new HashSet<>();
+//  private final Map<String, WarcFile> warcFiles = new HashMap<>();
 
   public WarcFilePool(String poolBasePath) {
     this(poolBasePath, DEFAULT_BLOCKSIZE, DEFAULT_THRESHOLD);
@@ -66,6 +67,10 @@ public class WarcFilePool {
     WarcFile warcFile = new WarcFile(poolBasePath + "/" + UUID.randomUUID().toString() + ".warc", 0);
     addWarcFile(warcFile);
     return warcFile;
+  }
+
+  public synchronized WarcFile getWarcFile(String warcFilePath) {
+    return warcFiles.stream().filter(x -> x.getPath().equals(warcFilePath)).findAny().orElse(null);
   }
 
   /**
