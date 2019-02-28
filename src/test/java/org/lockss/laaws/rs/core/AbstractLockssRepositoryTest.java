@@ -262,11 +262,11 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   // to the repository
   void beforeVariant() throws IOException {
     List<ArtSpec> scenario = getVariantSpecs(variant);
-    instantiateScanario(scenario);
+    instantiateScenario(scenario);
   }
 
   // Add Artifacts to the repository as specified by the ArtSpecs
-  void instantiateScanario(List<ArtSpec> scenario) throws IOException {
+  void instantiateScenario(List<ArtSpec> scenario) throws IOException {
     for (ArtSpec spec : scenario) {
       Artifact art = addUncommitted(spec);
       if (spec.isToCommit()) {
