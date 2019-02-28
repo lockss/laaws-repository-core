@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.log.L4JLogger;
 
 public class TestBaseLockssRepository extends AbstractLockssRepositoryTest {
@@ -39,6 +37,6 @@ public class TestBaseLockssRepository extends AbstractLockssRepositoryTest {
 
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
-        return new BaseLockssRepository(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+        return new VolatileLockssRepository();
     }
 }
