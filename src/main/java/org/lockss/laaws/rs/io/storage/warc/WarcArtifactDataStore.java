@@ -287,15 +287,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected synchronized void garbageCollectTempWarcs() {
     String tmpWarcBasePath = getTmpWarcBasePath();
 
-    log.info("Garbage collecting temporary files under {}", tmpWarcBasePath);
+    log.info("Starting GC of temporary files under {}", tmpWarcBasePath);
 
     try {
       Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
 
       log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
-
-
-      // TODO: Resolve race condition: Need to lock further writes to WARC until finished
 
       for (String tmpWarcPath: tmpWarcs) {
         WarcFile warcFile = tmpWarcPool.getWarcFile(tmpWarcPath);
@@ -311,33 +308,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               tmpWarcPool.addWarcFile(warcFile);
             }
           } catch (IOException e) {
-            log.error("Caught IOException while trying to garbage collect temporary WARC file: {}", e);
+            log.error("Caught IOException while trying to GC temporary WARC file: {}", e);
             tmpWarcPool.addWarcFile(warcFile);
           }
 
         } else {
           // Could not find this WARC file in the pool: This can happen if another thread has checked it out, or we have
           // not reloaded this temporary WARC into the pool yet.
-          log.warn("Could not check out temporary WARC file from pool: {}", tmpWarcPath);
+          log.warn("Could not check out temporary WARC file from pool - will retry later [{}]", tmpWarcPath);
         }
       }
-
-      /*
-      for (String tmpWarc : tmpWarcs) {
-        try {
-          if (isTempWarcRemovable(tmpWarc)) {
-            log.info("Removing temporary WARC file: {}", tmpWarc);
-            removeWarc(tmpWarc);
-          }
-        } catch (IOException e) {
-          log.warn(
-              "Skipping {}; could not determine if temporary WARC is eligible to be removed: {}",
-              tmpWarc,
-              e
-          );
-        }
-      }
-      */
 
     } catch (IOException e) {
       log.error("Caught IOException while trying to find temporary WARC files under {}: {}", tmpWarcBasePath, e);
@@ -1367,10 +1347,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long length = Long.parseLong((String) queries.getFirst("length"));
 
       if (log.isDebugEnabled()) {
-        log.debug("storageUrl = {}", storageUrl);
-        log.debug("path = {}", path);
-        log.debug("offset = {}", offset);
-        log.debug("length = {}", length);
+        log.debug(
+            "path = {}, offset = {}, length = {} [storageUrl: {}]",
+            path,
+            offset,
+            length,
+            storageUrl
+        );
       }
 
       return new WarcRecordLocation(path, offset, length);
