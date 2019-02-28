@@ -52,9 +52,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
   private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
 
-  private boolean initialized;
-
-  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) {
+  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
     this(index, basePath.getAbsolutePath());
   }
 
@@ -63,13 +61,18 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    *
    * @param basePath The base path of the local repository.
    */
-  public LocalWarcArtifactDataStore(ArtifactIndex index, String basePath) {
+  public LocalWarcArtifactDataStore(ArtifactIndex index, String basePath) throws IOException {
     super(index, basePath);
 
     log.info(String.format("Instantiating a local data store under %s", basePath));
 
     this.storageUrlPattern =
         Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
+
+    // Initialize LOCKSS repository structure
+    mkdirs(getBasePath());
+    mkdirs(getTmpWarcBasePath());
+    mkdirs(getSealedWarcsPath());
   }
 
   @Override
@@ -84,23 +87,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public synchronized void initArtifactDataStore() {
-    if (!initialized) {
-      try {
-        // Initialize LOCKSS repository structure
-        mkdirs(getBasePath());
-        mkdirs(getTmpWarcBasePath());
-        mkdirs(getSealedWarcsPath());
-
-        // Reload temporary WARCs
-        reloadDataStoreState();
-
-        initialized = true;
-      } catch (IOException e) {
-        log.warn("Caught IOException while attempting initArtifactDataStore local filesystem artifact datastore");
-      }
-    } else {
-      log.info("Already initialized LOCKSS repository");
-    }
+    // Reload temporary WARCs
+    reloadDataStoreState();
+    dataStoreState = DataStoreState.INITIALIZED;
   }
 
   @Override
@@ -122,7 +111,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
     public boolean isReady() {
-        return initialized;
+        return dataStoreState == DataStoreState.INITIALIZED;
     }
 
     /**

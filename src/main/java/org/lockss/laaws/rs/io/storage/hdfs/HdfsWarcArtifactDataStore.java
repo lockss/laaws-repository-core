@@ -55,7 +55,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public final static String DEFAULT_REPO_BASEDIR = "/";
 
   protected FileSystem fs;
-  private boolean initialized = false;
 
   /**
    * Constructor that takes a Hadoop {@code Configuration}. Uses a default LOCKSS repository base path.
@@ -106,6 +105,22 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     this.fs = fs;
     this.storageUrlPattern =
         Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
+
+    mkdirs(getBasePath());
+    mkdirs(getTmpWarcBasePath());
+    mkdirs(getSealedWarcsPath());
+  }
+
+  /**
+   * Initializes a new LOCKSS repository structure under the configured base path.
+   *
+   * @throws IOException
+   */
+  @Override
+  public synchronized void initArtifactDataStore() {
+    // Reload temporary WARCs
+    reloadDataStoreState();
+    dataStoreState = DataStoreState.INITIALIZED;
   }
 
   /**
@@ -131,8 +146,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-//    initArtifactDataStore();
-    return initialized && checkAlive();
+    return dataStoreState == DataStoreState.INITIALIZED && checkAlive();
   }
 
   /**
@@ -209,30 +223,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     return uriBuilder.toUriString();
   }
 
-  /**
-   * Initializes a new LOCKSS repository structure under the configured base path.
-   *
-   * @throws IOException
-   */
-  @Override
-  public synchronized void initArtifactDataStore() {
-    if (!initialized) {
-      try {
-        log.info("getBasePath() = ", getBasePath());
 
-        mkdirs(getBasePath());
-        mkdirs(getTmpWarcBasePath());
-        mkdirs(getSealedWarcsPath());
-
-        // Reload temporary WARCs
-        reloadDataStoreState();
-
-        initialized = true;
-      } catch (IOException e) {
-        log.warn(String.format("Could not initialize HDFS artifact store: %s", e));
-      }
-    }
-  }
 
   /**
    * Initializes a new AU collection under this LOCKSS repository.

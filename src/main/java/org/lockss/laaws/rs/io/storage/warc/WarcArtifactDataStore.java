@@ -130,6 +130,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected String basePath;
   protected WarcFilePool tmpWarcPool;
   protected Map<RepoAuid, String> auActiveWarcMap;
+  protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
 
   protected Pattern storageUrlPattern;
 
@@ -143,6 +144,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     EXPIRED,
     COMMITTED,
     COPIED;
+  }
+
+  protected enum DataStoreState {
+    UNINITIALIZED,
+    INITIALIZED,
+    SHUTDOWN
   }
 
   /**
@@ -406,6 +413,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       //// Handle this WARC file
       if (isTmpWarcRemovable) {
+        log.debug("Removing temporary WARC [{}]", tmpWarc);
         removeWarc(tmpWarc);
       } else {
         // Add this WARC file to temporary WARC pool
@@ -505,6 +513,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     boolean expired = expires.isBefore(Instant.now());
 
     return expired;
+  }
+
+  public void shutdownDataStore() {
+    scheduledExecutor.shutdown();
+    dataStoreState = DataStoreState.SHUTDOWN;
   }
 
   /**
@@ -915,7 +928,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return The {@code Artifact} with an updated storage URL.
    * @throws IOException
    */
-  protected Artifact moveToPermanentStorage(Artifact artifact) throws IOException {
+  protected Artifact moveToPermanentStorage(Artifact artifact) throws IOException, InterruptedException {
     if (artifact == null) {
       throw new IllegalArgumentException("Artifact is null");
     }
@@ -977,17 +990,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Append WARC record to active WARC
     try (OutputStream output = getAppendableOutputStream(dst)) {
-      InputStream is = getInputStreamAndSeek(loc.path, loc.offset);
-      long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
+      try (InputStream is = MarkAndGetInputStreamAndSeek(loc.path, loc.offset)) {
+        long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
-      log.info("Moved artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is now {}",
-          artifact.getIdentifier().getId(),
-          bytesWritten,
-          recordLength,
-          warcLength,
-          dst,
-          warcLength + recordLength
-      );
+        log.info("Moved artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is now {}",
+            artifact.getIdentifier().getId(),
+            bytesWritten,
+            recordLength,
+            warcLength,
+            dst,
+            warcLength + recordLength
+        );
+      }
     }
 
     // Immediately seal if we've gone over the size threshold and filled all the blocks perfectly
@@ -1494,9 +1508,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   private InputStream markAndGetInputStream(String warcFile) throws IOException {
+    return markAndGetInputStreamAndSeek(warcFile, 0L);
+  }
+
+  private InputStream markAndGetInputStreamAndSeek(String warcFile, long offset) throws IOException {
     TempWarcInUseTracker.INSTANCE.markUseStart(warcFile);
 
-    InputStream warcStream = new BufferedInputStream(getInputStream(warcFile));
+    InputStream warcStream = new BufferedInputStream(getInputStreamAndSeek(warcFile, offset));
 
     return new CloseCallbackInputStream(
         warcStream,

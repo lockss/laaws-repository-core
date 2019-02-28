@@ -82,6 +82,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public void initArtifactDataStore() throws IOException {
     reloadDataStoreState();
+    dataStoreState = DataStoreState.INITIALIZED;
   }
 
   @Override
@@ -183,7 +184,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    return true;
+    return dataStoreState == DataStoreState.INITIALIZED;
   }
 
   @Override
