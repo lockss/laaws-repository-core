@@ -990,7 +990,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Append WARC record to active WARC
     try (OutputStream output = getAppendableOutputStream(dst)) {
-      try (InputStream is = MarkAndGetInputStreamAndSeek(loc.path, loc.offset)) {
+      try (InputStream is = markAndGetInputStreamAndSeek(loc.path, loc.offset)) {
         long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
         log.info("Moved artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is now {}",
