@@ -763,6 +763,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         artifactData.getContentLength(),
         artifactData.getContentDigest()
     );
+    log.info("Added artifact {}", artifact);
 
     return artifact;
   }
@@ -1073,23 +1074,31 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Null artifact");
     }
 
-    // Retrieve artifact data from current WARC file
-    ArtifactData artifactData = getArtifactData(artifact);
-    RepositoryArtifactMetadata repoMetadata = artifactData.getRepositoryMetadata();
+    RepositoryArtifactMetadata repoMetadata = null;
 
-    if (!repoMetadata.isDeleted()) {
-      // Write new state to artifact data repository metadata journal
-      repoMetadata.setCommitted(false);
-      repoMetadata.setDeleted(true);
-      updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
+    try {
+      // Retrieve artifact data from current WARC file
+      ArtifactData artifactData = getArtifactData(artifact);
+      repoMetadata = artifactData.getRepositoryMetadata();
 
-      // Update artifact index
+      if (!repoMetadata.isDeleted()) {
+	// Write new state to artifact data repository metadata journal
+	repoMetadata.setCommitted(false);
+	repoMetadata.setDeleted(true);
+	updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
+
+	// Update artifact index
 //      artifactIndex.deleteArtifact(artifact.getId());
 
-      // TODO: Actually remove artifact from storage. A more likely design is a garbage collector with customizable
-      // policy because it is expensive to cut and splice artifacts.
-    } else {
-      log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
+	// TODO: Actually remove artifact from storage. A more likely design is a garbage collector with customizable
+	// policy because it is expensive to cut and splice artifacts.
+      } else {
+	log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
+      }
+    } catch (Exception e) {
+      log.error("Caught exception deleting artifact: ", e);
+      log.error("artifact = {}", artifact);
+      throw e;
     }
 
     return repoMetadata;
