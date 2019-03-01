@@ -34,11 +34,18 @@ package org.lockss.laaws.rs.io.storage.warc;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.lockss.log.L4JLogger;
+
 /**
  * Keeps track of which temporary WARC files are currently being accessed.
  */
 public enum TempWarcInUseTracker {
+  /**
+   * The singleton instance of this class.
+   */
   INSTANCE;
+
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   // The files that are in use.
   private final Map<String, Integer> inUseMap = new HashMap<>();
@@ -52,6 +59,7 @@ public enum TempWarcInUseTracker {
   public synchronized void markUseStart(String path) {
     inUseMap.putIfAbsent(path, 0);
     inUseMap.put(path, inUseMap.get(path) + 1);
+    log.debug2("Count for path '{}' increased to {}", path, inUseMap.get(path));
   }
 
   /**
@@ -68,8 +76,11 @@ public enum TempWarcInUseTracker {
 	  "Attempt to decrement past zero for WARC file '" + path + "'");
     } else if (count.intValue() == 1) {
       inUseMap.remove(path);
+      log.debug2("Count for path '{}' decreased to 0", path);
     } else {
       inUseMap.put(path, count.intValue() - 1);
+      log.debug2("Count for path '{}' decreased to {}", path,
+	  inUseMap.get(path));
     }
   }
 
