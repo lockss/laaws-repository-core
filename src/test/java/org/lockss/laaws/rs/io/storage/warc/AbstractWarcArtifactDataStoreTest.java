@@ -869,6 +869,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store.deleteArtifactData(a4);
     index1.deleteArtifact(a4.getId());
 
+    // Shutdown the data store
+    store.shutdownDataStore();
+
     //// Populate second index by rebuilding
     store = makeWarcArtifactDataStore(index2, store);
     store.rebuildIndex(index2);
