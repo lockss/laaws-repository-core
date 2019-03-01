@@ -782,7 +782,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
     String storageUrl = artifact.getStorageUrl();
-    InputStream warcStream = getInputStreamFromStorageUrl(storageUrl);
+    InputStream warcStream = null;
+
+    try {
+      warcStream = getInputStreamFromStorageUrl(storageUrl);
+    } catch (Exception e) {
+      log.error("Caught exception getting stream from storage URL: ", e);
+      log.error("storageUrl = {}", storageUrl);
+      log.error("artifact = {}", artifact);
+      throw e;
+    }
 
     // Check whether the artifact is stored in a temporary WARC file.
     if (storageUrl.startsWith(getTmpWarcBasePath())) {
@@ -811,7 +820,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     }
 
-    WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0L);
+    log.info("Getting WARC record from storage URL '{}' WARC stream", storageUrl);
+    WARCRecord warcRecord = null;
+
+    try {
+      warcRecord = new WARCRecord(warcStream, getClass().getSimpleName() + "#getArtifactData", 0L);
+    } catch (Exception e) {
+      log.error("Caught exception getting WARC record from storage URL: ", e);
+      log.error("storageUrl = {}", storageUrl);
+      log.error("artifact = {}", artifact);
+      throw e;
+    }
 
     // Convert the WARCRecord object to an ArtifactData
     ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil or ArtifactData

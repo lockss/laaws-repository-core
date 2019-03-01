@@ -1160,7 +1160,15 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     Artifact newArt = repository.addArtifact(ad);
     assertNotNull(newArt);
 
-    spec.assertData(repository, newArt);
+    try {
+      spec.assertData(repository, newArt);
+    } catch (Exception e) {
+      log.error("Caught exception adding uncommitted artifact: {}", e);
+      log.error("spec = {}", spec);
+      log.error("ad = {}", ad);
+      log.error("newArt = {}", newArt);
+      throw e;
+    }
     long expVers = expectedVersions(spec);
     assertEquals(expVers + 1, (int)newArt.getVersion(),
 		 "version of " + newArt);
@@ -1195,7 +1203,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   Artifact commit(ArtSpec spec, Artifact art) throws IOException {
     String artId = art.getId();
     log.info("committing: " + art);
-    Artifact commArt = repository.commitArtifact(spec.getCollection(), artId);
+    Artifact commArt = null;
+    try {
+      commArt = repository.commitArtifact(spec.getCollection(), artId);
+    } catch (Exception e) {
+      log.error("Caught exception committing artifact: {}", e);
+      log.error("spec = {}", spec);
+      log.error("art = {}", art);
+      log.error("artId = {}", artId);
+      throw e;
+    }
     assertNotNull(commArt);
     if (spec.getExpVer() > 0) {
       assertEquals(spec.getExpVer(), (int)commArt.getVersion());
@@ -1599,31 +1616,38 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     /** Assert that the Artifact matches this ArtSpec */
     public void assertData(LockssRepository repository, Artifact art)
 	throws IOException {
-      Assertions.assertNotNull(art, "Comparing with " + this);
-      Assertions.assertEquals(getCollection(), art.getCollection());
-      Assertions.assertEquals(getAuid(), art.getAuid());
-      Assertions.assertEquals(getUrl(), art.getUri());
-      if (getExpVer() >= 0) {
-	Assertions.assertEquals(getExpVer(), (int)art.getVersion());
-      }
-      Assertions.assertEquals(getContentLength(), art.getContentLength());
-      Assertions.assertEquals(getContentDigest(), art.getContentDigest());
+      try {
+	Assertions.assertNotNull(art, "Comparing with " + this);
+	Assertions.assertEquals(getCollection(), art.getCollection());
+	Assertions.assertEquals(getAuid(), art.getAuid());
+	Assertions.assertEquals(getUrl(), art.getUri());
+	if (getExpVer() >= 0) {
+	  Assertions.assertEquals(getExpVer(), (int)art.getVersion());
+	}
+	Assertions.assertEquals(getContentLength(), art.getContentLength());
+	Assertions.assertEquals(getContentDigest(), art.getContentDigest());
 
-      if (getStorageUrl() != null) {
-	Assertions.assertEquals(getStorageUrl(), art.getStorageUrl());
-      }
+	if (getStorageUrl() != null) {
+	  Assertions.assertEquals(getStorageUrl(), art.getStorageUrl());
+	}
 
-      ArtifactData ad = repository.getArtifactData(art);
-      Assertions.assertEquals(art.getIdentifier(), ad.getIdentifier());
-      Assertions.assertEquals(getContentLength(), ad.getContentLength());
-      Assertions.assertEquals(getContentDigest(), ad.getContentDigest());
-      assertData(repository, ad);
+	ArtifactData ad = repository.getArtifactData(art);
+	Assertions.assertEquals(art.getIdentifier(), ad.getIdentifier());
+	Assertions.assertEquals(getContentLength(), ad.getContentLength());
+	Assertions.assertEquals(getContentDigest(), ad.getContentDigest());
+	assertData(repository, ad);
 
-      ArtifactData ad2 = repository.getArtifactData(getCollection(),
+	ArtifactData ad2 = repository.getArtifactData(getCollection(),
   						  art.getId());
-      Assertions.assertEquals(getContentLength(), ad2.getContentLength());
-      Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
-      assertData(repository, ad2);
+	Assertions.assertEquals(getContentLength(), ad2.getContentLength());
+	Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
+	assertData(repository, ad2);
+      } catch (Exception e) {
+	log.error("Caught exception asserting artifact: {}", e);
+	log.error("art = {}", art);
+	log.error("spec = {}", this);
+	throw e;
+      }
     }
 
     public void assertEquals(StatusLine exp, StatusLine line) {
