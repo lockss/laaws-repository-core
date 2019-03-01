@@ -295,11 +295,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
       for (String tmpWarcPath: tmpWarcs) {
-        WarcFile warcFile = tmpWarcPool.getWarcFile(tmpWarcPath);
+        WarcFile warcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
 
         if (warcFile != null) {
-          tmpWarcPool.removeWarcFile(warcFile);
-
           try {
             if (isTempWarcRemovable(tmpWarcPath)) {
               log.info("Removing temporary WARC file: {}", tmpWarcPath);
@@ -719,7 +717,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       dfos.close();
 
       // Get an available temporary WARC from the temporary WARC pool
-      WarcFile tmpWarcFile = tmpWarcPool.borrowWarcFile(bytesWritten);
+      WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(bytesWritten);
       String tmpWarcFilePath = tmpWarcFile.getPath();
 
       try {

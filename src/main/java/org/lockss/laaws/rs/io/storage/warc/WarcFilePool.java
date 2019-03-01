@@ -46,7 +46,6 @@ public class WarcFilePool {
   private final long sizeThreshold;
 
   private final Set<WarcFile> warcFiles = new HashSet<>();
-//  private final Map<String, WarcFile> warcFiles = new HashMap<>();
 
   public WarcFilePool(String poolBasePath) {
     this(poolBasePath, DEFAULT_BLOCKSIZE, DEFAULT_THRESHOLD);
@@ -59,47 +58,49 @@ public class WarcFilePool {
   }
 
   /**
-   * Creates a new WarcFile at the base path of this WarcFile pool.
+   * Creates a new {@code WarcFile} at the base path of this pool.
    *
    * @return A new {@code WarcFile} instance
    */
-  protected synchronized WarcFile createWarcFile() {
+  protected WarcFile createWarcFile() {
     WarcFile warcFile = new WarcFile(poolBasePath + "/" + UUID.randomUUID().toString() + ".warc", 0);
     addWarcFile(warcFile);
     return warcFile;
   }
 
-  public synchronized WarcFile getWarcFile(String warcFilePath) {
-    return warcFiles.stream().filter(x -> x.getPath().equals(warcFilePath)).findAny().orElse(null);
-  }
-
   /**
-   * Finds a suitable WarcFile for the number of bytes pending to be written, or creates one if one could not be found.
+   * Gets a suitable {@code WarcFile} for the number of bytes pending to be written, or creates one if one could not be
+   * found.
    *
    * @param bytesExpected A {@code long} representing the number of bytes expected to be written.
    * @return A {@code WarcFile} from this pool.
    */
-  public synchronized WarcFile borrowWarcFile(long bytesExpected) {
+  public synchronized WarcFile getWarcFile(long bytesExpected) {
     if (bytesExpected < 0) {
       throw new IllegalArgumentException("bytesExpected must be a positive integer");
     }
 
-    Optional<WarcFile> opt = warcFiles.stream()
-        .filter(warc -> warc.getLength() + bytesExpected <= sizeThreshold)
-        .max((w1, w2) ->
-            (int)(getBytesUsedLastBlock(w2.getLength() + bytesExpected) - getBytesUsedLastBlock(w1.getLength() + bytesExpected))
-        );
+    synchronized (warcFiles) {
+      Optional<WarcFile> opt = warcFiles.stream()
+          .filter(warc -> warc.getLength() + bytesExpected <= sizeThreshold)
+          .max((w1, w2) ->
+              (int) (
+                  getBytesUsedLastBlock(w2.getLength() + bytesExpected) -
+                  getBytesUsedLastBlock(w1.getLength() + bytesExpected)
+              )
+          );
 
-    // Create a new WARC if there does not exist a WarcFile that can hold the expected number of bytes
-    WarcFile warcFile = opt.isPresent() ? opt.get() : createWarcFile();
+      // Create a new WARC if there does not exist a WarcFile that can hold the expected number of bytes
+      WarcFile warcFile = opt.isPresent() ? opt.get() : createWarcFile();
 
-    // Remove WARC file from the pool
-    removeWarcFile(warcFile);
+      // Remove WARC file from the pool
+      removeWarcFile(warcFile);
 
-    // Mark the WARC file as in use
-    TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
+      // Mark the WARC file as in use
+      TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
 
-    return warcFile;
+      return warcFile;
+    }
   }
 
   /**
@@ -118,9 +119,12 @@ public class WarcFilePool {
    * @param warcFile
    *          The {@code WarcFile} to add back to this pool.
    */
-  public synchronized void returnWarcFile(WarcFile warcFile) {
+  public void returnWarcFile(WarcFile warcFile) {
     TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
-    warcFiles.add(warcFile);
+
+    synchronized (warcFiles) {
+      warcFiles.add(warcFile);
+    }
   }
 
   /**
@@ -128,8 +132,30 @@ public class WarcFilePool {
    *
    * @param warcFile The {@code WarcFile} to add to this pool.
    */
-  public synchronized void addWarcFile(WarcFile... warcFile) {
-    warcFiles.addAll(Arrays.asList(warcFile));
+  public void addWarcFile(WarcFile... warcFile) {
+    synchronized (warcFiles) {
+      warcFiles.addAll(Arrays.asList(warcFile));
+    }
+  }
+
+  /**
+   * Removes the {@code WarcFile} matching the given path from this pool and returns it.
+   *
+   * May return {@code null} if none in the pool match.
+   *
+   * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to remove.
+   * @return The {@code WarcFile} removed from this pool. May be {@code null} if not found.
+   */
+  public WarcFile removeWarcFile(String warcFilePath) {
+    synchronized (warcFiles) {
+      WarcFile warcFile = warcFiles.stream().filter(x -> x.getPath().equals(warcFilePath)).findAny().orElse(null);
+
+      if (warcFile != null) {
+        removeWarcFile(warcFile);
+      }
+
+      return warcFile;
+    }
   }
 
   /**
@@ -138,33 +164,37 @@ public class WarcFilePool {
    * @param warcFile
    *          The instance of {@code WarcFile} to remove from this pool.
    */
-  protected synchronized void removeWarcFile(WarcFile warcFile) {
-    warcFiles.remove(warcFile);
+  protected void removeWarcFile(WarcFile warcFile) {
+    synchronized (warcFiles) {
+      warcFiles.remove(warcFile);
+    }
   }
 
   /**
-   * Dumps a snapshot of all WarcFiles in this pool.
+   * Dumps a snapshot of all {@code WarcFile} objects in this pool.
    */
-  public synchronized void dumpWarcFilesPoolInfo() {
+  public void dumpWarcFilesPoolInfo() {
     long totalBlocksAllocated = 0;
     long totalBytesUsed = 0;
     long numWarcFiles = 0;
 
     // Iterate over WarcFiles in this pool
-    for (WarcFile warc : warcFiles) {
-      long blocks = (long) Math.ceil(new Float(warc.getLength()) / new Float(blocksize));
-      totalBlocksAllocated += blocks;
-      totalBytesUsed += warc.getLength();
+    synchronized (warcFiles) {
+      for (WarcFile warc : warcFiles) {
+        long blocks = (long) Math.ceil(new Float(warc.getLength()) / new Float(blocksize));
+        totalBlocksAllocated += blocks;
+        totalBytesUsed += warc.getLength();
 
-      // Log information per WarcFile
-      log.info(String.format(
-          "WARC: %s [Length: %d, Blocks: %d]",
-          warc.getPath(),
-          warc.getLength(),
-          blocks
-      ));
+        // Log information per WarcFile
+        log.info(String.format(
+            "WARC: %s [Length: %d, Blocks: %d]",
+            warc.getPath(),
+            warc.getLength(),
+            blocks
+        ));
 
-      numWarcFiles++;
+        numWarcFiles++;
+      }
     }
 
     // Log aggregate information about the pool of WarcFiles
