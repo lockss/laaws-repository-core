@@ -373,62 +373,64 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     for (String tmpWarc : tmpWarcs) {
       log.debug("tmpWarc = {}", tmpWarc);
 
-      boolean isTmpWarcRemovable = true;
+      synchronized (tmpWarcPool) {
+        boolean isTmpWarcRemovable = true;
 
-      //// Handle WARC records in this temporary WARC file
-      try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
-        // Get an ArchiveReader Iterable over ArchiveRecord objects
-        ArchiveReader archiveReader = WARCReaderFactory.get(tmpWarc, warcStream, true);
+        //// Handle WARC records in this temporary WARC file
+        try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
+          // Get an ArchiveReader Iterable over ArchiveRecord objects
+          ArchiveReader archiveReader = WARCReaderFactory.get(tmpWarc, warcStream, true);
 
-        // Iterate over the WARC records
-        for (ArchiveRecord record : archiveReader) {
+          // Iterate over the WARC records
+          for (ArchiveRecord record : archiveReader) {
 
-          boolean isRecordRemovable = false;
-          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
-          String artifactId = artifactData.getIdentifier().getId();
+            boolean isRecordRemovable = false;
+            ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
+            String artifactId = artifactData.getIdentifier().getId();
 
-          // Handle the different life cycle states in which the artifact may
-          // be.
-          switch (getArtifactState(isArtifactExpired(record),
-              artifactIndex.getArtifact(artifactId))) {
-          case NOT_INDEXED:
-            // Reindex artifact
-            log.warn( "Could not find artifact {} in index; reindexing", artifactId);
-            artifactIndex.indexArtifact(artifactData);
-            break;
-          case UNCOMMITTED:
-            break;
-          case COMMITTED:
-            // Requeue the copy of this artifact from temporary to permanent storage
-            log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
-            stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
-            break;
-          case EXPIRED:
-          case COPIED:
-            isRecordRemovable = true;
+            // Handle the different life cycle states in which the artifact may
+            // be.
+            switch (getArtifactState(isArtifactExpired(record),
+                artifactIndex.getArtifact(artifactId))) {
+              case NOT_INDEXED:
+                // Reindex artifact
+                log.warn("Could not find artifact {} in index; reindexing", artifactId);
+                artifactIndex.indexArtifact(artifactData);
+                break;
+              case UNCOMMITTED:
+                break;
+              case COMMITTED:
+                // Requeue the copy of this artifact from temporary to permanent storage
+                log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
+                stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
+                break;
+              case EXPIRED:
+              case COPIED:
+                isRecordRemovable = true;
+            }
+
+            // All records must be removable for temporary WARC file to be removable
+            isTmpWarcRemovable &= isRecordRemovable;
           }
 
-          // All records must be removable for temporary WARC file to be removable
-          isTmpWarcRemovable &= isRecordRemovable;
+        } catch (URISyntaxException use) {
+          log.error("Caught URISyntaxException while trying to reload temporary WARC: {}: {}", tmpWarc, use);
+          continue;
+        } catch (IOException e) {
+          log.error("Caught IOException while trying to reload temporary WARC: {}: {}", tmpWarc, e);
+          continue;
         }
 
-      } catch (URISyntaxException use) {
-        log.error("Caught URISyntaxException while trying to reload temporary WARC: {}: {}", tmpWarc, use);
-        continue;
-      } catch (IOException e) {
-        log.error("Caught IOException while trying to reload temporary WARC: {}: {}", tmpWarc, e);
-        continue;
-      }
-
-      //// Handle this WARC file
-      if (isTmpWarcRemovable) {
-        log.debug("Removing temporary WARC [{}]", tmpWarc);
-        removeWarc(tmpWarc);
-      } else {
-        // Add this WARC file to temporary WARC pool
-        // Q: Doesn't hurt but do we really want to do this?
-        long tmpWarcFileLen = getWarcLength(tmpWarc);
-        tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
+        //// Handle this WARC file
+        if (isTmpWarcRemovable) {
+          log.debug("Removing temporary WARC [{}]", tmpWarc);
+          removeWarc(tmpWarc);
+        } else {
+          // Add this WARC file to temporary WARC pool
+          // Q: Doesn't hurt but do we really want to do this?
+          long tmpWarcFileLen = getWarcLength(tmpWarc);
+          tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
+        }
       }
     }
   }
@@ -718,37 +720,41 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long bytesWritten = writeArtifactData(artifactData, dfos);
       dfos.close();
 
-      // Get an available temporary WARC from the temporary WARC pool
-      WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(bytesWritten);
-      String tmpWarcFilePath = tmpWarcFile.getPath();
+      synchronized (tmpWarcPool) {
+        // Get an available temporary WARC from the temporary WARC pool
+        WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(bytesWritten);
+        String tmpWarcFilePath = tmpWarcFile.getPath();
 
-      try {
-        // Initialize the WARC
-        initWarc(tmpWarcFilePath);
+        log.debug("tmpWarcFilePath = {}", tmpWarcFilePath);
 
-        // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
-        long offset = getWarcLength(tmpWarcFilePath);
+        try {
+          // Initialize the WARC
+          initWarc(tmpWarcFilePath);
 
-        // Write serialized artifact to temporary WARC file
-        try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
-          dfos.writeTo(output);
+          // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
+          long offset = getWarcLength(tmpWarcFilePath);
 
-          log.info("Wrote {} bytes starting at byte offset {} to {}; size is now {}",
-              bytesWritten,
-              offset,
-              tmpWarcFilePath,
-              offset + bytesWritten
-          );
+          // Write serialized artifact to temporary WARC file
+          try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
+            dfos.writeTo(output);
+
+            log.info("Wrote {} bytes starting at byte offset {} to {}; size is now {}",
+                bytesWritten,
+                offset,
+                tmpWarcFilePath,
+                offset + bytesWritten
+            );
+          }
+
+          // Update temporary WARC stats and return to pool
+          tmpWarcFile.setLength(offset + bytesWritten);
+
+          // Set artifact data storage URL
+          artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, bytesWritten));
+        } finally {
+          // Must return borrowed WarcFile
+          tmpWarcPool.returnWarcFile(tmpWarcFile);
         }
-
-        // Update temporary WARC stats and return to pool
-        tmpWarcFile.setLength(offset + bytesWritten);
-
-        // Set artifact data storage URL
-        artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, bytesWritten));
-      } finally {
-        // Must return borrowed WarcFile
-        tmpWarcPool.returnWarcFile(tmpWarcFile);
       }
     }
 
@@ -765,6 +771,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         artifactData.getContentLength(),
         artifactData.getContentDigest()
     );
+
     log.info("Added artifact {}", artifact);
 
     return artifact;
