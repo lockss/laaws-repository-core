@@ -187,15 +187,28 @@ public class BaseLockssRepository implements LockssRepository {
             index.updateStorageUrl(artifact.getId(), committedArtifact.getStorageUrl());
             return committedArtifact;
           } catch (InterruptedException e) {
-            e.printStackTrace();
+            log.error(
+                "Move of artifact [artifactId: {}] to permanent storage was interrupted: {}",
+                artifactId,
+                e
+            );
+
             // TODO: Requeue?
+            throw new IOException(e);
           } catch (ExecutionException e) {
-            e.printStackTrace();
-            // TODO: Handle error
+            log.error(
+                "Caught ExecutionException while moving artifact [artifactId: {}] to permanent storage",
+                artifactId,
+                e
+            );
+
+            // TODO: Need to discuss what to do here - for now wrap and throw
+            throw new IOException(e);
           }
         }
       }
 
+      // TODO: An Artifact could be marked as committed but have no pending move to permanent storage queued
       return artifact;
     }
   }
