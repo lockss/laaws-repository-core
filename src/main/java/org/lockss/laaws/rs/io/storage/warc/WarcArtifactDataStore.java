@@ -284,7 +284,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @throws IOException
    */
-  protected synchronized void garbageCollectTempWarcs() {
+  protected void garbageCollectTempWarcs() {
     String tmpWarcBasePath = getTmpWarcBasePath();
 
     log.info("Starting GC of temporary files under {}", tmpWarcBasePath);
@@ -295,26 +295,28 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
       for (String tmpWarcPath: tmpWarcs) {
-        WarcFile warcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
+	synchronized(tmpWarcPool) {
+	  WarcFile warcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
 
-        if (warcFile != null) {
-          try {
-            if (isTempWarcRemovable(tmpWarcPath)) {
-              log.info("Removing temporary WARC file: {}", tmpWarcPath);
-              removeWarc(tmpWarcPath);
-            } else {
-              tmpWarcPool.addWarcFile(warcFile);
-            }
-          } catch (IOException e) {
-            log.error("Caught IOException while trying to GC temporary WARC file: {}", e);
-            tmpWarcPool.addWarcFile(warcFile);
-          }
+	  if (warcFile != null) {
+	    try {
+	      if (isTempWarcRemovable(tmpWarcPath)) {
+		log.info("Removing temporary WARC file: {}", tmpWarcPath);
+		removeWarc(tmpWarcPath);
+	      } else {
+		tmpWarcPool.addWarcFile(warcFile);
+	      }
+	    } catch (IOException e) {
+	      log.error("Caught IOException while trying to GC temporary WARC file: {}", e);
+	      tmpWarcPool.addWarcFile(warcFile);
+	    }
 
-        } else {
-          // Could not find this WARC file in the pool: This can happen if another thread has checked it out, or we have
-          // not reloaded this temporary WARC into the pool yet.
-          log.warn("Could not check out temporary WARC file from pool - will retry later [{}]", tmpWarcPath);
-        }
+	  } else {
+	    // Could not find this WARC file in the pool: This can happen if another thread has checked it out, or we have
+	    // not reloaded this temporary WARC into the pool yet.
+	    log.warn("Could not check out temporary WARC file from pool - will retry later [{}]", tmpWarcPath);
+	  }
+	}
       }
 
     } catch (IOException e) {
