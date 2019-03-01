@@ -527,7 +527,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public void shutdownDataStore() throws InterruptedException {
     scheduledExecutor.shutdown();
     stripedExecutor.shutdown();
-    stripedExecutor.awaitTermination(1, TimeUnit.MINUTES); // TODO: Parameterize
+
+    // TODO: Parameterize
+    scheduledExecutor.awaitTermination(1, TimeUnit.MINUTES);
+    stripedExecutor.awaitTermination(1, TimeUnit.MINUTES);
+
     dataStoreState = DataStoreState.SHUTDOWN;
   }
 
