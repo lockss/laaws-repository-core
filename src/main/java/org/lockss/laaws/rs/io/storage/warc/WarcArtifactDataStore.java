@@ -105,16 +105,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           .withZone(ZoneId.of("UTC"));
 
   protected static final String WARC_FILE_EXTENSION = ".warc";
-  protected static final String COLLECTIONS_DIR = "collections";
-  protected static final String TMP_WARCS_DIR = "tmp";
-  protected static final String SEALED_WARC_DIR = "sealed";
   protected static final String AU_DIR_PREFIX = "au-";
   protected static final String AU_ARTIFACTS_WARC_NAME = "artifacts" + WARC_FILE_EXTENSION;
 
-  protected static final String SCHEME = "urn:uuid";
+  protected static final String COLLECTIONS_DIR = "collections";
+  protected static final String SEALED_WARC_DIR = "sealed";
+  protected static final String TMP_WARCS_DIR = "temp";
+
+  protected static final String WARCID_SCHEME = "urn:uuid";
   protected static final String CRLF = "\r\n";
   protected static byte[] CRLF_BYTES;
   protected static String SEPARATOR = "/";
+
+  protected final static String DEFAULT_TMPWARCBASEPATH = SEPARATOR + TMP_WARCS_DIR;
 
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
 
@@ -131,8 +134,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected WarcFilePool tmpWarcPool;
   protected Map<RepoAuid, String> auActiveWarcMap;
   protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
-
-  protected Pattern storageUrlPattern;
 
   protected ScheduledExecutorService scheduledExecutor;
   protected StripedExecutorService stripedExecutor;
@@ -1732,7 +1733,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return
    */
   public static String formatWarcRecordId(String id) {
-    return String.format("<%s:%s>", SCHEME, id);
+    return String.format("<%s:%s>", WARCID_SCHEME, id);
   }
 
   /**

@@ -50,7 +50,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
-  private final static String DEFAULT_TMPWARCBASEPATH = "/tmp";
 
   public final static String DEFAULT_REPO_BASEDIR = "/";
 
