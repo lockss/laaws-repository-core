@@ -423,7 +423,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
 
         //// Handle this WARC file
-        if (isTmpWarcRemovable) {
+        if (isTmpWarcRemovable && !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
           log.debug("Removing temporary WARC [{}]", tmpWarc);
           removeWarc(tmpWarc);
         } else {
