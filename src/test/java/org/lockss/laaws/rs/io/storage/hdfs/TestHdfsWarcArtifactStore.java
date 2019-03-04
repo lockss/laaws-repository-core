@@ -112,7 +112,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected String expected_getTmpWarcBasePath() {
-        return store.getAbsolutePath("/tmp");
+        return store.getAbsolutePath("/temp");
     }
 
     @Override
