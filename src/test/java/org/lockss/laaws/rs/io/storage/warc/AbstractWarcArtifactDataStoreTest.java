@@ -603,20 +603,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     log.debug("storageURL = {}", committedArtifact1.getStorageUrl());
   }
 
-  private void dumpWarcRecord(String storageUrl) throws IOException {
-    Matcher m = store.storageUrlPattern.matcher(storageUrl);
-
-    if (m.matches()) {
-      long recordLength = Long.parseLong(m.group(5));
-
-      InputStream is = store.getInputStreamFromStorageUrl(storageUrl);
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      StreamUtils.copyRange(is, baos, 0, recordLength - 1);
-
-      log.info("warc-record: {}", baos.toString());
-    }
-  }
-
   @Test
   public void testMoveToPermanentStorage_null() throws Exception {
     // Assert moving a null artifact results in an IllegalArgumentException

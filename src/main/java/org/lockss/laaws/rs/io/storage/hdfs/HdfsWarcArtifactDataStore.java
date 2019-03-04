@@ -103,8 +103,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     ));
 
     this.fs = fs;
-    this.storageUrlPattern =
-        Pattern.compile("(" + fs.getUri() + ")(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
 
     mkdirs(getBasePath());
     mkdirs(getTmpWarcBasePath());

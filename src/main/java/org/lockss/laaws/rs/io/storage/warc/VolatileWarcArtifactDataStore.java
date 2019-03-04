@@ -74,9 +74,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     super(index, basePath);
 
     this.warcs = new HashMap<>();
-
-    this.storageUrlPattern =
-        Pattern.compile("(volatile://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
   }
 
   @Override

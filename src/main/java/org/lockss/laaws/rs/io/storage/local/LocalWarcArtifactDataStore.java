@@ -66,9 +66,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     log.info(String.format("Instantiating a local data store under %s", basePath));
 
-    this.storageUrlPattern =
-        Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)&length=(\\d+)");
-
     // Initialize LOCKSS repository structure
     mkdirs(getBasePath());
     mkdirs(getTmpWarcBasePath());
