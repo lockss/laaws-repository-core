@@ -52,10 +52,9 @@ public class LocalLockssRepository extends BaseLockssRepository {
    * @param persistedIndexName
    *          A String with the name of the file where to persist the index.
    */
-  public static LockssRepository getInstance(File basePath, String persistedIndexName) throws IOException {
-    ArtifactIndex ai =  new LocalArtifactIndex(basePath, persistedIndexName);
-    ArtifactDataStore ads = new LocalWarcArtifactDataStore(ai, basePath);
-    return new LocalLockssRepository(ai, ads);
+  public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
+    this.index = new LocalArtifactIndex(basePath, persistedIndexName);
+    this.store = new LocalWarcArtifactDataStore(index, basePath);
   }
 
   protected LocalLockssRepository(ArtifactIndex ai, ArtifactDataStore ads) throws IOException {

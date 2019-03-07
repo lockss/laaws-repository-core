@@ -64,7 +64,7 @@ public class LockssRepositoryFactory {
      * @return A {@code LocalLockssRepository} instance.
      */
     public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
-        return LocalLockssRepository.getInstance(basePath, persistedIndexName);
+        return new LocalLockssRepository(basePath, persistedIndexName);
     }
 
     /**
