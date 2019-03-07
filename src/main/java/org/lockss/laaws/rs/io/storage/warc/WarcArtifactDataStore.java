@@ -244,6 +244,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // * STARTUP
   // *******************************************************************************************************************
 
+  @Override
+  public void initDataStore() {
+    reloadDataStoreState();
+    dataStoreState = DataStoreState.INITIALIZED;
+  }
+
   /**
    * Schedules an asynchronous reload of the data store state.
    */

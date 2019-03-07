@@ -75,11 +75,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     this.warcs = new HashMap<>();
   }
 
-  @Override
-  public void initDataStore() throws IOException {
-    reloadDataStoreState();
-    dataStoreState = DataStoreState.INITIALIZED;
-  }
+
 
   @Override
   public void initCollection(String collectionId) {

@@ -109,18 +109,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   /**
-   * Initializes a new LOCKSS repository structure under the configured base path.
-   *
-   * @throws IOException
-   */
-  @Override
-  public synchronized void initDataStore() {
-    // Reload temporary WARCs
-    reloadDataStoreState();
-    dataStoreState = DataStoreState.INITIALIZED;
-  }
-
-  /**
    * Checks whether the HDFS cluster is available by getting its status.
    *
    * @return
