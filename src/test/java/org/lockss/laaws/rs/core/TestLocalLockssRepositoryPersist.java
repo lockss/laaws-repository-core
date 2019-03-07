@@ -54,11 +54,12 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
      */
     @Override
     public void tearDownArtifactDataStore() throws Exception {
+        super.tearDownArtifactDataStore();
+
         // Clean up the local repository directory tree used in the test.
+        log.debug("Cleaning up local repository directory used for tests: {}", repoBaseDir);
         if (!FileSystemUtils.deleteRecursively(repoBaseDir)) {
           log.warn("Failed to delete temporary directory " + repoBaseDir);
         }
-
-        super.tearDownArtifactDataStore();
     }
 }

@@ -114,7 +114,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   @Override
-  public synchronized void initArtifactDataStore() {
+  public synchronized void initDataStore() {
     // Reload temporary WARCs
     reloadDataStoreState();
     dataStoreState = DataStoreState.INITIALIZED;

@@ -82,7 +82,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public synchronized void initArtifactDataStore() {
+  public synchronized void initDataStore() {
     // Reload temporary WARCs
     reloadDataStoreState();
     dataStoreState = DataStoreState.INITIALIZED;

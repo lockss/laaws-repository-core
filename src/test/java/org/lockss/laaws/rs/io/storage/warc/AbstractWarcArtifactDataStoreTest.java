@@ -39,7 +39,6 @@ import java.time.format.*;
 import java.time.temporal.*;
 import java.util.*;
 import java.util.concurrent.Future;
-import java.util.regex.Matcher;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IteratorUtils;
@@ -62,7 +61,6 @@ import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.time.TimeUtil;
-import org.springframework.util.StreamUtils;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
@@ -153,10 +151,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testInitArtifactDataStore() throws Exception {
     ArtifactIndex index = new VolatileArtifactIndex();
-    index.initArtifactIndex();
+    index.initIndex();
 
     store.setArtifactIndex(index);
-    store.initArtifactDataStore();
+    store.initDataStore();
   }
 
   @Test
@@ -216,14 +214,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Create and initialize a blank index
     ArtifactIndex index = new VolatileArtifactIndex();
-    index.initArtifactIndex();
+    index.initIndex();
 
     // Configure WARC artifact data store with a newly instantiated volatile artifact index
     store.setArtifactIndex(index);
     assertEquals(index, store.getArtifactIndex());
 
     // Garbage collector must not be running while reloading temporary WARCs so we do NOT initialize it
-    //store.initArtifactDataStore();
+    //store.initDataStore();
     assertFalse(store.isReady());
 
     // Assert empty temporary WARCs directory
@@ -988,10 +986,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testWarcSealing() throws Exception {
     // Use a volatile artifact index with this data store
     ArtifactIndex index = new VolatileArtifactIndex();
-    index.initArtifactIndex();
+    index.initIndex();
 
     store.setArtifactIndex(index);
-    store.initArtifactDataStore();
+    store.initDataStore();
 
     // The WARC records for the two artifacts here end up being 782 bytes each.
     store.setThresholdWarcSize(512L);
@@ -1147,7 +1145,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(index, store.getArtifactIndex());
 
     // Initialize the data store
-    index.initArtifactIndex();
+    index.initIndex();
 
     // Add an artifact to the store and index
     ArtifactData ad = generateTestArtifactData("coll", "auid", "uri", 1, 512);

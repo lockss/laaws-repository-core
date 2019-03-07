@@ -256,6 +256,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   void setUpRepo() throws Exception {
     this.repository = makeLockssRepository();
+    this.repository.initRepository();
+  }
+
+  @AfterEach
+  public void tearDownArtifactDataStore() throws Exception {
+    this.repository.shutdownRepository();
+    this.repository = null;
   }
 
   // Set up the current variant: create appropriate ArtSpecs and add them
@@ -273,12 +280,6 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	commit(spec, art);
       }
     }      
-  }
-
-
-  @AfterEach
-  public void tearDownArtifactDataStore() throws Exception {
-    this.repository = null;
   }
 
   // Invoked automatically before each test by the @VariantTest mechanism

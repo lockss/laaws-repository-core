@@ -60,8 +60,6 @@ public class BaseLockssRepository implements LockssRepository {
   public BaseLockssRepository() throws IOException {
     index = new VolatileArtifactIndex();
     store = new VolatileWarcArtifactDataStore(index);
-
-    this.initRepository();
   }
 
   /**
@@ -77,14 +75,20 @@ public class BaseLockssRepository implements LockssRepository {
 
     this.index = index;
     this.store = store;
-
-    this.initRepository();
   }
 
-  protected void initRepository() throws IOException {
-    // Initialize artifact index and data store
-    index.initArtifactIndex();
-    store.initArtifactDataStore();
+  @Override
+  public void initRepository() throws IOException {
+    log.info("Initializing repository");
+    index.initIndex();
+    store.initDataStore();
+  }
+
+  @Override
+  public void shutdownRepository() throws InterruptedException {
+    log.info("Shutting down repository");
+    index.shutdownIndex();
+    store.shutdownDataStore();
   }
 
   /**

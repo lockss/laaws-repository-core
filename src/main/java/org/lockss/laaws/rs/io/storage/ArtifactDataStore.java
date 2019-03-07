@@ -54,7 +54,9 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *
      * @throws IOException
      */
-    void initArtifactDataStore() throws IOException;
+    void initDataStore() throws IOException;
+
+    void shutdownDataStore() throws InterruptedException;
 
     /**
      * Initializes a collection storage structure in an artifact data store implementation.

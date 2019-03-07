@@ -527,6 +527,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return expired;
   }
 
+  @Override
   public void shutdownDataStore() throws InterruptedException {
     scheduledExecutor.shutdown();
     stripedExecutor.shutdown();

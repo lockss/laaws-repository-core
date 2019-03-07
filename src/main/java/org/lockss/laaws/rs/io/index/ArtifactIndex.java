@@ -365,7 +365,10 @@ public interface ArtifactIndex extends Ready {
         }
     }
 
-    default void initArtifactIndex() {
+    default void initIndex() {
+        // No-op
+    }
+    default void shutdownIndex() {
         // No-op
     }
 }

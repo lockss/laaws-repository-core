@@ -76,7 +76,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void initArtifactDataStore() throws IOException {
+  public void initDataStore() throws IOException {
     reloadDataStoreState();
     dataStoreState = DataStoreState.INITIALIZED;
   }

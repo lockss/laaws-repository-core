@@ -46,6 +46,14 @@ import java.util.concurrent.TimeoutException;
  */
 public interface LockssRepository extends Ready {
 
+  default void initRepository() throws IOException {
+    // NOP
+  }
+
+  default void shutdownRepository() throws InterruptedException {
+    // NOP
+  }
+
     /**
      * Adds an artifact to this LOCKSS repository.
      * @param artifactData
