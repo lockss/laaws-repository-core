@@ -75,6 +75,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @BeforeEach
   public void setupTestContext() throws IOException {
     store = makeWarcArtifactDataStore(null);
+    store.initDataStore();
+  }
+
+  @AfterEach
+  public void teardownDataStore() throws InterruptedException {
+    store.shutdownDataStore();
   }
 
   // *******************************************************************************************************************
@@ -153,8 +159,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIndex index = new VolatileArtifactIndex();
     index.initIndex();
 
-    store.setArtifactIndex(index);
+    // Ignore the data store provided to us and create a new one for this test
+    store = makeWarcArtifactDataStore(index);
     store.initDataStore();
+    store.shutdownDataStore();
   }
 
   @Test
@@ -1124,9 +1132,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * @throws Exception
    */
   private void runTestGetArtifactState(boolean expired) throws Exception {
-    // Instantiate a new WARC artifact data store
+    // Instantiate a new WARC artifact data store for this run
     store = makeWarcArtifactDataStore(null);
     assertNotNull(store);
+
+    store.initDataStore();
 
     // Get the state of an artifact that has not been indexed.
     ArtifactState artifactState = store.getArtifactState(expired, null);
@@ -1180,7 +1190,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(artifact.getCommitted());
 
     // Verify.
-    assertEquals(ArtifactState.COPIED,
-	store.getArtifactState(expired, artifact));
+    assertEquals(ArtifactState.COPIED, store.getArtifactState(expired, artifact));
+
+    store.shutdownDataStore();
   }
 }
