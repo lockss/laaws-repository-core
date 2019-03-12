@@ -132,7 +132,6 @@ public class BaseLockssRepository implements LockssRepository {
 
       // Add the artifact the data store and index
       Artifact artifact = store.addArtifactData(artifactData);
-      index.indexArtifact(artifactData);
 
       return artifact;
     }

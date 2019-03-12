@@ -724,12 +724,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         new File("/tmp") // FIXME: Refactor repository code to use a custom temp dir
     )) {
       // Serialize artifact to WARC record and get the number of bytes in the serialization
-      long bytesWritten = writeArtifactData(artifactData, dfos);
+      long recordLength = writeArtifactData(artifactData, dfos);
       dfos.close();
 
       synchronized (tmpWarcPool) {
         // Get an available temporary WARC from the temporary WARC pool
-        WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(bytesWritten);
+        WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(recordLength);
         String tmpWarcFilePath = tmpWarcFile.getPath();
 
         log.debug("tmpWarcFilePath = {}", tmpWarcFilePath);
@@ -741,34 +741,67 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
           long offset = getWarcLength(tmpWarcFilePath);
 
+          // Increment file use counter
+          TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcFilePath);
+
           // Write serialized artifact to temporary WARC file
           try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
-            dfos.writeTo(output);
+            CountingOutputStream cout = new CountingOutputStream(output);
+            dfos.writeTo(cout);
+            cout.close();
+
+            long bytesWritten = cout.getCount();
+
+            if (bytesWritten != recordLength) {
+              log.error(
+                  "Wrote only {} out of {} bytes! [artifactId: {}, tmpWarcFilePath: {}]",
+                  bytesWritten,
+                  recordLength,
+                  artifactId.getId(),
+                  tmpWarcFilePath
+              );
+
+              // TODO: Rollback
+
+              throw new IOException("Did not write entire WARC record to file");
+            }
 
             log.info("Wrote {} bytes starting at byte offset {} to {}; size is now {}",
-                bytesWritten,
+                recordLength,
                 offset,
                 tmpWarcFilePath,
-                offset + bytesWritten
+                offset + recordLength
             );
+          } finally {
+            // Decrement file use counter
+            TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarcFilePath);
           }
 
           // Update temporary WARC stats and return to pool
-          tmpWarcFile.setLength(offset + bytesWritten);
+          tmpWarcFile.setLength(offset + recordLength);
 
-          // Set artifact data storage URL
-          artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, bytesWritten));
+          // Set artifact data storage URL and repository state
+          artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, recordLength));
+          artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
+
         } finally {
           // Must return borrowed WarcFile
           tmpWarcPool.returnWarcFile(tmpWarcFile);
         }
+
+        // Start new repository metadata journal if necessary
+        initWarc(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
+
+        // NOTE: Potential for race condition here if not careful - journal may be new (and have no entries)!
+        //sleep(1000);
+
+        // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
+        updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
+
+        // Index the artifact
+        artifactIndex.indexArtifact(artifactData);
       }
     }
-
-    // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
-    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
-    initWarc(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
-    updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
     // Create a new Artifact object to return; should reflect artifact data as it is in the data store
     Artifact artifact = new Artifact(
