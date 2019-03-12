@@ -141,7 +141,7 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * @throws NullPointerException
      *          if the given {@link Artifact} instance is null
      */
-    MD deleteArtifactData(Artifact artifact) throws IOException;
+    void deleteArtifactData(Artifact artifact) throws IOException;
     
     long DEFAULT_WAITREADY = 5000;
 

@@ -203,7 +203,7 @@ public class ArtifactDataFactory {
      *          An {@code ArchiveRecordHeader} ARC / WARC header containing an artifact identity.
      * @return An {@code ArtifactIdentifier}.
      */
-   private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
+   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
         Integer version = -1;
 
         String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);

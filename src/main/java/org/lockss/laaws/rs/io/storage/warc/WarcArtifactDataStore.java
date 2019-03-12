@@ -565,6 +565,31 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return expired;
   }
 
+  protected RepositoryArtifactMetadata getRepositoryMetadata(ArtifactIdentifier aid) throws IOException {
+    Map<String, JSONObject> journal = readMetadataJournal(
+        getAuMetadataWarcPath(aid, RepositoryArtifactMetadata.LOCKSS_METADATA_ID)
+    );
+
+    JSONObject json = journal.get(aid.getId());
+
+    if (json != null) {
+      return new RepositoryArtifactMetadata(journal.get(aid.getId()));
+    }
+
+    log.warn("Could not find any journal entries for artifact [artifactId: {}]", aid.getId());
+    return null;
+  }
+
+  protected boolean isArtifactDeleted(ArtifactIdentifier aid) throws IOException {
+    RepositoryArtifactMetadata metadata = getRepositoryMetadata(aid);
+
+    if (metadata != null) {
+      return metadata.isDeleted();
+    }
+
+    return true;
+  }
+
   @Override
   public void shutdownDataStore() throws InterruptedException {
     log.info("Shutting down data store");
@@ -606,16 +631,24 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     try {
+      ArtifactState artifactState = getArtifactState(
+          isArtifactExpired(record),
+          isArtifactDeleted(ArtifactDataFactory.buildArtifactIdentifier(headers)),
+          artifactIndex.getArtifact(artifactId)
+      );
+
+      log.debug("artifactId: {}, artifactState = {}", artifactId, artifactState);
+
       // Handle the different life cycle states in which the artifact may be.
-      switch (getArtifactState(isArtifactExpired(record),
-	  artifactIndex.getArtifact(artifactId))) {
-      case NOT_INDEXED:
-      case COMMITTED:
-      case UNCOMMITTED:
-        return false;
-      case EXPIRED:
-      case COPIED:
-        return true;
+      switch (artifactState) {
+        case NOT_INDEXED:
+        case COMMITTED:
+        case UNCOMMITTED:
+          return false;
+        case EXPIRED:
+        case COPIED:
+        case DELETED:
+          return true;
       }
 
       // Q: Should we verify committed and deleted status recorded in the repository metadata journal?
@@ -923,11 +956,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     artifactData.setStorageUrl(artifact.getStorageUrl());
     artifactData.setContentLength(artifact.getContentLength());
     artifactData.setContentDigest(artifact.getContentDigest());
-    artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
-        artifact.getIdentifier(),
-        artifact.getCommitted(),
-        false
-    ));
+    artifactData.setRepositoryMetadata(getRepositoryMetadata(artifact.getIdentifier()));
 
     // Return an ArtifactData from the WARC record
     return artifactData;
@@ -935,7 +964,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   // TODO: Generalize this to arbitrary metadata
   @Override
-  public RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) throws IOException {
+  public synchronized RepositoryArtifactMetadata updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) throws IOException {
     Objects.requireNonNull(artifactId, "Artifact identifier is null");
     Objects.requireNonNull(artifactMetadata, "Repository artifact metadata is null");
 
@@ -973,15 +1002,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info("Committing artifact {} in AU {}", artifact.getId(), artifact.getAuid());
 
     // Read current state of repository metadata for this artifact
-    ArtifactData artifactData = getArtifactData(artifact);
-    RepositoryArtifactMetadata artifactState = artifactData.getRepositoryMetadata();
+    // Q: Race condition possible here?
+    RepositoryArtifactMetadata artifactState = getRepositoryMetadata(artifact.getIdentifier());
 
     // Proceed only if the artifact is not marked deleted
-    // TODO: This is always false - see getArtifactData() implementation
-//    if (artifactState.isDeleted()) {
-//      log.warn("Artifact is deleted (Artifact ID: {})", artifact.getId());
-//      return null;
-//    }
+    if (artifactState.isDeleted()) {
+      log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
+      return null;
+    }
 
     // Write new committed state to artifact data repository metadata journal
     artifact.setCommitted(true);
@@ -1150,39 +1178,36 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   @Override
-  public RepositoryArtifactMetadata deleteArtifactData(Artifact artifact) throws IOException {
+  public void deleteArtifactData(Artifact artifact) throws IOException {
     if (artifact == null) {
       throw new IllegalArgumentException("Null artifact");
     }
 
-    RepositoryArtifactMetadata repoMetadata = null;
+    log.info("Deleting artifact [artifactId: {}]", artifact.getId());
 
     try {
       // Retrieve artifact data from current WARC file
-      ArtifactData artifactData = getArtifactData(artifact);
-      repoMetadata = artifactData.getRepositoryMetadata();
+      RepositoryArtifactMetadata repoMetadata = getRepositoryMetadata(artifact.getIdentifier());
 
       if (!repoMetadata.isDeleted()) {
-	// Write new state to artifact data repository metadata journal
-	repoMetadata.setCommitted(false);
-	repoMetadata.setDeleted(true);
-	updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
+        // Write new state to artifact data repository metadata journal
+        repoMetadata.setDeleted(true);
+        updateArtifactMetadata(artifact.getIdentifier(), repoMetadata);
 
-	// Update artifact index
-//      artifactIndex.deleteArtifact(artifact.getId());
+        // Update artifact index
+        artifactIndex.deleteArtifact(artifact.getId());
 
-	// TODO: Actually remove artifact from storage. A more likely design is a garbage collector with customizable
-	// policy because it is expensive to cut and splice artifacts.
+        // TODO: Remove artifact from storage - cutting and splicing WARC files is expensive so we just leave the
+        //       artifact in place for now.
       } else {
-	log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
+        log.warn("Artifact is already deleted [artifact: {}]", artifact);
       }
     } catch (Exception e) {
-      log.error("Caught exception deleting artifact: ", e);
-      log.error("artifact = {}", artifact);
+      log.error("Caught exception deleting artifact [artifact: {}]", artifact, e);
       throw e;
     }
 
-    return repoMetadata;
+    log.info("Deleted artifact [artifactId: {}]", artifact.getId());
   }
 
   public String getCollectionPath(String collection) {
@@ -1336,7 +1361,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   public String getAuMetadataWarcPath(ArtifactIdentifier artifactId, RepositoryArtifactMetadata artifactMetadata) {
-    return getAuPath(artifactId) + SEPARATOR + artifactMetadata.getMetadataId() + WARC_FILE_EXTENSION;
+    return getAuMetadataWarcPath(artifactId, artifactMetadata.getMetadataId());
+  }
+
+  public String getAuMetadataWarcPath(ArtifactIdentifier artifactId, String metadataId) {
+    return getAuPath(artifactId) + SEPARATOR + metadataId + WARC_FILE_EXTENSION;
   }
 
   /**
