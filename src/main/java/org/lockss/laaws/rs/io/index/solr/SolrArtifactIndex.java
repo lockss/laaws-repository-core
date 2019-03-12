@@ -217,6 +217,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
+        log.info("Adding artifact to index: {}", artifactData);
+
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create an instance of Artifact to represent the artifact
@@ -237,6 +239,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         // Return the Artifact added to the Solr collection
+        log.info("Added artifact to index: {}", artifactData);
         return artifact;
     }
 

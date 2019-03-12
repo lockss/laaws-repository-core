@@ -140,11 +140,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   // The Artifact life cycle states.
   protected enum ArtifactState {
+    UNKNOWN,
     NOT_INDEXED,
     UNCOMMITTED,
     EXPIRED,
     COMMITTED,
-    COPIED;
+    COPIED,
+    DELETED
   }
 
   protected enum DataStoreState {
@@ -246,8 +248,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   @Override
   public void initDataStore() {
+    log.info("Initializing data store");
+
     reloadDataStoreState();
     dataStoreState = DataStoreState.INITIALIZED;
+
+    log.info("Initialized data store");
   }
 
   /**
@@ -255,6 +261,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected void reloadDataStoreState() {
     stripedExecutor.submit(new ReloadDataStoreStateTask());
+  }
+
+  protected void runGarbageCollector() {
+    scheduledExecutor.submit(new GarbageCollectTempWarcsTask());
   }
 
   private class ReloadDataStoreStateTask implements Runnable {
@@ -272,6 +282,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Schedule temporary WARC garbage collection
       // TODO: Parameterize interval
       scheduledExecutor.scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 0, 1, TimeUnit.DAYS);
+      log.info("Scheduled temporary WARC garbage collector");
     }
   }
 
@@ -296,13 +307,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     log.info("Starting GC of temporary files under {}", tmpWarcBasePath);
 
-    try {
-      Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
+    // FIXME: Not ideal. This has the potential to take a long time.
+    synchronized (tmpWarcPool) {
+      try {
+        Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
 
-      log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
+        log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
-      for (String tmpWarcPath: tmpWarcs) {
-        synchronized(tmpWarcPool) {
+        for (String tmpWarcPath : tmpWarcs) {
           WarcFile warcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
 
           if (warcFile != null) {
@@ -323,10 +335,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             log.warn("Could not check out temporary WARC file from pool - will retry later [{}]", tmpWarcPath);
           }
         }
-      }
 
-    } catch (IOException e) {
-      log.error("Caught IOException while trying to find temporary WARC files under {}: {}", tmpWarcBasePath, e);
+      } catch (IOException e) {
+        log.error("Caught IOException while trying to find temporary WARC files under {}: {}", tmpWarcBasePath, e);
+      }
     }
   }
 
@@ -370,6 +382,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     String tmpWarcBasePath = getTmpWarcBasePath();
+
     log.info("Reloading temporary WARCs from {}", tmpWarcBasePath);
 
     Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
@@ -382,6 +395,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       synchronized (tmpWarcPool) {
         boolean isTmpWarcRemovable = true;
 
+        if (TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
+          log.warn("Temporary file is in use - skipping reload [tmpWarc: {}]", tmpWarc);
+          continue;
+        }
+
         //// Handle WARC records in this temporary WARC file
         try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
           // Get an ArchiveReader Iterable over ArchiveRecord objects
@@ -391,13 +409,24 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           for (ArchiveRecord record : archiveReader) {
 
             boolean isRecordRemovable = false;
+
+            // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
+            // we add four bytes to the length
+            long recordLength = record.getHeader().getLength() + 4L;
+
             ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
             String artifactId = artifactData.getIdentifier().getId();
+            artifactData.setStorageUrl(makeStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
 
-            // Handle the different life cycle states in which the artifact may
-            // be.
-            switch (getArtifactState(isArtifactExpired(record),
-                artifactIndex.getArtifact(artifactId))) {
+            log.debug("artifactData.getStorageUrl() = {}", artifactData.getStorageUrl());
+
+            // Handle the different life cycle states in which the artifact may be.
+            switch (
+                getArtifactState(
+                    isArtifactExpired(record),
+                    isArtifactDeleted(artifactData.getIdentifier()),
+                    artifactIndex.getArtifact(artifactId))
+            ) {
               case NOT_INDEXED:
                 // Reindex artifact
                 log.warn("Could not find artifact {} in index; reindexing", artifactId);
@@ -412,6 +441,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 break;
               case EXPIRED:
               case COPIED:
+              case DELETED:
                 isRecordRemovable = true;
             }
 
@@ -433,12 +463,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           removeWarc(tmpWarc);
         } else {
           // Add this WARC file to temporary WARC pool
-          // Q: Doesn't hurt but do we really want to do this?
+          // Q: Do we really want to do this?
           long tmpWarcFileLen = getWarcLength(tmpWarc);
           tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
         }
       }
     }
+
+    log.info("Finished reloading temporary WARCs from {}", tmpWarcBasePath);
   }
 
   /**
@@ -451,36 +483,37 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *          An Artifact with the Artifact.
    * @return an ArtifactState with the state of the Artifact.
    */
-  protected ArtifactState getArtifactState(boolean expired,
-      Artifact artifact) throws URISyntaxException {
+  protected ArtifactState getArtifactState(boolean expired, boolean deleted, Artifact artifact) throws URISyntaxException {
+    // Check whether the artifact is deleted
+    if (deleted) {
+      return ArtifactState.DELETED;
+    }
+
     // Check whether the Artifact is in the index.
     if (artifact != null) {
       // Yes: Check whether its storage URL is not in a temporary WARC file.
-      if (!Artifact.getPathFromStorageUrl(artifact.getStorageUrl())
-	  .startsWith(getTmpWarcBasePath())) {
-	// Yes: It has been copied to permanent storage already.
-	log.debug2("ArtifactState = {}", ArtifactState.COPIED);
-	return ArtifactState.COPIED;
+      if (!Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(getTmpWarcBasePath())) {
+        // Yes: It has been copied to permanent storage already.
+        log.debug2("ArtifactState = {}", ArtifactState.COPIED);
+        return ArtifactState.COPIED;
       }
 
       // No: Check whether the Artifact is committed.
       if (artifact.getCommitted()) {
-	// Yes.
-	log.debug2("ArtifactState = {}", ArtifactState.COMMITTED);
-	return ArtifactState.COMMITTED;
+        // Yes.
+        log.debug2("ArtifactState = {}", ArtifactState.COMMITTED);
+        return ArtifactState.COMMITTED;
       }
     }
 
-    // The Artifact is not committed or copied: Check whether the Artifact has
-    // expired.
+    // The Artifact is not committed or copied: Check whether the Artifact has expired.
     if (expired) {
       // Yes.
       log.debug2("ArtifactState = {}", ArtifactState.EXPIRED);
       return ArtifactState.EXPIRED;
     }
 
-    // No, the Artifact has not expired: Check whether the Artifact is not in
-    // the index.
+    // No, the Artifact has not expired: Check whether the Artifact is not in the index.
     if (artifact == null) {
       // Yes.
       log.debug2("ArtifactState = {}", ArtifactState.NOT_INDEXED);
@@ -534,6 +567,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   @Override
   public void shutdownDataStore() throws InterruptedException {
+    log.info("Shutting down data store");
     scheduledExecutor.shutdown();
     stripedExecutor.shutdown();
 
@@ -542,6 +576,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     stripedExecutor.awaitTermination(1, TimeUnit.MINUTES);
 
     dataStoreState = DataStoreState.SHUTDOWN;
+    log.info("Shutdown data store");
   }
 
   /**
@@ -818,9 +853,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   @Override
-  // FIXME: Race condition? If store is reading this artifact from a tmp WARC, and another thread has just completed
-  //        moving this artifact from temporary to permanent storage, making this WARC record and its file eligible to
-  //        be deleted, then a garbage collect may delete the tmp WARC before a thread running this method is finished.
   public ArtifactData getArtifactData(Artifact artifact) throws IOException {
     if (artifact == null) {
       throw new IllegalArgumentException("Artifact is null");
@@ -1747,7 +1779,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Write the header
     out.write(createRecordHeader(record).getBytes(WARC_HEADER_ENCODING));
 
-    // Write the header-body separator
+    // Write a CRLF block to separate header from body
     out.write(CRLF_BYTES);
 
     if (record.getContentStream() != null) {
@@ -1756,11 +1788,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Sanity check
       if (bytesWritten != record.getContentLength()) {
-        log.warn("Expected to write {} bytes, but wrote {}", record.getContentLength(), bytesWritten);
+        log.warn(
+            "Number of bytes written did not match Content-Length header (expected: {} bytes, wrote: {} bytes)",
+            record.getContentLength(),
+            bytesWritten
+        );
       }
     }
 
-    // Write the two blank lines required at end of every record
+    // Write the two CRLF blocks required at end of every record
     out.write(CRLF_BYTES);
     out.write(CRLF_BYTES);
   }
