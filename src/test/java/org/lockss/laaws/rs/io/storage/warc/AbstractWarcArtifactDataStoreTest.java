@@ -74,13 +74,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @BeforeEach
   public void setupTestContext() throws IOException {
-    store = makeWarcArtifactDataStore(null);
+    ArtifactIndex index = new VolatileArtifactIndex();
+    index.initIndex();
+
+    store = makeWarcArtifactDataStore(index);
     store.initDataStore();
   }
 
   @AfterEach
   public void teardownDataStore() throws InterruptedException {
+    ArtifactIndex index = store.getArtifactIndex();
     store.shutdownDataStore();
+
+    if (index != null) {
+      index.shutdownIndex();
+    }
   }
 
   // *******************************************************************************************************************
@@ -122,6 +130,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testInputOutputStreams() throws Exception {
+    // Do not use the provided data store for this test
+    teardownDataStore();
+
+    store = makeWarcArtifactDataStore(null);
+
     // Path to temporary WARC file
     String warcName = String.format("%s.%s", UUID.randomUUID(), WARCConstants.WARC_FILE_EXTENSION); //FIXME
     String warcPath = store.getAbsolutePath(store.getTmpWarcBasePath() + "/" + warcName);
@@ -185,6 +198,38 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(isFile(warcPath));
   }
 
+  @Test
+  public void testReloadTempWarcs_null() throws Exception {
+    // Do not use provided data store for this test
+    teardownDataStore();
+
+    store = makeWarcArtifactDataStore(null);
+    assertThrows(IllegalStateException.class, () -> store.reloadTemporaryWarcs());
+  }
+
+  @Test
+  public void testReloadTempWarcs_deleteArtifactData() throws Exception {
+    // Add an artifact
+    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
+    Artifact artifact = store.addArtifactData(ad);
+
+    // Get handle to data store's index
+    ArtifactIndex index = store.getArtifactIndex();
+
+    // Remove the artifact
+    store.deleteArtifactData(artifact);
+    index.deleteArtifact(artifact.getId());
+
+    // Assert artifact is deleted
+    assertNull(index.getArtifact(artifact.getId()));
+
+    // Reload temporary WARCs
+    store.reloadTemporaryWarcs();
+
+    // Assert artifact is still deleted
+    assertNull(index.getArtifact(artifact.getId()));
+  }
+
   /**
    * Tests for the temporary WARC reloading mechanism in {@code WarcArtifactDataStore}.
    *
@@ -192,16 +237,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testReloadTempWarcs() throws Exception {
-//    assertThrows(IllegalArgumentException.class, () -> store.setArtifactIndex(null));
-    assertThrows(IllegalStateException.class, () -> store.reloadTemporaryWarcs());
+    // Do not use provided data store for this test
+    teardownDataStore();
 
-    // We will not use the data store instantiated by @BeforeEach so stop that data store's garbage collector
-    //store.shutdownDataStore();
+    runTestReloadTempWarcs(true, true, false);
+    runTestReloadTempWarcs(true, false, false);
+    runTestReloadTempWarcs(false, true, false);
+    runTestReloadTempWarcs(false, false, false);
 
-    runTestReloadTempWarcs(true, true);
-    runTestReloadTempWarcs(true, false);
-    runTestReloadTempWarcs(false, true);
-    runTestReloadTempWarcs(false, false);
+    runTestReloadTempWarcs(true, true, true);
+    runTestReloadTempWarcs(true, false, true);
+    runTestReloadTempWarcs(false, true, true);
+    runTestReloadTempWarcs(false, false, true);
   }
 
   /**
@@ -212,7 +259,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * @param expire A {@code boolean} indicating whether the artifact should be expired.
    * @throws Exception
    */
-  private void runTestReloadTempWarcs(boolean commit, boolean expire) throws Exception {
+  private void runTestReloadTempWarcs(boolean commit, boolean expire, boolean delete) throws Exception {
     // Instantiate a new WARC artifact data store
     store = makeWarcArtifactDataStore(null);
     assertNotNull(store);
@@ -240,6 +287,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactData ad = generateTestArtifactData("coll1", "auid1", "uri1", 1, 1024);
     store.addArtifactData(ad);
     Artifact artifact = index.indexArtifact(ad);
+    ArtifactIdentifier aid = artifact.getIdentifier();
 
     // Get the artifact ID
     String artifactId = artifact.getId();
@@ -289,6 +337,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertEquals(0, store.getUncommittedArtifactExpiration());
     }
 
+    if (delete) {
+      store.deleteArtifactData(artifact);
+      index.deleteArtifact(artifactId);
+    }
+
     // Reload temporary WARCs
     store.reloadTemporaryWarcs();
 
@@ -297,9 +350,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Determine artifact state
     artifact = index.getArtifact(artifactId);
-    ArtifactState artifactState = store.getArtifactState(expire, artifact);
+    ArtifactState artifactState = store.getArtifactState(expire, delete, artifact);
 
-    log.debug("commit = {}, expire = {}, artifactState = {}", commit, expire, artifactState);
+    log.debug("commit = {}, expire = {}, delete = {}, artifactState = {}", commit, expire, delete, artifactState);
 
     switch (artifactState) {
       case NOT_INDEXED:
@@ -310,15 +363,23 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         break;
       case EXPIRED:
       case COPIED:
-        // Artifact is either expired or committed (or both): the temporary WARC containing it should have been removed
+      case DELETED:
+        // The temporary WARC containing only this artifact should have been removed
         assertEquals(0, tmpWarcs.size());
         break;
+    }
+
+    if (delete) {
+      assertTrue(store.isArtifactDeleted(aid));
+      assertNull(index.getArtifact(artifactId));
     }
   }
 
   @Test
   public void testGarbageCollectTempWarcs() throws Exception {
-
+    ArtifactData ad = generateTestArtifactData("c", "a", "u", 1, 1024);
+    store.addArtifactData(ad);
+    store.runGarbageCollector();
   }
 
   /**
@@ -406,7 +467,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testGetSetArtifactIndex() throws Exception {
-    // By default, data store should not have an index set
+    // Don't use provided data store, which comes with an volatile index set
+    teardownDataStore();
+
+    // Create a new data store with null index
+    store = makeWarcArtifactDataStore(null);
     assertNull(store.getArtifactIndex());
 
     // Attempting to set the data store's artifact index to null should fail
@@ -450,6 +515,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testAddArtifactData_success() throws Exception {
+    assertNotNull(store.getArtifactIndex());
+
     ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
     assertNotNull(ad);
 
@@ -554,9 +621,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
     Artifact artifact = store.addArtifactData(ad);
 
-    // Set an artifact index
-    ArtifactIndex index = new VolatileArtifactIndex();
-    store.setArtifactIndex(index);
+    // Get the artifact index
+    ArtifactIndex index = store.getArtifactIndex();
+    assertNotNull(index);
 
     // Add an artifact to store
     ArtifactData ad1 = generateTestArtifactData("collection", "auid", "uri", 1, 424L);
@@ -622,9 +689,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testMoveToPermanentStorage_generic() throws Exception {
-    // Instantiate a volatile artifact index for use with this test
-    ArtifactIndex index = new VolatileArtifactIndex();
-    store.setArtifactIndex(index);
+    ArtifactIndex index = store.getArtifactIndex();
+    assertNotNull(index);
 
     // Add an artifact to the data store and index
     ArtifactData ad = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
@@ -666,13 +732,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testMoveToPermanentStorage_sealFirst() throws Exception {
-    // Instantiate a volatile artifact index for use with this test
-    ArtifactIndex index = new VolatileArtifactIndex();
-    store.setArtifactIndex(index);
+    assertNotNull(store.getArtifactIndex());
 
     // Set WARC file size threshold to 4KB
     store.setThresholdWarcSize(FileUtils.ONE_KB * 4L);
     store.getBlockSize();
+
+    // TODO: Finish
   }
 
   @Test
@@ -685,13 +751,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(artifact);
 
     // Delete the artifact from the artifact store
-    RepositoryArtifactMetadata metadata = store.deleteArtifactData(artifact);
+    store.deleteArtifactData(artifact);
 
-    // Verify that the repository metadata reflects the artifact is deleted
-    assertTrue(metadata.isDeleted());
-
-    // TODO: And verify we get a null when trying to retrieve it after delete
+    // TODO: And verify we get a null when trying to retrieve it after delete. This is not implemented yet, so instead
+    //       we verify that the repository metadata journal and index reflect a deleted state.
     // assertNull(store.getArtifactData(artifact));
+
+    // Verify that the repository metadata journal and index reflect the artifact is deleted
+    assertTrue(store.isArtifactDeleted(ad.getIdentifier()));
+    assertNull(store.getArtifactIndex().getArtifact(artifact.getId()));
   }
 
   @Test
@@ -826,12 +894,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testRebuildIndex() throws Exception {
+    // Don't use provided data store, which provides an volatile index set
+    teardownDataStore();
+
     // Instances of artifact index to populate and compare
     ArtifactIndex index1 = new VolatileArtifactIndex();
     ArtifactIndex index2 = new VolatileArtifactIndex();
 
     //// Create and populate first index by adding and indexing new artifacts
-    store.setArtifactIndex(index1);
+    store = makeWarcArtifactDataStore(index1);
+    assertEquals(index1, store.getArtifactIndex());
 
     // Add first artifact to the repository - don't commit
     ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
@@ -866,6 +938,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     //// Populate second index by rebuilding
     store = makeWarcArtifactDataStore(index2, store);
+    assertEquals(index2, store.getArtifactIndex());
     store.rebuildIndex(index2);
 
     //// Compare and assert contents of indexes
@@ -1121,6 +1194,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testGetArtifactState() throws Exception {
+    // Do not use provided data store
+    teardownDataStore();
+
     runTestGetArtifactState(true);
     runTestGetArtifactState(false);
   }
@@ -1132,14 +1208,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * @throws Exception
    */
   private void runTestGetArtifactState(boolean expired) throws Exception {
-    // Instantiate a new WARC artifact data store for this run
-    store = makeWarcArtifactDataStore(null);
-    assertNotNull(store);
+    // Configure WARC artifact data store with a newly instantiated volatile artifact index
+    ArtifactIndex index = new VolatileArtifactIndex();
 
-    store.initDataStore();
+    // Instantiate a new WARC artifact data store for this run
+    store = makeWarcArtifactDataStore(index);
+    assertNotNull(store);
+    assertEquals(index, store.getArtifactIndex());
+
+    // Get the state of an artifact that has been deleted
+    ArtifactState artifactState = store.getArtifactState(expired, true, null);
+    log.trace("artifactState = {}", artifactState);
+    assertEquals(ArtifactState.DELETED, artifactState);
 
     // Get the state of an artifact that has not been indexed.
-    ArtifactState artifactState = store.getArtifactState(expired, null);
+    artifactState = store.getArtifactState(expired, false, null);
     log.trace("artifactState = {}", artifactState);
 
     // Verify.
@@ -1149,13 +1232,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertEquals(ArtifactState.NOT_INDEXED, artifactState);
     }
 
-    // Configure WARC artifact data store with a newly instantiated volatile artifact index
-    ArtifactIndex index = new VolatileArtifactIndex();
-    store.setArtifactIndex(index);
-    assertEquals(index, store.getArtifactIndex());
-
-    // Initialize the data store
+    // Initialize data store and index
     index.initIndex();
+    store.initDataStore();
 
     // Add an artifact to the store and index
     ArtifactData ad = generateTestArtifactData("coll", "auid", "uri", 1, 512);
@@ -1163,7 +1242,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact artifact = index.indexArtifact(ad);
 
     // Get the artifact state.
-    artifactState = store.getArtifactState(expired, artifact);
+    artifactState = store.getArtifactState(expired, false, artifact);
     log.trace("artifactState = {}", artifactState);
 
     // Verify.
@@ -1178,7 +1257,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Verify.
     assertEquals(ArtifactState.COMMITTED,
-	store.getArtifactState(expired, artifact));
+	store.getArtifactState(expired, false, artifact));
 
     // Commit to artifact data store
     Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
@@ -1190,8 +1269,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(artifact.getCommitted());
 
     // Verify.
-    assertEquals(ArtifactState.COPIED, store.getArtifactState(expired, artifact));
+    assertEquals(ArtifactState.COPIED, store.getArtifactState(expired, false, artifact));
 
+    // Shutdown data store and index
     store.shutdownDataStore();
+    index.shutdownIndex();
   }
 }
