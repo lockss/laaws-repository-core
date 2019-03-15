@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.junit.jupiter.api.AfterEach;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.FileSystemUtils;
 import java.io.File;
@@ -52,12 +53,13 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
     /**
      * Run after the test is finished.
      */
+    @AfterEach
     @Override
     public void tearDownArtifactDataStore() throws Exception {
         super.tearDownArtifactDataStore();
 
         // Clean up the local repository directory tree used in the test.
-        log.debug("Cleaning up local repository directory used for tests: {}", repoBaseDir);
+        log.info("Cleaning up local repository directory used for tests: {}", repoBaseDir);
         if (!FileSystemUtils.deleteRecursively(repoBaseDir)) {
           log.warn("Failed to delete temporary directory " + repoBaseDir);
         }
