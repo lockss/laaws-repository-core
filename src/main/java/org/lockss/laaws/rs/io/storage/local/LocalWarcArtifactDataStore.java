@@ -110,28 +110,47 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
      * @return A collection of paths to WARC files under the given base path.
      */
     @Override
-    public Collection<String> findWarcs(String basePath) {
-        Collection<String> warcFiles = new ArrayList<>();
+    public Collection<String> findWarcs(String basePath) throws IOException {
+        log.debug("basePath = {}", basePath);
+
         File basePathFile = new File(basePath);
 
         if (basePathFile.exists() && basePathFile.isDirectory()) {
+          log.debug("exists() = true, isDirectory = true");
+
+          File[] dirObjs = basePathFile.listFiles();
+
+          if (dirObjs == null) {
+            // File#listFiles() can return null if the path doesn't exist or if there was an I/O error; we checked that
+            // the path exists and is a directory earlier so it must be the former
+            throw new IOException(String.format("Unable to list directory contents [basePath = %s]", basePath));
+//            log.warn("Unable to list directory contents [basePath = {}]", basePath);
+//            return null;
+          }
+
+          Collection<String> warcFiles = new ArrayList<>();
+
           // DFS recursion through directories
-          Arrays.stream(basePathFile.listFiles(x -> x.isDirectory()))
-              .map(x -> findWarcs(x.getPath()))
-              .forEach(warcFiles::addAll);
+          //Arrays.stream(dirObjs).map(x -> findWarcs(x.getPath())).forEach(warcFiles::addAll);
+          for (File dir : Arrays.stream(dirObjs).filter(File::isDirectory).toArray(File[]::new)) {
+            warcFiles.addAll(findWarcs(dir.getPath()));
+          }
 
           // Add WARC files from this directory
           warcFiles.addAll(
-              Arrays.asList(
-                  basePathFile.listFiles(
-                      x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION)
-                  )
-              ).stream().map(x -> x.getPath()).collect(Collectors.toSet()) // TODO: clean up
+              Arrays.stream(dirObjs)
+                .filter(x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+                .map(x -> x.getPath())
+                .collect(Collectors.toSet())
           );
+
+          // Return WARC files at this level
+          return warcFiles;
         }
 
-        // Return WARC files at this level
-        return warcFiles;
+        log.warn("Path doesn't exist or was not a directory [basePath = {}]", basePath);
+        return Collections.EMPTY_SET;
+//        return null;
     }
 
     public void mkdirs(String dirPath) throws IOException {

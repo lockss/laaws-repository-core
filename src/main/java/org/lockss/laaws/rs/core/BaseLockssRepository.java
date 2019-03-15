@@ -177,6 +177,7 @@ public class BaseLockssRepository implements LockssRepository {
 
       if (artifact == null) {
         log.warn("Artifact not found in index");
+        return null;
       }
 
       if (!artifact.getCommitted()) {
