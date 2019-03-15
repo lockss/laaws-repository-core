@@ -250,17 +250,20 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @BeforeEach
   public void beforeEach() throws Exception {
+    log.debug("Running beforeEach()");
     setUpRepo();
     beforeVariant();
   }
 
   void setUpRepo() throws Exception {
+    log.debug("Running setUpRepo()");
     this.repository = makeLockssRepository();
     this.repository.initRepository();
   }
 
   @AfterEach
   public void tearDownArtifactDataStore() throws Exception {
+    log.debug("Running tearDownArtifactDataStore()");
     this.repository.shutdownRepository();
     this.repository = null;
   }

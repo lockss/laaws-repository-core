@@ -135,6 +135,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     public void mkdirs(String dirPath) throws IOException {
+        log.debug("dirPath = {}", dirPath);
+
         File dir = new File(dirPath);
 
         if (dir.isDirectory()) {

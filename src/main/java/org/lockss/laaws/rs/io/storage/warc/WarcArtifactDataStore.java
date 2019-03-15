@@ -592,7 +592,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   @Override
   public void shutdownDataStore() throws InterruptedException {
-    log.info("Shutting down data store");
     scheduledExecutor.shutdown();
     stripedExecutor.shutdown();
 
@@ -601,7 +600,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     stripedExecutor.awaitTermination(1, TimeUnit.MINUTES);
 
     dataStoreState = DataStoreState.SHUTDOWN;
-    log.info("Shutdown data store");
+    log.info("Finished shutdown of data store");
   }
 
   /**
