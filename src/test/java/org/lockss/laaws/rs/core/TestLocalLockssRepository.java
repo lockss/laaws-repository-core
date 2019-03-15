@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.junit.jupiter.api.AfterEach;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.FileSystemUtils;
 import java.io.File;
@@ -52,6 +53,7 @@ public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     /**
      * Run after the test is finished.
      */
+    @AfterEach
     @Override
     public void tearDownArtifactDataStore() throws Exception {
         super.tearDownArtifactDataStore();
