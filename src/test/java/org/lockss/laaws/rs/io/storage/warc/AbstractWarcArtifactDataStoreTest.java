@@ -689,6 +689,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testMoveToPermanentStorage_generic() throws Exception {
+    // Shutdown data store (a running GC will interfere with this test)
+    store.shutdownDataStore();
+    //store = makeWarcArtifactDataStore(new VolatileArtifactIndex());
+
     ArtifactIndex index = store.getArtifactIndex();
     assertNotNull(index);
 
