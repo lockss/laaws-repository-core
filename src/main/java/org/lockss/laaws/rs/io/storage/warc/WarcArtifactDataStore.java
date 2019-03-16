@@ -437,7 +437,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               case COMMITTED:
                 // Requeue the copy of this artifact from temporary to permanent storage
                 log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
-                stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
+                if (!stripedExecutor.isShutdown()) {
+                  stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
+                } else {
+                  log.warn(
+                      "Could not queue copy of artifact from temporary to permanent " +
+                          "storage because executor was shutdown [artifactId: {}]",
+                      artifactId
+                  );
+                }
                 break;
               case EXPIRED:
               case COPIED:
