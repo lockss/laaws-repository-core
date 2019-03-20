@@ -661,7 +661,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
 
     // WARC records not of type "response" or "resource" are okay to remove
-    // Q: Is this true? An idea for implementing artifact metadata is as WARC metadata records.
     if (!recordType.equalsIgnoreCase(WARCRecordType.response.toString()) &&
         !recordType.equalsIgnoreCase(WARCRecordType.resource.toString())) {
         return true;
@@ -687,16 +686,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         case DELETED:
           return true;
       }
-
-      // Q: Should we verify committed and deleted status recorded in the repository metadata journal?
-      /*
-      // Read the repository metadata journal that should contain entries about this artifact
-      Map<String, RepositoryArtifactMetadata> repoMetadata = readRepositoryMetadata("some path");
-      RepositoryArtifactMetadata artifactRepoMetadata = repoMetadata.get(artifact.getId());
-
-      boolean committed = artifactRepoMetadata.isCommitted();
-      boolean deleted = artifactRepoMetadata.isDeleted();
-      */
     } catch (URISyntaxException use) {
       log.error("Could not get artifact state: {}", use);
     } catch (IOException e) {
@@ -1591,7 +1580,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Collection<String> permanentWarcs = warcPaths
         .stream()
         .filter(path -> path.startsWith(getAbsolutePath(SEPARATOR + COLLECTIONS_DIR)))
-        .filter(path -> !path.endsWith("lockss-repo" + WARC_FILE_EXTENSION))
+        .filter(path -> !path.endsWith("lockss-repo" + WARC_FILE_EXTENSION)) // Exclude repository metadata journals
         .collect(Collectors.toList());
 
     // Find WARCS in temporary storage
@@ -1618,9 +1607,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         .collect(Collectors.toList());
 
     // Load repository artifact metadata by "replaying" them
-    for (String metadataFile : repoMetadataWarcFiles) {
-      replayRepositoryMetadata(index, metadataFile);
-    }
+    replayRepositoryMetadata(index, repoMetadataWarcFiles);
   }
 
   public static final String LOCKSS_METADATA_ARTIFACTID_KEY = "artifactId";
@@ -1639,12 +1626,24 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try (InputStream warcStream = markAndGetInputStream(metadataFile)) {
 
       for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", warcStream)) {
-        JSONObject json = new JSONObject(IOUtils.toString(record, "UTF-8"));
-        String artifactId = json.getString(LOCKSS_METADATA_ARTIFACTID_KEY);
-        metadata.put(artifactId, json);
+        // Determine whether this is a WARC metadata type record
+        boolean isMetadataRecord = ((String)record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE))
+            .equalsIgnoreCase(WARCRecordType.metadata.toString());
+
+        if (isMetadataRecord) {
+          JSONObject json = new JSONObject(IOUtils.toString(record, "UTF-8"));
+          String artifactId = json.getString(LOCKSS_METADATA_ARTIFACTID_KEY);
+          metadata.put(artifactId, json);
+        }
       }
 
       return metadata;
+    }
+  }
+
+  private void replayRepositoryMetadata(ArtifactIndex index, Collection<String> metadataFiles) throws IOException {
+    for (String metadataFile : metadataFiles) {
+      replayRepositoryMetadata(index, metadataFile);
     }
   }
 
@@ -1682,7 +1681,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       } else {
         if (!repoState.isDeleted()) {
-          log.warn("Artifact {} not found in index; skipped replay", artifactId);
+          log.error("Artifact {} referenced in journal and not deleted but artifact doesn't exist!", artifactId);
         }
       }
     }
@@ -1708,20 +1707,27 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
 
+  /**
+   * For debugging. Dumps the bytes of a WARC file to log.
+   *
+   * @param path A {@code String} containing the path to a WARC file.
+   * @throws IOException
+   */
   private void dumpWarc(String path) throws IOException {
     InputStream is = getInputStream(path);
     org.apache.commons.io.output.ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     IOUtils.copy(is, baos);
 
-    log.info("dumpWarc({}): {}", path, baos.toString());
+    log.debug("dumpWarc({}):\n{}", path, baos.toString());
   }
 
   private void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<String> artifactWarcFiles) throws IOException {
     // Reindex artifacts from temporary and permanent storage
     for (String warcFile : artifactWarcFiles) {
 
-      dumpWarc(warcFile);
+      // Debugging
+      //dumpWarc(warcFile);
 
       try (InputStream warcStream = markAndGetInputStream(warcFile)) {
         for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", warcStream)) {
@@ -1738,7 +1744,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             if (artifactData != null) {
               // Skip if already indexed
               if (index.artifactExists(artifactData.getIdentifier().getId())) {
-                log.warn("Skipped re-indexing of artifact {}", artifactData.getIdentifier().getId());
+                log.warn("Artifact {} is already indexed", artifactData.getIdentifier().getId());
                 continue;
               }
 
