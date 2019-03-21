@@ -318,12 +318,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Remove the temporary WARC from the pool if necessary
         synchronized (tmpWarcPool) {
           if (tmpWarcPool.isInUse(tmpWarcPath)) {
-            log.info("Temporary WARC file is in use; will attempt a GC again later");
+            log.debug("Temporary WARC file is in use; will attempt a GC again later");
             continue;
           } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
-            warcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
+            warcFile = tmpWarcPool.borrowWarcFile(tmpWarcPath);
           } else {
             log.warn("Temporary WARC not found in pool [tmpWarcPath: {}]", tmpWarcPath);
+            continue;
           }
         }
 
@@ -332,12 +333,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           if (isTempWarcRemovable(tmpWarcPath)) {
             // YES - Remove the temporary WARC from storage
             log.info("Removing temporary WARC file [tmpWarcPath: {}]", tmpWarcPath);
+            tmpWarcPool.removeWarcFile(warcFile);
             removeWarc(tmpWarcPath);
           } else {
-            // NO - Return the temporary WARC to the pool if we removed it from the pool earlier
+            // NO - Return the temporary WARC to the pool if we borrowed it from the pool earlier
             if (warcFile != null) {
               synchronized (tmpWarcPool) {
-                tmpWarcPool.addWarcFile(warcFile);
+                tmpWarcPool.returnWarcFile(warcFile);
               }
             }
           }
@@ -413,11 +415,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       log.debug("tmpWarc = {}", tmpWarc);
 
-      synchronized (tmpWarcPool) {
-        if (tmpWarcPool.isInPool(tmpWarcBasePath)) {
-          log.warn("Temporary file is already in pool - skipping reload [tmpWarc: {}]", tmpWarc);
-          continue;
-        }
+      if (tmpWarcPool.isInPool(tmpWarcBasePath)) {
+        log.debug("Temporary file is already in pool - skipping reload [tmpWarc: {}]", tmpWarc);
+        continue;
       }
 
 //      if (TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
@@ -492,7 +492,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       //// Handle this WARC file
-      // TODO: State of removability may have changed by the time we get here?
+      // Q: Is the call to TempWarcInUseTracker still necessary?
       if (isTmpWarcRemovable && !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
         log.debug("Removing temporary WARC [{}]", tmpWarc);
 
@@ -822,7 +822,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       dfos.close();
 
       // Get an available temporary WARC from the temporary WARC pool
-      WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(recordLength);
+      WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(recordLength);
       String tmpWarcFilePath = tmpWarcFile.getPath();
 
       log.debug("tmpWarcFilePath = {}", tmpWarcFilePath);
@@ -986,6 +986,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     String auMetadataWarcPath = getAuMetadataWarcPath(artifactId, artifactMetadata);
 
+    if (log.isDebugEnabled()) {
+      log.debug("artifactId = {}", artifactId);
+      log.debug("auMetadataWarcPath = {}", auMetadataWarcPath);
+      log.debug("artifactMetadata = {}", artifactMetadata);
+    }
+
     // Initialize metadata WARC file
     initWarc(auMetadataWarcPath);
 
@@ -997,6 +1003,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       writeWarcRecord(metadataRecord, out);
       out.flush();
     }
+
+    log.debug("Finished updateArtifactMetadata() for [artifactId: {}]", artifactId.getId());
 
     return artifactMetadata;
   }
