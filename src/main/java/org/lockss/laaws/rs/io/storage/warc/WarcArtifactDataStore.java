@@ -321,7 +321,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             log.debug("Temporary WARC file is in use; will attempt a GC again later");
             continue;
           } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
-            warcFile = tmpWarcPool.borrowWarcFile(tmpWarcPath);
+            warcFile = tmpWarcPool.lookupWarcFile(tmpWarcPath);
+            if (!tmpWarcPool.borrowWarcFile(tmpWarcPath)) {
+              log.info(
+                  "Could not borrow temporary WARC file; will attempt a GC again later [tmpWarcPath: {}]",
+                  tmpWarcPath
+              );
+              continue;
+            }
           } else {
             log.warn("Temporary WARC not found in pool [tmpWarcPath: {}]", tmpWarcPath);
             continue;
@@ -339,6 +346,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // NO - Return the temporary WARC to the pool if we borrowed it from the pool earlier
             if (warcFile != null) {
               synchronized (tmpWarcPool) {
+                log.debug("Returning {} to temporary WARC pool", warcFile.getPath());
                 tmpWarcPool.returnWarcFile(warcFile);
               }
             }

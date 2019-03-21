@@ -126,15 +126,16 @@ public class WarcFilePool {
    * Borrows a {@code WarcFile} from this pool by marking it as in-use before returning it.
    *
    * @param warcFile The {@code WarcFile} to borrow.
-   * @return The borrowed {@code WarcFile}.
+   * @return A {@code boolean} indicating whether the borrow was successful or not.
    */
-  public WarcFile borrowWarcFile(WarcFile warcFile) {
+  public boolean borrowWarcFile(WarcFile warcFile) {
     synchronized (usedWarcs) {
-      if (!usedWarcs.contains(warcFile)) {
+      if (!isInUse(warcFile)) {
         usedWarcs.add(warcFile);
+        return true;
       }
 
-      return warcFile;
+      return false;
     }
   }
 
@@ -142,14 +143,14 @@ public class WarcFilePool {
    * Borrows the {@code WarcFile} referenced by a WARC file path from this pool.
    *
    * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to borrow.
-   * @return The borrowed {@code WarcFile}.
+   * @return A {@code boolean} indicating whether the borrow was successful or not.
    */
-  public WarcFile borrowWarcFile(String warcFilePath) {
+  public boolean borrowWarcFile(String warcFilePath) {
     synchronized (allWarcs) {
       WarcFile warcFile = lookupWarcFile(warcFilePath);
 
       if (warcFile == null) {
-        return null;
+        return false;
       }
 
       return borrowWarcFile(warcFile);
@@ -248,7 +249,7 @@ public class WarcFilePool {
    * @param warcFilePath A {@code String} containing the path to the {@code WarcFile} to find.
    * @return The {@code WarcFile}, or {@code null} if one could not be found.
    */
-  private WarcFile lookupWarcFile(String warcFilePath) {
+  public WarcFile lookupWarcFile(String warcFilePath) {
     synchronized (allWarcs) {
       return allWarcs.stream()
           .filter(x -> x.getPath().equals(warcFilePath))
