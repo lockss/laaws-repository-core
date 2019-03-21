@@ -73,10 +73,6 @@ public class Artifact implements Serializable {
     @Field("contentDigest")
     private String contentDigest;
 
-    // TODO: Add this to the Swagger spec
-    @Field("createTime")
-    private Integer createTime;
-
     /**
      * Constructor. Needed by SolrJ for getBeans() support. *
      *
@@ -196,18 +192,6 @@ public class Artifact implements Serializable {
         }
 
         this.version = version;
-    }
-
-    public Integer getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Integer createTime) {
-        if (createTime == null) {
-            throw new IllegalArgumentException("Cannot set null createTime");
-        }
-
-        this.createTime = createTime;
     }
 
     public String getId() {
