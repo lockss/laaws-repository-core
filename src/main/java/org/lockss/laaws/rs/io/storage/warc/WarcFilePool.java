@@ -133,6 +133,8 @@ public class WarcFilePool {
       if (!isInUse(warcFile)) {
         usedWarcs.add(warcFile);
         return true;
+      } else {
+        log.warn("Attempted to borrow an already borrowed WARC file! [warcFile: {}]", warcFile.getPath());
       }
 
       return false;
