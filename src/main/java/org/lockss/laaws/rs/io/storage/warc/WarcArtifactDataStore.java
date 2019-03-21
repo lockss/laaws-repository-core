@@ -870,18 +870,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         artifactData.setStorageUrl(makeStorageUrl(tmpWarcFilePath, offset, recordLength));
         artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
 
+        // Write artifact metadata to journal - TODO: Generalize this to write all of an artifact's metadata
+        initWarc(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
+        updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
+
       } finally {
         tmpWarcPool.returnWarcFile(tmpWarcFile);
       }
-
-      // Start new repository metadata journal if necessary
-      initWarc(getAuMetadataWarcPath(artifactId, artifactData.getRepositoryMetadata()));
-
-      // NOTE: Potential for race condition here if not careful - journal may be new (and have no entries)!
-      //sleep(1000);
-
-      // Write artifact data metadata - TODO: Generalize this to write all of an artifact's metadata
-      updateArtifactMetadata(artifactId, artifactData.getRepositoryMetadata());
 
       // Index the artifact
       artifactIndex.indexArtifact(artifactData);
