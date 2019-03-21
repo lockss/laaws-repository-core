@@ -62,8 +62,7 @@ import org.lockss.util.test.LockssTestCase5;
 
 public class TestRestLockssRepository extends LockssTestCase5 {
     private final static L4JLogger log = L4JLogger.getLogger();
-
-    private final static String BASEURL = "http://localhost:32640";
+    private final static String BASEURL = "http://localhost:24610";
     protected LockssRepository repository;
     protected MockRestServiceServer mockServer;
 
