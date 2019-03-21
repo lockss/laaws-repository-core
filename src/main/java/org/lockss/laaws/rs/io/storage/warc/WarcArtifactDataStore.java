@@ -415,7 +415,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       log.debug("tmpWarc = {}", tmpWarc);
 
-      if (tmpWarcPool.isInPool(tmpWarcBasePath)) {
+      if (tmpWarcPool.isInPool(tmpWarc)) {
         log.debug("Temporary file is already in pool - skipping reload [tmpWarc: {}]", tmpWarc);
         continue;
       }
@@ -825,7 +825,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(recordLength);
       String tmpWarcFilePath = tmpWarcFile.getPath();
 
-      log.debug("tmpWarcFilePath = {}", tmpWarcFilePath);
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "tmpWarcFile: [path: {}, isInPool: {}, isInUse: {}]",
+            tmpWarcFilePath,
+            tmpWarcPool.isInPool(tmpWarcFile),
+            tmpWarcPool.isInUse(tmpWarcFile)
+        );
+      }
 
       // Initialize the WARC
       initWarc(tmpWarcFilePath);
