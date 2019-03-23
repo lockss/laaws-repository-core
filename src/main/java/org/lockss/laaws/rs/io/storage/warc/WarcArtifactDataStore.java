@@ -122,7 +122,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
 
   protected static final String ENV_THRESHOLD_WARC_SIZE = "REPO_MAX_WARC_SIZE";
-  protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 100L * FileUtils.ONE_MB;
+  protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 1L * FileUtils.ONE_GB;
   protected long thresholdWarcSize;
 
   protected static final String ENV_UNCOMMITTED_ARTIFACT_EXPIRATION = "REPO_UNCOMMITTED_ARTIFACT_EXPIRATION";

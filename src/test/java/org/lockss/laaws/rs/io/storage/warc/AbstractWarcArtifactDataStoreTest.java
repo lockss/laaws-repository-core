@@ -452,7 +452,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testGetSetThresholdWarcSize() throws Exception {
     // Test default
-    assertEquals(100L * FileUtils.ONE_MB, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+    assertEquals(1L * FileUtils.ONE_GB, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
     assertEquals(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE, store.getThresholdWarcSize());
 
     // Test bad input
