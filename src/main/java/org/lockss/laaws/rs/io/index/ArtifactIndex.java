@@ -32,9 +32,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.index;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.util.lang.Ready;
@@ -342,7 +341,7 @@ public interface ArtifactIndex extends Ready {
 
     @Override
     default void waitReady(Deadline deadline) throws TimeoutException {
-        Log log = LogFactory.getLog(ArtifactIndex.class);
+        final L4JLogger log = L4JLogger.getLogger();
 
         while (!isReady()) {
             if (deadline.expired()) {
@@ -364,5 +363,12 @@ public interface ArtifactIndex extends Ready {
                 throw new RuntimeException("Interrupted while waiting for artifact index to become ready");
             }
         }
+    }
+
+    default void initIndex() {
+        // No-op
+    }
+    default void shutdownIndex() {
+        // No-op
     }
 }

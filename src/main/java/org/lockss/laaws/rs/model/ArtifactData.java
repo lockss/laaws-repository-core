@@ -32,9 +32,8 @@ package org.lockss.laaws.rs.model;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.StatusLine;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
 import org.springframework.http.HttpHeaders;
 
@@ -56,7 +55,7 @@ import java.util.Objects;
  * </ul>
  */
 public class ArtifactData implements Comparable<ArtifactData> {
-    private final static Log log = LogFactory.getLog(ArtifactData.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
     public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
     // Core artifact attributes

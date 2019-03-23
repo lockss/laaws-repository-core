@@ -31,8 +31,6 @@
 package org.lockss.laaws.rs.util;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.ProtocolVersion;
@@ -45,6 +43,7 @@ import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -57,7 +56,7 @@ import java.io.InputStream;
  * Test class for the ArtifactData factory {@code org.lockss.laaws.rs.util.ArtifactDataFactory}.
  */
 public class TestArtifactDataFactory extends LockssTestCase5 {
-    private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String ARTIFACT_BYTES = "If kittens could talk, they would whisper soft riddles into my ear," +
             " tickling me with their whiskers, making me laugh.";

@@ -30,14 +30,13 @@
 
 package org.lockss.laaws.rs.io.storage;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -51,6 +50,13 @@ import java.util.concurrent.TimeoutException;
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
 public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
+    /**
+     *
+     * @throws IOException
+     */
+    void initDataStore() throws IOException;
+
+    void shutdownDataStore() throws InterruptedException;
 
     /**
      * Initializes a collection storage structure in an artifact data store implementation.
@@ -123,7 +129,7 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * @throws NullPointerException
      *          if the given {@link Artifact} instance is null
      */
-    MD commitArtifactData(Artifact artifact) throws IOException;
+    Future<Artifact> commitArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Permanently removes an artifact from this artifact store.
@@ -135,15 +141,13 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * @throws NullPointerException
      *          if the given {@link Artifact} instance is null
      */
-    MD deleteArtifactData(Artifact artifact) throws IOException;
+    void deleteArtifactData(Artifact artifact) throws IOException;
     
-    void setArtifactIndex(ArtifactIndex artifactIndex);
-
     long DEFAULT_WAITREADY = 5000;
 
     @Override
     default void waitReady(Deadline deadline) throws TimeoutException {
-        Log log = LogFactory.getLog(ArtifactDataStore.class);
+        final L4JLogger log = L4JLogger.getLogger();
 
         while (!isReady()) {
             if (deadline.expired()) {

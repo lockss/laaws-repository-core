@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,23 +30,22 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
-import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.log.L4JLogger;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
 public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
-    private final static Log log = LogFactory.getLog(TestHdfsWarcArtifactStore.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private MiniDFSCluster hdfsCluster;
 
@@ -82,75 +81,78 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
+    @Test
+    public void testInitCollection() throws Exception {
+        store.initCollection("collection");
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+    }
+
+    @Override
+    @Test
+    public void testInitAu() throws Exception {
+        store.initAu("collection", "auid");
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
+    }
+
+    @Override
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
         String repoBasePath = String.format("/tests/%s", UUID.randomUUID());
 
         log.info(String.format("Creating HDFS artifact data store with baseDir = %s", repoBasePath));
 
         assertNotNull(hdfsCluster);
-        return new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), repoBasePath);
+        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), repoBasePath);
+    }
+
+    @Override
+    protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, HdfsWarcArtifactDataStore other) throws IOException {
+        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), other.getBasePath());
+    }
+
+    @Override
+    protected String expected_getTmpWarcBasePath() {
+        return store.getAbsolutePath("/temp");
+    }
+
+    @Override
+    protected boolean isValidStorageUrl(String storageUrl) {
+        return true;
     }
 
     @Override
     protected boolean pathExists(String path) throws IOException {
-        Path hdfsPath = new Path(store.getBasePath() + path);
-        return store.fs.exists(hdfsPath);
+      log.debug("path = {}", path);
+      return store.fs.exists(new Path(path));
     }
 
     @Override
     protected boolean isDirectory(String path) throws IOException {
-        return store.fs.isDirectory(new Path(store.getBasePath() + path));
+        log.debug("path = {}", path);
+        return store.fs.isDirectory(new Path(path));
     }
 
     @Override
     protected boolean isFile(String path) throws IOException {
-        Path file = new Path(store.getBasePath() + path);
-        log.info(String.format("Checking whether %s is a file in HDFS", file));
+        log.debug("path = {}", path);
+
+        Path file = new Path(path);
 
         if (!store.fs.exists(file)) {
             String errMsg = String.format("%s does not exist!", file);
             log.warn(errMsg);
         }
 
-        return store.fs.isFile(new Path(store.getBasePath() + path));
+        return store.fs.isFile(file);
     }
 
     @Override
-    protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident, long offset) throws Exception {
-        return String.format("%s%s%s?offset=%d",
-//                store.getBasePath(),
-                store.fs.getUri(),
-                (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-                store.getAuArtifactsWarcPath(ident),
-                offset);
-    }
-
-    @Override
-    protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident) throws Exception {
-        Artifact art = new Artifact(ident,
-                Boolean.TRUE,
-                String.format("hdfs://%s%s/%s?offset=1234",
-                        store.getBasePath(),
-                        store.getSealedWarcPath(),
-                        store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
-                123L,
-                "0x12345");
-        return art;
-    }
-
-    @Override
-    protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident) throws Exception {
-        Artifact art = new Artifact(ident,
-                Boolean.TRUE,
-                String.format("hdfs://%s?offset=1234",
-                        store.getAuArtifactsWarcPath(ident)),
-                123L,
-                "0x12345");
-        return art;
-    }
-
-    @Override
-    protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact, String newPath, String result) throws Exception {
-        assertThat(result, startsWith(String.format("hdfs://" + newPath)));
+    protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
+        return String.format("%s%s?offset=%d&length=%d",
+            store.fs.getUri(),
+            store.getActiveWarcPath(aid),
+            offset,
+            length
+        );
     }
 }

@@ -28,43 +28,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.hdfs;
+package org.lockss.laaws.rs.io.storage.warc;
 
-import org.junit.jupiter.api.*;
-import org.lockss.util.test.LockssTestCase5;
+public class WarcFile {
+  private String path;
+  private long length = 0;
+  private long nextOffset = 0;
 
-@Deprecated
-public class TestHdfsWarcFileWriter extends LockssTestCase5 {
+  public WarcFile(String path, long length) {
+    this.path = path;
+    this.length = length;
+    this.nextOffset = length;
+  }
 
-    @BeforeEach
-    public void setUp() throws Exception {
-    }
+  public String getPath() {
+    return path;
+  }
 
-    @Test
-    public void close() {
-    }
+  public long getLength() {
+    return length;
+  }
 
-    @Test
-    public void flush() {
-    }
-
-    @Test
-    public void hflush() {
-    }
-
-    @Test
-    public void handleTimeout() {
-    }
-
-    @Test
-    public void getOutput() {
-    }
-
-    @Test
-    public void getPosition() {
-    }
-
-    @Test
-    public void write() {
-    }
+  public void setLength(long length) {
+    this.length = length;
+  }
 }

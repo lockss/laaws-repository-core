@@ -31,8 +31,6 @@
 package org.lockss.laaws.rs.core;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.message.BasicStatusLine;
 import org.junit.Before;
@@ -43,6 +41,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.log.L4JLogger;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -62,7 +61,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import org.lockss.util.test.LockssTestCase5;
 
 public class TestRestLockssRepository extends LockssTestCase5 {
-    private final static Log log = LogFactory.getLog(TestRestLockssRepository.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
     private final static String BASEURL = "http://localhost:24610";
     protected LockssRepository repository;
     protected MockRestServiceServer mockServer;

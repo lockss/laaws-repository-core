@@ -32,8 +32,6 @@ package org.lockss.laaws.rs.io.index.solr;
 
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -49,6 +47,7 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.util.*;
@@ -57,7 +56,7 @@ import java.util.*;
  * An Apache Solr implementation of ArtifactIndex.
  */
 public class SolrArtifactIndex implements ArtifactIndex {
-    private static final Log log = LogFactory.getLog(Artifact.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
     private static final long DEFAULT_TIMEOUT = 10;
     private final SolrClient solr;
 
@@ -218,6 +217,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
+        log.info("Adding artifact to index: {}", artifactData);
+
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create an instance of Artifact to represent the artifact
@@ -238,6 +239,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         // Return the Artifact added to the Solr collection
+        log.info("Added artifact to index: {}", artifactData);
         return artifact;
     }
 

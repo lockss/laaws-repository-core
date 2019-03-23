@@ -30,16 +30,13 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
+import org.lockss.log.L4JLogger;
 
 public class TestBaseLockssRepository extends AbstractLockssRepositoryTest {
-    private final static Log log = LogFactory.getLog(TestBaseLockssRepository.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
-        return new BaseLockssRepository(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+        return new VolatileLockssRepository();
     }
 }
