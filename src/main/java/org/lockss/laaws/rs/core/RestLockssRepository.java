@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -159,8 +159,10 @@ public class RestLockssRepository implements LockssRepository {
                     ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData)
             );
 
-            // Add artifact multipart to multiparts list
-            parts.add("content", new HttpEntity<>(artifactPartResource, contentPartHeaders));
+            // Add artifact multipart to multiparts list. The name of the part
+            // must be "file" because that is what the Swagger-generated code
+            // specifies.
+            parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
         } catch (HttpException e) {
             String errMsg = String.format("Error generating HTTP response stream from artifact data: %s", e);
             log.error(errMsg);
