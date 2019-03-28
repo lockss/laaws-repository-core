@@ -58,6 +58,11 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
+  protected String expected_getBasePath() {
+    return "/";
+  }
+
+  @Override
   protected String expected_getTmpWarcBasePath() {
     return "/temp";
   }

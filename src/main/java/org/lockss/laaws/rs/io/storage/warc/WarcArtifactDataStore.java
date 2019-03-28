@@ -117,7 +117,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected static byte[] CRLF_BYTES;
   protected static String SEPARATOR = "/";
 
-  protected final static String DEFAULT_TMPWARCBASEPATH = SEPARATOR + TMP_WARCS_DIR;
+  public final static String DEFAULT_TMPWARCBASEPATH = SEPARATOR + TMP_WARCS_DIR;
 
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
 
@@ -729,7 +729,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@code String} containing the base path of this LOCKSS repository.
    */
   public String getBasePath() {
-    return basePath.equals("/") ? "" : basePath;
+    return basePath;
   }
 
   /**

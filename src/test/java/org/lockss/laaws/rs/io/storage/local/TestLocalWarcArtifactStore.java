@@ -118,8 +118,14 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
 
   @Override
   protected String expected_getTmpWarcBasePath() {
-    return store.getAbsolutePath("/temp");
+    return new File(testRepoBasePath, WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH).toString();
   }
+
+  @Override
+  protected String expected_getBasePath() {
+    return testRepoBasePath.toString();
+  }
+
 
   protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
     return String.format(

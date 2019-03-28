@@ -38,6 +38,7 @@ import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -104,7 +105,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getTmpWarcBasePath() {
-    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
+    return getAbsolutePath(DEFAULT_TMPWARCBASEPATH);
   }
 
   @Override
@@ -181,6 +182,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getAbsolutePath(String path) {
-    return path;
+    // File only used here to merge paths
+    File pathDir = new File(getBasePath(), path);
+    return pathDir.toString();
   }
 }

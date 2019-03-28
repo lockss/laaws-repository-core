@@ -99,11 +99,17 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index, WADS otherStore) throws IOException;
 
   protected abstract String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
+  protected abstract String expected_getBasePath() throws Exception;
   protected abstract String expected_getTmpWarcBasePath() throws Exception;
 
   // *******************************************************************************************************************
   // * TESTS
   // *******************************************************************************************************************
+
+  @Test
+  public void testGetBasePath() throws Exception {
+    assertEquals(expected_getBasePath(), store.getBasePath());
+  }
 
   @Test
   public void testGetTmpWarcBasePath() throws Exception {
@@ -444,10 +450,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(TimeUtil.DAY, store.getUncommittedArtifactExpiration());
   }
 
-  @Test
-  public void testGetBasePath() throws Exception {
-//    assertEquals(getAbsolutePath("/"), store.getBasePath());
-  }
 
   @Test
   public void testGetSetThresholdWarcSize() throws Exception {

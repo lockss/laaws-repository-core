@@ -189,7 +189,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getTmpWarcBasePath() {
-    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
+    return getAbsolutePath(DEFAULT_TMPWARCBASEPATH);
   }
 
   @Override
