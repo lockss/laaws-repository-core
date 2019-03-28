@@ -296,7 +296,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Garbage collector must not be running while reloading temporary WARCs so we do NOT initialize it
     //store.initDataStore();
-    assertFalse(store.isReady());
+    assertEquals(WarcArtifactDataStore.DataStoreState.UNINITIALIZED, store.getDataStoreState());
 
     // Assert empty temporary WARCs directory
     Collection<String> tmpWarcs = store.findWarcs(tmpWarcBasePath);

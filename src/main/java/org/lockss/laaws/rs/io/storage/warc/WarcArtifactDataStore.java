@@ -149,7 +149,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     DELETED
   }
 
-  protected enum DataStoreState {
+  public enum DataStoreState {
     UNINITIALIZED,
     INITIALIZED,
     SHUTDOWN
@@ -1253,6 +1253,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   public String getCollectionTmpPath(String collection) {
     return getCollectionPath(collection) + SEPARATOR + TMP_WARCS_DIR;
+  }
+
+  public DataStoreState getDataStoreState() {
+    return dataStoreState;
   }
 
   public String getAuPath(String collection, String auid) {
