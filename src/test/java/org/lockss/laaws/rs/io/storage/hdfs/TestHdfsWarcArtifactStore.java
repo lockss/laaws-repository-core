@@ -48,6 +48,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     private final static L4JLogger log = L4JLogger.getLogger();
 
     private MiniDFSCluster hdfsCluster;
+    private String testRepoBasePath;
 
     @BeforeAll
     private void startMiniDFSCluster() throws IOException {
@@ -61,11 +62,12 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         Configuration conf = new HdfsConfiguration();
         conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
 
-        log.info(String.format("Starting MiniDFSCluster with %s = %s, getBaseDirectory(): %s",
-                MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
-                conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
-                MiniDFSCluster.getBaseDirectory()
-        ));
+        log.info(
+            "Starting MiniDFSCluster with {} = {}, getBaseDirectory(): {}",
+            MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
+            conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
+            MiniDFSCluster.getBaseDirectory()
+        );
 
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
 //        builder.numDataNodes(3);
@@ -97,12 +99,12 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
-        String repoBasePath = String.format("/tests/%s", UUID.randomUUID());
+        testRepoBasePath = String.format("/tests/%s", UUID.randomUUID());
 
-        log.info(String.format("Creating HDFS artifact data store with baseDir = %s", repoBasePath));
+        log.info("Creating HDFS artifact data store [baseDir: {}]", testRepoBasePath);
 
         assertNotNull(hdfsCluster);
-        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), repoBasePath);
+        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), testRepoBasePath);
     }
 
     @Override

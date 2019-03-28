@@ -310,7 +310,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
 
-      log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
+      log.debug("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
       for (String tmpWarcPath : tmpWarcs) {
         WarcFile warcFile = null;
@@ -323,7 +323,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
             warcFile = tmpWarcPool.lookupWarcFile(tmpWarcPath);
             if (!tmpWarcPool.borrowWarcFile(tmpWarcPath)) {
-              log.info(
+              log.debug(
                   "Could not borrow temporary WARC file; will attempt a GC again later [tmpWarcPath: {}]",
                   tmpWarcPath
               );
@@ -468,7 +468,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               break;
             case COMMITTED:
               // Requeue the copy of this artifact from temporary to permanent storage
-              log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
+              log.debug("Requeuing pending move to permanent storage for artifact [artifactId: {}]", artifactId);
 
               try {
                 stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
@@ -917,7 +917,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact is null");
     }
 
-    log.info("Retrieving artifact data for artifact ID: {}", artifact.getId());
+    String artifactId = artifact.getId();
+    String storageUrl = artifact.getStorageUrl();
+
+    log.info("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
     
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
     String storageUrl = artifact.getStorageUrl();
@@ -953,13 +956,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 	    },
 	    warcFilePath);
       } catch (URISyntaxException use) {
-	log.error("Cannot get path from storage URL '{}'", storageUrl, use);
-	throw new IllegalArgumentException("Invalid Artifact storage URL '"
-	    + storageUrl + "'");
+        log.error("Cannot get path from storage URL [storageUrl: {}]", storageUrl, use);
+        throw new IllegalArgumentException("Invalid Artifact storage URL [storageUrl: " + storageUrl + "]");
       }
     }
 
-    log.info("Getting WARC record from storage URL '{}' WARC stream", storageUrl);
     WARCRecord warcRecord = null;
 
     try {
@@ -1216,8 +1217,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     if (artifact == null) {
       throw new IllegalArgumentException("Null artifact");
     }
-
-    log.info("Deleting artifact [artifactId: {}]", artifact.getId());
 
     try {
       // Retrieve artifact data from current WARC file
@@ -1688,13 +1687,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Replay to artifact index
       if (index.artifactExists(artifactId)) {
         if (repoState.isDeleted()) {
-          log.info("Removing artifact {} from index", artifactId);
+          log.debug("Removing artifact {} from index", artifactId);
           index.deleteArtifact(artifactId);
           continue;
         }
 
         if (repoState.isCommitted()) {
-          log.info("Marking artifact {} as committed in index", artifactId);
+          log.debug("Marking artifact {} as committed in index", artifactId);
           index.commitArtifact(artifactId);
         }
       } else {
@@ -1732,12 +1731,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   private void dumpWarc(String path) throws IOException {
-    InputStream is = getInputStream(path);
-    org.apache.commons.io.output.ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    if (log.isDebug2Enabled()) {
+      InputStream is = getInputStream(path);
+      org.apache.commons.io.output.ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-    IOUtils.copy(is, baos);
+      IOUtils.copy(is, baos);
 
-    log.debug("dumpWarc({}):\n{}", path, baos.toString());
+      log.debug("dumpWarc({}):\n{}", path, baos.toString());
+    }
   }
 
   private void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<String> artifactWarcFiles) throws IOException {

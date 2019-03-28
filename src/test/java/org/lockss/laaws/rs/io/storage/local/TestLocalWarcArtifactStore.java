@@ -42,27 +42,29 @@ import org.lockss.log.L4JLogger;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
-  private File testsRootDir;
+
+  private File testsRootPath;
+  private File testRepoBasePath;
 
   @BeforeAll
   protected void makeLocalTempDir() throws IOException {
     File tempFile = File.createTempFile(getClass().getSimpleName(), null);
     tempFile.deleteOnExit();
 
-    testsRootDir = new File(tempFile.getAbsolutePath() + ".d");
-    testsRootDir.mkdirs();
+    testsRootPath = new File(tempFile.getAbsolutePath() + ".d");
+    testsRootPath.mkdirs();
   }
 
   @AfterAll
   public void tearDown() {
-    quietlyDeleteDir(testsRootDir);
+    quietlyDeleteDir(testsRootPath);
   }
 
   @Override
   protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
-    File testRepoBaseDir = new File(testsRootDir + "/" + UUID.randomUUID());
-    testRepoBaseDir.mkdirs();
-    return new LocalWarcArtifactDataStore(index, testRepoBaseDir);
+    testRepoBasePath = new File(testsRootPath + "/" + UUID.randomUUID());
+    testRepoBasePath.mkdirs();
+    return new LocalWarcArtifactDataStore(index, testRepoBasePath);
   }
 
   @Override

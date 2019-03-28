@@ -132,12 +132,12 @@ public class RestLockssRepository implements LockssRepository {
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-        log.info(String.format(
-                "Adding artifact to remote repository (Collection: %s, AU: %s, URI: %s)",
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri()
-        ));
+        log.info(
+            "Adding artifact to remote repository [collectionId: {}, auId: {}, uri: {}]",
+            artifactId.getCollection(),
+            artifactId.getAuid(),
+            artifactId.getUri()
+        );
 
         // Create a multivalue map to contain the multipart parts
         MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();

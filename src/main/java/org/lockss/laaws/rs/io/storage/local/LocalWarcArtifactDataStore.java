@@ -33,7 +33,6 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.*;

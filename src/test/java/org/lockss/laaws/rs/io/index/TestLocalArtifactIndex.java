@@ -94,8 +94,8 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
                 List<Artifact> artifacts2 = IteratorUtils.toList(index2.getAllArtifacts(cid, auid, true).iterator());
 
                 // Debugging
-                artifacts1.forEach(artifact -> log.info(String.format("Artifact from artifact1: %s", artifact)));
-                artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifact2: %s", artifact)));
+                artifacts1.forEach(artifact -> log.debug("Artifact from artifact1: {}", artifact));
+                artifacts2.forEach(artifact -> log.debug("Artifact from artifact2: {}", artifact));
 
                 if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
                     fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");

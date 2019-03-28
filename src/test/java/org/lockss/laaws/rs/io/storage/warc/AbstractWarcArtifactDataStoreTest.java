@@ -779,7 +779,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Serialize artifact data to byte stream
     store.writeArtifactData(ad, baos);
 
-    log.info("str = {}", baos.toString());
+    if (log.isDebug2Enabled()) {
+      log.debug2("str = {}", baos.toString());
+    }
 
     // Transform WARC record byte stream to WARCRecord object
     WARCRecord record = new WARCRecord(new ByteArrayInputStream(baos.toByteArray()), getClass().getSimpleName(), 0);
@@ -791,12 +793,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(headers);
 
     // Assert mandatory WARC headers
-    log.info("headers = {}", headers);
-    log.info("headers.getUrl() = {}", headers.getUrl());
+    if (log.isDebug2Enabled()) {
+      log.debug2("headers = {}", headers);
+      log.debug2("headers.getUrl() = {}", headers.getUrl());
 
-    log.info("headers.HEADER_KEY_ID = {}", headers.getHeaderValue(WARCConstants.HEADER_KEY_ID));
-    log.info("headers.getRecordIdentifier() = {}", headers.getRecordIdentifier());
-    log.info("headers.HEADER_KEY_ID = {}", headers.getReaderIdentifier());
+      log.debug2("headers.HEADER_KEY_ID = {}", headers.getHeaderValue(WARCConstants.HEADER_KEY_ID));
+      log.debug2("headers.getRecordIdentifier() = {}", headers.getRecordIdentifier());
+      log.debug2("headers.HEADER_KEY_ID = {}", headers.getReaderIdentifier());
+    }
 
 //    assertEquals(WarcArtifactDataStore.createRecordHeader());
 
@@ -969,8 +973,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         List<Artifact> artifacts2 = IteratorUtils.toList(index2.getAllArtifacts(cid, auid, true).iterator());
 
         // Debugging
-        artifacts1.forEach(artifact -> log.info(String.format("Artifact from artifacts1: %s", artifact)));
-        artifacts2.forEach(artifact -> log.info(String.format("Artifact from artifacts2: %s", artifact)));
+        artifacts1.forEach(artifact -> log.debug("Artifact from artifacts1: {}", artifact));
+        artifacts2.forEach(artifact -> log.debug("Artifact from artifacts2: {}", artifact));
 
         if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
           fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
@@ -1051,8 +1055,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         List<Artifact> artifacts4 = IteratorUtils.toList(index4.getAllArtifacts(cid, auid, true).iterator());
 
         // Debugging
-        artifacts3.forEach(artifact -> log.info(String.format("Artifact from artifacts3: %s", artifact)));
-        artifacts4.forEach(artifact -> log.info(String.format("Artifact from artifacts4: %s", artifact)));
+        artifacts3.forEach(artifact -> log.debug("Artifact from artifacts3: {}", artifact));
+        artifacts4.forEach(artifact -> log.debug("Artifact from artifacts4: {}", artifact));
 
         if (!(artifacts3.containsAll(artifacts4) && artifacts4.containsAll(artifacts3))) {
           fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");

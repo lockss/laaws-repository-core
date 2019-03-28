@@ -131,6 +131,7 @@ public class WarcFilePool {
   public boolean borrowWarcFile(WarcFile warcFile) {
     synchronized (usedWarcs) {
       if (!isInUse(warcFile)) {
+        TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
         usedWarcs.add(warcFile);
         return true;
       } else {
@@ -319,7 +320,7 @@ public class WarcFilePool {
         totalBytesUsed += warcFile.getLength();
 
         // Log information per WarcFile
-        log.info(
+        log.debug(
             "[path = {}, length = {}, blocks = {}, inUse = {}]",
             warcFile.getPath(),
             warcFile.getLength(),
@@ -332,7 +333,7 @@ public class WarcFilePool {
     }
 
     // Log aggregate information about the pool of WarcFiles
-    log.info(String.format(
+    log.debug(String.format(
         "Summary: %d bytes allocated (%d blocks) using %d bytes (%.2f%%) in %d WARC files",
         totalBlocksAllocated * blocksize,
         totalBlocksAllocated,

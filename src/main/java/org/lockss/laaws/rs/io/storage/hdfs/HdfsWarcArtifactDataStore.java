@@ -95,11 +95,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs, String basePath) throws IOException {
     super(index, basePath);
 
-    log.info(String.format(
-        "Instantiating a HDFS artifact data store under %s%s",
-        fs.getUri(),
-        getBasePath()
-    ));
+    log.info("Instantiating a HDFS artifact data store under {}{}", fs.getUri(), getBasePath());
 
     this.fs = fs;
 
@@ -118,7 +114,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       fs.getStatus();
       return true;
     } catch (IOException e) {
-      log.warn(String.format("Could not get HDFS status: %s", e));
+      log.warn("Could not get HDFS status: {}", e);
     }
 
     return false;
@@ -176,7 +172,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     if (fs.mkdirs(fullPath)) {
-      log.debug(String.format("Created directory: %s", fullPath));
+      log.debug("Created directory [fullPath: {}]", fullPath);
     } else {
       throw new IOException(String.format("Error creating directory: %s", fullPath));
     }
@@ -259,21 +255,22 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     Path fullPath = new Path(warcPath);
 
     if (fs.createNewFile(fullPath)) {
-      log.info(String.format("Created new WARC file under HDFS: %s", fullPath));
+      log.info("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
   }
 
   @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
+    log.debug("Opening appendable OutputStream [filePath: {}]", filePath);
+
     Path extPath = new Path(filePath);
-    log.info(String.format("Opening %s for appendable OutputStream", extPath));
     return fs.append(extPath);
   }
 
   @Override
   public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-    log.info("filePath = {}", filePath);
-    log.info("seek = {}", seek);
+    log.debug("filePath = {}", filePath);
+    log.debug("seek = {}", seek);
 
     FSDataInputStream fsDataInputStream = fs.open(new Path(filePath));
     fsDataInputStream.seek(seek);
