@@ -66,6 +66,7 @@ import org.lockss.util.time.TimeUtil;
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  // Handle to the data store under test
   protected WADS store;
 
   // *******************************************************************************************************************
@@ -102,8 +103,40 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract String expected_getBasePath() throws Exception;
   protected abstract String expected_getTmpWarcBasePath() throws Exception;
 
+  public abstract void runTestInitArtifactDataStore() throws Exception;
+  public abstract void runTestInitCollection() throws Exception;
+  public abstract void runTestInitAu() throws Exception;
+
+  protected abstract boolean pathExists(String path) throws IOException;
+  protected abstract boolean isDirectory(String path) throws IOException;
+  protected abstract boolean isFile(String path) throws IOException;
+
   // *******************************************************************************************************************
-  // * TESTS
+  // * UTILITY METHODS FOR TESTS
+  // *******************************************************************************************************************
+
+  private ArtifactData generateTestArtifactData(String collection, String auid, String uri, int version, long length) throws IOException {
+    // HTTP status (200 OK) for use volatile ArtifactData's we'll add to the repository
+    StatusLine statusOK = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
+
+    // Create an artifact and add it to the data store
+    ArtifactIdentifier id = new ArtifactIdentifier(UUID.randomUUID().toString(), collection, auid, uri, version);
+
+    // Generate this artifact's data
+    try (ByteArrayOutputStream baos1 = new ByteArrayOutputStream((int) length)) {
+      byte[] content = new byte[(int) length];
+//    Arrays.fill(content, (byte) 0);
+      new Random().nextBytes(content);
+      baos1.write(content);
+
+      ArtifactData ad = new ArtifactData(id, null, baos1.toInputStream(), statusOK);
+
+      return ad;
+    }
+  }
+
+  // *******************************************************************************************************************
+  // * TESTS (paths and storage URLs)
   // *******************************************************************************************************************
 
   @Test
@@ -121,13 +154,17 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testMakeStorageUrl() throws Exception {
     ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
 
-    String expected = expected_makeStorageUrl(aid, 1234L, 5678L);
+    String expectedStorageUrl = expected_makeStorageUrl(aid, 1234L, 5678L);
 
     String activeWarcPath = store.getActiveWarcPath(aid);
-    String actual = store.makeStorageUrl(activeWarcPath, 1234L, 5678L);
+    String actualStorageUrl = store.makeStorageUrl(activeWarcPath, 1234L, 5678L);
 
-    assertEquals(expected, actual);
+    assertEquals(expectedStorageUrl, actualStorageUrl);
   }
+
+  // *******************************************************************************************************************
+  // * TESTS (I/O)
+  // *******************************************************************************************************************
 
   /**
    * Tests for getInputStreamAndSeek() and getAppendableOutputStream().
@@ -139,6 +176,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Do not use the provided data store for this test
     teardownDataStore();
 
+    // Create a new instance of the data store
     store = makeWarcArtifactDataStore(null);
 
     // Path to temporary WARC file
@@ -178,7 +216,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIndex index = new VolatileArtifactIndex();
     index.initIndex();
 
-    // Ignore the data store provided to us and create a new one for this test
+    // Create a new data store for this test
     store = makeWarcArtifactDataStore(index);
     store.initDataStore();
     store.shutdownDataStore();
@@ -217,11 +255,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // TODO: Check warcinfo record at beginning of WARC file when that is implemented
   }
 
+
+  /**
+   * Asserts that an IllegalStateException is thrown when attempting to reload temporary WARCs with a null index.
+   *
+   * @throws Exception
+   */
   @Test
-  public void testReloadTempWarcs_null() throws Exception {
-    // Do not use provided data store for this test
+  public void testReloadTempWarcs_nullIndex() throws Exception {
+    // Cannot use the provided data store for this test
     teardownDataStore();
 
+    // Assert that an IllegalStateException is thrown when attempting to reload temporary WARCs with a null index
     store = makeWarcArtifactDataStore(null);
     assertThrows(IllegalStateException.class, () -> store.reloadTemporaryWarcs());
   }
@@ -336,6 +381,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Retrieve the artifact from the index
     artifact = index.getArtifact(artifactId);
     assertNotNull(artifact);
+    // TODO: Compare with original artifact handle earlier
 
     // Assert commit status of artifact
     assertEquals(commit, artifact.getCommitted());
@@ -423,42 +469,27 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     return generateTestArtifactData(collection, auid, artifactUri, 1, contentLength);
   }
 
-  private ArtifactData generateTestArtifactData(String collection, String auid, String uri, int version, long length) throws IOException {
-    // HTTP status (200 OK) for use volatile ArtifactData's we'll add to the repository
-    StatusLine statusOK = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
 
-    // Create an artifact and add it to the data store
-    ArtifactIdentifier id = new ArtifactIdentifier(UUID.randomUUID().toString(), collection, auid, uri, version);
-
-    // Generate this artifact's data
-    ByteArrayOutputStream baos1 = new ByteArrayOutputStream((int) length);
-    byte[] content = new byte[(int) length];
-//    Arrays.fill(content, (byte) 0);
-    new Random().nextBytes(content);
-    baos1.write(content);
-    baos1.close(); // to satisfy static analyzers
-
-    ArtifactData ad = new ArtifactData(id, null, baos1.toInputStream(), statusOK);
-
-    return ad;
-  }
 
   @Test
   public void testGetSetUncommittedArtifactExpiration() {
-    // Test default
+    // Assert value of default constant
     assertEquals(TimeUtil.WEEK, WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION);
 
+    // Assert the provided store received the default
     assertEquals(
         WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION,
         store.getUncommittedArtifactExpiration()
     );
 
-    // Test bad input
+    // Assert that an IllegalArgumentException is thrown if a negative expiration is thrown
     assertThrows(IllegalArgumentException.class, () -> store.setThresholdWarcSize(-1234L));
 
-    // Test for success
+    // Assert setting artifacts to expire immediately is valid
     store.setUncommittedArtifactExpiration(0L);
     assertEquals(0L, store.getUncommittedArtifactExpiration());
+
+    // Assert setting the expiration to some other time works
     store.setUncommittedArtifactExpiration(TimeUtil.DAY);
     assertEquals(TimeUtil.DAY, store.getUncommittedArtifactExpiration());
   }
@@ -524,8 +555,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     } catch (IllegalArgumentException e) {
       assertEquals("Artifact data has null identifier", e.getMessage());
     }
-
-    return;
   }
 
   @Test
@@ -561,7 +590,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String storageUrl = a.getStorageUrl();
     assertNotNull(storageUrl);
     assertFalse(storageUrl.isEmpty());
-    assertTrue(isValidStorageUrl(storageUrl));
 
     String artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
     log.debug("storageUrl = {}", storageUrl);
@@ -572,6 +600,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(store.getAbsolutePath(store.getTmpWarcBasePath()));
 
     assertTrue(artifactWarcPath.startsWith(store.getTmpWarcBasePath()));
+
+    // TODO: Assert something about the index
   }
 
   @Test
@@ -598,12 +628,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     );
 
     try {
+      // TODO: getArtifactData should return null if artifact doesn't exist
       ArtifactData badArtifactData = store.getArtifactData(badArtifact);
       fail("Expected IllegalArgumentException to be thrown");
     } catch (IllegalArgumentException e) {
 //      assertEquals("Bad storage URL", e.getMessage());
       // OK
     }
+
+    // TODO: Test other cases of wrong-ness
 
     // Attempt a successful retrieval
     ArtifactData originalData = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
@@ -626,7 +659,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expected.getStorageUrl(), actual.getStorageUrl());
     assertEquals(expected.getContentDigest(), actual.getContentDigest());
     assertEquals(expected.getContentLength(), actual.getContentLength());
-//    assertSameBytes(expected.getInputStream(), actual.getInputStream());
+//    assertSameBytes(expected.getInputStream(), actual.getInputStream()); // TODO need reproducible way of comparing to original data
   }
 
   @Test
@@ -681,8 +714,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Verify repository metadata journal has artifact marked as committed
 //    assertTrue(index.getArtifact(committedArtifact1.getId()).getCommitted());
-
-    // dumpWarcRecord(committedArtifact.getStorageUrl());
+    // TODO: Verify repository metadata journal has artifact marked as committed
+    // TODO: USE store.getRepositoryMetadata()
 
     ArtifactData committedData1 = store.getArtifactData(committedArtifact1);
     assertTrue(committedData1.getRepositoryMetadata().isCommitted());
@@ -700,6 +733,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact badArtifact = new Artifact();
     badArtifact.setStorageUrl("fake");
     assertThrows(IllegalArgumentException.class, () -> store.moveToPermanentStorage(badArtifact));
+
+    // TODO moving a valid URL is passed but doesn't correspond to a WARC record, etc...
   }
 
   @Test
@@ -769,11 +804,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact artifact = store.addArtifactData(ad);
     assertNotNull(artifact);
 
+    // TODO: Check some stuff before deleting
+
     // Delete the artifact from the artifact store
     store.deleteArtifactData(artifact);
 
     // TODO: And verify we get a null when trying to retrieve it after delete. This is not implemented yet, so instead
     //       we verify that the repository metadata journal and index reflect a deleted state.
+    //       Now that we have a handle to the index, getArtifactData should check it first.
     // assertNull(store.getArtifactData(artifact));
 
     // Verify that the repository metadata journal and index reflect the artifact is deleted
@@ -900,6 +938,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       store.addArtifactData(ad);
       RepositoryArtifactMetadata md1updated = new RepositoryArtifactMetadata(aid1, true, false);
 
+      // TODO: Check stuff before and after update
       RepositoryArtifactMetadata metadata = store.updateArtifactMetadata(aid1, md1updated);
       assertNotNull(metadata);
 
@@ -910,10 +949,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       fail("Unexpected IOException caught");
     }
   }
-
-  protected abstract boolean pathExists(String path) throws IOException;
-  protected abstract boolean isDirectory(String path) throws IOException;
-  protected abstract boolean isFile(String path) throws IOException;
 
   @Test
   public void testRebuildIndex() throws Exception {
@@ -938,7 +973,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact a2 = store.addArtifactData(ad2);
     index1.indexArtifact(ad2);
     store.commitArtifactData(a2);
-    index1.commitArtifact(a2.getId());
+    // TODO: Future.get()? Assert commit?
+
 
     // Add third artifact to the repository - don't commit but immediately delete
     ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);

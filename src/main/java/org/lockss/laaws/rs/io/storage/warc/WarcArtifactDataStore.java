@@ -626,10 +626,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return null;
   }
 
+  /**
+   * Determines whether an artifact has been deleted from this data store by examining the repository metadata journal.
+   *
+   * If an entry for the artifact could not be found, it is assumed deleted.
+   *
+   * @param aid An {@code ArtifactIdentifier}
+   * @return
+   * @throws IOException
+   */
   protected boolean isArtifactDeleted(ArtifactIdentifier aid) throws IOException {
     RepositoryArtifactMetadata metadata = getRepositoryMetadata(aid);
 
     if (metadata != null) {
+      // YES: Repository metadata journal entry found for this artifact
       return metadata.isDeleted();
     }
 
@@ -923,7 +933,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
     
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
-    String storageUrl = artifact.getStorageUrl();
     InputStream warcStream = null;
 
     try {
@@ -938,23 +947,22 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Check whether the artifact is stored in a temporary WARC file.
     if (storageUrl.startsWith(getTmpWarcBasePath())) {
       try {
-	// Yes: Increment the counter of times that the file is in use.
-	String warcFilePath = Artifact.getPathFromStorageUrl(storageUrl);
-	TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
+        // Yes: Increment the counter of times that the file is in use.
+        String warcFilePath = Artifact.getPathFromStorageUrl(storageUrl);
+        TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
 
-	// Wrap the stream to be read to allow to register the end of this use
-	// of the file.
-	warcStream = new CloseCallbackInputStream(
-	    warcStream,
-	    new CloseCallbackInputStream.Callback() {
-	      // Called when the close() method of the stream is closed.
-	      @Override
-	      public void streamClosed(Object o) {
-		// Decrement the counter of times that the file is in use.
-		TempWarcInUseTracker.INSTANCE.markUseEnd((String)o);
-	      }
-	    },
-	    warcFilePath);
+        // Wrap the stream to be read to allow to register the end of this use of the file.
+        warcStream = new CloseCallbackInputStream(warcStream,
+            new CloseCallbackInputStream.Callback() {
+              // Called when the close() method of the stream is closed.
+                @Override
+                public void streamClosed(Object o) {
+                  // Decrement the counter of times that the file is in use.
+                  TempWarcInUseTracker.INSTANCE.markUseEnd((String)o);
+                }
+            },
+            warcFilePath
+        );
       } catch (URISyntaxException use) {
         log.error("Cannot get path from storage URL [storageUrl: {}]", storageUrl, use);
         throw new IllegalArgumentException("Invalid Artifact storage URL [storageUrl: " + storageUrl + "]");
