@@ -89,10 +89,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void initWarc(String path) {
+  public void initWarc(String path) throws IOException {
     synchronized (warcs) {
       warcs.putIfAbsent(path, new ByteArrayOutputStream());
     }
+
+    writeWarcInfoRecord(path);
   }
 
   @Override

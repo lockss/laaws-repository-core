@@ -257,6 +257,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     if (fs.createNewFile(fullPath)) {
       log.info("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
+
+    writeWarcInfoRecord(warcPath);
   }
 
   @Override

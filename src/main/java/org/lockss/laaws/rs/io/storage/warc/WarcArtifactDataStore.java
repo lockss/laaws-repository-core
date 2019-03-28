@@ -1849,6 +1849,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return record;
   }
 
+  public void writeWarcInfoRecord(String warcPath) throws IOException {
+    // Create a WARC record object
+    WARCRecordInfo record = new WARCRecordInfo();
+
+    // Mandatory WARC record headers
+    record.setRecordId(URI.create(UUID.randomUUID().toString()));
+    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
+    record.setType(WARCRecordType.response);
+
+    // TODO: Need to discuss with team what kind of information we wish to write and finish this
+
+    // Write WARC info record to WARC file
+    /*
+    try (OutputStream output = getAppendableOutputStream(warcPath)) {
+      writeWarcRecord(record, output);
+    }
+    */
+  }
+
   /**
    * Writes a WARC record to a given OutputStream.
    *

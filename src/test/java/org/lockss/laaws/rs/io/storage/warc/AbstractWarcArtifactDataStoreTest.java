@@ -196,12 +196,25 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testInitWarc() throws Exception {
-    String warcName = UUID.randomUUID().toString(); // FIXME: Use File.createTempFile(...)
-    String warcPath = store.getTmpWarcBasePath() + "/" + warcName;
+    // Shutdown data store's internal processes - a running GC that could interfere with this test
+    store.shutdownDataStore();
 
+    // Create a path to a temporary WARC - this should be safe because the data store is uninitialized and the temporary
+    // WARC directory is under a repository base path that is unique for this test
+    String warcPath = String.format("%s/%s.warc", store.getTmpWarcBasePath(), UUID.randomUUID().toString());
+
+    // Assert file does not exist
+    assertFalse(isFile(warcPath));
+
+    // Initialize the WARC
     store.initWarc(warcPath);
 
+    // Assert file exists now
     assertTrue(isFile(warcPath));
+
+    // Assert file is zero length (for now)
+    assertEquals(0, store.getWarcLength(warcPath));
+    // TODO: Check warcinfo record at beginning of WARC file when that is implemented
   }
 
   @Test

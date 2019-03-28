@@ -194,12 +194,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void initWarc(String storageUrl) throws IOException {
-        File file = new File(storageUrl);
+    public void initWarc(String warcPath) throws IOException {
+        File file = new File(warcPath);
+
         if (!file.exists()) {
-            mkdirs(new File(storageUrl).getParent());
+            mkdirs(file.getParent());
             FileUtils.touch(file);
         }
+
+        writeWarcInfoRecord(warcPath);
     }
 
     @Override
