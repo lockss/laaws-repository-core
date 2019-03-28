@@ -37,6 +37,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 
@@ -83,21 +84,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    @Test
-    public void testInitCollection() throws Exception {
-        store.initCollection("collection");
-        assertTrue(isDirectory(store.getCollectionPath("collection")));
-    }
-
-    @Override
-    @Test
-    public void testInitAu() throws Exception {
-        store.initAu("collection", "auid");
-        assertTrue(isDirectory(store.getCollectionPath("collection")));
-        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
-    }
-
-    @Override
     protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
         testRepoBasePath = String.format("/tests/%s", UUID.randomUUID());
 
@@ -118,8 +104,28 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    protected boolean isValidStorageUrl(String storageUrl) {
-        return true;
+    public void runTestInitArtifactDataStore() throws Exception {
+        assertTrue(isDirectory(store.getBasePath()));
+        assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    }
+
+    @Override
+    public void runTestInitCollection() throws Exception {
+        // Initialize a collection
+        store.initCollection("collection");
+
+        // Assert directory structures were created
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+    }
+
+    @Override
+    public void runTestInitAu() throws Exception {
+        // Initialize an AU
+        store.initAu("collection", "auid");
+
+        // Assert directory structures were created
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
     }
 
     @Override

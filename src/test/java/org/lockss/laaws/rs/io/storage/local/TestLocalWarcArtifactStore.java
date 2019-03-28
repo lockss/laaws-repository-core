@@ -72,24 +72,6 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     return new LocalWarcArtifactDataStore(index, other.getBasePath());
   }
 
-  @Test
-  public void testInitCollection() throws Exception {
-    store.initCollection("collection");
-    assertTrue(isDirectory(store.getCollectionPath("collection")));
-  }
-
-  @Test
-  public void testInitAu() throws Exception {
-    store.initAu("collection", "auid");
-    assertTrue(isDirectory(store.getCollectionPath("collection")));
-    assertTrue(isDirectory(store.getAuPath("collection", "auid")));
-  }
-
-  @Override
-  protected boolean isValidStorageUrl(String storageUrl) {
-    return true;
-  }
-
   protected static void quietlyDeleteDir(File dir) {
     try {
       FileUtils.deleteDirectory(dir);
@@ -114,6 +96,31 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   protected boolean isFile(String path) throws IOException {
     File pathDir = new File(path);
     return pathDir.isFile();
+  }
+
+  @Override
+  public void runTestInitArtifactDataStore() throws Exception {
+    assertTrue(isDirectory(store.getBasePath()));
+    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+  }
+
+  @Override
+  public void runTestInitCollection() throws Exception {
+    // Initialize a collection
+    store.initCollection("collection");
+
+    // Assert directory structures were created
+    assertTrue(isDirectory(store.getCollectionPath("collection")));
+  }
+
+  @Override
+  public void runTestInitAu() throws Exception {
+    // Initialize an AU
+    store.initAu("collection", "auid");
+
+    // Assert directory structures were created
+    assertTrue(isDirectory(store.getCollectionPath("collection")));
+    assertTrue(isDirectory(store.getAuPath("collection", "auid")));
   }
 
   @Override

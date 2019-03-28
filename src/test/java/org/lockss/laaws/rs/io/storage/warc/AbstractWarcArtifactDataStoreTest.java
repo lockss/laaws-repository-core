@@ -213,23 +213,40 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testInitArtifactDataStore() throws Exception {
+    // Ignore the data store provided to us
+    teardownDataStore();
+
+    // Create a new index for the new data store below
     ArtifactIndex index = new VolatileArtifactIndex();
     index.initIndex();
 
     // Create a new data store for this test
     store = makeWarcArtifactDataStore(index);
+
+    // Sanity check: Assert data store is using our provided index
+    assertSame(index, store.getArtifactIndex());
+
+    // Initialize the data store
     store.initDataStore();
+
+    // Run implementation-specific post-initArtifactDataStore() tests
+    runTestInitArtifactDataStore();
+
+    // Shutdown the data store and index created earlier
     store.shutdownDataStore();
+    index.shutdownIndex();
   }
 
   @Test
   public void testInitCollection() throws Exception {
-    store.initCollection("collection");
+    // Run implementation-specific initCollection() tests
+    runTestInitCollection();
   }
 
   @Test
   public void testInitAu() throws Exception {
-    store.initAu("collection", "auid");
+    // Run implementation-specific initCollection() tests
+    runTestInitAu();
   }
 
   @Test
@@ -871,7 +888,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // TODO: Assert content
   }
 
-  protected abstract boolean isValidStorageUrl(String storageUrl);
 
   @Test
   public void testGetCollectionPath() throws Exception {
