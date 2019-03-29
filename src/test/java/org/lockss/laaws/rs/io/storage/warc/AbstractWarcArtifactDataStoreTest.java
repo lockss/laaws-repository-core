@@ -465,30 +465,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store.runGarbageCollector();
   }
 
-  /**
-   * Generates an {@code ArtifactData} belonging to a random collection and AUID.
-   *
-   * @param collections
-   * @param auids
-   * @return
-   * @throws IOException
-   */
-  private ArtifactData generateTestArtifactData(List<String> collections, List<String> auids) throws IOException {
-    Random randomSrc = new Random();
-    String collection = collections.get(randomSrc.nextInt(collections.size()));
-    String auid = auids.get(randomSrc.nextInt(auids.size()));
-
-    // Pick random parameters for this artifact
-    int contentLength = (int) Math.floor(Math.random() * FileUtils.ONE_MB * 10);
-
-    // Random artifact URI
-    String artifactUri = UUID.randomUUID().toString();
-
-    return generateTestArtifactData(collection, auid, artifactUri, 1, contentLength);
-  }
-
-
-
   @Test
   public void testGetSetUncommittedArtifactExpiration() {
     // Assert value of default constant
