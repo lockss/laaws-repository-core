@@ -359,7 +359,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(tmpWarcBasePath));
 
     if (commit) {
-      // Commit to artifact data store
+      // Commit to artifact data store and index
+      index.commitArtifact(storedArtifact.getId());
       Future<Artifact> future = store.commitArtifactData(storedArtifact);
       assertNotNull(future);
 
@@ -968,9 +969,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactData ad2 = generateTestArtifactData("collection1", "auid1", "uri2", 1, 1024);
     Artifact a2 = store.addArtifactData(ad2);
     assertNotNull(a2);
-    store.commitArtifactData(a2);
-    // TODO: Future.get()? Assert commit?
-
+    index1.commitArtifact(a2.getId());
+    Future<Artifact> future = store.commitArtifactData(a2);
+    assertNotNull(future);
+    Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
+    assertTrue(committed_a2.getCommitted());
 
     // Add third artifact to the repository - don't commit but immediately delete
     ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
@@ -983,7 +986,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactData ad4 = generateTestArtifactData("collection1", "auid1", "uri4", 1, 1024);
     Artifact a4 = store.addArtifactData(ad4);
     assertNotNull(a4);
-    store.commitArtifactData(a4);
+
+    // Commit fourth artifact
+    index1.commitArtifact(a4.getId());
+    future = store.commitArtifactData(a4);
+    assertNotNull(future);
+    Artifact committed_a4 = future.get(10, TimeUnit.SECONDS);
+    assertTrue(committed_a4.getCommitted());
+
+    // Delete fourth artifact
     store.deleteArtifactData(a4);
     index1.deleteArtifact(a4.getId());
 
