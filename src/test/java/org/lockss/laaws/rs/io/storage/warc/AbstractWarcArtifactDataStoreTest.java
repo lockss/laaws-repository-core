@@ -289,29 +289,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertThrows(IllegalStateException.class, () -> store.reloadTemporaryWarcs());
   }
 
-  @Test
-  public void testReloadTempWarcs_deleteArtifactData() throws Exception {
-    // Add an artifact
-    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
-    Artifact artifact = store.addArtifactData(ad);
-
-    // Get handle to data store's index
-    ArtifactIndex index = store.getArtifactIndex();
-
-    // Remove the artifact
-    store.deleteArtifactData(artifact);
-    index.deleteArtifact(artifact.getId());
-
-    // Assert artifact is deleted
-    assertNull(index.getArtifact(artifact.getId()));
-
-    // Reload temporary WARCs
-    store.reloadTemporaryWarcs();
-
-    // Assert artifact is still deleted
-    assertNull(index.getArtifact(artifact.getId()));
-  }
-
   /**
    * Tests for the temporary WARC reloading mechanism in {@code WarcArtifactDataStore}.
    *
@@ -342,37 +319,44 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * @throws Exception
    */
   private void runTestReloadTempWarcs(boolean commit, boolean expire, boolean delete) throws Exception {
-    // Instantiate a new WARC artifact data store
-    store = makeWarcArtifactDataStore(null);
-    assertNotNull(store);
-
-    // Temporary WARCs directory storage paths
-    String tmpWarcBasePath = store.getTmpWarcBasePath();
-
     // Create and initialize a blank index
     ArtifactIndex index = new VolatileArtifactIndex();
     index.initIndex();
 
-    // Configure WARC artifact data store with a newly instantiated volatile artifact index
-    store.setArtifactIndex(index);
-    assertEquals(index, store.getArtifactIndex());
+    // Instantiate a new data store with our newly instantiated volatile artifact index
+    store = makeWarcArtifactDataStore(index);
+    assertNotNull(store);
+    assertSame(index, store.getArtifactIndex());
+
+    // Get temporary WARCs directory storage path
+    String tmpWarcBasePath = store.getTmpWarcBasePath();
 
     // Garbage collector must not be running while reloading temporary WARCs so we do NOT initialize it
     //store.initDataStore();
     assertEquals(WarcArtifactDataStore.DataStoreState.UNINITIALIZED, store.getDataStoreState());
 
     // Assert empty temporary WARCs directory
-    Collection<String> tmpWarcs = store.findWarcs(tmpWarcBasePath);
-    assertEquals(0, tmpWarcs.size());
+    assertEquals(0, store.findWarcs(tmpWarcBasePath).size());
 
     // Add an artifact to the store and index
     ArtifactData ad = generateTestArtifactData("coll1", "auid1", "uri1", 1, 1024);
-    store.addArtifactData(ad);
-    Artifact artifact = index.indexArtifact(ad);
-    ArtifactIdentifier aid = artifact.getIdentifier();
+    Artifact storedArtifact = store.addArtifactData(ad);
+    assertNotNull(storedArtifact);
 
     // Get the artifact ID
-    String artifactId = artifact.getId();
+    String artifactId = storedArtifact.getId();
+
+    // Assert that the artifact exists in the index
+    assertTrue(index.artifactExists(artifactId));
+
+    Artifact artifact = index.getArtifact(artifactId);
+    assertNotNull(artifact);
+
+    // Assert that the artifact is not committed
+    assertFalse(artifact.getCommitted());
+
+    // Assert that the storage URL points to a WARC within the temporary WARCs directory
+    assertTrue(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(tmpWarcBasePath));
 
     if (commit) {
       // Commit to artifact data store
@@ -384,13 +368,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertNotNull(artifact);
       assertTrue(artifact.getCommitted());
 
-      // Mark artifact as committed in the artifact index and update its storage URL
-//      index.commitArtifact(artifactId);
-//      index.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
-
-      // Assert that the storage URL points to a WARC that is not in the temporary WARCs directory
-      assertFalse(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(tmpWarcBasePath));
-      assertTrue(isFile(new URI(artifact.getStorageUrl()).getPath()));
+      // Assert that the storage URL now points to a WARC that is in permanent storage
+      String artifactWarcPath = Artifact.getPathFromStorageUrl(artifact.getStorageUrl());
+      assertTrue(artifactWarcPath.startsWith(store.getAuPath(artifact.getIdentifier())));
+      assertTrue(isFile(artifactWarcPath));
     } else {
       // Assert that the storage URL points to a WARC within the temporary WARCs directory
       assertTrue(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(tmpWarcBasePath));
@@ -405,35 +386,41 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(commit, artifact.getCommitted());
 
     // Assert one temporary WARC file has been created
-    tmpWarcs = store.findWarcs(tmpWarcBasePath);
-    assertEquals(1, tmpWarcs.size());
+    assertEquals(1, store.findWarcs(tmpWarcBasePath).size());
+
+    if (delete) {
+      // Delete the artifact
+      store.deleteArtifactData(artifact);
+      index.deleteArtifact(artifactId);
+
+      // Assert that the artifact is removed from the data store and index
+      assertTrue(store.isArtifactDeleted(artifact.getIdentifier()));
+      assertFalse(index.artifactExists(artifactId));
+      assertNull(index.getArtifact(artifactId));
+    }
 
     log.info("Reloading WARC data store");
 
     // Restart WARC data store
-    store = makeWarcArtifactDataStore(index, store);
-    store.setArtifactIndex(index);
+    WADS reloadedStore = makeWarcArtifactDataStore(index, store);
+    assertNotNull(reloadedStore);
+    assertSame(store.getArtifactIndex(), reloadedStore.getArtifactIndex());
+    assertEquals(store.getBasePath(), reloadedStore.getBasePath());
 
     if (expire) {
       // Set the data store to expire artifacts immediately
-      store.setUncommittedArtifactExpiration(0);
-      assertEquals(0, store.getUncommittedArtifactExpiration());
-    }
-
-    if (delete) {
-      store.deleteArtifactData(artifact);
-      index.deleteArtifact(artifactId);
+      reloadedStore.setUncommittedArtifactExpiration(0);
+      assertEquals(0, reloadedStore.getUncommittedArtifactExpiration());
     }
 
     // Reload temporary WARCs
-    store.reloadTemporaryWarcs();
+    reloadedStore.reloadTemporaryWarcs();
 
     // Scan directories for temporary WARC files and assert its state
-    tmpWarcs = store.findWarcs(tmpWarcBasePath);
+    Collection<String> tmpWarcs = reloadedStore.findWarcs(tmpWarcBasePath);
 
     // Determine artifact state
-    artifact = index.getArtifact(artifactId);
-    ArtifactState artifactState = store.getArtifactState(expire, delete, artifact);
+    ArtifactState artifactState = reloadedStore.getArtifactState(expire, delete, artifact);
 
     log.debug("commit = {}, expire = {}, delete = {}, artifactState = {}", commit, expire, delete, artifactState);
 
@@ -441,20 +428,33 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       case NOT_INDEXED:
       case UNCOMMITTED:
       case COMMITTED:
-        // Artifact is neither expired nor committed yet: temporary WARC containing it should NOT have been removed
+        // The temporary WARC containing this artifact should NOT have been removed
+        assertTrue(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(tmpWarcBasePath));
         assertEquals(1, tmpWarcs.size());
         break;
+
       case EXPIRED:
-      case COPIED:
-      case DELETED:
         // The temporary WARC containing only this artifact should have been removed
         assertEquals(0, tmpWarcs.size());
         break;
-    }
 
-    if (delete) {
-      assertTrue(store.isArtifactDeleted(aid));
-      assertNull(index.getArtifact(artifactId));
+      case COPIED:
+        // The temporary WARC containing only this artifact should have been removed
+        assertEquals(0, tmpWarcs.size());
+
+        // Artifact's storage URL should point to a WARC in permanent storage
+        String artifactWarcPath = Artifact.getPathFromStorageUrl(artifact.getStorageUrl());
+        assertTrue(artifactWarcPath.startsWith(store.getAuPath(artifact.getIdentifier())));
+        break;
+
+      case DELETED:
+        // The temporary WARC containing only this artifact should have been removed
+        assertEquals(0, tmpWarcs.size());
+
+        assertTrue(reloadedStore.isArtifactDeleted(artifact.getIdentifier()));
+        assertFalse(index.artifactExists(artifactId));
+        assertNull(index.getArtifact(artifactId));
+        break;
     }
   }
 
