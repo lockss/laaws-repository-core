@@ -39,6 +39,7 @@ import java.time.format.*;
 import java.time.temporal.*;
 import java.util.*;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IteratorUtils;
@@ -375,11 +376,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     if (commit) {
       // Commit to artifact data store
-      Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
-      assertNotNull(artifactFuture);
+      Future<Artifact> future = store.commitArtifactData(storedArtifact);
+      assertNotNull(future);
 
-      // Wait for data store commit (copy from temporary to permanent storage) to complete
-      artifact = artifactFuture.get(); // TODO: Enable a timeout
+      // Wait for data store commit (copy from temporary to permanent storage) to complete - 10 seconds should be plenty
+      artifact = future.get(10, TimeUnit.SECONDS);
       assertNotNull(artifact);
       assertTrue(artifact.getCommitted());
 
@@ -722,10 +723,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // And commit it
     Future<Artifact> future2 = store.commitArtifactData(artifact_store2);
     assertNotNull(future2);
-    Artifact committedArtifact2 = future2.get();
+
+    Artifact committedArtifact1 = future1.get(10, TimeUnit.SECONDS);
+    Artifact committedArtifact2 = future2.get(10, TimeUnit.SECONDS);
 
     // Verify that the store has recorded it as committed
-    Artifact committedArtifact1 = future1.get();
     assertNotNull(committedArtifact1);
     assertTrue(committedArtifact1.getCommitted());
 
@@ -1339,7 +1341,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(artifactFuture);
 
     // Wait for data store commit (copy from temporary to permanent storage) to complete
-    artifact = artifactFuture.get(); // TODO: Enable a timeout
+    artifact = artifactFuture.get(10, TimeUnit.SECONDS);
     assertNotNull(artifact);
     assertTrue(artifact.getCommitted());
 
