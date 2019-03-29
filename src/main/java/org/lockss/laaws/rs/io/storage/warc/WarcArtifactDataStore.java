@@ -1120,6 +1120,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     WarcRecordLocation loc = parseStorageUrl(artifact.getStorageUrl());
     long recordLength = Long.valueOf(loc.length);
+    long recordOffset = Long.valueOf(loc.offset);
 
     // Get the current active permanent WARC for this AU
     String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
@@ -1133,10 +1134,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     long wasteAppending = (getBlockSize() - ((warcLength + recordLength) % getBlockSize())) % getBlockSize();
 
     if (log.isDebugEnabled()) {
-      log.debug("warcLength = {}", warcLength);
-      log.debug("recordLength = {}", recordLength);
-      log.debug("wasteSealing = {}", wasteSealing);
-      log.debug("wasteAppending = {}", wasteAppending);
+      log.debug(
+          "[warcLength: {}, recordOffset: {}, recordLength: {}, wasteSealing: {}, wasteAppending: {}]",
+          warcLength,
+          recordOffset,
+          recordLength,
+          wasteSealing,
+          wasteAppending
+      );
     }
 
     boolean sealBeforeAppend = false;
