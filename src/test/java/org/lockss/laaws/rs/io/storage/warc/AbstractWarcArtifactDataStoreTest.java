@@ -33,7 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.io.storage.warc;
 
 import java.io.*;
-import java.net.URI;
 import java.time.*;
 import java.time.format.*;
 import java.time.temporal.*;
@@ -42,6 +41,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
@@ -697,8 +697,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(artifact_store1);
     assertFalse(artifact_store1.getCommitted());
 
-    // Add an artifact to index
-    Artifact artifact_index1 = index.indexArtifact(ad1);
+    // Get from index and check
+    Artifact artifact_index1 = index.getArtifact(ad1.getIdentifier().getId());
     assertNotNull(artifact_index1);
     assertFalse(artifact_index1.getCommitted());
 
@@ -715,8 +715,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(artifact_store2);
     assertFalse(artifact_store2.getCommitted());
 
-    // Add second artifact to index
-    Artifact artifact_index2 = index.indexArtifact(ad2);
+    // Get from index and check
+    Artifact artifact_index2 = index.getArtifact(ad2.getIdentifier().getId());
     assertNotNull(artifact_index2);
     assertFalse(artifact_index2.getCommitted());
 
@@ -731,7 +731,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(committedArtifact1);
     assertTrue(committedArtifact1.getCommitted());
 
-    // Verify repository metadata journal has artifact marked as committed
+    // Verify that the store has recorded it as committed
+    assertNotNull(committedArtifact2);
+    assertTrue(committedArtifact2.getCommitted());
+
 //    assertTrue(index.getArtifact(committedArtifact1.getId()).getCommitted());
     // TODO: Verify repository metadata journal has artifact marked as committed
     // TODO: USE store.getRepositoryMetadata()
@@ -768,7 +771,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Add an artifact to the data store and index
     ArtifactData ad = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
     Artifact artifact = store.addArtifactData(ad);
-    index.indexArtifact(ad);
 
     // Add an artifact to the data store and index
 //    ArtifactData ad2 = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
@@ -984,12 +986,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Add first artifact to the repository - don't commit
     ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
     Artifact a1 = store.addArtifactData(ad1);
-    index1.indexArtifact(ad1);
+    assertNotNull(a1);
 
     // Add second artifact to the repository - commit
     ArtifactData ad2 = generateTestArtifactData("collection1", "auid1", "uri2", 1, 1024);
     Artifact a2 = store.addArtifactData(ad2);
-    index1.indexArtifact(ad2);
+    assertNotNull(a2);
     store.commitArtifactData(a2);
     // TODO: Future.get()? Assert commit?
 
@@ -997,16 +999,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Add third artifact to the repository - don't commit but immediately delete
     ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
     Artifact a3 = store.addArtifactData(ad3);
-    index1.indexArtifact(ad3);
+    assertNotNull(a3);
     store.deleteArtifactData(a3);
     index1.deleteArtifact(a3.getId());
 
     // Add fourth artifact to the repository - commit and delete
     ArtifactData ad4 = generateTestArtifactData("collection1", "auid1", "uri4", 1, 1024);
     Artifact a4 = store.addArtifactData(ad4);
-    index1.indexArtifact(ad4);
+    assertNotNull(a4);
     store.commitArtifactData(a4);
-    index1.commitArtifact(a4.getId());
     store.deleteArtifactData(a4);
     index1.deleteArtifact(a4.getId());
 
@@ -1021,8 +1022,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     //// Compare and assert contents of indexes
 
     // Compare collections IDs
-    List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
-    List<String> cids2 = IteratorUtils.toList(index2.getCollectionIds().iterator());
+    List<String> cids1 = IterableUtils.toList(index1.getCollectionIds());
+    List<String> cids2 = IterableUtils.toList(index2.getCollectionIds());
     if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
       fail(String.format("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs: %s vs %s", cids1, cids2));
     }
@@ -1315,8 +1316,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Add an artifact to the store and index
     ArtifactData ad = generateTestArtifactData("coll", "auid", "uri", 1, 512);
-    store.addArtifactData(ad);
-    Artifact artifact = index.indexArtifact(ad);
+    Artifact artifact = store.addArtifactData(ad);
 
     // Get the artifact state.
     artifactState = store.getArtifactState(expired, false, artifact);
