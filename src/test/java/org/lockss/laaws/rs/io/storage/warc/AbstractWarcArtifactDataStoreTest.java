@@ -52,6 +52,7 @@ import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.WARCRecord;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -61,6 +62,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.TimeUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -69,6 +71,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   // Handle to the data store under test
   protected WADS store;
+  protected String variant;
 
   // *******************************************************************************************************************
   // * JUNIT
@@ -81,6 +84,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     store = makeWarcArtifactDataStore(index);
     store.initDataStore();
+
+    beforeVariant();
   }
 
   @AfterEach
@@ -91,6 +96,34 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     if (index != null) {
       index.shutdownIndex();
     }
+  }
+
+  // *******************************************************************************************************************
+  // * VARIANT FRAMEWORK
+  // *******************************************************************************************************************
+
+  public enum TestRepoScenarios {
+    empty,
+  }
+
+  protected List<ArtifactSpec> getArtifactSpecsForVariant(String variant) {
+    switch (variant) {
+      case "empty":
+        break;
+    }
+    return null;
+  }
+
+  // Invoked automatically before each test by the @VariantTest mechanism
+  @Override
+  protected void setUpVariant(String variantName) {
+    log.info("setUpVariant: " + variantName);
+    variant = variantName;
+  }
+
+  protected void beforeVariant() {
+    List<ArtifactSpec> artifactSpecs = getArtifactSpecsForVariant(variant);
+    ArtifactSpec.populateDataStore(store, artifactSpecs);
   }
 
   // *******************************************************************************************************************
@@ -599,7 +632,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // TODO: Assert something about the index
   }
 
-  @Test
+  @Tag("testMe")
+  @VariantTest
+  @EnumSource(TestRepoScenarios.class)
   public void testGetArtifactData() throws Exception {
     // Attempt retrieving the artifact with a null argument
     try {
