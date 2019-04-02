@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -368,7 +368,7 @@ public class BaseLockssRepository implements LockssRepository {
    * @param collection A String with the collection identifier.
    * @param auid       A String with the Archival Unit identifier.
    * @param prefix     A String with the URL prefix.
-   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix from an AU.
    */
   @Override
@@ -378,6 +378,23 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a collection.
+   *
+   * @param collection A String with the collection identifier.
+   * @param prefix     A String with the URL prefix.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+   * prefix.
+   */
+  @Override
+  public Iterable<Artifact> getAllArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+    if (collection == null || prefix == null) {
+      throw new IllegalArgumentException("Null collection id, au id or prefix");
+    }
+
+    return index.getAllArtifactsWithPrefixAllVersionsAllAus(collection, prefix);
   }
 
   /**
@@ -396,6 +413,22 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     return index.getArtifactAllVersions(collection, auid, url);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+   *
+   * @param collection A {@code String} with the collection identifier.
+   * @param url        A {@code String} with the URL to be matched.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+   */
+  @Override
+  public Iterable<Artifact> getAllArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+    if (collection == null || url == null) {
+      throw new IllegalArgumentException("Null collection id, au id or url");
+    }
+
+    return index.getAllArtifactsAllVersionsAllAus(collection, url);
   }
 
   /**

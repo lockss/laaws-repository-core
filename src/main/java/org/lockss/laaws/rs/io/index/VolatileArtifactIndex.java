@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -402,7 +402,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     @Override
@@ -411,6 +411,30 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByAuid(auid);
+        query.filterByURIPrefix(prefix);
+
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by URL and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+        }
+    }
+
+    /**
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    @Override
+    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
         query.filterByURIPrefix(prefix);
 
         synchronized (index) {
@@ -438,6 +462,29 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByAuid(auid);
+        query.filterByURIMatch(url);
+
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by URL and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_DECREASING_VERSION).iterator());
+        }
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    @Override
+    public Iterable<Artifact> getAllArtifactsAllVersionsAllAus(String collection, String url) {
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
         query.filterByURIMatch(url);
 
         synchronized (index) {
