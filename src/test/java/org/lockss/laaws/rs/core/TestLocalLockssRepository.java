@@ -30,17 +30,16 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.junit.jupiter.api.AfterEach;
+import org.lockss.log.L4JLogger;
 import org.springframework.util.FileSystemUtils;
 import java.io.File;
-import java.io.IOException;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
  */
 public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
-    private final static Log log = LogFactory.getLog(TestLocalLockssRepository.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     // The local repository root directory.
     private File repoBaseDir = null;
@@ -48,20 +47,21 @@ public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
         repoBaseDir = getTempDir();
-        String noPersistenceFile = null;
-        return new LocalLockssRepository(repoBaseDir, (String)null);
+        return new LocalLockssRepository(repoBaseDir, null);
     }
 
     /**
      * Run after the test is finished.
      */
+    @AfterEach
     @Override
     public void tearDownArtifactDataStore() throws Exception {
+        super.tearDownArtifactDataStore();
+
         // Clean up the local repository directory tree used in the test.
+        log.info("Cleaning up local repository directory used for tests: {}", repoBaseDir);
         if (!FileSystemUtils.deleteRecursively(repoBaseDir)) {
           log.warn("Failed to delete temporary directory " + repoBaseDir);
         }
-
-        super.tearDownArtifactDataStore();
     }
 }

@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.io.*;
@@ -42,6 +40,7 @@ import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -61,7 +60,7 @@ import java.util.List;
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
  */
 public class ArtifactDataFactory {
-    private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String RESPONSE_TYPE = WARCConstants.WARCRecordType.response.toString();
     private static final String RESOURCE_TYPE = WARCConstants.WARCRecordType.resource.toString();
@@ -204,7 +203,7 @@ public class ArtifactDataFactory {
      *          An {@code ArchiveRecordHeader} ARC / WARC header containing an artifact identity.
      * @return An {@code ArtifactIdentifier}.
      */
-   private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
+   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
         Integer version = -1;
 
         String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);

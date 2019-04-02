@@ -30,8 +30,6 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
@@ -41,6 +39,7 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.log.L4JLogger;
 
 import java.io.*;
 import java.util.Collection;
@@ -50,7 +49,7 @@ import java.util.HashSet;
  * Common utilities and adapters for LOCKSS repository ArtifactData objects.
  */
 public class ArtifactDataUtil {
-    private final static Log log = LogFactory.getLog(ArtifactDataUtil.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     /**
      * Adapter that takes an {@code ArtifactData} and returns an InputStream containing an HTTP response stream

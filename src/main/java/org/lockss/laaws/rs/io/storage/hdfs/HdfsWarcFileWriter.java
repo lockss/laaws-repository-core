@@ -34,12 +34,11 @@ package org.lockss.laaws.rs.io.storage.hdfs;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.warc.WARCRecordInfo;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Syncable;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
+import org.lockss.log.L4JLogger;
 import org.springframework.data.hadoop.store.DataStoreWriter;
 import org.springframework.data.hadoop.store.codec.CodecInfo;
 import org.springframework.data.hadoop.store.event.FileWrittenEvent;
@@ -52,7 +51,7 @@ import java.io.*;
 
 @Deprecated
 public class HdfsWarcFileWriter extends AbstractDataStreamWriter implements DataStoreWriter<WARCRecordInfo>, WARCConstants {
-    private final static Log log = LogFactory.getLog(HdfsWarcFileWriter.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private StreamsHolder<OutputStream> streamsHolder;
 

@@ -32,8 +32,6 @@ package org.lockss.laaws.rs.core;
 
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.util.ArtifactConstants;
@@ -42,6 +40,7 @@ import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.log.L4JLogger;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
@@ -62,7 +61,7 @@ import java.util.List;
  * REST client implementation of the LOCKSS Repository API; makes REST calls to a remote LOCKSS Repository REST server.
  */
 public class RestLockssRepository implements LockssRepository {
-    private final static Log log = LogFactory.getLog(RestLockssRepository.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private RestTemplate restTemplate;
     private URL repositoryUrl;
@@ -162,7 +161,7 @@ public class RestLockssRepository implements LockssRepository {
 
             // Add artifact multipart to multiparts list. The name of the part
             // must be "file" because that is what the Swagger-generated code
-            // in the service expects.
+            // specifies.
             parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
         } catch (HttpException e) {
             String errMsg = String.format("Error generating HTTP response stream from artifact data: %s", e);
@@ -268,13 +267,13 @@ public class RestLockssRepository implements LockssRepository {
 
         HttpStatus status = response.getStatusCode();
 
-        if (status.is2xxSuccessful()) {
-          return response.getBody();
+        if (!status.is2xxSuccessful()) {
+          String errMsg = String.format("Could not commit artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
+          log.error(errMsg);
+          throw new IOException(errMsg);
         }
 
-        String errMsg = String.format("Could not commit artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
-        log.error(errMsg);
-        throw new IOException(errMsg);
+        return response.getBody();
     }
 
     /**
@@ -807,13 +806,12 @@ public class RestLockssRepository implements LockssRepository {
     /**
      * Checks if the remote repository is alive.
      *
-     * TODO: Implement and check Status API rather than retrieving list of collection IDs.
      *
      * @return
      */
     private boolean checkAlive() {
-        Iterable<String> collectionIds = getCollectionIds();
-        return collectionIds != null;
+      // TODO: Check Status API?
+      return true;
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,19 +33,16 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.util.UUID;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
+  private final static L4JLogger log = L4JLogger.getLogger();
   private File testsRootDir;
-
-  @Override
-  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore() throws IOException {
-    File testRepoBaseDir = new File(testsRootDir + "/" + UUID.randomUUID());
-    testRepoBaseDir.mkdirs();
-    return new LocalWarcArtifactDataStore(testRepoBaseDir);
-  }
 
   @BeforeAll
   protected void makeLocalTempDir() throws IOException {
@@ -62,79 +59,72 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   }
 
   @Override
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
+    File testRepoBaseDir = new File(testsRootDir + "/" + UUID.randomUUID());
+    testRepoBaseDir.mkdirs();
+    return new LocalWarcArtifactDataStore(index, testRepoBaseDir);
+  }
+
+  @Override
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, LocalWarcArtifactDataStore other) throws IOException {
+    return new LocalWarcArtifactDataStore(index, other.getBasePath());
+  }
+
+  @Test
+  public void testInitCollection() throws Exception {
+    store.initCollection("collection");
+    assertTrue(isDirectory(store.getCollectionPath("collection")));
+  }
+
+  @Test
+  public void testInitAu() throws Exception {
+    store.initAu("collection", "auid");
+    assertTrue(isDirectory(store.getCollectionPath("collection")));
+    assertTrue(isDirectory(store.getAuPath("collection", "auid")));
+  }
+
+  @Override
+  protected boolean isValidStorageUrl(String storageUrl) {
+    return true;
+  }
+
+  protected static void quietlyDeleteDir(File dir) {
+    try {
+      FileUtils.deleteDirectory(dir);
+    } catch (IOException e) {
+      // oh well.
+    }
+  }
+
+  @Override
   protected boolean pathExists(String path) throws IOException {
-    File pathDir = new File(store.getBasePath(), path);
+    File pathDir = new File(path);
     return pathDir.exists();
   }
 
   @Override
   protected boolean isDirectory(String path) throws IOException {
-    File pathDir = new File(store.getBasePath(), path);
+    File pathDir = new File(path);
     return pathDir.isDirectory();
   }
 
   @Override
   protected boolean isFile(String path) throws IOException {
-    File pathDir = new File(store.getBasePath(), path);
+    File pathDir = new File(path);
     return pathDir.isFile();
   }
 
-//  @Test
-//  public void testMkdirsIfNeeded() throws Exception {
-//    File tmp1 = makeTempDir();
-//    String dirPath = tmp1.getAbsolutePath() + "/foo/bar/baz";
-//    File dir = new File(dirPath);
-//    assertFalse(dir.exists());
-//    LocalWarcArtifactDataStore.mkdirs(dirPath);
-//    assertTrue(dir.isDirectory());
-//    LocalWarcArtifactDataStore.mkdirs(dirPath); // should not fail or throw
-//    quietlyDeleteDir(tmp1);
-//  }
-
   @Override
-  protected String testMakeStorageUrl_getExpected(ArtifactIdentifier ident,
-                                                  long offset)
-      throws Exception {
-    return String.format("file://%s%s?offset=%d",
-                         (store.getBasePath().equals("/") ? "" : store.getBasePath()),
-                         store.getAuArtifactsWarcPath(ident),
-                         offset);
+  protected String expected_getTmpWarcBasePath() {
+    return store.getAbsolutePath("/temp");
   }
 
-  @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNotNeedingUrl(ArtifactIdentifier ident)
-      throws Exception {
-    Artifact art = new Artifact(ident,
-                                Boolean.TRUE,
-                                String.format("file://%s%s/%s?offset=1234",
-                                              store.getBasePath(),
-                                              store.getSealedWarcPath(),
-                                              store.getSealedWarcName(ident.getCollection(), ident.getAuid())),
-                                123L,
-                                "0x12345");
-    return art;
+  protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
+    return String.format(
+        "file://%s?offset=%d&length=%d",
+        store.getActiveWarcPath(aid),
+        offset,
+        length
+    );
   }
-  
-  @Override
-  protected Artifact testMakeNewStorageUrl_makeArtifactNeedingUrl(ArtifactIdentifier ident)
-      throws Exception {
-    Artifact art = new Artifact(ident,
-                                Boolean.TRUE,
-                                String.format("file://%s?offset=1234",
-                                              store.getAuArtifactsWarcPath(ident)),
-                                123L,
-                                "0x12345");
-    return art;
-  }
-  
-  @Override
-  protected void testMakeNewStorageUrl_checkArtifactNeedingUrl(Artifact artifact,
-                                                               String newPath,
-                                                               String result)
-      throws Exception {
-    assertThat(result, startsWith(String.format("file://" + newPath)));
-  }
-  
-
-  
 }

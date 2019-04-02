@@ -30,13 +30,15 @@
 
 package org.lockss.laaws.rs.core;
 
+import java.io.IOException;
+
 /**
  * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
  */
 public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
 
     @Override
-    public LockssRepository makeLockssRepository() {
+    public LockssRepository makeLockssRepository() throws IOException {
         return new VolatileLockssRepository();
     }
 }

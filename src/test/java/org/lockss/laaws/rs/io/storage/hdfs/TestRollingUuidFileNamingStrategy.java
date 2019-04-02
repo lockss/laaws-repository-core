@@ -42,6 +42,7 @@ import static org.junit.Assert.*;
 /**
  * Test for RollingUuidFileNamingStrategy
  */
+@Deprecated
 public class TestRollingUuidFileNamingStrategy extends LockssTestCase5 {
     private FileNamingStrategy namingStrategy = new RollingUuidFileNamingStrategy();
 

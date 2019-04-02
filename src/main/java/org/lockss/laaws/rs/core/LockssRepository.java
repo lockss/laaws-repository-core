@@ -30,10 +30,9 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
@@ -46,6 +45,14 @@ import java.util.concurrent.TimeoutException;
  * This is the interface of the abstract LOCKSS repository service.
  */
 public interface LockssRepository extends Ready {
+
+  default void initRepository() throws IOException {
+    // NOP
+  }
+
+  default void shutdownRepository() throws InterruptedException {
+    // NOP
+  }
 
     /**
      * Adds an artifact to this LOCKSS repository.
@@ -109,9 +116,7 @@ public interface LockssRepository extends Ready {
      * @return An {@code Artifact} containing the updated artifact state information.
      * @throws IOException
      */
-    Artifact commitArtifact(String collection,
-                            String artifactId)
-        throws IOException;
+    Artifact commitArtifact(String collection, String artifactId) throws IOException;
 
     /**
      * Permanently removes an artifact from this LOCKSS repository.
@@ -305,7 +310,7 @@ public interface LockssRepository extends Ready {
 
   @Override
   default void waitReady(Deadline deadline) throws TimeoutException {
-    Log log = LogFactory.getLog(LockssRepository.class);
+    final L4JLogger log = L4JLogger.getLogger();
 
     while (!isReady()) {
       if (deadline.expired()) {

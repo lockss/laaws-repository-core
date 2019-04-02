@@ -37,16 +37,15 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.LinkedHashMap;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.log.L4JLogger;
 
 /**
  * ArtifactData index implemented in memory and persisted in the local
  * filesystem.
  */
 public class LocalArtifactIndex extends VolatileArtifactIndex {
-    private final static Log log = LogFactory.getLog(LocalArtifactIndex.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     // The location of persisted index.
     private File persistedIndex = null;

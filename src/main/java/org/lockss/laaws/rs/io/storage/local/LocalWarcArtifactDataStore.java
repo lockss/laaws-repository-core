@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,15 +33,14 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.locks.Lock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.*;
-import org.apache.commons.logging.*;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
-import org.springframework.util.LinkedMultiValueMap;
+import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -49,42 +48,38 @@ import org.springframework.web.util.UriComponentsBuilder;
  * Local filesystem implementation of WarcArtifactDataStore.
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
-    private static final Log log = LogFactory.getLog(LocalWarcArtifactDataStore.class);
-    private boolean initialized;
+  private final static L4JLogger log = L4JLogger.getLogger();
+  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
-    public LocalWarcArtifactDataStore(File basePath) throws IOException {
-        this(basePath.getAbsolutePath());
-    }
+  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
+    this(index, basePath.getAbsolutePath());
+  }
 
-    /**
-     * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
-     *
-     * @param basePath The base path of the local repository.
-     */
-    public LocalWarcArtifactDataStore(String basePath) throws IOException {
-        super(basePath);
-        log.info(String.format("Instantiating a local data store under %s", basePath));
+  /**
+   * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
+   *
+   * @param basePath The base path of the local repository.
+   */
+  public LocalWarcArtifactDataStore(ArtifactIndex index, String basePath) throws IOException {
+    super(index, basePath);
 
-        this.fileAndOffsetStorageUrlPat =
-                Pattern.compile("(file://)(" + (getBasePath().equals("/") ? "" : getBasePath()) + ")([^?]+)\\?offset=(\\d+)");
+    log.info(String.format("Instantiating a local data store under %s", basePath));
 
-        initRepository();
-    }
+    // Initialize LOCKSS repository structure
+    mkdirs(getBasePath());
+    mkdirs(getTmpWarcBasePath());
+    mkdirs(getSealedWarcsPath());
+  }
 
-    public synchronized void initRepository() {
-      if (!initialized) {
-        try {
-          // Initialize LOCKSS repository structure
-          mkdirs("/");
-          mkdirs(getSealedWarcPath());
-          initialized = true;
-        } catch (IOException e) {
-          log.warn("Caught IOException while attempting initRepository local filesystem artifact datastore");
-        }
-      } else {
-        log.info("Already initialized LOCKSS repository");
-      }
-    }
+  @Override
+  protected String getTmpWarcBasePath() {
+    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
+  }
+
+  @Override
+  protected long getBlockSize() {
+    return DEFAULT_BLOCKSIZE;
+  }
 
   @Override
   public void initCollection(String collectionId) throws IOException {
@@ -105,7 +100,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
     public boolean isReady() {
-        return initialized;
+        return dataStoreState == DataStoreState.INITIALIZED;
     }
 
     /**
@@ -115,29 +110,53 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
      * @return A collection of paths to WARC files under the given base path.
      */
     @Override
-    public Collection<String> scanDirectories(String basePath) {
-        Collection<String> warcFiles = new ArrayList<>();
+    public Collection<String> findWarcs(String basePath) throws IOException {
+        log.debug("basePath = {}", basePath);
 
-        // DFS recursion through directories
-        Arrays.stream(new File(basePath).listFiles(x -> x.isDirectory()))
-                .map(x -> scanDirectories(x.getPath()))
-                .forEach(warcFiles::addAll);
+        File basePathFile = new File(basePath);
 
-        // Add WARC files from this directory
-        warcFiles.addAll(
-                Arrays.asList(
-                        new File(basePath).listFiles(
-                                x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION)
-                        )
-                ).stream().map(x -> x.getPath().substring(getBasePath().length())).collect(Collectors.toSet())
-        );
+        if (basePathFile.exists() && basePathFile.isDirectory()) {
+          log.debug("exists() = true, isDirectory = true");
 
-        // Return WARC files at this level
-        return warcFiles;
+          File[] dirObjs = basePathFile.listFiles();
+
+          if (dirObjs == null) {
+            // File#listFiles() can return null if the path doesn't exist or if there was an I/O error; we checked that
+            // the path exists and is a directory earlier so it must be the former
+            throw new IOException(String.format("Unable to list directory contents [basePath = %s]", basePath));
+//            log.warn("Unable to list directory contents [basePath = {}]", basePath);
+//            return null;
+          }
+
+          Collection<String> warcFiles = new ArrayList<>();
+
+          // DFS recursion through directories
+          //Arrays.stream(dirObjs).map(x -> findWarcs(x.getPath())).forEach(warcFiles::addAll);
+          for (File dir : Arrays.stream(dirObjs).filter(File::isDirectory).toArray(File[]::new)) {
+            warcFiles.addAll(findWarcs(dir.getPath()));
+          }
+
+          // Add WARC files from this directory
+          warcFiles.addAll(
+              Arrays.stream(dirObjs)
+                .filter(x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+                .map(x -> x.getPath())
+                .collect(Collectors.toSet())
+          );
+
+          // Return WARC files at this level
+          return warcFiles;
+        }
+
+        log.warn("Path doesn't exist or was not a directory [basePath = {}]", basePath);
+        return Collections.EMPTY_SET;
+//        return null;
     }
 
     public void mkdirs(String dirPath) throws IOException {
-        File dir = new File(getBasePath() + dirPath);
+        log.debug("dirPath = {}", dirPath);
+
+        File dir = new File(dirPath);
 
         if (dir.isDirectory()) {
             return;
@@ -149,57 +168,35 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public long getFileLength(String filePath) {
-      // Acquire lock to avoid returning a length while write is in progress
-      Lock warcLock = warcLockMap.getLock(filePath);
-      warcLock.lock();
-
-      try {
-        return new File(getBasePath() + filePath).length();
-      } finally {
-        warcLock.unlock();
-      }
-    }
-
-    @Override
-    public String makeStorageUrl(String filePath, String offset) {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("offset", offset);
-        return makeStorageUrl(filePath, params);
+    public long getWarcLength(String warcPath) {
+      return new File(warcPath).length();
     }
 
     @Override
     public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + getBasePath() + filePath);
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
         uriBuilder.queryParams(params);
         return uriBuilder.toUriString();
     }
 
     @Override
     public OutputStream getAppendableOutputStream(String filePath) throws IOException {
-        return new FileOutputStream(getBasePath() + filePath, true);
-    }
-
-    @Override
-    public InputStream getInputStream(String filePath) throws IOException {
-        return new FileInputStream(getBasePath() + filePath);
+        return new FileOutputStream(filePath, true);
     }
 
     @Override
     public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-        InputStream inputStream = getInputStream(filePath);
+        log.info("filePath = {}", filePath);
+        log.info("seek = {}", seek);
+
+        InputStream inputStream = new FileInputStream(filePath);
         inputStream.skip(seek);
         return inputStream;
     }
 
     @Override
-    public InputStream getWarcRecordInputStream(String storageUrl) throws IOException {
-        return getFileAndOffsetWarcRecordInputStream(storageUrl);
-    }
-
-    @Override
     public void initWarc(String storageUrl) throws IOException {
-        File file = new File(getBasePath() + storageUrl);
+        File file = new File(storageUrl);
         if (!file.exists()) {
             mkdirs(new File(storageUrl).getParent());
             FileUtils.touch(file);
@@ -207,17 +204,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void moveWarc(String srcPath, String dstPath) throws IOException {
-        String realSrcPath = getBasePath() + srcPath;
-        String realDstPath = getBasePath() + dstPath;
-        if (!new File(realSrcPath).renameTo(new File(realDstPath))) {
-            throw new IOException(String.format("Error renaming %s to %s", realSrcPath, realDstPath));
-        }
-    }
-
-    @Override
-    public String makeNewStorageUrl(String newPath, Artifact artifact) {
-        return makeNewFileAndOffsetStorageUrl(newPath, artifact);
+    public boolean removeWarc(String path) {
+      return new File(path).delete();
     }
 
     /**
@@ -249,6 +237,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         ArtifactData artifact = getArtifactData(indexData);
         RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
         return metadata.isCommitted();
+    }
+
+    @Override
+    protected String getAbsolutePath(String path) {
+      File pathDir = new File(getBasePath(), path);
+      return pathDir.toString();
     }
 
 }
