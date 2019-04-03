@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2000-2018, Board of Trustees of Leland Stanford Jr. University,
+Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University,
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -807,11 +807,21 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertThrowsMatch(IllegalArgumentException.class,
 		      "collection",
 		      () -> {repository.getAllArtifactsWithPrefixAllVersions(null, AUID1, PREFIX1);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id, au id or prefix",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersionsAllAus(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "prefix",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersionsAllAus(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getAllArtifactsWithPrefixAllVersionsAllAus(null, PREFIX1);});
 
     // Non-existent collection & auid
     assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(NO_COLL, NO_AUID, PREFIX1));
-    // Compare with all URLs matching prefix in each AU
+    assertEmpty(repository.getAllArtifactsWithPrefixAllVersionsAllAus(NO_COLL, PREFIX1));
     for (String coll : addedCollections()) {
+      // Compare with all URLs matching prefix in each AU
       for (String auid : addedAuids()) {
 	ArtSpec.assertArtList(repository, (orderedAllAu(coll, auid)
 		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
@@ -819,6 +829,12 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	assertEmpty(repository.getAllArtifactsWithPrefixAllVersions(coll, auid,
 								    PREFIX1 + "notpath"));
       }
+      // Compare with all URLs matching prefix
+      ArtSpec.assertArtList(repository, (orderedAllColl(coll)
+		  .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
+		  repository.getAllArtifactsWithPrefixAllVersionsAllAus(coll, PREFIX1));
+      assertEmpty(repository.getAllArtifactsWithPrefixAllVersionsAllAus(coll,
+								        PREFIX1 + "notpath"));
     }
 
     // Combination of coll and au id that both exist, but have no artifacts
@@ -852,6 +868,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertEmpty(repository.getArtifactAllVersions(NO_COLL, AUID1, URL1));
     assertEmpty(repository.getArtifactAllVersions(COLL1, NO_AUID, URL1));
     assertEmpty(repository.getArtifactAllVersions(COLL1, AUID1, NO_URL));
+    assertEmpty(repository.getAllArtifactsAllVersionsAllAus(NO_COLL, URL1));
+    assertEmpty(repository.getAllArtifactsAllVersionsAllAus(COLL1, NO_URL));
 
     // For each ArtButVer in the repository, enumerate all its versions and
     // compare with expected
@@ -863,6 +881,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 		    repository.getArtifactAllVersions(urlSpec.getCollection(),
 						      urlSpec.getAuid(),
 						      urlSpec.getUrl()));
+      ArtSpec.assertArtList(repository, orderedAllCommitted()
+		    .filter(spec -> spec.sameArtButVer(urlSpec)),
+		    repository.getAllArtifactsAllVersionsAllAus(urlSpec.getCollection(),
+						                urlSpec.getUrl()));
     }
   }
 
