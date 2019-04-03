@@ -391,7 +391,7 @@ public class BaseLockssRepository implements LockssRepository {
   @Override
   public Iterable<Artifact> getAllArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
     if (collection == null || prefix == null) {
-      throw new IllegalArgumentException("Null collection id, au id or prefix");
+      throw new IllegalArgumentException("Null collection id or prefix");
     }
 
     return index.getAllArtifactsWithPrefixAllVersionsAllAus(collection, prefix);
@@ -425,7 +425,7 @@ public class BaseLockssRepository implements LockssRepository {
   @Override
   public Iterable<Artifact> getAllArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
     if (collection == null || url == null) {
-      throw new IllegalArgumentException("Null collection id, au id or url");
+      throw new IllegalArgumentException("Null collection id or url");
     }
 
     return index.getAllArtifactsAllVersionsAllAus(collection, url);
