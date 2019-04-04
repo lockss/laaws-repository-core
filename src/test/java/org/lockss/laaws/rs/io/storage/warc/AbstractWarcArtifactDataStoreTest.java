@@ -965,8 +965,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
       // Iterate over AUIDs
       for (String auid : auids1) {
-        List<Artifact> artifacts1 = IteratorUtils.toList(index1.getAllArtifacts(cid, auid, true).iterator());
-        List<Artifact> artifacts2 = IteratorUtils.toList(index2.getAllArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts1 = IteratorUtils.toList(index1.getArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts2 = IteratorUtils.toList(index2.getArtifacts(cid, auid, true).iterator());
 
         // Debugging
         artifacts1.forEach(artifact -> log.info(String.format("Artifact from artifacts1: %s", artifact)));
@@ -1047,8 +1047,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
       // Iterate over AUIDs
       for (String auid : auids3) {
-        List<Artifact> artifacts3 = IteratorUtils.toList(index3.getAllArtifacts(cid, auid, true).iterator());
-        List<Artifact> artifacts4 = IteratorUtils.toList(index4.getAllArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts3 = IteratorUtils.toList(index3.getArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts4 = IteratorUtils.toList(index4.getArtifacts(cid, auid, true).iterator());
 
         // Debugging
         artifacts3.forEach(artifact -> log.info(String.format("Artifact from artifacts3: %s", artifact)));
