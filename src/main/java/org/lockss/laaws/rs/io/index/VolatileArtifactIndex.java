@@ -305,7 +305,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid, boolean includeUncommitted) {
+    public Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
 
         // Filter by committed status equal to true?
@@ -341,7 +341,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
 
         if (!includeUncommitted) {
@@ -372,7 +372,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
         q.filterByCommitStatus(true);
         q.filterByCollection(collection);
@@ -406,7 +406,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -431,7 +431,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         prefix.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -457,7 +457,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
@@ -481,7 +481,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersionsAllAus(String collection, String url) {
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);

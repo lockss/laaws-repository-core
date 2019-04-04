@@ -502,7 +502,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
 
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException {
+    public Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
 
@@ -544,7 +544,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) throws IOException {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
 
@@ -574,7 +574,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -615,7 +615,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -639,7 +639,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *         prefix.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -664,7 +664,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -687,7 +687,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));

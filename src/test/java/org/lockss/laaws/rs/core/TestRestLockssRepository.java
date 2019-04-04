@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -539,7 +539,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getAllArtifacts("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -552,7 +552,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        Iterable<Artifact> result = repository.getAllArtifacts("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -565,7 +565,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifacts("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -578,7 +578,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifacts("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -595,7 +595,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getAllArtifacts("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -608,7 +608,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getAllArtifactsAllVersions("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -621,7 +621,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        Iterable<Artifact> result = repository.getAllArtifactsAllVersions("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -634,7 +634,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifactsAllVersions("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -647,7 +647,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifactsAllVersions("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -664,7 +664,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getAllArtifactsAllVersions("collection1", "auid1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -677,7 +677,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefix("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -690,7 +690,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefix("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -703,7 +703,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefix("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -716,7 +716,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefix("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -733,7 +733,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefix("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -746,7 +746,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -759,7 +759,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -772,7 +772,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -785,7 +785,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -802,7 +802,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getAllArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -815,7 +815,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getArtifactAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -828,7 +828,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-        Iterable<Artifact> result = repository.getArtifactAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -841,7 +841,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getArtifactAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -854,7 +854,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
 
-        Iterable<Artifact> result = repository.getArtifactAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);
@@ -871,7 +871,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getArtifactAllVersions("collection1", "auid1", "url1");
+        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
 
         assertNotNull(result);

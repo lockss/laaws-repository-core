@@ -167,11 +167,11 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-    default Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
-        return getAllArtifacts(collection, auid, false);
+    default Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
+        return getArtifacts(collection, auid, false);
     }
 
-    Iterable<Artifact> getAllArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException;
+    Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException;
 
     /**
      * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
@@ -185,10 +185,10 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      * @throws IOException
      */
-    default Iterable<Artifact> getAllArtifactsAllVersions(String collection,
-                                                          String auid)
+    default Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                                       String auid)
         throws IOException {
-        return getAllArtifactsAllVersions(collection, auid, false);
+        return getArtifactsAllVersions(collection, auid, false);
     }
 
     /**
@@ -206,9 +206,9 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the artifacts of all version of all URLs in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifactsAllVersions(String collection,
-                                                  String auid,
-                                                  boolean includeUncommitted)
+    Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                               String auid,
+                                               boolean includeUncommitted)
         throws IOException;
 
     /**
@@ -225,9 +225,9 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifactsWithPrefix(String collection,
-                                                 String auid,
-                                                 String prefix)
+    Iterable<Artifact> getArtifactsWithPrefix(String collection,
+                                              String auid,
+                                              String prefix)
         throws IOException;
 
     /**
@@ -245,9 +245,9 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
-    Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
-                                                            String auid,
-                                                            String prefix)
+    Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection,
+                                                         String auid,
+                                                         String prefix)
         throws IOException;
 
     /**
@@ -262,8 +262,8 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix.
      */
-    Iterable<Artifact> getAllArtifactsWithPrefixAllVersionsAllAus(String collection,
-                                                                  String prefix)
+    Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection,
+                                                               String prefix)
         throws IOException;
 
     /**
@@ -279,9 +279,9 @@ public interface ArtifactIndex extends Ready {
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL from an
      *         Archival Unit.
      */
-    Iterable<Artifact> getArtifactAllVersions(String collection,
-                                              String auid,
-                                              String url)
+    Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                               String auid,
+                                               String url)
         throws IOException;
 
     /**
@@ -294,8 +294,8 @@ public interface ArtifactIndex extends Ready {
      *          A {@code String} with the URL to be matched.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
-    Iterable<Artifact> getAllArtifactsAllVersionsAllAus(String collection,
-                                                        String url)
+    Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection,
+                                                     String url)
         throws IOException;
 
     /**
