@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2018-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -90,8 +90,8 @@ public class TestLocalArtifactIndex extends LockssTestCase5 {
 
             // Iterate over AUIDs
             for (String auid : auids1) {
-                List<Artifact> artifacts1 = IteratorUtils.toList(index1.getAllArtifacts(cid, auid, true).iterator());
-                List<Artifact> artifacts2 = IteratorUtils.toList(index2.getAllArtifacts(cid, auid, true).iterator());
+                List<Artifact> artifacts1 = IteratorUtils.toList(index1.getArtifacts(cid, auid, true).iterator());
+                List<Artifact> artifacts2 = IteratorUtils.toList(index2.getArtifacts(cid, auid, true).iterator());
 
                 // Debugging
                 artifacts1.forEach(artifact -> log.debug("Artifact from artifact1: {}", artifact));

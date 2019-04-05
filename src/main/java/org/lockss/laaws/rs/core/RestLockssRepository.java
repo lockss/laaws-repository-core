@@ -538,7 +538,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid) {
+    public Iterable<Artifact> getArtifacts(String collection, String auid) {
         if ((collection == null) || (auid == null))
             throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -559,7 +559,7 @@ public class RestLockssRepository implements LockssRepository {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) {
         if ((collection == null) || (auid == null))
             throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -584,7 +584,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) {
         if ((collection == null) || (auid == null) || (prefix == null))
             throw new IllegalArgumentException("Null collection id, au id or prefix");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -609,7 +609,7 @@ public class RestLockssRepository implements LockssRepository {
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         if ((collection == null) || (auid == null) || (prefix == null))
             throw new IllegalArgumentException("Null collection id, au id or prefix");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -634,7 +634,7 @@ public class RestLockssRepository implements LockssRepository {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) {
         if ((collection == null) || (auid == null) || (url == null))
             throw new IllegalArgumentException("Null collection id, au id or url");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);

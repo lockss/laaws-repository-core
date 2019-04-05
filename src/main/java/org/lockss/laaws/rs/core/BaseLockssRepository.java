@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -318,12 +318,12 @@ public class BaseLockssRepository implements LockssRepository {
    * @throws IOException
    */
   @Override
-  public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+  public Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
     if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
     }
 
-    return index.getAllArtifacts(collection, auid);
+    return index.getArtifacts(collection, auid);
   }
 
   /**
@@ -334,12 +334,12 @@ public class BaseLockssRepository implements LockssRepository {
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
    */
   @Override
-  public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) throws IOException {
     if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
     }
 
-    return index.getAllArtifactsAllVersions(collection, auid);
+    return index.getArtifactsAllVersions(collection, auid);
   }
 
   /**
@@ -353,12 +353,12 @@ public class BaseLockssRepository implements LockssRepository {
    * @throws IOException
    */
   @Override
-  public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
     if (collection == null || auid == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id, au id or prefix");
     }
 
-    return index.getAllArtifactsWithPrefix(collection, auid, prefix);
+    return index.getArtifactsWithPrefix(collection, auid, prefix);
   }
 
   /**
@@ -372,12 +372,12 @@ public class BaseLockssRepository implements LockssRepository {
    * prefix from an AU.
    */
   @Override
-  public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
     if (collection == null || auid == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id, au id or prefix");
     }
 
-    return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
+    return index.getArtifactsWithPrefixAllVersions(collection, auid, prefix);
   }
 
   /**
@@ -390,12 +390,12 @@ public class BaseLockssRepository implements LockssRepository {
    * Archival Unit.
    */
   @Override
-  public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
     if (collection == null || auid == null || url == null) {
       throw new IllegalArgumentException("Null collection id, au id or url");
     }
 
-    return index.getArtifactAllVersions(collection, auid, url);
+    return index.getArtifactsAllVersions(collection, auid, url);
   }
 
   /**
