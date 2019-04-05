@@ -62,6 +62,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
     private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
+    private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
     private boolean initialized = false;
 
     /**
@@ -647,6 +648,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
+        q.addSort(AUID_ASC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -695,6 +697,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
+        q.addSort(AUID_ASC);
 
         return IteratorUtils.asIterable(query(q));
     }

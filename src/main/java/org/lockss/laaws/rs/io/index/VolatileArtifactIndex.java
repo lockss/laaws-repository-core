@@ -438,9 +438,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIPrefix(prefix);
 
         synchronized (index) {
-          // Apply filter then sort the resulting Artifacts by URL and descending version
+          // Apply filter then sort the resulting Artifacts by URL, descending version and AUID
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+              .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION_BY_AUID).iterator());
         }
     }
 
@@ -488,9 +488,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIMatch(url);
 
         synchronized (index) {
-          // Apply filter then sort the resulting Artifacts by URL and descending version
+          // Apply filter then sort the resulting Artifacts by URL, descending version and AUID
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_DECREASING_VERSION).iterator());
+              .sorted(ArtifactComparators.BY_DECREASING_VERSION_BY_AUID).iterator());
         }
     }
 
