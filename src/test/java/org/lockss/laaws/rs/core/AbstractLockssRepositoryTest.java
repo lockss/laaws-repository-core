@@ -132,7 +132,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       Comparator.comparingInt(ArtSpec::getVersion).reversed()
       .thenComparing(ArtSpec::getAuid);      
 
-  protected static final Comparator<ArtSpec> BY_URI_SLASH_FIRST_BY_DECREASING_VERSION_BY_AUID =
+  protected static final Comparator<ArtSpec> BY_URI_BY_DECREASING_VERSION_BY_AUID =
       Comparator.comparing(ArtSpec::getUrl, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(ArtSpec::getVersion).reversed())
                 .thenComparing(ArtSpec::getAuid);
@@ -1118,7 +1118,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   Stream<ArtSpec> orderedAllCollAllAus(String coll) {
     return committedSpecStream()
       .filter(s -> s.getCollection().equals(coll))
-      .sorted(BY_URI_SLASH_FIRST_BY_DECREASING_VERSION_BY_AUID);
+      .sorted(BY_URI_BY_DECREASING_VERSION_BY_AUID);
   }
 
   Stream<ArtSpec> orderedAllAu(String coll, String auid) {
@@ -1697,7 +1697,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     /** Return a key that's unique to the collection,url */
     public String artButVerKeyAllAus() {
-      return getCollection() + "|" + "|" + getUrl();
+      return getCollection() + "|" + getUrl();
     }
 
     /** true if other refers to an artifact with the same collection

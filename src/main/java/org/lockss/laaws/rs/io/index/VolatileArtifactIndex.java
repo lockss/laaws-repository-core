@@ -324,7 +324,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
         return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
-                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
+                .sorted(ArtifactComparators.BY_URI).iterator());
       }
     }
 
@@ -354,7 +354,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Apply the filter, sort by artifact URL then descending version, and return an iterator over the Artifacts
       synchronized (index) {
         return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-            .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+            .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION).iterator());
       }
     }
 
@@ -388,7 +388,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
         return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
-            .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
+            .sorted(ArtifactComparators.BY_URI).iterator());
       }
     }
 
@@ -416,7 +416,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by URL and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+              .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION).iterator());
         }
     }
 
@@ -440,7 +440,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by URL, descending version and AUID
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION_BY_AUID).iterator());
+              .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION_BY_AUID).iterator());
         }
     }
 

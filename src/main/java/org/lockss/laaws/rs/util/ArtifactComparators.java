@@ -39,7 +39,7 @@ import org.lockss.util.PreOrderComparator;
 
 public class ArtifactComparators {
 
-  public static final Comparator<Artifact> BY_URI_SLASH_FIRST =
+  public static final Comparator<Artifact> BY_URI =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE);      
   
   public static final Comparator<Artifact> BY_DECREASING_VERSION =
@@ -49,11 +49,11 @@ public class ArtifactComparators {
       Comparator.comparingInt(Artifact::getVersion).reversed()
       .thenComparing(Artifact::getAuid);      
 
-  public static final Comparator<Artifact> BY_URI_SLASH_FIRST_BY_DECREASING_VERSION =
+  public static final Comparator<Artifact> BY_URI_BY_DECREASING_VERSION =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
   
-  public static final Comparator<Artifact> BY_URI_SLASH_FIRST_BY_DECREASING_VERSION_BY_AUID =
+  public static final Comparator<Artifact> BY_URI_BY_DECREASING_VERSION_BY_AUID =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
                 .thenComparing(Artifact::getAuid);
