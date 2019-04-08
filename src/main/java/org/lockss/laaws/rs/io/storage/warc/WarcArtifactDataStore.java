@@ -646,6 +646,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return true;
   }
 
+  protected boolean isArtifactCommitted(ArtifactIdentifier aid) throws IOException {
+    RepositoryArtifactMetadata metadata = getRepositoryMetadata(aid);
+
+    if (metadata != null) {
+      // YES: Repository metadata journal entry found for this artifact
+      return metadata.isCommitted();
+    }
+
+    return false;
+  }
+
   @Override
   public void shutdownDataStore() throws InterruptedException {
     scheduledExecutor.shutdown();
@@ -1050,11 +1061,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Proceed only if the artifact is not marked deleted
     if (artifactState.isDeleted()) {
-      log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
+      log.error("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
       return null;
     }
 
-    // Write new committed state to artifact data repository metadata journal
+    // Record new committed state to artifact data repository metadata journal
     artifact.setCommitted(true);
     artifactState.setCommitted(true);
     updateArtifactMetadata(artifact.getIdentifier(), artifactState);
