@@ -70,18 +70,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   // Handle to the data store under test
   protected WADS store;
-  protected String variant;
 
   // *******************************************************************************************************************
   // * JUNIT
   // *******************************************************************************************************************
 
   @BeforeEach
-  public void setupTestContext() throws IOException {
+  public void setupTestContext() throws Exception {
     ArtifactIndex index = new VolatileArtifactIndex();
+
     index.initIndex();
 
     store = makeWarcArtifactDataStore(index);
+    assertNotNull(store.getArtifactIndex());
+    assertSame(index, store.getArtifactIndex());
+
     store.initDataStore();
 
     beforeVariant();
@@ -101,16 +104,85 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * VARIANT FRAMEWORK
   // *******************************************************************************************************************
 
+  // ArtifactSpec for each Artifact that has been added to the repository
+  protected List<ArtifactSpec> processedSpecs = new ArrayList<ArtifactSpec>();
+  protected String variant = "no_variant";
+
   public enum TestRepoScenarios {
-    empty,
+    empty, commit1, delete1, double_delete, commit_delete_2x2, overlap
   }
+  // Commonly used artifact identifiers and contents
+  protected static String COLL1 = "coll1";
+  protected static String COLL2 = "coll2";
+  protected static String AUID1 = "auid1";
+  protected static String AUID2 = "auid2";
+  protected static String ARTID1 = "art_id_1";
+
+  protected static String URL1 = "http://host1.com/path";
+  protected static String URL2 = "http://host2.com/file1";
+
+  // Identifiers expected not to exist in the repository
+  protected static String NO_COLL= "no_coll";
+  protected static String NO_AUID = "no_auid";
+  protected static String NO_URL = "no_url";
+  protected static String NO_ARTID = "not an artifact ID";
+
+  // These describe artifacts that getArtifact() should never find
+  protected ArtifactSpec[] neverFoundArtifactSpecs = {
+      ArtifactSpec.forCollAuUrl(NO_COLL, AUID1, URL1),
+      ArtifactSpec.forCollAuUrl(COLL1, NO_AUID, URL1),
+      ArtifactSpec.forCollAuUrl(COLL1, AUID1, NO_URL),
+  };
 
   protected List<ArtifactSpec> getArtifactSpecsForVariant(String variant) {
+    List<ArtifactSpec> specs = new ArrayList<>();
+
     switch (variant) {
+      case "no_variant":
+        // Not a variant test
+        break;
+
       case "empty":
+        // Empty data store
+        break;
+
+      case "commit1":
+        // One committed artifact
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit());
+        break;
+
+      case "delete1":
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete());
+        break;
+
+      case "double_delete":
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete().thenDelete());
+        break;
+
+      case "commit_delete_2x2":
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete().thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit().thenDelete());
+        break;
+
+      case "overlap":
+        // Same URLs in different collections and AUs
+        specs.add(ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1));
+        specs.add(ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL2).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL2));
+        specs.add(ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL2).thenCommit());
+
+        specs.add(ArtifactSpec.forCollAuUrl(COLL2, AUID2, URL1).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL2, AUID2, URL1).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL2, AUID2, URL1));
+        specs.add(ArtifactSpec.forCollAuUrl(COLL2, AUID2, URL2).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL2, AUID2, URL2).thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl(COLL2, AUID2, URL2));
         break;
     }
-    return null;
+
+    return specs;
   }
 
   // Invoked automatically before each test by the @VariantTest mechanism
@@ -120,9 +192,198 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     variant = variantName;
   }
 
-  protected void beforeVariant() {
+  protected void beforeVariant() throws Exception {
+    // Populate
     List<ArtifactSpec> artifactSpecs = getArtifactSpecsForVariant(variant);
-    ArtifactSpec.populateDataStore(store, artifactSpecs);
+
+    log.debug("variant: {}, artifactSpecs.size() = {}", variant, artifactSpecs.size());
+
+    populateDataStore(store, artifactSpecs);
+  }
+
+  protected void populateDataStore(WADS store, List<ArtifactSpec> artifactSpecs) throws Exception {
+    log.debug("artifactSpecs.size() = {}", artifactSpecs.size());
+
+    for (ArtifactSpec spec : artifactSpecs) {
+      Artifact artifact = addArtifactData(spec);
+
+      // Replay data store operations on this artifact data
+      for (ArtifactSpec.ArtifactDataStoreOperation op : spec.getDataStoreOperations()) {
+
+        switch (op) {
+          case COMMIT:
+            commitArtifactData(spec, artifact);
+            break;
+
+          case DELETE:
+            deleteArtifactData(spec, artifact);
+            assertTrue(spec.isDeleted());
+            break;
+
+          default:
+            log.error("Unknown data store operation in artifact specification [op: {}, spec: {}]", op, spec);
+            throw new IllegalStateException("Unknown data store operation in artifact specification");
+        }
+      }
+
+      processedSpecs.add(spec);
+    }
+
+  }
+
+  protected void deleteArtifactData(ArtifactSpec spec, Artifact artifact) throws IOException {
+    String artifactId = spec.getArtifactId();
+
+    log.debug("Deleting artifact from data store [artifactId: {}]", artifactId);
+
+    // Sanity check
+//    assertEquals(artifactId, artifact.getId());
+//    assertTrue(spec.isToDelete());
+
+    store.deleteArtifactData(artifact);
+
+    // TODO assert against repository metadata journal
+
+    // TODO - assert index state
+
+    // Update spec
+    spec.setDeleted(true);
+    log.debug("spec.isDeleted() = {}", spec.isDeleted());
+  }
+
+  protected void commitArtifactData(ArtifactSpec spec, Artifact artifact) throws IOException {
+    String artifactId = artifact.getId();
+
+    log.debug("Committing artifact [artifactId: {}]", artifactId);
+
+    // Sanity check
+//    assertTrue(spec.isToCommit());
+//    assertEquals(spec.getArtifactId(), artifactId);
+
+    // Assert current state matches spec
+    assertEquals(spec.isCommitted(), artifact.getCommitted());
+    assertEquals(spec.isCommitted(), store.isArtifactCommitted(artifact.getIdentifier()));
+
+    // Get a handle to the data store's index
+    ArtifactIndex index = store.getArtifactIndex();
+    assertNotNull(index);
+
+    // Get the artifact from index and assert it matches state in spec
+    if (spec.isDeleted()) {
+      assertFalse(index.artifactExists(artifactId));
+//      spec.setCommitted(false);
+      return;
+    }
+
+    assertTrue(index.artifactExists(artifactId));
+
+    // Get the indexed Artifact
+    Artifact indexedArtifact = index.getArtifact(artifactId);
+    assertNotNull(indexedArtifact);
+
+    // Sanity check: Assert current committed state matches
+    assertEquals(spec.isCommitted(), indexedArtifact.getCommitted());
+
+    // Mark the artifact as committed in index
+    index.commitArtifact(artifactId);
+
+    // Assert committed status in index
+    indexedArtifact = index.getArtifact(artifactId);
+    assertNotNull(indexedArtifact);
+    assertTrue(indexedArtifact.getCommitted());
+
+    // Commit the artifact data in the data store
+    Future<Artifact> future = store.commitArtifactData(artifact);
+    assertNotNull(future);
+
+    Artifact committedArtifact = null;
+
+    try {
+      committedArtifact = future.get(10, TimeUnit.SECONDS); // FIXME: Use other timeout facilities
+      assertNotNull(committedArtifact);
+    } catch (Exception e) {
+      log.error("Caught exception committing artifact: {}", e);
+      log.error("spec = {}", spec);
+      log.error("artifact = {}", artifact);
+      throw new IOException(e); // FIXME: Implement better exception handling
+    }
+
+    // Assert things about the committed artifact
+    assertTrue(committedArtifact.getCommitted());
+    assertTrue(store.isArtifactCommitted(artifact.getIdentifier()));
+
+    // Update artifact specification
+    spec.setCommitted(true);
+    spec.setStorageUrl(committedArtifact.getStorageUrl());
+    spec.assertArtifact(store, committedArtifact);
+  }
+
+  private Artifact addArtifactData(ArtifactSpec spec) throws Exception {
+    if (!spec.hasContent()) {
+      spec.generateContent();
+    }
+
+    spec.setArtifactId(UUID.randomUUID().toString());
+
+    log.debug("Adding artifact data from specification: {}", spec);
+
+    // Get an ArtifactData from the artifact specification
+    ArtifactData ad = spec.getArtifactData();
+    assertNotNull(ad);
+
+    // Add the ArtifactData
+    Artifact artifact = store.addArtifactData(ad);
+    assertNotNull(artifact);
+
+    // Assert things about the returned Artifact compared to the spec
+    try {
+      spec.assertArtifact(store, artifact);
+    } catch (Exception e) {
+      log.error("Caught exception adding uncommitted artifact data: {}", e);
+      log.error("spec = {}", spec);
+      log.error("ad = {}", ad);
+      log.error("artifact = {}", artifact);
+      throw e;
+    }
+
+    // Assert uncommitted status of the artifact
+    assertFalse(artifact.getCommitted());
+    assertFalse(store.isArtifactCommitted(artifact.getIdentifier()));
+
+    // Update the artifact specification from resulting artifact
+    spec.setArtifactId(artifact.getId());
+    spec.setVersion(artifact.getVersion());
+    spec.setStorageUrl(artifact.getStorageUrl());
+
+//    assertEquals(ai.getId(), artifact.getId());
+//    assertEquals(ai, artifact.getIdentifier());
+
+    // Assert temporary WARC directory exists
+//    assertNotNull(store.getTmpWarcBasePath());
+//    assertNotNull(store.getAbsolutePath(store.getTmpWarcBasePath()));
+//    assertTrue(isDirectory(store.getTmpWarcBasePath()));
+
+    // Assert things about the added artifact's storage URL
+    String storageUrl = artifact.getStorageUrl();
+    assertNotNull(storageUrl);
+    assertFalse(storageUrl.isEmpty());
+
+    // Get the path within the data store
+    String artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
+    log.debug("storageUrl = {}", storageUrl);
+    log.debug("artifactWarcPath = {}", artifactWarcPath);
+
+    // Assert storage
+    assertTrue(isFile(artifactWarcPath));
+    assertTrue(artifactWarcPath.startsWith(store.getTmpWarcBasePath()));
+
+    // Assert things about the index
+    ArtifactIndex index = store.getArtifactIndex();
+    assertNotNull(index);
+
+    assertTrue(index.artifactExists(artifact.getId()));
+
+    return artifact;
   }
 
   // *******************************************************************************************************************
@@ -631,9 +892,44 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // TODO: Assert something about the index
   }
 
-  @Tag("testMe")
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
+  public void testGetArtifactData_withVariants() throws Exception {
+    // Get artifact from index
+    ArtifactIndex index = store.getArtifactIndex();
+
+    for (ArtifactSpec spec: processedSpecs) {
+      String artifactId = spec.getArtifactId();
+
+      log.debug("artifactId: {}, spec.isDeleted(): {}", artifactId, spec.isDeleted());
+
+      Artifact artifact = index.getArtifact(spec.getArtifactId());
+
+      if (spec.isDeleted()) {
+        // Yes: Assert against deleted artifact
+        assertNull(artifact, String.format("Deleted artifact still in index [artifactId: %s]", artifactId));
+
+        assertFalse(index.artifactExists(artifactId));
+
+        // Assert against data store
+        assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
+        ArtifactData ad = store.getArtifactData(spec.getArtifact());
+//        assertNull(ad); // TODO
+      } else {
+        // No: Assert status of artifact in data store and index
+        assertNotNull(artifact, String.format("Could not find artifact in index [artifactId: %s]", artifactId));
+
+        // Assert artifact (from index) against spec
+        spec.assertArtifact(store, artifact);
+
+        // Assert artifact data against spec
+        ArtifactData ad = store.getArtifactData(artifact);
+        spec.assertArtifactData(ad);
+      }
+    }
+  }
+
+  @Test
   public void testGetArtifactData() throws Exception {
     // Attempt retrieving the artifact with a null argument
     try {
@@ -689,6 +985,24 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expected.getContentDigest(), actual.getContentDigest());
     assertEquals(expected.getContentLength(), actual.getContentLength());
 //    assertSameBytes(expected.getInputStream(), actual.getInputStream()); // TODO need reproducible way of comparing to original data
+  }
+
+  @VariantTest
+  @EnumSource(TestRepoScenarios.class)
+  public void testCommitArtifact_withVariants() throws Exception {
+    log.info("Begin testCommitArtifact_withVariants()");
+
+    // Illegal arguments
+    assertThrows(IllegalArgumentException.class, () -> store.commitArtifactData(null));
+
+    for (ArtifactSpec spec : processedSpecs) {
+      if (spec.isCommitted()) {
+        assertTrue(store.isArtifactCommitted(spec.getArtifactIdentifier()));
+
+        // Attempt to commit already committed artifact
+        store.commitArtifactData(spec.getArtifact());
+      }
+    }
   }
 
   @Test

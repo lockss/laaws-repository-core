@@ -34,18 +34,12 @@ package org.lockss.laaws.rs.core;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.*;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.collections4.*;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.commons.lang3.tuple.*;
 import org.apache.http.*;
 import org.apache.http.message.BasicStatusLine;
@@ -307,7 +301,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       .toCommit(true).setContentLength(size);
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
-    spec.assertData(repository, commArt);
+    spec.assertArtifact(repository, commArt);
   }
 
   @VariantTest
@@ -331,7 +325,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1);
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
-    spec.assertData(repository, commArt);
+    spec.assertArtifact(repository, commArt);
   }
 
   @VariantTest
@@ -361,7 +355,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Ensure that a no-version retrieval gets the expected highest version
     for (ArtifactSpec highSpec : highestCommittedVerSpec.values()) {
       log.info("highSpec: " + highSpec);
-      highSpec.assertData(repository, repository.getArtifact(
+      highSpec.assertArtifact(repository, repository.getArtifact(
 	  highSpec.getCollection(),
 	  highSpec.getAuid(),
 	  highSpec.getUrl()));
@@ -391,7 +385,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     if (cspec != null) {
       ArtifactData ad = repository.getArtifactData(cspec.getCollection(),
 						   cspec.getArtifactId());
-      cspec.assertData(repository, ad);
+      cspec.assertArtifactData(ad);
       // should be in TestArtifactData
       assertThrowsMatch(IllegalStateException.class,
 			"Can't call getInputStream\\(\\) more than once",
@@ -401,7 +395,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     if (uspec != null) {
       ArtifactData ad = repository.getArtifactData(uspec.getCollection(),
 						   uspec.getArtifactId());
-      uspec.assertData(repository, ad);
+      uspec.assertArtifactData(ad);
     }
   }
 
@@ -449,7 +443,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     for (ArtifactSpec spec : addedSpecs) {
       if (spec.isCommitted()) {
 	log.info("s.b. data: " + spec);
-	spec.assertData(repository, getArtifact(repository, spec));
+	spec.assertArtifact(repository, getArtifact(repository, spec));
       } else {
 	log.info("s.b. uncommitted: " + spec);
 	assertNull(getArtifact(repository, spec),
@@ -552,7 +546,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       Artifact dupArt = repository.commitArtifact(commSpec.getCollection(),
 						  commSpec.getArtifactId());
       assertEquals(commArt, dupArt);
-      commSpec.assertData(repository, dupArt);
+      commSpec.assertArtifact(repository, dupArt);
     }
   }
 
@@ -1096,7 +1090,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       return res;
     }
   }
-    
+
   // Return the highest version ArtifactSpec with same ArtButVer
   ArtifactSpec highestVer(ArtifactSpec likeSpec, Stream<ArtifactSpec> stream) {
     return stream
@@ -1159,13 +1153,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       spec.generateContent();
     }
     log.info("adding: " + spec);
-    
+
     ArtifactData ad = spec.getArtifactData();
     Artifact newArt = repository.addArtifact(ad);
     assertNotNull(newArt);
 
     try {
-      spec.assertData(repository, newArt);
+      spec.assertArtifact(repository, newArt);
     } catch (Exception e) {
       log.error("Caught exception adding uncommitted artifact: {}", e);
       log.error("spec = {}", spec);
@@ -1231,7 +1225,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 					      commArt.getId()));
     assertTrue(commArt.getCommitted());
 
-    spec.assertData(repository, commArt);
+    spec.assertArtifact(repository, commArt);
 
     Artifact newArt = getArtifact(repository, spec);
     assertNotNull(newArt);
@@ -1242,23 +1236,23 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     return newArt;
   }
 
-  // These should all cause addArtifact to throw NPE 
+  // These should all cause addArtifact to throw NPE
   protected ArtifactData[] nullPointerArtData = {
     new ArtifactData(null, null, null),
-    new ArtifactData(null, null, STATUS_LINE_OK), 
+    new ArtifactData(null, null, STATUS_LINE_OK),
     new ArtifactData(null, stringInputStream(""), null),
-    new ArtifactData(null, stringInputStream(""), STATUS_LINE_OK), 
+    new ArtifactData(null, stringInputStream(""), STATUS_LINE_OK),
     new ArtifactData(HEADERS1, null, null),
-    new ArtifactData(HEADERS1, null, STATUS_LINE_OK), 
-    new ArtifactData(HEADERS1, stringInputStream(""), null), 
-  };    
+    new ArtifactData(HEADERS1, null, STATUS_LINE_OK),
+    new ArtifactData(HEADERS1, stringInputStream(""), null),
+  };
 
   // These describe artifacts that getArtifact() should never find
   protected ArtifactSpec[] neverFoundArtifactSpecs = {
     ArtifactSpec.forCollAuUrl(NO_COLL, AUID1, URL1),
     ArtifactSpec.forCollAuUrl(COLL1, NO_AUID, URL1),
     ArtifactSpec.forCollAuUrl(COLL1, AUID1, NO_URL),
-  };    
+  };
 
   /** Return list of ArtifactSpecs that shouldn't be found in the current
    * repository */
@@ -1273,7 +1267,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       log.info("adding an uncommitted spec: " + uncSpec);
       res.add(uncSpec);
     }
-    
+
     // If there's at least one committed artifact ...
     ArtifactSpec commSpec = anyCommittedSpec();
     if (commSpec != null) {
