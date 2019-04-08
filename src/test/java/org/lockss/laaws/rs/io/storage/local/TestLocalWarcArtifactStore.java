@@ -39,31 +39,31 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.*;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.io.FileUtil;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  private File testsRootPath;
+  private static File testsBasePath;
   private File testRepoBasePath;
 
   @BeforeAll
-  protected void makeLocalTempDir() throws IOException {
-    File tempFile = File.createTempFile(getClass().getSimpleName(), null);
-    tempFile.deleteOnExit();
-
-    testsRootPath = new File(tempFile.getAbsolutePath() + ".d");
-    testsRootPath.mkdirs();
+  protected static void makeLocalTestsTempDir() throws IOException {
+    testsBasePath = FileUtil.createTempDir("TestLocalWarcArtifactDataStore", null);
+    testsBasePath.deleteOnExit();
+    testsBasePath.mkdirs();
   }
 
   @AfterAll
-  public void tearDown() {
-    quietlyDeleteDir(testsRootPath);
+  public static void tearDown() {
+    quietlyDeleteDir(testsBasePath);
   }
 
   @Override
   protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
-    testRepoBasePath = new File(testsRootPath + "/" + UUID.randomUUID());
+    testRepoBasePath = FileUtil.createTempDir(getClass().getSimpleName(), null, testsBasePath);
     testRepoBasePath.mkdirs();
+
     return new LocalWarcArtifactDataStore(index, testRepoBasePath);
   }
 

@@ -48,17 +48,15 @@ import java.util.UUID;
 public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    private MiniDFSCluster hdfsCluster;
+    private static MiniDFSCluster hdfsCluster;
     private String testRepoBasePath;
 
     @BeforeAll
-    private void startMiniDFSCluster() throws IOException {
+    private static void startMiniDFSCluster() throws IOException {
 //        System.clearProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA);
 
         File baseDir = new File("target/test-hdfs/" + UUID.randomUUID());
         baseDir.mkdirs();
-        assertTrue(baseDir.exists());
-        assertTrue(baseDir.isDirectory());
 
         Configuration conf = new HdfsConfiguration();
         conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
@@ -79,7 +77,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @AfterAll
-    private void stopMiniDFSCluster() {
+    private static void stopMiniDFSCluster() {
         hdfsCluster.shutdown(true);
     }
 
@@ -142,7 +140,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected boolean isFile(String path) throws IOException {
-        log.debug("path = {}", path);
 
         Path file = new Path(path);
 

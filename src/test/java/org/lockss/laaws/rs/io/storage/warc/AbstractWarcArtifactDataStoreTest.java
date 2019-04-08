@@ -65,7 +65,6 @@ import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.TimeUtil;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
