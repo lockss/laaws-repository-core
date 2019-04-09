@@ -89,6 +89,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
                 artifactData.getContentDigest()
         );
 
+        // Save the artifact origin date.
+        artifact.setOriginDate(artifactData.getMetadata().getDate());
+
         // Add Artifact to the index
         addToIndex(id, artifact);
 
@@ -438,9 +441,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIPrefix(prefix);
 
         synchronized (index) {
-          // Apply filter then sort the resulting Artifacts by URL, descending version and AUID
+          // Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION_BY_AUID).iterator());
+              .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
         }
     }
 
@@ -488,9 +491,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         query.filterByURIMatch(url);
 
         synchronized (index) {
-          // Apply filter then sort the resulting Artifacts by URL, descending version and AUID
+          // Apply filter then sort the resulting Artifacts by date, AUID and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_DECREASING_VERSION_BY_AUID).iterator());
+              .sorted(ArtifactComparators.BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
         }
     }
 

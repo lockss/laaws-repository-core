@@ -128,14 +128,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   protected static String[] URLS = {URL1, URL2, URL2.toUpperCase()};
 
   // Comparators across AUs.
-  protected static final Comparator<ArtSpec> BY_DECREASING_VERSION_BY_AUID =
-      Comparator.comparingInt(ArtSpec::getVersion).reversed()
-      .thenComparing(ArtSpec::getAuid);      
+  protected static final Comparator<ArtSpec> BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(ArtSpec::getOriginDate)
+                .thenComparing(ArtSpec::getAuid)
+                .thenComparingInt(ArtSpec::getVersion).reversed();
 
-  protected static final Comparator<ArtSpec> BY_URI_BY_DECREASING_VERSION_BY_AUID =
+  protected static final Comparator<ArtSpec> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(ArtSpec::getUrl, PreOrderComparator.INSTANCE)
-                .thenComparing(Comparator.comparingInt(ArtSpec::getVersion).reversed())
-                .thenComparing(ArtSpec::getAuid);
+                .thenComparing(ArtSpec::getOriginDate)
+                .thenComparing(ArtSpec::getAuid)
+                .thenComparing(Comparator.comparingInt(ArtSpec::getVersion).reversed());
 
   // Definition of variants to run
   protected enum StdVariants {
@@ -1100,7 +1102,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   Stream<ArtSpec> orderedAllCommittedAllAus() {
     return committedSpecStream()
-      .sorted(BY_DECREASING_VERSION_BY_AUID);
+      .sorted(BY_DATE_BY_AUID_BY_DECREASING_VERSION);
   }
 
   public static <T> Predicate<T>
@@ -1118,7 +1120,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   Stream<ArtSpec> orderedAllCollAllAus(String coll) {
     return committedSpecStream()
       .filter(s -> s.getCollection().equals(coll))
-      .sorted(BY_URI_BY_DECREASING_VERSION_BY_AUID);
+      .sorted(BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION);
   }
 
   Stream<ArtSpec> orderedAllAu(String coll, String auid) {
@@ -1435,6 +1437,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     int expVer = -1;
     String contentDigest;
     String storageUrl;
+    long originDate = -1;
 
     // state
     boolean isCommitted = false;
@@ -1445,7 +1448,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	.setStatusLine(getStatusLine())
 	.setHeaders(new HashMap<String,String>(getHeaders()))
 	.setContent(getContent())
-	.setContentLength(len);
+	.setContentLength(len)
+	.setOriginDate(originDate);
     }
 
     public static ArtSpec forCollAuUrl(String coll, String auid, String url) {
@@ -1517,6 +1521,11 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     public ArtSpec setStatusLine(StatusLine statLine) {
       this.statLine = statLine;
+      return this;
+    }
+
+    public ArtSpec setOriginDate(long originDate) {
+      this.originDate = originDate;
       return this;
     }
 
@@ -1652,6 +1661,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       return statLine;
     }
 
+    public long getOriginDate() {
+      if (originDate >= 0) {
+	return originDate;
+      } else if (getMetdata() != null) {
+	return getMetdata().getDate();
+      } else {
+	throw new IllegalStateException("getOriginDate() called when origin date unknown");
+      }
+    }
+
     public HttpHeaders getMetdata() {
       return RepoUtil.httpHeadersFromMap(headers);
     }
@@ -1723,6 +1742,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	if (getStorageUrl() != null) {
 	  Assertions.assertEquals(getStorageUrl(), art.getStorageUrl());
 	}
+
+	Assertions.assertEquals(getOriginDate(), art.getOriginDate());
 
 	ArtifactData ad = repository.getArtifactData(art);
 	Assertions.assertEquals(art.getIdentifier(), ad.getIdentifier());

@@ -45,16 +45,18 @@ public class ArtifactComparators {
   public static final Comparator<Artifact> BY_DECREASING_VERSION =
       Comparator.comparingInt(Artifact::getVersion).reversed();      
   
-  public static final Comparator<Artifact> BY_DECREASING_VERSION_BY_AUID =
-      Comparator.comparingInt(Artifact::getVersion).reversed()
-      .thenComparing(Artifact::getAuid);      
+  public static final Comparator<Artifact> BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(Artifact::getOriginDate)
+                .thenComparing(Artifact::getAuid)
+                .thenComparing(Artifact::getVersion).reversed();
 
   public static final Comparator<Artifact> BY_URI_BY_DECREASING_VERSION =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
   
-  public static final Comparator<Artifact> BY_URI_BY_DECREASING_VERSION_BY_AUID =
+  public static final Comparator<Artifact> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
-                .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed())
-                .thenComparing(Artifact::getAuid);
+                .thenComparing(Artifact::getOriginDate)
+                .thenComparing(Artifact::getAuid)
+                .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
 }

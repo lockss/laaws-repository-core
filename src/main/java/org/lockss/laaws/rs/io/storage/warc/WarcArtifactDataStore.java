@@ -906,6 +906,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         artifactData.getContentDigest()
     );
 
+    // Save the artifact origin date.
+    artifact.setOriginDate(artifactData.getMetadata().getDate());
+
     log.info("Added artifact {}", artifact);
 
     return artifact;

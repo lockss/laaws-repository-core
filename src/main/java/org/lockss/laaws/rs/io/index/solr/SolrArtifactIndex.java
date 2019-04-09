@@ -231,6 +231,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifactData.getContentDigest()
         );
 
+        // Save the artifact origin date.
+        artifact.setOriginDate(artifactData.getMetadata().getDate());
+
         // Add the Artifact to Solr as a bean
         try {
             this.solr.addBean(artifact);
