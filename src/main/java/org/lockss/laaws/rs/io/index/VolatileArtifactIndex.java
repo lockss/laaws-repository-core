@@ -90,7 +90,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         );
 
         // Save the artifact origin date.
-        artifact.setOriginDate(artifactData.getMetadata().getDate());
+        artifact.setOriginDate(artifactData.getOriginDate());
 
         // Add Artifact to the index
         addToIndex(id, artifact);

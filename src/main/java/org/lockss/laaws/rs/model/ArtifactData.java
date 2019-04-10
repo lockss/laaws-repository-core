@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -80,6 +80,9 @@ public class ArtifactData implements Comparable<ArtifactData> {
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
 
+    // The origin (recording) date.
+    private long originDate;
+
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
      *
@@ -142,6 +145,7 @@ public class ArtifactData implements Comparable<ArtifactData> {
         this.repositoryMetadata = repoMetadata;
 
         this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+        setOriginDate(this.artifactMetadata.getDate());
 
         try {
             // Wrap the stream in a DigestInputStream
@@ -294,6 +298,27 @@ public class ArtifactData implements Comparable<ArtifactData> {
     }
 
     /**
+     * Provides the artifact origin date.
+     * 
+     * @return a long with the artifact origin date in milliseconds since the
+     *         epoch.
+     */
+    public long getOriginDate() {
+      return originDate;
+    }
+
+    /**
+     * Saves the artifact origin date.
+     * 
+     * @param originDate
+     *          A long with the artifact origin date in milliseconds since the
+     *          epoch.
+     */
+    public void setOriginDate(long originDate) {
+      this.originDate = originDate;
+    }
+
+    /**
      * Returns a closable version of this artifact's byte stream.
      *
      * @return an {@code InputStream} with the underlying, closable, byte
@@ -329,7 +354,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
             + artifactMetadata + ", httpStatus=" + httpStatus
             + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
             + storageUrl + ", contentDigest=" + getContentDigest()
-            + ", contentLength=" + getContentLength() + "]";
+            + ", contentLength=" + getContentLength() + ", originDate="
+            + getOriginDate() + "]";
     }
 
     public long getBytesRead() {

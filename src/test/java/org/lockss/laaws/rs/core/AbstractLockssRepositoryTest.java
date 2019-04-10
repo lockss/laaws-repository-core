@@ -131,7 +131,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   protected static final Comparator<ArtSpec> BY_DATE_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(ArtSpec::getOriginDate)
                 .thenComparing(ArtSpec::getAuid)
-                .thenComparingInt(ArtSpec::getVersion).reversed();
+                .thenComparing(Comparator.comparingInt(ArtSpec::getVersion).reversed());
 
   protected static final Comparator<ArtSpec> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(ArtSpec::getUrl, PreOrderComparator.INSTANCE)
@@ -1664,8 +1664,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     public long getOriginDate() {
       if (originDate >= 0) {
 	return originDate;
-      } else if (getMetdata() != null) {
-	return getMetdata().getDate();
+      } else if (getArtifactData() != null) {
+	return getArtifactData().getOriginDate();
       } else {
 	throw new IllegalStateException("getOriginDate() called when origin date unknown");
       }
