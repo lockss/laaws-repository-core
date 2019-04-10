@@ -222,23 +222,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
     return res;
   }
-  
-  // LOCALS
 
-  protected LockssRepository repository;
+  // LOCALS
 
   // Currently running variant name
   private String variant = "no_variant";
 
-  // ArtifactSpec for each Artifact that has been added to the repository
-  List<ArtifactSpec> addedSpecs = new ArrayList<ArtifactSpec>();
-
-  // Maps ArtButVer to ArtifactSpec for highest version added to the repository
-  Map<String,ArtifactSpec> highestVerSpec = new HashMap<String,ArtifactSpec>();
-  // Maps ArtButVer to ArtifactSpec for highest version added and committed to
-  // the repository
-  Map<String,ArtifactSpec> highestCommittedVerSpec = new HashMap<String,ArtifactSpec>();
-
+  protected LockssRepository repository;
+  private VariantState variantState = new VariantState();
 
   // SETUP
 
@@ -276,7 +267,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       if (spec.isToCommit()) {
 	commit(spec, art);
       }
-    }      
+    }
   }
 
   // Invoked automatically before each test by the @VariantTest mechanism
@@ -353,7 +344,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
 
     // Ensure that a no-version retrieval gets the expected highest version
-    for (ArtifactSpec highSpec : highestCommittedVerSpec.values()) {
+    for (ArtifactSpec highSpec : variantState.getHighestCommittedVerSpecs()) {
       log.info("highSpec: " + highSpec);
       highSpec.assertArtifact(repository, repository.getArtifact(
 	  highSpec.getCollection(),
@@ -381,7 +372,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // XXX should this throw?
     assertNull(repository.getArtifactData(COLL1, NO_ARTID));
 
-    ArtifactSpec cspec = anyCommittedSpec();
+    ArtifactSpec cspec = variantState.anyCommittedSpec();
     if (cspec != null) {
       ArtifactData ad = repository.getArtifactData(cspec.getCollection(),
 						   cspec.getArtifactId());
@@ -391,7 +382,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 			"Can't call getInputStream\\(\\) more than once",
 			() -> ad.getInputStream());
     }
-    ArtifactSpec uspec = anyUncommittedSpec();
+    ArtifactSpec uspec = variantState.anyUncommittedSpec();
     if (uspec != null) {
       ArtifactData ad = repository.getArtifactData(uspec.getCollection(),
 						   uspec.getArtifactId());
@@ -440,7 +431,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
 
     // Get all added artifacts, check correctness
-    for (ArtifactSpec spec : addedSpecs) {
+    for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       if (spec.isCommitted()) {
 	log.info("s.b. data: " + spec);
 	spec.assertArtifact(repository, getArtifact(repository, spec));
@@ -452,10 +443,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       // XXXAPI illegal version numbers
       assertNull(getArtifactVersion(repository, spec, 0));
       assertNull(getArtifactVersion(repository, spec, -1));
-    }    
+    }
 
     // Ensure that a non-existent version isn't found
-    for (ArtifactSpec highSpec : highestVerSpec.values()) {
+    for (ArtifactSpec highSpec : variantState.getHighestVerSpecs()) {
       log.info("highSpec: " + highSpec);
       assertNull(repository.getArtifactVersion(highSpec.getCollection(),
 					       highSpec.getAuid(),
@@ -477,7 +468,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
 
     // s.b. true for all added artifacts, including uncommitted
-    for (ArtifactSpec spec : addedSpecs) {
+    for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       assertTrue(repository.artifactExists(spec.getCollection(),
 					   spec.getArtifactId()));
       // false if only collection or artifactId is correct
@@ -486,7 +477,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 // 					    spec.getArtifactId()));
       assertFalse(repository.artifactExists(spec.getCollection(),
 					    NO_ARTID));
-    }    
+    }
 
     assertFalse(repository.artifactExists("NO_COLL", "NO_ARTID"));
   }
@@ -510,9 +501,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Calculate the expected size of each AU in each collection, compare
     // with auSize()
-    for (String coll : addedCollections()) {
-      for (String auid : addedAuids()) {
-	long expSize = highestCommittedVerSpec.values().stream()
+    for (String coll : variantState.addedCollections()) {
+      for (String auid : variantState.addedAuids()) {
+	long expSize = variantState.getHighestCommittedVerSpecs().stream()
 	  .filter(s -> s.getAuid().equals(auid))
 	  .filter(s -> s.getCollection().equals(coll))
 	  .mapToLong(ArtifactSpec::getContentLength)
@@ -535,7 +526,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 		 () -> {repository.commitArtifact(COLL1, null);});
 
     // Commit already committed artifact
-    ArtifactSpec commSpec = anyCommittedSpec();
+    ArtifactSpec commSpec = variantState.anyCommittedSpec();
     if (commSpec != null) {
       // Get the existing artifact
       Artifact commArt = getArtifact(repository, commSpec);
@@ -573,8 +564,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     {
       // Delete a committed artifact that isn't the highest version. it
       // should disappear but size shouldn't change
-      ArtifactSpec spec = committedSpecStream()
-	.filter(s -> s != highestCommittedVerSpec.get(s.artButVerKey()))
+      ArtifactSpec spec = variantState.committedSpecStream()
+	.filter(s -> s != variantState.getHighestCommittedVerSpec(s.artButVerKey()))
 	.findAny().orElse(null);
       if (spec != null) {
 	long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
@@ -586,7 +577,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	assertFalse(repository.artifactExists(spec.getCollection(),
 					      spec.getArtifactId()));
 	assertNull(getArtifact(repository, spec));
-	delFromAll(spec);
+	variantState.delFromAll(spec);
 	assertEquals(totsize,
 		     (long)repository.auSize(spec.getCollection(),
 					     spec.getAuid()),
@@ -596,7 +587,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     {
       // Delete a highest-version committed artifact, it should disappear and
       // size should change
-      ArtifactSpec spec = highestCommittedVerSpec.values().stream()
+      ArtifactSpec spec = variantState.getHighestCommittedVerSpecs().stream()
 	.findAny().orElse(null);
       if (spec != null) {
 	long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
@@ -609,8 +600,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	assertFalse(repository.artifactExists(spec.getCollection(),
 					      spec.getArtifactId()));
 	assertNull(getArtifact(repository, spec));
-	delFromAll(spec);
-	ArtifactSpec newHigh = highestCommittedVerSpec.get(spec.artButVerKey());
+	variantState.delFromAll(spec);
+	ArtifactSpec newHigh = variantState.getHighestCommittedVerSpec(spec.artButVerKey());
 	long exp = totsize - artsize;
 	if (newHigh != null) {
 	  exp += newHigh.getContentLength();
@@ -627,7 +618,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Delete an uncommitted artifact, it should disappear and size should
     // not change
     {
-      ArtifactSpec uspec = anyUncommittedSpec();
+      ArtifactSpec uspec = variantState.anyUncommittedSpec();
       if (uspec != null) {
 	long totsize =
 	  repository.auSize(uspec.getCollection(), uspec.getAuid());
@@ -639,7 +630,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	assertFalse(repository.artifactExists(uspec.getCollection(),
 					      uspec.getArtifactId()));
 	assertNull(getArtifact(repository, uspec));
-	delFromAll(uspec);
+	variantState.delFromAll(uspec);
 	assertEquals(totsize,
 		     (long)repository.auSize(uspec.getCollection(),
 					     uspec.getAuid()),
@@ -673,14 +664,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     String anyAuid = null;
 
     // Compare with all URLs in each AU
-    for (String coll : addedCollections()) {
+    for (String coll : variantState.addedCollections()) {
       anyColl = coll;
-      for (String auid : addedAuids()) {
+      for (String auid : variantState.addedAuids()) {
 	anyAuid = auid;
-	ArtifactSpec.assertArtList(repository, (orderedAllAu(coll, auid)
+	ArtifactSpec.assertArtList(repository, (variantState.orderedAllAu(coll, auid)
 		       .filter(distinctByKey(ArtifactSpec::artButVerKey))),
 		      repository.getArtifacts(coll, auid));
-	
+
       }
     }
 
@@ -697,7 +688,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 					  anyAuid + "_notAuSuffix"));
       assertEmpty(repository.getArtifacts(anyColl + "_notCollSuffix",
 					  anyAuid));
-    }    
+    }
   }
 
   @VariantTest
@@ -720,9 +711,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Non-existent collection & auid
     assertEmpty(repository.getArtifactsWithPrefix(NO_COLL, NO_AUID, PREFIX1));
     // Compare with all URLs matching prefix in each AU
-    for (String coll : addedCollections()) {
-      for (String auid : addedAuids()) {
-	ArtifactSpec.assertArtList(repository, (orderedAllAu(coll, auid)
+    for (String coll : variantState.addedCollections()) {
+      for (String auid : variantState.addedAuids()) {
+	ArtifactSpec.assertArtList(repository, (variantState.orderedAllAu(coll, auid)
 		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))
 		       .filter(distinctByKey(ArtifactSpec::artButVerKey))),
 		       repository.getArtifactsWithPrefix(coll, auid, PREFIX1));
@@ -761,13 +752,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     String anyColl = null;
     String anyAuid = null;
     // Compare with all URLs all version in each AU
-    for (String coll : addedCollections()) {
+    for (String coll : variantState.addedCollections()) {
       anyColl = coll;
-      for (String auid : addedAuids()) {
+      for (String auid : variantState.addedAuids()) {
 	anyAuid = auid;
-	ArtifactSpec.assertArtList(repository, orderedAllAu(coll, auid),
+	ArtifactSpec.assertArtList(repository, variantState.orderedAllAu(coll, auid),
 		      repository.getArtifactsAllVersions(coll, auid));
-	
+
       }
     }
     // Combination of coll and au id that both exist, but have no artifacts
@@ -782,7 +773,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 						     anyAuid + "_not"));
       assertEmpty(repository.getArtifactsAllVersions(anyColl + "_not",
 						     anyAuid));
-    }    
+    }
   }
 
   @VariantTest
@@ -805,9 +796,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Non-existent collection & auid
     assertEmpty(repository.getArtifactsWithPrefixAllVersions(NO_COLL, NO_AUID, PREFIX1));
     // Compare with all URLs matching prefix in each AU
-    for (String coll : addedCollections()) {
-      for (String auid : addedAuids()) {
-	ArtifactSpec.assertArtList(repository, (orderedAllAu(coll, auid)
+    for (String coll : variantState.addedCollections()) {
+      for (String auid : variantState.addedAuids()) {
+	ArtifactSpec.assertArtList(repository, (variantState.orderedAllAu(coll, auid)
 		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
 		       repository.getArtifactsWithPrefixAllVersions(coll, auid, PREFIX1));
 	assertEmpty(repository.getArtifactsWithPrefixAllVersions(coll, auid,
@@ -850,9 +841,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // For each ArtButVer in the repository, enumerate all its versions and
     // compare with expected
     Stream<ArtifactSpec> s =
-      committedSpecStream().filter(distinctByKey(ArtifactSpec::artButVerKey));
+      variantState.committedSpecStream().filter(distinctByKey(ArtifactSpec::artButVerKey));
     for (ArtifactSpec urlSpec : (Iterable<ArtifactSpec>)s::iterator) {
-      ArtifactSpec.assertArtList(repository, orderedAllCommitted()
+      ArtifactSpec.assertArtList(repository, variantState.orderedAllCommitted()
 		    .filter(spec -> spec.sameArtButVer(urlSpec)),
 		    repository.getArtifactsAllVersions(urlSpec.getCollection(),
 						       urlSpec.getAuid(),
@@ -872,9 +863,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertEmpty(repository.getAuIds(NO_COLL));
 
     // Compare with expected auid list for each collection
-    for (String coll : addedCollections()) {
+    for (String coll : variantState.addedCollections()) {
       Iterator<String> expAuids =
-	orderedAllColl(coll)
+	variantState.orderedAllColl(coll)
 	.map(ArtifactSpec::getAuid)
 	.distinct()
 	.iterator();
@@ -883,8 +874,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
 
     // Try getAuIds() on collections that have no committed artifacts
-    for (String coll : CollectionUtils.subtract(addedCollections(),
-						addedCommittedCollections())) {
+    for (String coll : CollectionUtils.subtract(variantState.addedCollections(),
+						variantState.addedCommittedCollections())) {
       assertEmpty(repository.getAuIds(coll));
     }
   }
@@ -893,7 +884,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   @EnumSource(StdVariants.class)
   public void testGetCollectionIds() throws IOException {
     Iterator<String> expColl =
-      orderedAllCommitted()
+      variantState.orderedAllCommitted()
       .map(ArtifactSpec::getCollection)
       .distinct()
       .iterator();
@@ -928,7 +919,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 //     assertFalse(repository.isArtifactCommitted(COLL1, NO_ARTID));
 //     assertFalse(repository.isArtifactCommitted(NO_COLL, ARTID1));
 
-    for (ArtifactSpec spec : addedSpecs) {
+    for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       if (spec.isCommitted()) {
 	assertTrue(repository.isArtifactCommitted(spec.getCollection(),
 						  spec.getArtifactId()));
@@ -942,141 +933,21 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   // UTILITIES
 
-
-  void logAdded() {
-    for (ArtifactSpec spec : addedSpecs) {
-      log.info("spec: " + spec);
-    }
-  }
-
-  long expectedVersions(ArtifactSpec spec) {
-    return addedSpecs.stream()
-      .filter(s -> spec.sameArtButVer(s))
-      .count();
-  }
-
-  List<String> addedAuids() {
-    return addedSpecs.stream()
-      .map(ArtifactSpec::getAuid)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCommittedAuids() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted())
-      .map(ArtifactSpec::getAuid)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCommittedUrls() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted())
-      .map(ArtifactSpec::getUrl)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCollections() {
-    return addedSpecs.stream()
-      .map(ArtifactSpec::getCollection)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  List<String> addedCommittedCollections() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted())
-      .map(ArtifactSpec::getCollection)
-      .distinct()
-      .collect(Collectors.toList());
-  }
-
-  Stream<String> collectionsOf(Stream<ArtifactSpec> specStream) {
-    return specStream
-      .map(ArtifactSpec::getCollection)
-      .distinct();
-  }
-
-  Stream<String> auidsOf(Stream<ArtifactSpec> specStream, String collection) {
-    return specStream
-      .filter(s -> s.getCollection().equals(collection))
-      .map(ArtifactSpec::getAuid)
-      .distinct();
-  }
-
-  Stream<ArtifactSpec> addedSpecStream() {
-    return addedSpecs.stream();
-  }
-
-  Stream<ArtifactSpec> committedSpecStream() {
-    return addedSpecs.stream()
-      .filter(spec -> spec.isCommitted());
-  }
-
-  Stream<ArtifactSpec> uncommittedSpecStream() {
-    return addedSpecs.stream()
-      .filter(spec -> !spec.isCommitted());
-  }
-
-  Stream<ArtifactSpec> orderedAllCommitted() {
-    return committedSpecStream()
-      .sorted();
-  }
-
-  public static <T> Predicate<T>
-    distinctByKey(Function<? super T,Object> keyExtractor) {
+  public static <T> Predicate<T> distinctByKey(Function<? super T,Object> keyExtractor) {
     Set<Object> seen = new HashSet<>();
     return t -> seen.add(keyExtractor.apply(t));
   }
-
-  Stream<ArtifactSpec> orderedAllColl(String coll) {
-    return committedSpecStream()
-      .filter(s -> s.getCollection().equals(coll))
-      .sorted();
-  }
-
-  Stream<ArtifactSpec> orderedAllAu(String coll, String auid) {
-    return committedSpecStream()
-      .filter(s -> s.getCollection().equals(coll))
-      .filter(s -> s.getAuid().equals(auid))
-      .sorted();
-  }
-
-  Stream<ArtifactSpec> orderedAllUrl(String coll, String auid, String url) {
-    return committedSpecStream()
-      .filter(s -> s.getCollection().equals(coll))
-      .filter(s -> s.getAuid().equals(auid))
-      .filter(s -> s.getUrl().equals(url))
-      .sorted();
-  }
-
-  ArtifactSpec anyCommittedSpec() {
-    return committedSpecStream().findAny().orElse(null);
-  }
-
-  ArtifactSpec anyUncommittedSpec() {
-    return uncommittedSpecStream().findAny().orElse(null);
-  }
-
-  ArtifactSpec anyUncommittedSpecButVer() {
-    return uncommittedSpecStream()
-      .filter(spec -> !highestCommittedVerSpec.containsKey(spec.artButVerKey()))
-      .findAny().orElse(null);
-  }
-
 
   // Find a collection and an au that each have artifacts, but don't have
   // any artifacts in common
   Pair<String,String> collAuMismatch() {
     Set<Pair<String,String>> set = new HashSet<Pair<String,String>>();
-    for (String coll : addedCommittedCollections()) {
-      for (String auid : addedCommittedAuids()) {
+    for (String coll : variantState.addedCommittedCollections()) {
+      for (String auid : variantState.addedCommittedAuids()) {
 	set.add(new ImmutablePair<String, String>(coll, auid));
       }
     }
-    committedSpecStream()
+    variantState.committedSpecStream()
       .forEach(spec -> {set.remove(
 	  new ImmutablePair<String, String>(spec.getCollection(),
 					    spec.getAuid()));});
@@ -1086,33 +957,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       Pair<String,String> res = set.iterator().next();
       log.info("Found coll au mismatch: " +
 	       res.getLeft() + ", " + res.getRight());
-      logAdded();
+      variantState.logAdded();
       return res;
-    }
-  }
-
-  // Return the highest version ArtifactSpec with same ArtButVer
-  ArtifactSpec highestVer(ArtifactSpec likeSpec, Stream<ArtifactSpec> stream) {
-    return stream
-      .filter(spec -> spec.sameArtButVer(likeSpec))
-      .max(Comparator.comparingInt(ArtifactSpec::getVersion))
-      .orElse(null);
-  }
-
-  // Delete ArtifactSpec from record of what we've added to the repository,
-  // adjust highest version maps accordingly
-  protected void delFromAll(ArtifactSpec spec) {
-    addedSpecs.remove(spec);
-    String key = spec.artButVerKey();
-    if (highestVerSpec.get(key) == spec) {
-      ArtifactSpec newHigh = highestVer(spec, addedSpecStream());
-      log.info("newHigh: " + newHigh);
-      highestVerSpec.put(key, newHigh);
-    }
-    if (highestCommittedVerSpec.get(key) == spec) {
-      ArtifactSpec newCommHigh = highestVer(spec, committedSpecStream());
-      log.info("newCommHigh: " + newCommHigh);
-      highestCommittedVerSpec.put(key, newCommHigh);
     }
   }
 
@@ -1167,7 +1013,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       log.error("newArt = {}", newArt);
       throw e;
     }
-    long expVers = expectedVersions(spec);
+    long expVers = variantState.expectedVersions(spec);
     assertEquals(expVers + 1, (int)newArt.getVersion(),
 		 "version of " + newArt);
     if (spec.getExpVer() >= 0) {
@@ -1189,11 +1035,11 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     spec.setVersion(newArt.getVersion());
     spec.setArtifactId(newArtId);
 
-    addedSpecs.add(spec);
+    variantState.add(spec);
     // Remember the highest version of this URL we've added
-    ArtifactSpec maxVerSpec = highestVerSpec.get(spec.artButVerKey());
+    ArtifactSpec maxVerSpec = variantState.getHighestVerSpec(spec.artButVerKey());
     if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      highestVerSpec.put(spec.artButVerKey(), spec);
+      variantState.setHighestVerSpec(spec.artButVerKey(), spec);
     }
     return newArt;
   }
@@ -1217,9 +1063,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
     spec.setCommitted(true);
     // Remember the highest version of this URL we've committed
-    ArtifactSpec maxVerSpec = highestCommittedVerSpec.get(spec.artButVerKey());
+    ArtifactSpec maxVerSpec = variantState.getHighestCommittedVerSpec(spec.artButVerKey());
     if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      highestCommittedVerSpec.put(spec.artButVerKey(), spec);
+      variantState.setHighestCommittedVerSpec(spec.artButVerKey(), spec);
     }
     assertTrue(repository.isArtifactCommitted(spec.getCollection(),
 					      commArt.getId()));
@@ -1234,6 +1080,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertTrue(newArt.getCommitted());
     assertTrue(repository.artifactExists(spec.getCollection(), newArt.getId()));
     return newArt;
+  }
+
+  InputStream stringInputStream(String str) {
+    return IOUtils.toInputStream(str, Charset.defaultCharset());
   }
 
   // These should all cause addArtifact to throw NPE
@@ -1262,14 +1112,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     Collections.addAll(res, neverFoundArtifactSpecs);
 
     // Include an uncommitted artifact, if any
-    ArtifactSpec uncSpec = anyUncommittedSpecButVer();
+    ArtifactSpec uncSpec = variantState.anyUncommittedSpecButVer();
     if (uncSpec != null) {
       log.info("adding an uncommitted spec: " + uncSpec);
       res.add(uncSpec);
     }
 
     // If there's at least one committed artifact ...
-    ArtifactSpec commSpec = anyCommittedSpec();
+    ArtifactSpec commSpec = variantState.anyCommittedSpec();
     if (commSpec != null) {
       // include variants of it with non-existent collection, au, etc.
       res.add(commSpec.copy().setCollection("NO_" + commSpec.getCollection()));
@@ -1278,36 +1128,36 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
       // and with existing but different collection, au
       diff_coll:
-      for (ArtifactSpec auUrl : committedSpecStream()
+      for (ArtifactSpec auUrl : variantState.committedSpecStream()
 	     .filter(distinctByKey(s -> s.getUrl() + "|" + s.getAuid()))
 	     .collect(Collectors.toList())) {
-	for (String coll : addedCommittedCollections()) {
+	for (String coll : variantState.addedCommittedCollections()) {
 	  ArtifactSpec a = auUrl.copy().setCollection(coll);
-	  if (!highestCommittedVerSpec.containsKey(a.artButVerKey())) {
+	  if (!variantState.hasHighestCommittedVerSpec(a.artButVerKey())) {
 	    res.add(a);
 	    break diff_coll;
 	  }
 	}
       }
       diff_au:
-      for (ArtifactSpec auUrl : committedSpecStream()
+      for (ArtifactSpec auUrl : variantState.committedSpecStream()
 	     .filter(distinctByKey(s -> s.getUrl() + "|" + s.getCollection()))
 	     .collect(Collectors.toList())) {
-	for (String auid : addedCommittedAuids()) {
+	for (String auid : variantState.addedCommittedAuids()) {
 	  ArtifactSpec a = auUrl.copy().setAuid(auid);
-	  if (!highestCommittedVerSpec.containsKey(a.artButVerKey())) {
+	  if (!variantState.hasHighestCommittedVerSpec(a.artButVerKey())) {
 	    res.add(a);
 	    break diff_au;
 	  }
 	}
       }
       diff_url:
-      for (ArtifactSpec auUrl : committedSpecStream()
+      for (ArtifactSpec auUrl : variantState.committedSpecStream()
 	     .filter(distinctByKey(s -> s.getAuid() + "|" + s.getCollection()))
 	     .collect(Collectors.toList())) {
-	for (String url : addedCommittedUrls()) {
+	for (String url : variantState.addedCommittedUrls()) {
 	  ArtifactSpec a = auUrl.copy().setUrl(url);
-	  if (!highestCommittedVerSpec.containsKey(a.artButVerKey())) {
+	  if (!variantState.hasHighestCommittedVerSpec(a.artButVerKey())) {
 	    res.add(a);
 	    break diff_url;
 	  }
@@ -1321,12 +1171,4 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     return res;
   }
-
-  InputStream stringInputStream(String str) {
-    return IOUtils.toInputStream(str, Charset.defaultCharset());
-  }
-
-
-
-
 }
