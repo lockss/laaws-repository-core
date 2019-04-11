@@ -60,6 +60,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.lockss.util.time.TimeBase;
 import org.lockss.util.time.TimeUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -74,6 +75,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @BeforeEach
   public void setupTestContext() throws IOException {
+    TimeBase.setSimulated();
     ArtifactIndex index = new VolatileArtifactIndex();
     index.initIndex();
 

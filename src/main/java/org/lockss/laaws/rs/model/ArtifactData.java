@@ -35,6 +35,7 @@ import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.*;
@@ -80,8 +81,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
 
-    // The origin (recording) date.
-    private long originDate;
+    // The collection date.
+    private long collectionDate = TimeBase.nowMs();
 
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
@@ -145,7 +146,7 @@ public class ArtifactData implements Comparable<ArtifactData> {
         this.repositoryMetadata = repoMetadata;
 
         this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
-        setOriginDate(this.artifactMetadata.getDate());
+        setCollectionDate(this.artifactMetadata.getDate());
 
         try {
             // Wrap the stream in a DigestInputStream
@@ -298,24 +299,26 @@ public class ArtifactData implements Comparable<ArtifactData> {
     }
 
     /**
-     * Provides the artifact origin date.
+     * Provides the artifact collection date.
      * 
-     * @return a long with the artifact origin date in milliseconds since the
-     *         epoch.
+     * @return a long with the artifact collection date in milliseconds since
+     *         the epoch.
      */
-    public long getOriginDate() {
-      return originDate;
+    public long getCollectionDate() {
+      return collectionDate;
     }
 
     /**
-     * Saves the artifact origin date.
+     * Saves the artifact collection date.
      * 
-     * @param originDate
-     *          A long with the artifact origin date in milliseconds since the
-     *          epoch.
+     * @param collectionDate
+     *          A long with the artifact collection date in milliseconds since
+     *          the epoch.
      */
-    public void setOriginDate(long originDate) {
-      this.originDate = originDate;
+    public void setCollectionDate(long collectionDate) {
+      if (collectionDate >= 0) {
+	this.collectionDate = collectionDate;
+      }
     }
 
     /**
@@ -354,8 +357,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
             + artifactMetadata + ", httpStatus=" + httpStatus
             + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
             + storageUrl + ", contentDigest=" + getContentDigest()
-            + ", contentLength=" + getContentLength() + ", originDate="
-            + getOriginDate() + "]";
+            + ", contentLength=" + getContentLength() + ", collectionDate="
+            + getCollectionDate() + "]";
     }
 
     public long getBytesRead() {

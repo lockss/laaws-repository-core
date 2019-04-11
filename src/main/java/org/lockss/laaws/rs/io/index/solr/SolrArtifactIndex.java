@@ -111,7 +111,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 //              versionFieldAttributes.put("docValues", true);
 //              createSolrField(solr,"version", "pdate", versionFieldAttributes);
               createSolrField(solr, "version", "pint");
-              createSolrField(solr, "originDate", "long");
+              createSolrField(solr, "collectionDate", "long");
 
               initialized = true;
 
@@ -232,8 +232,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifactData.getContentDigest()
         );
 
-        // Save the artifact origin date.
-        artifact.setOriginDate(artifactData.getOriginDate());
+        // Save the artifact collection date.
+        artifact.setCollectionDate(artifactData.getCollectionDate());
 
         // Add the Artifact to Solr as a bean
         try {

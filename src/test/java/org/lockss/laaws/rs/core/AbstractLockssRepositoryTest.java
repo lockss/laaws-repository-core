@@ -55,6 +55,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.util.test.*;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 
@@ -129,13 +130,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   // Comparators across AUs.
   protected static final Comparator<ArtSpec> BY_DATE_BY_AUID_BY_DECREASING_VERSION =
-      Comparator.comparing(ArtSpec::getOriginDate)
+      Comparator.comparing(ArtSpec::getCollectionDate)
                 .thenComparing(ArtSpec::getAuid)
                 .thenComparing(Comparator.comparingInt(ArtSpec::getVersion).reversed());
 
   protected static final Comparator<ArtSpec> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(ArtSpec::getUrl, PreOrderComparator.INSTANCE)
-                .thenComparing(ArtSpec::getOriginDate)
+                .thenComparing(ArtSpec::getCollectionDate)
                 .thenComparing(ArtSpec::getAuid)
                 .thenComparing(Comparator.comparingInt(ArtSpec::getVersion).reversed());
 
@@ -264,6 +265,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   @BeforeEach
   public void beforeEach() throws Exception {
     log.debug("Running beforeEach()");
+    TimeBase.setSimulated();
     setUpRepo();
     beforeVariant();
   }
@@ -1437,7 +1439,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     int expVer = -1;
     String contentDigest;
     String storageUrl;
-    long originDate = -1;
+    long collectionDate = -1;
 
     // state
     boolean isCommitted = false;
@@ -1449,7 +1451,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	.setHeaders(new HashMap<String,String>(getHeaders()))
 	.setContent(getContent())
 	.setContentLength(len)
-	.setOriginDate(originDate);
+	.setCollectionDate(collectionDate);
     }
 
     public static ArtSpec forCollAuUrl(String coll, String auid, String url) {
@@ -1524,8 +1526,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       return this;
     }
 
-    public ArtSpec setOriginDate(long originDate) {
-      this.originDate = originDate;
+    public ArtSpec setCollectionDate(long collectionDate) {
+      this.collectionDate = collectionDate;
       return this;
     }
 
@@ -1661,13 +1663,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       return statLine;
     }
 
-    public long getOriginDate() {
-      if (originDate >= 0) {
-	return originDate;
+    public long getCollectionDate() {
+      if (collectionDate >= 0) {
+	return collectionDate;
       } else if (getArtifactData() != null) {
-	return getArtifactData().getOriginDate();
+	return getArtifactData().getCollectionDate();
       } else {
-	throw new IllegalStateException("getOriginDate() called when origin date unknown");
+	throw new IllegalStateException("getCollectionDate() called when collection date unknown");
       }
     }
 
@@ -1743,7 +1745,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	  Assertions.assertEquals(getStorageUrl(), art.getStorageUrl());
 	}
 
-	Assertions.assertEquals(getOriginDate(), art.getOriginDate());
+	Assertions.assertEquals(getCollectionDate(), art.getCollectionDate());
 
 	ArtifactData ad = repository.getArtifactData(art);
 	Assertions.assertEquals(art.getIdentifier(), ad.getIdentifier());

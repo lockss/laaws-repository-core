@@ -73,8 +73,8 @@ public class Artifact implements Serializable {
     @Field("contentDigest")
     private String contentDigest;
 
-    @Field("originDate")
-    private long originDate;
+    @Field("collectionDate")
+    private long collectionDate;
 
     /**
      * Constructor. Needed by SolrJ for getBeans() support. *
@@ -241,24 +241,24 @@ public class Artifact implements Serializable {
     }
 
   /**
-   * Provides the artifact origin date.
+   * Provides the artifact collection date.
    * 
-   * @return a long with the artifact origin date in milliseconds since the
+   * @return a long with the artifact collection date in milliseconds since the
    *         epoch.
    */
-  public long getOriginDate() {
-    return originDate;
+  public long getCollectionDate() {
+    return collectionDate;
   }
 
   /**
-   * Saves the artifact origin date.
+   * Saves the artifact collection date.
    * 
-   * @param originDate
-   *          A long with the artifact origin date in milliseconds since the
+   * @param collectionDate
+   *          A long with the artifact collection date in milliseconds since the
    *          epoch.
    */
-  public void setOriginDate(long originDate) {
-    this.originDate = originDate;
+  public void setCollectionDate(long collectionDate) {
+    this.collectionDate = collectionDate;
   }
 
     public static String getPathFromStorageUrl(String storageUrl)
@@ -278,7 +278,7 @@ public class Artifact implements Serializable {
                 ", storageUrl='" + storageUrl + '\'' +
                 ", contentLength='" + contentLength + '\'' +
                 ", contentDigest='" + contentDigest + '\'' +
-                ", originDate='" + originDate + '\'' +
+                ", collectionDate='" + collectionDate + '\'' +
                 '}';
     }
 
@@ -292,7 +292,7 @@ public class Artifact implements Serializable {
                 && getContentLength() == other.getContentLength()
                 && ((contentDigest == null && other.getContentDigest() == null)
                     || contentDigest.equals(other.getContentDigest()))
-                && getOriginDate() == other.getOriginDate()
+                && getCollectionDate() == other.getCollectionDate()
         ) {
             return true;
         }
