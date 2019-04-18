@@ -67,8 +67,7 @@ public class RepositoryArtifactMetadata {
      *
      * @return A {@code String} containing the metadata ID.
      */
-//    @Override
-    public String getMetadataId() {
+    public static String getMetadataId() {
         return LOCKSS_METADATA_ID;
     }
 
@@ -171,5 +170,14 @@ public class RepositoryArtifactMetadata {
       json.put(REPOSITORY_DELETED_KEY, deleted);
 
       return json;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      RepositoryArtifactMetadata other = (RepositoryArtifactMetadata)obj;
+
+      return other.getArtifactId().equals(this.getArtifactId()) &&
+             other.getCommitted() == this.getCommitted() &&
+             other.getDeleted() == this.getDeleted();
     }
 }
