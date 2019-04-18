@@ -131,6 +131,10 @@ public class VariantState {
         .filter(spec -> spec.isCommitted());
   }
 
+  public Stream<ArtifactSpec> deletedSpecStream() {
+    return addedSpecs.stream().filter(ArtifactSpec::isDeleted);
+  }
+
   Stream<ArtifactSpec> uncommittedSpecStream() {
     return addedSpecs.stream()
         .filter(spec -> !spec.isCommitted());
@@ -164,6 +168,10 @@ public class VariantState {
 
   public ArtifactSpec anyCommittedSpec() {
     return committedSpecStream().findAny().orElse(null);
+  }
+
+  public ArtifactSpec anyDeletedSpec() {
+    return deletedSpecStream().findAny().orElse(null);
   }
 
   public ArtifactSpec anyUncommittedSpec() {
