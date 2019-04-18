@@ -942,6 +942,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     String storageUrl = artifact.getStorageUrl();
 
     log.info("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
+
+    // Guard against deleted or non-existent artifact
+    if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
+      return null;
+    }
     
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
     InputStream warcStream = null;
@@ -1240,6 +1245,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public void deleteArtifactData(Artifact artifact) throws IOException {
     if (artifact == null) {
       throw new IllegalArgumentException("Null artifact");
+    }
+
+    // Guard against non-existent artifact
+    if (!artifactIndex.artifactExists(artifact.getId())) {
+      log.warn("Artifact doesn't exist [artifactId: {}]", artifact.getId());
+      return;
     }
 
     try {
