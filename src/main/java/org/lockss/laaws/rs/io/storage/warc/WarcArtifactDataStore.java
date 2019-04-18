@@ -1061,24 +1061,74 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info("Committing artifact {} in AU {}", artifact.getId(), artifact.getAuid());
 
     // Read current state of repository metadata for this artifact
-    // Q: Race condition possible here?
     RepositoryArtifactMetadata artifactState = getRepositoryMetadata(artifact.getIdentifier());
 
-    // Proceed only if the artifact is not marked deleted
-    if (artifactState.isDeleted()) {
-      log.error("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
-      return null;
+    try {
+      // Determine what action to take based on the state of the artifact
+      // Q: Race condition possible here?
+      switch (getArtifactState(false, artifactState.isDeleted(), artifact)) {
+        case UNCOMMITTED:
+          // Record new committed state to artifact data repository metadata journal
+          artifact.setCommitted(true);
+          artifactState.setCommitted(true);
+          updateArtifactMetadata(artifact.getIdentifier(), artifactState);
+
+        case COMMITTED:
+          // Submit the task to copy the artifact data from temporary to permanent storage
+          return stripedExecutor.submit(new CommitArtifactTask(artifact));
+
+        case COPIED:
+          // This artifact is already marked committed and is in permanent storage. Wrap in Future and return it.
+          return new CompletedFuture<Artifact>(artifact);
+
+        case DELETED:
+          log.error("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
+
+        default: // Includes UNKNOWN, NOT_INDEXED, EXPIRED, DELETED
+          return null;
+      }
+    } catch (URISyntaxException e) {
+      // This should never happen since storage URLs are internal
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Implements {@code Future} that is already completed upon instantiation.
+   *
+   * @param <T> Type of the return object.
+   */
+  private class CompletedFuture<T> implements Future<T> {
+    private T v;
+
+    public CompletedFuture(T v) {
+      this.v = v;
     }
 
-    // Record new committed state to artifact data repository metadata journal
-    artifact.setCommitted(true);
-    artifactState.setCommitted(true);
-    updateArtifactMetadata(artifact.getIdentifier(), artifactState);
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      return false;
+    }
 
-    // Submit the task to copy the artifact data from temporary to permanent storage
-    Future<Artifact> artifactFuture = stripedExecutor.submit(new CommitArtifactTask(artifact));
+    @Override
+    public boolean isCancelled() {
+      return false;
+    }
 
-    return artifactFuture;
+    @Override
+    public boolean isDone() {
+      return true;
+    }
+
+    @Override
+    public T get() throws InterruptedException, ExecutionException {
+      return v;
+    }
+
+    @Override
+    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+      return v;
+    }
   }
 
   /**
