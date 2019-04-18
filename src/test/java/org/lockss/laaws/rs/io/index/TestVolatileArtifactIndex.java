@@ -45,7 +45,7 @@ import org.lockss.util.test.LockssTestCase5;
 /**
  * Test class for {@code org.lockss.laaws.rs.io.index.VolatileArtifactIndex}
  */
-public class TestVolatileArtifactIndex extends LockssTestCase5 {
+public class TestVolatileArtifactIndex extends AbstractArtifactIndexTest {
 
   private UUID uuid;
   private ArtifactIdentifier aid1;

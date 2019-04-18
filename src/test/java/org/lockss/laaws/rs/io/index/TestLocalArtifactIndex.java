@@ -44,7 +44,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-public class TestLocalArtifactIndex extends LockssTestCase5 {
+public class TestLocalArtifactIndex extends AbstractArtifactIndexTest {
     private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String PERSISTED_INDEX_NAME = "repository-index.ser";
