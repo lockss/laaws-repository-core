@@ -860,7 +860,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         try {
           // Set paging parameters
           q.setRows(10);
-          q.setSort(SolrQuery.SortClause.asc("id"));
+          q.addSort(SolrQuery.SortClause.asc("id"));
 
           String cursorMark = CursorMarkParams.CURSOR_MARK_START;
           List<Artifact> artifacts = new ArrayList<>();
