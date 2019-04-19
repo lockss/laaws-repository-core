@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -35,6 +35,7 @@ import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.*;
@@ -79,6 +80,9 @@ public class ArtifactData implements Comparable<ArtifactData> {
     // Internal repository metadata
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
+
+    // The collection date.
+    private long collectionDate = TimeBase.nowMs();
 
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
@@ -142,6 +146,7 @@ public class ArtifactData implements Comparable<ArtifactData> {
         this.repositoryMetadata = repoMetadata;
 
         this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+        setCollectionDate(this.artifactMetadata.getDate());
 
         try {
             // Wrap the stream in a DigestInputStream
@@ -294,6 +299,29 @@ public class ArtifactData implements Comparable<ArtifactData> {
     }
 
     /**
+     * Provides the artifact collection date.
+     * 
+     * @return a long with the artifact collection date in milliseconds since
+     *         the epoch.
+     */
+    public long getCollectionDate() {
+      return collectionDate;
+    }
+
+    /**
+     * Saves the artifact collection date.
+     * 
+     * @param collectionDate
+     *          A long with the artifact collection date in milliseconds since
+     *          the epoch.
+     */
+    public void setCollectionDate(long collectionDate) {
+      if (collectionDate >= 0) {
+	this.collectionDate = collectionDate;
+      }
+    }
+
+    /**
      * Returns a closable version of this artifact's byte stream.
      *
      * @return an {@code InputStream} with the underlying, closable, byte
@@ -329,7 +357,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
             + artifactMetadata + ", httpStatus=" + httpStatus
             + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
             + storageUrl + ", contentDigest=" + getContentDigest()
-            + ", contentLength=" + getContentLength() + "]";
+            + ", contentLength=" + getContentLength() + ", collectionDate="
+            + getCollectionDate() + "]";
     }
 
     public long getBytesRead() {

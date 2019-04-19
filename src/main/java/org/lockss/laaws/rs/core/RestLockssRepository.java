@@ -605,7 +605,7 @@ public class RestLockssRepository implements LockssRepository {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     @Override
@@ -619,6 +619,29 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("urlPrefix", prefix);
 
         return getArtifacts(builder);
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+      if (collection == null || prefix == null)
+        throw new IllegalArgumentException("Null collection id or prefix");
+      String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
+
+      UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+              .queryParam("version", "all")
+              .queryParam("urlPrefix", prefix);
+
+      return getArtifacts(builder);
     }
 
     /**
@@ -638,6 +661,28 @@ public class RestLockssRepository implements LockssRepository {
         if ((collection == null) || (auid == null) || (url == null))
             throw new IllegalArgumentException("Null collection id, au id or url");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+                .queryParam("url", url)
+                .queryParam("version", "all");
+
+        return getArtifacts(builder);
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+        if (collection == null || url == null)
+	    throw new IllegalArgumentException("Null collection id or url");
+        String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("url", url)

@@ -48,6 +48,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.*;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 
@@ -236,6 +237,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   @BeforeEach
   public void beforeEach() throws Exception {
     log.debug("Running beforeEach()");
+    TimeBase.setSimulated();
     setUpRepo();
     beforeVariant();
   }
@@ -645,7 +647,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @VariantTest
   @EnumSource(StdVariants.class)
-  public void testGetAllArtifacts() throws IOException {
+  public void testGetArtifacts() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null collection id or au id",
@@ -693,7 +695,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @VariantTest
   @EnumSource(StdVariants.class)
-  public void testGetAllArtifactsWithPrefix() throws IOException {
+  public void testGetArtifactsWithPrefix() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null collection id, au id or prefix",
@@ -734,7 +736,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @VariantTest
   @EnumSource(StdVariants.class)
-  public void testGetAllArtifactsAllVersions() throws IOException {
+  public void testGetArtifactsAllVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null collection id or au id",
@@ -778,7 +780,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @VariantTest
   @EnumSource(StdVariants.class)
-  public void testGetAllArtifactsWithPrefixAllVersions() throws IOException {
+  public void testGetArtifactsWithPrefixAllVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null collection id, au id or prefix",
@@ -818,6 +820,32 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @VariantTest
   @EnumSource(StdVariants.class)
+  public void testGetArtifactsWithPrefixAllVersionsAllAus() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id or prefix",
+		      () -> {repository.getArtifactsWithPrefixAllVersionsAllAus(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "prefix",
+		      () -> {repository.getArtifactsWithPrefixAllVersionsAllAus(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifactsWithPrefixAllVersionsAllAus(null, PREFIX1);});
+
+    // Non-existent collection
+    assertEmpty(repository.getArtifactsWithPrefixAllVersionsAllAus(NO_COLL, PREFIX1));
+    // Compare with all URLs matching prefix
+    for (String coll : variantState.addedCollections()) {
+      ArtifactSpec.assertArtList(repository, (variantState.orderedAllCollAllAus(coll)
+		  .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
+		  repository.getArtifactsWithPrefixAllVersionsAllAus(coll, PREFIX1));
+      assertEmpty(repository.getArtifactsWithPrefixAllVersionsAllAus(coll,
+								     PREFIX1 + "notpath"));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
   public void testGetArtifactAllVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
@@ -848,6 +876,36 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 		    repository.getArtifactsAllVersions(urlSpec.getCollection(),
 						       urlSpec.getAuid(),
 						       urlSpec.getUrl()));
+    }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetArtifactAllVersionsAllAus() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null collection id or url",
+		      () -> {repository.getArtifactsAllVersionsAllAus(null, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "url",
+		      () -> {repository.getArtifactsAllVersionsAllAus(COLL1, null);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "coll",
+		      () -> {repository.getArtifactsAllVersionsAllAus(null, URL1);});
+
+    // Non-existent collection or url
+    assertEmpty(repository.getArtifactsAllVersionsAllAus(NO_COLL, URL1));
+    assertEmpty(repository.getArtifactsAllVersionsAllAus(COLL1, NO_URL));
+
+    // For each ArtButVer in the repository, enumerate all its versions and
+    // compare with expected
+    Stream<ArtifactSpec> s =
+      variantState.committedSpecStream().filter(distinctByKey(ArtifactSpec::artButVerKey));
+    for (ArtifactSpec urlSpec : (Iterable<ArtifactSpec>)s::iterator) {
+      ArtifactSpec.assertArtList(repository, variantState.orderedAllCommittedAllAus()
+		    .filter(spec -> spec.sameArtButVerAllAus(urlSpec)),
+		    repository.getArtifactsAllVersionsAllAus(urlSpec.getCollection(),
+						             urlSpec.getUrl()));
     }
   }
 

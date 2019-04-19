@@ -368,7 +368,7 @@ public class BaseLockssRepository implements LockssRepository {
    * @param collection A String with the collection identifier.
    * @param auid       A String with the Archival Unit identifier.
    * @param prefix     A String with the URL prefix.
-   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix from an AU.
    */
   @Override
@@ -378,6 +378,23 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     return index.getArtifactsWithPrefixAllVersions(collection, auid, prefix);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a collection.
+   *
+   * @param collection A String with the collection identifier.
+   * @param prefix     A String with the URL prefix.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+   * prefix.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+    if (collection == null || prefix == null) {
+      throw new IllegalArgumentException("Null collection id or prefix");
+    }
+
+    return index.getArtifactsWithPrefixAllVersionsAllAus(collection, prefix);
   }
 
   /**
@@ -396,6 +413,22 @@ public class BaseLockssRepository implements LockssRepository {
     }
 
     return index.getArtifactsAllVersions(collection, auid, url);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+   *
+   * @param collection A {@code String} with the collection identifier.
+   * @param url        A {@code String} with the URL to be matched.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+    if (collection == null || url == null) {
+      throw new IllegalArgumentException("Null collection id or url");
+    }
+
+    return index.getArtifactsAllVersionsAllAus(collection, url);
   }
 
   /**

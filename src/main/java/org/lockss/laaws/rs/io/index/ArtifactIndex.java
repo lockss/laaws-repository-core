@@ -242,12 +242,28 @@ public interface ArtifactIndex extends Ready {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection,
                                                          String auid,
                                                          String prefix)
+        throws IOException;
+
+    /**
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
+     * and for each URL, with version numbers in decreasing order.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection,
+                                                               String prefix)
         throws IOException;
 
     /**
@@ -266,6 +282,20 @@ public interface ArtifactIndex extends Ready {
     Iterable<Artifact> getArtifactsAllVersions(String collection,
                                                String auid,
                                                String url)
+        throws IOException;
+
+    /**
+     * Returns the artifacts of all committed versions of a given URL, from a specified collection.
+     * Returns artifacts ordered with version numbers in decreasing order.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection,
+                                                     String url)
         throws IOException;
 
     /**

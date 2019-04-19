@@ -73,6 +73,9 @@ public class Artifact implements Serializable {
     @Field("contentDigest")
     private String contentDigest;
 
+    @Field("collectionDate")
+    private long collectionDate;
+
     /**
      * Constructor. Needed by SolrJ for getBeans() support. *
      *
@@ -237,6 +240,27 @@ public class Artifact implements Serializable {
         this.contentDigest = contentDigest;
     }
 
+  /**
+   * Provides the artifact collection date.
+   * 
+   * @return a long with the artifact collection date in milliseconds since the
+   *         epoch.
+   */
+  public long getCollectionDate() {
+    return collectionDate;
+  }
+
+  /**
+   * Saves the artifact collection date.
+   * 
+   * @param collectionDate
+   *          A long with the artifact collection date in milliseconds since the
+   *          epoch.
+   */
+  public void setCollectionDate(long collectionDate) {
+    this.collectionDate = collectionDate;
+  }
+
     public static String getPathFromStorageUrl(String storageUrl)
 	throws URISyntaxException {
       return new URI(storageUrl).getPath();
@@ -254,6 +278,7 @@ public class Artifact implements Serializable {
                 ", storageUrl='" + storageUrl + '\'' +
                 ", contentLength='" + contentLength + '\'' +
                 ", contentDigest='" + contentDigest + '\'' +
+                ", collectionDate='" + collectionDate + '\'' +
                 '}';
     }
 
@@ -267,6 +292,7 @@ public class Artifact implements Serializable {
                 && getContentLength() == other.getContentLength()
                 && ((contentDigest == null && other.getContentDigest() == null)
                     || contentDigest.equals(other.getContentDigest()))
+                && getCollectionDate() == other.getCollectionDate()
         ) {
             return true;
         }

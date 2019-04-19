@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.model;
 
 import org.lockss.log.L4JLogger;
+import org.lockss.util.PreOrderComparator;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,6 +49,18 @@ public class VariantState {
   // Maps ArtButVer to ArtifactSpec for highest version added and committed to
   // the repository
   Map<String, ArtifactSpec> highestCommittedVerSpec = new HashMap<String, ArtifactSpec>();
+
+  // Comparators across AUs.
+  protected static final Comparator<ArtifactSpec> BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(ArtifactSpec::getCollectionDate)
+          .thenComparing(ArtifactSpec::getAuid)
+          .thenComparing(Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
+
+  protected static final Comparator<ArtifactSpec> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+          .thenComparing(ArtifactSpec::getCollectionDate)
+          .thenComparing(ArtifactSpec::getAuid)
+          .thenComparing(Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
   public void add(ArtifactSpec spec) {
     addedSpecs.add(spec);
@@ -145,10 +158,21 @@ public class VariantState {
         .sorted();
   }
 
+  public Stream<ArtifactSpec> orderedAllCommittedAllAus() {
+    return committedSpecStream()
+        .sorted(BY_DATE_BY_AUID_BY_DECREASING_VERSION);
+  }
+
   public Stream<ArtifactSpec> orderedAllColl(String coll) {
     return committedSpecStream()
         .filter(s -> s.getCollection().equals(coll))
         .sorted();
+  }
+
+  public Stream<ArtifactSpec> orderedAllCollAllAus(String coll) {
+    return committedSpecStream()
+        .filter(s -> s.getCollection().equals(coll))
+        .sorted(BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION);
   }
 
   public Stream<ArtifactSpec> orderedAllAu(String coll, String auid) {

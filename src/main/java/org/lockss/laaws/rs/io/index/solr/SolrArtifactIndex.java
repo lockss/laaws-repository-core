@@ -62,6 +62,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
     private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
+    private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
     private boolean initialized = false;
 
     /**
@@ -110,6 +111,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 //              versionFieldAttributes.put("docValues", true);
 //              createSolrField(solr,"version", "pdate", versionFieldAttributes);
               createSolrField(solr, "version", "pint");
+              createSolrField(solr, "collectionDate", "long");
 
               initialized = true;
 
@@ -229,6 +231,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifactData.getContentLength(),
                 artifactData.getContentDigest()
         );
+
+        // Save the artifact collection date.
+        artifact.setCollectionDate(artifactData.getCollectionDate());
 
         // Add the Artifact to Solr as a bean
         try {
@@ -613,7 +618,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     @Override
@@ -626,6 +631,30 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
+
+        return IteratorUtils.asIterable(query(q));
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
+        q.addSort(AUID_ASC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -652,6 +681,29 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
+
+        return IteratorUtils.asIterable(query(q));
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!term f=uri}%s", url));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
+        q.addSort(AUID_ASC);
 
         return IteratorUtils.asIterable(query(q));
     }

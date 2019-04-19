@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2000-2018, Board of Trustees of Leland Stanford Jr. University
+Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -39,14 +39,24 @@ import org.lockss.util.PreOrderComparator;
 
 public class ArtifactComparators {
 
-  public static final Comparator<Artifact> BY_URI_SLASH_FIRST =
+  public static final Comparator<Artifact> BY_URI =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE);      
   
   public static final Comparator<Artifact> BY_DECREASING_VERSION =
       Comparator.comparingInt(Artifact::getVersion).reversed();      
   
-  public static final Comparator<Artifact> BY_URI_SLASH_FIRST_BY_DECREASING_VERSION =
+  public static final Comparator<Artifact> BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(Artifact::getCollectionDate)
+                .thenComparing(Artifact::getAuid)
+                .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
+
+  public static final Comparator<Artifact> BY_URI_BY_DECREASING_VERSION =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
   
+  public static final Comparator<Artifact> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
+                .thenComparing(Artifact::getCollectionDate)
+                .thenComparing(Artifact::getAuid)
+                .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
 }

@@ -89,6 +89,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
                 artifactData.getContentDigest()
         );
 
+        // Save the artifact collection date.
+        artifact.setCollectionDate(artifactData.getCollectionDate());
+
         // Add Artifact to the index
         addToIndex(id, artifact);
 
@@ -324,7 +327,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
         return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
-                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
+                .sorted(ArtifactComparators.BY_URI).iterator());
       }
     }
 
@@ -354,7 +357,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Apply the filter, sort by artifact URL then descending version, and return an iterator over the Artifacts
       synchronized (index) {
         return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-            .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+            .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION).iterator());
       }
     }
 
@@ -388,7 +391,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
         return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
-            .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
+            .sorted(ArtifactComparators.BY_URI).iterator());
       }
     }
 
@@ -402,7 +405,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     @Override
@@ -416,7 +419,31 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by URL and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+              .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION).iterator());
+        }
+    }
+
+    /**
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
+        query.filterByURIPrefix(prefix);
+
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
         }
     }
 
@@ -444,6 +471,29 @@ public class VolatileArtifactIndex implements ArtifactIndex {
           // Apply filter then sort the resulting Artifacts by URL and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
               .sorted(ArtifactComparators.BY_DECREASING_VERSION).iterator());
+        }
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) {
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
+        query.filterByURIMatch(url);
+
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by date, AUID and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
         }
     }
 

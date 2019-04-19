@@ -79,6 +79,7 @@ public class ArtifactSpec implements Comparable<Object> {
   int expVer = -1;
   String contentDigest;
   String storageUrl;
+  long collectionDate = -1;
 
   // state
   boolean isCommitted = false;
@@ -338,6 +339,16 @@ public class ArtifactSpec implements Comparable<Object> {
     return statLine;
   }
 
+  public long getCollectionDate() {
+    if (collectionDate >= 0) {
+      return collectionDate;
+    } else if (getArtifactData() != null) {
+      return getArtifactData().getCollectionDate();
+    } else {
+      throw new IllegalStateException("getCollectionDate() called when collection date unknown");
+    }
+  }
+
   public HttpHeaders getMetdata() {
     return RepoUtil.httpHeadersFromMap(headers);
   }
@@ -399,6 +410,17 @@ public class ArtifactSpec implements Comparable<Object> {
    */
   public boolean sameArtButVer(ArtifactSpec other) {
     return artButVerKey().equals(other.artButVerKey());
+  }
+
+  /** true if other refers to an artifact with the same collection
+   * and url, independent of AU and version. */
+  public boolean sameArtButVerAllAus(ArtifactSpec other) {
+    return artButVerKeyAllAus().equals(other.artButVerKeyAllAus());
+  }
+
+  /** Return a key that's unique to the collection,url */
+  public String artButVerKeyAllAus() {
+    return getCollection() + "|" + getUrl();
   }
 
   /**
