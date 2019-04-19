@@ -117,7 +117,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected static byte[] CRLF_BYTES;
   protected static String SEPARATOR = "/";
 
-  protected final static String DEFAULT_TMPWARCBASEPATH = SEPARATOR + TMP_WARCS_DIR;
+  public final static String DEFAULT_TMPWARCBASEPATH = SEPARATOR + TMP_WARCS_DIR;
 
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
 
@@ -149,7 +149,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     DELETED
   }
 
-  protected enum DataStoreState {
+  public enum DataStoreState {
     UNINITIALIZED,
     INITIALIZED,
     SHUTDOWN
@@ -310,7 +310,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
 
-      log.info("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
+      log.debug("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
       for (String tmpWarcPath : tmpWarcs) {
         WarcFile warcFile = null;
@@ -323,7 +323,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
             warcFile = tmpWarcPool.lookupWarcFile(tmpWarcPath);
             if (!tmpWarcPool.borrowWarcFile(tmpWarcPath)) {
-              log.info(
+              log.debug(
                   "Could not borrow temporary WARC file; will attempt a GC again later [tmpWarcPath: {}]",
                   tmpWarcPath
               );
@@ -468,7 +468,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               break;
             case COMMITTED:
               // Requeue the copy of this artifact from temporary to permanent storage
-              log.info("Artifact {} pending copy from temporary to permanent storage", artifactId);
+              log.debug("Requeuing pending move to permanent storage for artifact [artifactId: {}]", artifactId);
 
               try {
                 stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
@@ -626,14 +626,35 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return null;
   }
 
+  /**
+   * Determines whether an artifact has been deleted from this data store by examining the repository metadata journal.
+   *
+   * If an entry for the artifact could not be found, it is assumed deleted.
+   *
+   * @param aid An {@code ArtifactIdentifier}
+   * @return
+   * @throws IOException
+   */
   protected boolean isArtifactDeleted(ArtifactIdentifier aid) throws IOException {
     RepositoryArtifactMetadata metadata = getRepositoryMetadata(aid);
 
     if (metadata != null) {
+      // YES: Repository metadata journal entry found for this artifact
       return metadata.isDeleted();
     }
 
     return true;
+  }
+
+  protected boolean isArtifactCommitted(ArtifactIdentifier aid) throws IOException {
+    RepositoryArtifactMetadata metadata = getRepositoryMetadata(aid);
+
+    if (metadata != null) {
+      // YES: Repository metadata journal entry found for this artifact
+      return metadata.isCommitted();
+    }
+
+    return false;
   }
 
   @Override
@@ -729,7 +750,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@code String} containing the base path of this LOCKSS repository.
    */
   public String getBasePath() {
-    return basePath.equals("/") ? "" : basePath;
+    return basePath;
   }
 
   /**
@@ -920,10 +941,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact is null");
     }
 
-    log.info("Retrieving artifact data for artifact ID: {}", artifact.getId());
+    String artifactId = artifact.getId();
+    String storageUrl = artifact.getStorageUrl();
+
+    log.info("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
+
+    // Guard against deleted or non-existent artifact
+    if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
+      return null;
+    }
     
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
-    String storageUrl = artifact.getStorageUrl();
     InputStream warcStream = null;
 
     try {
@@ -938,31 +966,28 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Check whether the artifact is stored in a temporary WARC file.
     if (storageUrl.startsWith(getTmpWarcBasePath())) {
       try {
-	// Yes: Increment the counter of times that the file is in use.
-	String warcFilePath = Artifact.getPathFromStorageUrl(storageUrl);
-	TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
+        // Yes: Increment the counter of times that the file is in use.
+        String warcFilePath = Artifact.getPathFromStorageUrl(storageUrl);
+        TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
 
-	// Wrap the stream to be read to allow to register the end of this use
-	// of the file.
-	warcStream = new CloseCallbackInputStream(
-	    warcStream,
-	    new CloseCallbackInputStream.Callback() {
-	      // Called when the close() method of the stream is closed.
-	      @Override
-	      public void streamClosed(Object o) {
-		// Decrement the counter of times that the file is in use.
-		TempWarcInUseTracker.INSTANCE.markUseEnd((String)o);
-	      }
-	    },
-	    warcFilePath);
+        // Wrap the stream to be read to allow to register the end of this use of the file.
+        warcStream = new CloseCallbackInputStream(warcStream,
+            new CloseCallbackInputStream.Callback() {
+              // Called when the close() method of the stream is closed.
+                @Override
+                public void streamClosed(Object o) {
+                  // Decrement the counter of times that the file is in use.
+                  TempWarcInUseTracker.INSTANCE.markUseEnd((String)o);
+                }
+            },
+            warcFilePath
+        );
       } catch (URISyntaxException use) {
-	log.error("Cannot get path from storage URL '{}'", storageUrl, use);
-	throw new IllegalArgumentException("Invalid Artifact storage URL '"
-	    + storageUrl + "'");
+        log.error("Cannot get path from storage URL [storageUrl: {}]", storageUrl, use);
+        throw new IllegalArgumentException("Invalid Artifact storage URL [storageUrl: " + storageUrl + "]");
       }
     }
 
-    log.info("Getting WARC record from storage URL '{}' WARC stream", storageUrl);
     WARCRecord warcRecord = null;
 
     try {
@@ -1039,24 +1064,74 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.info("Committing artifact {} in AU {}", artifact.getId(), artifact.getAuid());
 
     // Read current state of repository metadata for this artifact
-    // Q: Race condition possible here?
     RepositoryArtifactMetadata artifactState = getRepositoryMetadata(artifact.getIdentifier());
 
-    // Proceed only if the artifact is not marked deleted
-    if (artifactState.isDeleted()) {
-      log.warn("Artifact is already deleted (Artifact ID: {})", artifact.getId());
-      return null;
+    try {
+      // Determine what action to take based on the state of the artifact
+      // Q: Race condition possible here?
+      switch (getArtifactState(false, artifactState.isDeleted(), artifact)) {
+        case UNCOMMITTED:
+          // Record new committed state to artifact data repository metadata journal
+          artifact.setCommitted(true);
+          artifactState.setCommitted(true);
+          updateArtifactMetadata(artifact.getIdentifier(), artifactState);
+
+        case COMMITTED:
+          // Submit the task to copy the artifact data from temporary to permanent storage
+          return stripedExecutor.submit(new CommitArtifactTask(artifact));
+
+        case COPIED:
+          // This artifact is already marked committed and is in permanent storage. Wrap in Future and return it.
+          return new CompletedFuture<Artifact>(artifact);
+
+        case DELETED:
+          log.error("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
+
+        default: // Includes UNKNOWN, NOT_INDEXED, EXPIRED, DELETED
+          return null;
+      }
+    } catch (URISyntaxException e) {
+      // This should never happen since storage URLs are internal
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Implements {@code Future} that is already completed upon instantiation.
+   *
+   * @param <T> Type of the return object.
+   */
+  private class CompletedFuture<T> implements Future<T> {
+    private T v;
+
+    public CompletedFuture(T v) {
+      this.v = v;
     }
 
-    // Write new committed state to artifact data repository metadata journal
-    artifact.setCommitted(true);
-    artifactState.setCommitted(true);
-    updateArtifactMetadata(artifact.getIdentifier(), artifactState);
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      return false;
+    }
 
-    // Submit the task to copy the artifact data from temporary to permanent storage
-    Future<Artifact> artifactFuture = stripedExecutor.submit(new CommitArtifactTask(artifact));
+    @Override
+    public boolean isCancelled() {
+      return false;
+    }
 
-    return artifactFuture;
+    @Override
+    public boolean isDone() {
+      return true;
+    }
+
+    @Override
+    public T get() throws InterruptedException, ExecutionException {
+      return v;
+    }
+
+    @Override
+    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+      return v;
+    }
   }
 
   /**
@@ -1114,6 +1189,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     WarcRecordLocation loc = parseStorageUrl(artifact.getStorageUrl());
     long recordLength = Long.valueOf(loc.length);
+    long recordOffset = Long.valueOf(loc.offset);
 
     // Get the current active permanent WARC for this AU
     String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
@@ -1127,10 +1203,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     long wasteAppending = (getBlockSize() - ((warcLength + recordLength) % getBlockSize())) % getBlockSize();
 
     if (log.isDebugEnabled()) {
-      log.debug("warcLength = {}", warcLength);
-      log.debug("recordLength = {}", recordLength);
-      log.debug("wasteSealing = {}", wasteSealing);
-      log.debug("wasteAppending = {}", wasteAppending);
+      log.debug(
+          "[warcLength: {}, recordOffset: {}, recordLength: {}, wasteSealing: {}, wasteAppending: {}]",
+          warcLength,
+          recordOffset,
+          recordLength,
+          wasteSealing,
+          wasteAppending
+      );
     }
 
     boolean sealBeforeAppend = false;
@@ -1220,7 +1300,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Null artifact");
     }
 
-    log.info("Deleting artifact [artifactId: {}]", artifact.getId());
+    // Guard against non-existent artifact
+    if (!artifactIndex.artifactExists(artifact.getId())) {
+      log.warn("Artifact doesn't exist [artifactId: {}]", artifact.getId());
+      return;
+    }
 
     try {
       // Retrieve artifact data from current WARC file
@@ -1257,6 +1341,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   public String getCollectionTmpPath(String collection) {
     return getCollectionPath(collection) + SEPARATOR + TMP_WARCS_DIR;
+  }
+
+  public DataStoreState getDataStoreState() {
+    return dataStoreState;
   }
 
   public String getAuPath(String collection, String auid) {
@@ -1691,13 +1779,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Replay to artifact index
       if (index.artifactExists(artifactId)) {
         if (repoState.isDeleted()) {
-          log.info("Removing artifact {} from index", artifactId);
+          log.debug("Removing artifact {} from index", artifactId);
           index.deleteArtifact(artifactId);
           continue;
         }
 
         if (repoState.isCommitted()) {
-          log.info("Marking artifact {} as committed in index", artifactId);
+          log.debug("Marking artifact {} as committed in index", artifactId);
           index.commitArtifact(artifactId);
         }
       } else {
@@ -1735,12 +1823,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   private void dumpWarc(String path) throws IOException {
-    InputStream is = getInputStream(path);
-    org.apache.commons.io.output.ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    if (log.isDebug2Enabled()) {
+      InputStream is = getInputStream(path);
+      org.apache.commons.io.output.ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-    IOUtils.copy(is, baos);
+      IOUtils.copy(is, baos);
 
-    log.debug("dumpWarc({}):\n{}", path, baos.toString());
+      log.debug("dumpWarc({}):\n{}", path, baos.toString());
+    }
   }
 
   private void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<String> artifactWarcFiles) throws IOException {
@@ -1849,6 +1939,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.addExtraHeader(WARCConstants.HEADER_KEY_REFERS_TO, refersTo);
 
     return record;
+  }
+
+  public void writeWarcInfoRecord(String warcPath) throws IOException {
+    // Create a WARC record object
+    WARCRecordInfo record = new WARCRecordInfo();
+
+    // Mandatory WARC record headers
+    record.setRecordId(URI.create(UUID.randomUUID().toString()));
+    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
+    record.setType(WARCRecordType.response);
+
+    // TODO: Need to discuss with team what kind of information we wish to write and finish this
+
+    // Write WARC info record to WARC file
+    /*
+    try (OutputStream output = getAppendableOutputStream(warcPath)) {
+      writeWarcRecord(record, output);
+    }
+    */
   }
 
   /**

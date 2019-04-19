@@ -33,7 +33,6 @@ package org.lockss.laaws.rs.io.storage.local;
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.*;
@@ -73,7 +72,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   protected String getTmpWarcBasePath() {
-    return getBasePath() + DEFAULT_TMPWARCBASEPATH;
+    return getAbsolutePath(DEFAULT_TMPWARCBASEPATH);
   }
 
   @Override
@@ -195,12 +194,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     @Override
-    public void initWarc(String storageUrl) throws IOException {
-        File file = new File(storageUrl);
+    public void initWarc(String warcPath) throws IOException {
+        File file = new File(warcPath);
+
         if (!file.exists()) {
-            mkdirs(new File(storageUrl).getParent());
+            mkdirs(file.getParent());
             FileUtils.touch(file);
         }
+
+        writeWarcInfoRecord(warcPath);
     }
 
     @Override

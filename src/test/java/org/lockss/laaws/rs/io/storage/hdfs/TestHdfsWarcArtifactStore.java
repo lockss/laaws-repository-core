@@ -37,6 +37,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 
@@ -47,25 +48,25 @@ import java.util.UUID;
 public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    private MiniDFSCluster hdfsCluster;
+    private static MiniDFSCluster hdfsCluster;
+    private String testRepoBasePath;
 
     @BeforeAll
-    private void startMiniDFSCluster() throws IOException {
+    private static void startMiniDFSCluster() throws IOException {
 //        System.clearProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA);
 
         File baseDir = new File("target/test-hdfs/" + UUID.randomUUID());
         baseDir.mkdirs();
-        assertTrue(baseDir.exists());
-        assertTrue(baseDir.isDirectory());
 
         Configuration conf = new HdfsConfiguration();
         conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
 
-        log.info(String.format("Starting MiniDFSCluster with %s = %s, getBaseDirectory(): %s",
-                MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
-                conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
-                MiniDFSCluster.getBaseDirectory()
-        ));
+        log.info(
+            "Starting MiniDFSCluster with {} = {}, getBaseDirectory(): {}",
+            MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
+            conf.get(MiniDFSCluster.HDFS_MINIDFS_BASEDIR),
+            MiniDFSCluster.getBaseDirectory()
+        );
 
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
 //        builder.numDataNodes(3);
@@ -76,33 +77,18 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @AfterAll
-    private void stopMiniDFSCluster() {
+    private static void stopMiniDFSCluster() {
         hdfsCluster.shutdown(true);
     }
 
     @Override
-    @Test
-    public void testInitCollection() throws Exception {
-        store.initCollection("collection");
-        assertTrue(isDirectory(store.getCollectionPath("collection")));
-    }
-
-    @Override
-    @Test
-    public void testInitAu() throws Exception {
-        store.initAu("collection", "auid");
-        assertTrue(isDirectory(store.getCollectionPath("collection")));
-        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
-    }
-
-    @Override
     protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
-        String repoBasePath = String.format("/tests/%s", UUID.randomUUID());
+        testRepoBasePath = String.format("/tests/%s", UUID.randomUUID());
 
-        log.info(String.format("Creating HDFS artifact data store with baseDir = %s", repoBasePath));
+        log.info("Creating HDFS artifact data store [baseDir: {}]", testRepoBasePath);
 
         assertNotNull(hdfsCluster);
-        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), repoBasePath);
+        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), testRepoBasePath);
     }
 
     @Override
@@ -112,12 +98,32 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected String expected_getTmpWarcBasePath() {
-        return store.getAbsolutePath("/temp");
+        return store.getAbsolutePath(WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH);
     }
 
     @Override
-    protected boolean isValidStorageUrl(String storageUrl) {
-        return true;
+    public void runTestInitArtifactDataStore() throws Exception {
+        assertTrue(isDirectory(store.getBasePath()));
+        assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    }
+
+    @Override
+    public void runTestInitCollection() throws Exception {
+        // Initialize a collection
+        store.initCollection("collection");
+
+        // Assert directory structures were created
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+    }
+
+    @Override
+    public void runTestInitAu() throws Exception {
+        // Initialize an AU
+        store.initAu("collection", "auid");
+
+        // Assert directory structures were created
+        assertTrue(isDirectory(store.getCollectionPath("collection")));
+        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
     }
 
     @Override
@@ -134,7 +140,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @Override
     protected boolean isFile(String path) throws IOException {
-        log.debug("path = {}", path);
 
         Path file = new Path(path);
 
@@ -154,5 +159,10 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
             offset,
             length
         );
+    }
+
+    @Override
+    protected String expected_getBasePath() throws Exception {
+        return testRepoBasePath;
     }
 }

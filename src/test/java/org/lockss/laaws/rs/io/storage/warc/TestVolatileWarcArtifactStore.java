@@ -58,8 +58,28 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
+  protected String expected_getBasePath() {
+    return "/";
+  }
+
+  @Override
   protected String expected_getTmpWarcBasePath() {
-    return "/temp";
+    return WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH;
+  }
+
+  @Override
+  public void runTestInitArtifactDataStore() {
+    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+  }
+
+  @Override
+  public void runTestInitCollection() throws Exception {
+    // NOP
+  }
+
+  @Override
+  public void runTestInitAu() throws Exception {
+    // NOP
   }
 
   @Override
@@ -100,10 +120,5 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
         offset,
         length
     );
-  }
-
-  @Override
-  protected boolean isValidStorageUrl(String storageUrl) {
-    return true;
   }
 }

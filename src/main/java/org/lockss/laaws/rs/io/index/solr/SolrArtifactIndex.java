@@ -203,11 +203,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
         // Only create the field if it does not exist
         if (!fieldsResponse.getFields().contains(newFieldAttributes)) {
             // Create and process new field request
-            log.info(String.format("Adding field to Solr schema: %s", newFieldAttributes));
+            log.info("Adding field to Solr schema: {}", newFieldAttributes);
             SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
             addFieldReq.process(solr);
         } else {
-            log.warn(String.format("Field already exists in Solr schema: %s; skipping field addition", newFieldAttributes));
+            log.warn("Field already exists in Solr schema: {}; skipping field addition", newFieldAttributes);
         }
     }
 
@@ -451,12 +451,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
             QueryResponse result = solr.query(q);
             FacetField ff = result.getFacetField("collection");
 
-            log.info(String.format(
-                    "FacetField: [getName: %s, getValues: %s, getValuesCount: %s]",
-                    ff.getName(),
-                    ff.getValues(),
-                    ff.getValueCount()
-            ));
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "FacetField: [getName: {}, getValues: {}, getValuesCount: {}]",
+                  ff.getName(),
+                  ff.getValues(),
+                  ff.getValueCount()
+              );
+            }
 
             // Transform facet field value names into iterable
             return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).sorted().iterator());
