@@ -345,18 +345,18 @@ public class ArtifactDataFactory {
             artifact.setIdentifier(artifactId);
 
             String artifactContentLength = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
-            if (log.isDebugEnabled()) log.debug("artifactContentLength = " + artifactContentLength);
+            if (log.isDebug2Enabled()) log.debug2("artifactContentLength = " + artifactContentLength);
             if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
                 artifact.setContentLength(Long.parseLong(artifactContentLength));
             }
 
             String artifactDigest = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
-            if (log.isDebugEnabled()) log.debug("artifactDigest = " + artifactDigest);
+            if (log.isDebug2Enabled()) log.debug2("artifactDigest = " + artifactDigest);
             if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
                 artifact.setContentDigest(artifactDigest);
             }
 
-            if (log.isDebugEnabled()) log.debug("artifact = " + artifact);
+            if (log.isDebug2Enabled()) log.debug2("artifact = " + artifact);
             return artifact;
 
         } else if (recordType.equals(RESOURCE_TYPE)) {

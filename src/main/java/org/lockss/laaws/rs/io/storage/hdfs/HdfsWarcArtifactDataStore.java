@@ -255,7 +255,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     Path fullPath = new Path(warcPath);
 
     if (fs.createNewFile(fullPath)) {
-      log.info("Created new WARC file under HDFS [fullPath: {}]", fullPath);
+      log.debug("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
 
     writeWarcInfoRecord(warcPath);
@@ -271,8 +271,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-    log.debug("filePath = {}", filePath);
-    log.debug("seek = {}", seek);
+    log.debug2("filePath = {}", filePath);
+    log.debug2("seek = {}", seek);
 
     FSDataInputStream fsDataInputStream = fs.open(new Path(filePath));
     fsDataInputStream.seek(seek);

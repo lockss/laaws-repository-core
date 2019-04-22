@@ -160,8 +160,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public Collection<String> findWarcs(String basePath) {
     synchronized (warcs) {
-      log.debug("basePath = {}", basePath);
-      log.debug("warcs.keySet() = {}", warcs.keySet());
+      log.debug2("basePath = {}", basePath);
+      log.debug2("warcs.keySet() = {}", warcs.keySet());
 
       return warcs.keySet().stream()
           .filter(path -> path.startsWith(basePath))

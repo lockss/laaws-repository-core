@@ -320,7 +320,7 @@ public class WarcFilePool {
         totalBytesUsed += warcFile.getLength();
 
         // Log information per WarcFile
-        log.debug(
+        log.debug2(
             "[path = {}, length = {}, blocks = {}, inUse = {}]",
             warcFile.getPath(),
             warcFile.getLength(),

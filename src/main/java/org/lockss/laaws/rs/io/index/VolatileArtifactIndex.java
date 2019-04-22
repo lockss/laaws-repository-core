@@ -61,7 +61,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) {
-      log.info("Adding artifact to index: {}", artifactData);
+      log.debug("Adding artifact to index: {}", artifactData);
 
         if (artifactData == null) {
           throw new IllegalArgumentException("Null artifact");
@@ -95,7 +95,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Add Artifact to the index
         addToIndex(id, artifact);
 
-      log.info("Added artifact to index: {}", artifactData);
+        log.debug("Added artifact to index: {}", artifactData);
 
         return artifact;
     }

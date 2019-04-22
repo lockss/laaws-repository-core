@@ -132,7 +132,7 @@ public class RestLockssRepository implements LockssRepository {
         // Get artifact identifier
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-        log.info(
+        log.debug(
             "Adding artifact to remote repository [collectionId: {}, auId: {}, uri: {}]",
             artifactId.getCollection(),
             artifactId.getAuid(),

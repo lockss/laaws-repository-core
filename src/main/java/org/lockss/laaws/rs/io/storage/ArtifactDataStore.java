@@ -157,7 +157,7 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
             long remainingTime = deadline.getRemainingTime();
             long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
 
-            log.info(
+            log.debug(
                 "Waiting for artifact data store to become ready (retrying in {} ms; deadline in {} ms)",
                 sleepTime,
                 remainingTime

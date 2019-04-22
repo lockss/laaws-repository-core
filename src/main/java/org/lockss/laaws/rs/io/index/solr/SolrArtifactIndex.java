@@ -203,7 +203,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         // Only create the field if it does not exist
         if (!fieldsResponse.getFields().contains(newFieldAttributes)) {
             // Create and process new field request
-            log.info("Adding field to Solr schema: {}", newFieldAttributes);
+            log.debug("Adding field to Solr schema: {}", newFieldAttributes);
             SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
             addFieldReq.process(solr);
         } else {
@@ -219,7 +219,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-        log.info("Adding artifact to index: {}", artifactData);
+        log.debug("Adding artifact to index: {}", artifactData);
 
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
@@ -244,7 +244,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         // Return the Artifact added to the Solr collection
-        log.info("Added artifact to index: {}", artifactData);
+        log.debug("Added artifact to index: {}", artifactData);
+
         return artifact;
     }
 
@@ -451,8 +452,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
             QueryResponse result = solr.query(q);
             FacetField ff = result.getFacetField("collection");
 
-            if (log.isDebugEnabled()) {
-              log.debug(
+            if (log.isDebug2Enabled()) {
+              log.debug2(
                   "FacetField: [getName: {}, getValues: {}, getValuesCount: {}]",
                   ff.getName(),
                   ff.getValues(),

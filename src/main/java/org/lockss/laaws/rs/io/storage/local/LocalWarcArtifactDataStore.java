@@ -110,12 +110,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
      */
     @Override
     public Collection<String> findWarcs(String basePath) throws IOException {
-        log.debug("basePath = {}", basePath);
+        log.debug2("basePath = {}", basePath);
 
         File basePathFile = new File(basePath);
 
         if (basePathFile.exists() && basePathFile.isDirectory()) {
-          log.debug("exists() = true, isDirectory = true");
+          log.debug2("exists() = true, isDirectory = true");
 
           File[] dirObjs = basePathFile.listFiles();
 
@@ -153,7 +153,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     public void mkdirs(String dirPath) throws IOException {
-        log.debug("dirPath = {}", dirPath);
+        log.debug2("dirPath = {}", dirPath);
 
         File dir = new File(dirPath);
 
@@ -185,8 +185,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     @Override
     public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
-        log.info("filePath = {}", filePath);
-        log.info("seek = {}", seek);
+        log.debug2("filePath = {}", filePath);
+        log.debug2("seek = {}", seek);
 
         InputStream inputStream = new FileInputStream(filePath);
         inputStream.skip(seek);

@@ -347,7 +347,7 @@ public interface LockssRepository extends Ready {
       long remainingTime = deadline.getRemainingTime();
       long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
 
-      log.info(
+      log.debug(
           "Waiting for repository to become ready; retrying in {} ms (deadline in {} ms)",
           sleepTime,
           remainingTime
