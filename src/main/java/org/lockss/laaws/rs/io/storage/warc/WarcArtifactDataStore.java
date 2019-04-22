@@ -1085,7 +1085,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           return new CompletedFuture<Artifact>(artifact);
 
         case DELETED:
-          log.error("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
+          log.warn("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
 
         default: // Includes UNKNOWN, NOT_INDEXED, EXPIRED, DELETED
           return null;

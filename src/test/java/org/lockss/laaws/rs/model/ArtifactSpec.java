@@ -267,7 +267,7 @@ public class ArtifactSpec implements Comparable<Object> {
     } else {
       setContent(RandomStringUtils.randomAlphabetic(0, MAX_RANDOM_FILE));
     }
-    log.info("gen content");
+    log.debug("Generated content");
     return this;
   }
 
