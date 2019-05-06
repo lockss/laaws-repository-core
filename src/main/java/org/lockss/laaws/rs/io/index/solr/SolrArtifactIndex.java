@@ -35,7 +35,6 @@ import org.apache.commons.collections4.IteratorUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -70,10 +69,15 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *
      * @param solrCollectionUrl
      *          A {@code String} containing the URL to a Solr collection or core.
+     * @param user
+     *          A String with the name of the user to be authenticated.
+     * @param password
+     *          A String with the password of the user to be authenticated.
      */
-    public SolrArtifactIndex(String solrCollectionUrl) {
+    public SolrArtifactIndex(String solrCollectionUrl, String user,
+	String password) {
         // Get a handle to the Solr collection
-        this(new HttpSolrClient.Builder(solrCollectionUrl).build());
+        this(new LockssHttpSolrClient(solrCollectionUrl, user, password));
     }
 
     /**
