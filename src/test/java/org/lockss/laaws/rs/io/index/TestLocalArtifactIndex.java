@@ -32,29 +32,27 @@ package org.lockss.laaws.rs.io.index;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.test.LockssTestCase5;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-public class TestLocalArtifactIndex extends AbstractArtifactIndexTest {
+public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtifactIndex> {
     private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String PERSISTED_INDEX_NAME = "repository-index.ser";
-    private LocalArtifactIndex index;
     private File testBaseDir;
 
-    @BeforeEach
-    void setUp() throws IOException {
-        testBaseDir = getTempDir();
-        index = new LocalArtifactIndex(testBaseDir, PERSISTED_INDEX_NAME);
+    public LocalArtifactIndex makeArtifactIndex() throws IOException {
+      testBaseDir = getTempDir();
+      testBaseDir.deleteOnExit();
+
+      return new LocalArtifactIndex(testBaseDir, PERSISTED_INDEX_NAME);
     }
 
     @AfterEach
