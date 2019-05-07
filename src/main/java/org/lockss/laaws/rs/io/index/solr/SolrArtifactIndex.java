@@ -221,7 +221,15 @@ public class SolrArtifactIndex implements ArtifactIndex {
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
         log.debug("Adding artifact to index: {}", artifactData);
 
-        ArtifactIdentifier artifactId = artifactData.getIdentifier();
+      if (artifactData == null) {
+        throw new IllegalArgumentException("Null artifact");
+      }
+
+      ArtifactIdentifier artifactId = artifactData.getIdentifier();
+
+      if (artifactId == null) {
+        throw new IllegalArgumentException("ArtifactData has null identifier");
+      }
 
         // Create an instance of Artifact to represent the artifact
         Artifact artifact = new Artifact(
