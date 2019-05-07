@@ -47,7 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
   <artifactId>laaws-repository-core</artifactId>
   <version>1.12.0-SNAPSHOT</version>
   <packaging>jar</packaging>
-  
+
   <name>laaws-repository-core</name>
   <description>LOCKSS repository core infrastructure</description>
 
@@ -57,7 +57,7 @@ POSSIBILITY OF SUCH DAMAGE.
   </properties>
 
   <dependencies>
-  
+
     <dependency>
       <groupId>org.lockss</groupId>
       <artifactId>lockss-util</artifactId>
@@ -76,15 +76,15 @@ POSSIBILITY OF SUCH DAMAGE.
         </exclusion>
       </exclusions>
     </dependency>
-    
+
     <!-- FIXME classifier:tests + type:test-jar throughout doesn't seem right -->
-    
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${version.group.hadoop}</version>
-      <classifier>tests</classifier>
-      <type>test-jar</type>
+<!--      <classifier>tests</classifier>-->
+<!--      <type>test-jar</type>-->
       <exclusions>
 	<!-- See above -->
         <exclusion>
@@ -104,9 +104,57 @@ POSSIBILITY OF SUCH DAMAGE.
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <version>${version.group.hadoop}</version>
-      <classifier>tests</classifier>
-      <type>test-jar</type>
+<!--      <classifier>tests</classifier>-->
+<!--      <type>test-jar</type>-->
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-minicluster</artifactId>
+      <version>${version.group.hadoop}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Needed to resolve Jackson conflicts between Hadoop 3.2.0 and Solr 7.2.1 -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.9.8</version>
+    </dependency>
+
+    <!-- Needed to resolve Jackson conflicts between Hadoop 3.2.0 and Solr 7.2.1 -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>2.9.8</version>
+    </dependency>
+
+    <!--
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-http</artifactId>
+      <version>9.4.14.v20181114</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+      <version>9.4.14.v20181114</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
+      <version>9.4.14.v20181114</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlet</artifactId>
+      <version>9.4.14.v20181114</version>
+    </dependency>
+    -->
 
     <dependency>
       <groupId>org.lockss</groupId>
@@ -140,19 +188,19 @@ POSSIBILITY OF SUCH DAMAGE.
       <version>${version.dependency.httpcore}</version>
     </dependency>
 
-    <!-- 
+    <!--
 
     DEPENDENCY NOTES
-    
+
     spring-data-hadoop-store 2.4.0.RELEASE -> hadoop-yarn-common 2.7.1 -> javax.servlet:servlet-api 2.5
-    
+
     but a variety of Spring components, especially spring-test, need the Servlet
     API 3.0.1 or better, so if you are depending on this project from a Spring
     project, you need this exclusion:
 
         <exclusion>
           <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>  
+          <artifactId>servlet-api</artifactId>
         </exclusion>
 
     spring-data-hadoop-store 2.4.0.RELEASE -> hadoop-yarn-common 2.7.1 -> org.mortbay.jetty:jetty 6.1.26
@@ -161,14 +209,14 @@ POSSIBILITY OF SUCH DAMAGE.
     but lockss-core depends on an unsealed Jetty 5 to add classes to
     org.mortbay.jetty.servlet. If depending on this project from a lockss-core
     project, you need this exclusion:
-    
+
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
-          <artifactId>jetty</artifactId>  
+          <artifactId>jetty</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.mortbay.jetty</groupId>
-          <artifactId>jetty-util</artifactId>  
+          <artifactId>jetty-util</artifactId>
         </exclusion>
 
     -->
@@ -178,11 +226,14 @@ POSSIBILITY OF SUCH DAMAGE.
       <version>${version.local.spring-data-hadoop-store}</version>
     </dependency>
 
+
+    <!--
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-joda</artifactId>
       <version>${version.dependency.jackson-datatype-joda}</version>
     </dependency>
+    -->
 
 <!--     <dependency> -->
 <!--       <groupId>joda-time</groupId> -->
@@ -206,20 +257,53 @@ POSSIBILITY OF SUCH DAMAGE.
           <groupId>junit</groupId>
           <artifactId>junit</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
- 
+
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>${version.dependency.commons-lang3}</version>
     </dependency>
- 
+
     <dependency>
       <groupId>org.apache.solr</groupId>
       <artifactId>solr-solrj</artifactId>
       <version>${version.group.solr}</version>
     </dependency>
+
+    <!-- Dependency of solr-test-framework -->
+    <dependency>
+      <groupId>org.apache.solr</groupId>
+      <artifactId>solr-core</artifactId>
+      <version>${version.group.solr}</version>
+    </dependency>
+
+    <!-- Needed for Solr testing -->
+    <dependency>
+      <groupId>org.apache.solr</groupId>
+      <artifactId>solr-test-framework</artifactId>
+      <version>${version.group.solr}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!--
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-http</artifactId>
+      <version>9.4.14.v20181114</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+      <version>9.4.14.v20181114</version>
+    </dependency>
+    -->
 
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -267,12 +351,12 @@ POSSIBILITY OF SUCH DAMAGE.
       <version>1.2.0</version>
       <scope>test</scope>
     </dependency>
-    
+
   </dependencies>
 
   <profiles>
-  
-    <!-- 
+
+    <!--
     Enable this profile if using Eclipse to do development on this project
     (right-click project -> Properties -> Maven -> add lockss-eclipse to list)
     -->
@@ -289,11 +373,11 @@ POSSIBILITY OF SUCH DAMAGE.
               <groupId>com.vaadin.external.google</groupId>
               <artifactId>android-json</artifactId>
             </exclusion>
-          </exclusions> 
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>
-  
+
   </profiles>
 
 </project>
