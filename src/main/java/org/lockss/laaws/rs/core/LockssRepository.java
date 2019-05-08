@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,19 +32,30 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.log.L4JLogger;
+import org.lockss.util.lang.Ready;
+import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * The LOCKSS Repository API:
  *
  * This is the interface of the abstract LOCKSS repository service.
  */
-public interface LockssRepository {
-  
+public interface LockssRepository extends Ready {
+
+  default void initRepository() throws IOException {
+    // NOP
+  }
+
+  default void shutdownRepository() throws InterruptedException {
+    // NOP
+  }
+
     /**
      * Adds an artifact to this LOCKSS repository.
-     *
      * @param artifactData
      *          {@code ArtifactData} instance to add to this LOCKSS repository.
      * @return The artifact ID of the newly added artifact.
@@ -54,6 +65,8 @@ public interface LockssRepository {
 
     /**
      * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
      *
      * @param artifact
      *          An artifact to retrieve from this repository.
@@ -66,6 +79,9 @@ public interface LockssRepository {
 
     /**
      * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
+     *
      *
      * @param collection
      *          The collection ID of the artifact.
@@ -100,9 +116,7 @@ public interface LockssRepository {
      * @return An {@code Artifact} containing the updated artifact state information.
      * @throws IOException
      */
-    Artifact commitArtifact(String collection,
-                            String artifactId)
-        throws IOException;
+    Artifact commitArtifact(String collection, String artifactId) throws IOException;
 
     /**
      * Permanently removes an artifact from this LOCKSS repository.
@@ -135,7 +149,7 @@ public interface LockssRepository {
      *          A {@code String} containing the artifact ID to check.
      * @return A boolean indicating whether an artifact exists in this repository.
      */
-    boolean artifactExists(String artifactId) throws IOException;
+    Boolean artifactExists(String collection, String artifactId) throws IOException;
 
     /**
      * Checks whether an artifact is committed to this LOCKSS repository.
@@ -144,7 +158,7 @@ public interface LockssRepository {
      *          A {@code String} containing the artifact ID to check.
      * @return A boolean indicating whether the artifact is committed.
      */
-    boolean isArtifactCommitted(String artifactId) throws IOException;
+    Boolean isArtifactCommitted(String collection, String artifactId) throws IOException;
 
     /**
      * Provides the collection identifiers of the committed artifacts in the index.
@@ -174,8 +188,8 @@ public interface LockssRepository {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifacts(String collection,
-                                       String auid)
+    Iterable<Artifact> getArtifacts(String collection,
+                                    String auid)
         throws IOException;
 
     /**
@@ -187,8 +201,8 @@ public interface LockssRepository {
      *          A String with the Archival Unit identifier.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
-    Iterable<Artifact> getAllArtifactsAllVersions(String collection,
-                                                  String auid)
+    Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                               String auid)
         throws IOException;
 
     /**
@@ -204,9 +218,9 @@ public interface LockssRepository {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifactsWithPrefix(String collection,
-                                                 String auid,
-                                                 String prefix)
+    Iterable<Artifact> getArtifactsWithPrefix(String collection,
+                                              String auid,
+                                              String prefix)
         throws IOException;
 
     /**
@@ -219,12 +233,26 @@ public interface LockssRepository {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
-    Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
-                                                            String auid,
-                                                            String prefix)
+    Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection,
+                                                         String auid,
+                                                         String prefix)
+        throws IOException;
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection,
+                                                               String prefix)
         throws IOException;
 
     /**
@@ -239,9 +267,22 @@ public interface LockssRepository {
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL from an
      *         Archival Unit.
      */
-    Iterable<Artifact> getArtifactAllVersions(String collection,
-                                              String auid,
-                                              String url)
+    Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                               String auid,
+                                               String url)
+        throws IOException;
+
+    /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection,
+                                                     String url)
         throws IOException;
 
     /**
@@ -291,4 +332,32 @@ public interface LockssRepository {
      * @return A {@code Long} with the total size of the specified AU in bytes.
      */
     Long auSize(String collection, String auid) throws IOException;
+
+  long DEFAULT_WAITREADY = 5000;
+
+  @Override
+  default void waitReady(Deadline deadline) throws TimeoutException {
+    final L4JLogger log = L4JLogger.getLogger();
+
+    while (!isReady()) {
+      if (deadline.expired()) {
+        throw new TimeoutException("Deadline for repository to become ready expired");
+      }
+
+      long remainingTime = deadline.getRemainingTime();
+      long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
+
+      log.debug(
+          "Waiting for repository to become ready; retrying in {} ms (deadline in {} ms)",
+          sleepTime,
+          remainingTime
+      );
+
+      try {
+        Thread.sleep(sleepTime);
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted while waiting for repository to become ready");
+      }
+    }
+  }
 }

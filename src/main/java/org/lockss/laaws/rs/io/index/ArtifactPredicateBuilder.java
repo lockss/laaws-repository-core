@@ -65,7 +65,7 @@ public class ArtifactPredicateBuilder {
      */
     public ArtifactPredicateBuilder filterByCommitStatus(Boolean committedStatus) {
         if (committedStatus != null)
-            predicates.add(artifact -> artifact.getCommitted() == committedStatus);
+            predicates.add(artifact -> artifact.getCommitted().equals(committedStatus));
         return this;
     }
 

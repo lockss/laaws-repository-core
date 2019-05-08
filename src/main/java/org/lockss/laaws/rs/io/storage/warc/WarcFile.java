@@ -30,42 +30,26 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.junit.Before;
-import org.junit.Test;
+public class WarcFile {
+  private String path;
+  private long length = 0;
+  private long nextOffset = 0;
 
-import static org.junit.Assert.*;
+  public WarcFile(String path, long length) {
+    this.path = path;
+    this.length = length;
+    this.nextOffset = length;
+  }
 
-public class TestWarcArtifactStore {
+  public String getPath() {
+    return path;
+  }
 
-    @Before
-    public void setUp() throws Exception {
-    }
+  public long getLength() {
+    return length;
+  }
 
-    @Test
-    public void getWarcRecordId() {
-    }
-
-    @Test
-    public void getWarcRecord() {
-    }
-
-    @Test
-    public void createWarcMetadataRecord() {
-    }
-
-    @Test
-    public void writeArtifact() {
-    }
-
-    @Test
-    public void writeWarcRecord() {
-    }
-
-    @Test
-    public void createRecordHeader() {
-    }
-
-    @Test
-    public void createWARCInfoRecord() {
-    }
+  public void setLength(long length) {
+    this.length = length;
+  }
 }

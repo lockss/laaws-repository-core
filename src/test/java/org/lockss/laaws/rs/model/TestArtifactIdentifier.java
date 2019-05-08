@@ -30,12 +30,10 @@
 
 package org.lockss.laaws.rs.model;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
+import org.lockss.util.test.LockssTestCase5;
 
-import static org.junit.Assert.*;
-
-public class TestArtifactIdentifier {
+public class TestArtifactIdentifier extends LockssTestCase5 {
     private final static String ARTIFACT_COLLECTION = "collection123";
     private final static String ARTIFACT_AUID = "auid123";
     private final static String ARTIFACT_URI = "uri123";
@@ -43,7 +41,7 @@ public class TestArtifactIdentifier {
 
     private ArtifactIdentifier identifier;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         // Instantiate an ArtifactInstance to test getters against
         this.identifier = new ArtifactIdentifier(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,14 +30,13 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.util.*;
@@ -48,10 +47,10 @@ import java.util.stream.Stream;
  * ArtifactData index implemented in memory, not persisted.
  */
 public class VolatileArtifactIndex implements ArtifactIndex {
-    private final static Log log = LogFactory.getLog(VolatileArtifactIndex.class);
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     // Map from artifact ID to Artifact
-    private Map<String, Artifact> index = new LinkedHashMap<>();
+    protected Map<String, Artifact> index = new LinkedHashMap<>();
 
     /**
      * Adds an artifact to the index.
@@ -62,6 +61,8 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) {
+      log.debug("Adding artifact to index: {}", artifactData);
+
         if (artifactData == null) {
           throw new IllegalArgumentException("Null artifact");
         }
@@ -88,8 +89,13 @@ public class VolatileArtifactIndex implements ArtifactIndex {
                 artifactData.getContentDigest()
         );
 
+        // Save the artifact collection date.
+        artifact.setCollectionDate(artifactData.getCollectionDate());
+
         // Add Artifact to the index
-        index.put(id, artifact);
+        addToIndex(id, artifact);
+
+        log.debug("Added artifact to index: {}", artifactData);
 
         return artifact;
     }
@@ -104,10 +110,13 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact getArtifact(String artifactId) {
-        if (StringUtils.isEmpty(artifactId)) {
-          throw new IllegalArgumentException("Null or empty identifier");
-        }
+      if (StringUtils.isEmpty(artifactId)) {
+        throw new IllegalArgumentException("Null or empty identifier");
+      }
+
+      synchronized (index) {
         return index.get(artifactId);
+      }
     }
 
     /**
@@ -120,10 +129,11 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact getArtifact(UUID artifactId) {
-        if (artifactId == null) {
-          throw new IllegalArgumentException("Null UUID");
-        }
-        return getArtifact(artifactId.toString());
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null UUID");
+      }
+
+      return getArtifact(artifactId.toString());
     }
 
     /**
@@ -135,16 +145,20 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact commitArtifact(String artifactId) {
-        if (StringUtils.isEmpty(artifactId)) {
-          throw new IllegalArgumentException("Null or empty identifier");
-        }
+      if (StringUtils.isEmpty(artifactId)) {
+        throw new IllegalArgumentException("Null or empty identifier");
+      }
+
+      synchronized (index) {
         Artifact indexedData = index.get(artifactId);
 
         if (indexedData != null) {
           indexedData.setCommitted(true);
+          addToIndex(artifactId, indexedData);
         }
 
         return indexedData;
+      }
     }
 
     /**
@@ -156,10 +170,11 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact commitArtifact(UUID artifactId) {
-        if (artifactId == null) {
-          throw new IllegalArgumentException("Null UUID");
-        }
-        return commitArtifact(artifactId.toString());
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null UUID");
+      }
+
+      return commitArtifact(artifactId.toString());
     }
 
     /**
@@ -175,10 +190,11 @@ public class VolatileArtifactIndex implements ArtifactIndex {
       if (StringUtils.isEmpty(artifactId)) {
         throw new IllegalArgumentException("Null or empty identifier");
       }
+
       boolean result = false;
 
-      synchronized (this) {
-        if (index.remove(artifactId) != null) {
+      synchronized (index) {
+        if (removeFromIndex(artifactId) != null) {
           result = index.get(artifactId) == null;
         }
       }
@@ -196,10 +212,11 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean deleteArtifact(UUID artifactId) {
-        if (artifactId == null) {
-          throw new IllegalArgumentException("Null UUID");
-        }
-        return deleteArtifact(artifactId.toString());
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null UUID");
+      }
+
+      return deleteArtifact(artifactId.toString());
     }
 
     /**
@@ -213,10 +230,28 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean artifactExists(String artifactId) {
-        if (StringUtils.isEmpty(artifactId)) {
-          throw new IllegalArgumentException("Null or empty identifier");
-        }
+      if (StringUtils.isEmpty(artifactId)) {
+        throw new IllegalArgumentException("Null or empty identifier");
+      }
+
+      synchronized (index) {
         return index.containsKey(artifactId);
+      }
+    }
+    
+    @Override
+    public Artifact updateStorageUrl(String artifactId, String storageUrl) {
+      synchronized (index) {
+        Artifact artifact = index.get(artifactId);
+
+        if (artifact == null) {
+          throw new IllegalArgumentException("Cannot update storage URL: unknown artifact " + artifactId);
+        }
+
+        artifact.setStorageUrl(storageUrl);
+
+        return artifact;
+      }
     }
 
     /**
@@ -227,17 +262,18 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Iterable<String> getCollectionIds() {
+      synchronized (index) {
         Stream<Artifact> artifactStream = index.values().stream();
         Stream<Artifact> committedArtifacts = artifactStream.filter(x -> x.getCommitted());
         Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
 
         // Sort the collection IDs for return
-        List<String> collectionIds = new ArrayList(collections.keySet());
+        List<String> collectionIds = new ArrayList<String>(collections.keySet());
         Collections.sort(collectionIds);
 
         // Interface requires an iterator since this list could be very large in other implementations
         return IteratorUtils.asIterable(collectionIds.iterator());
-
+      }
     }
 
     /**
@@ -250,13 +286,15 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Iterable<String> getAuIds(String collection) throws IOException {
+      synchronized (index) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
         return IteratorUtils.asIterable(
-                index.values().stream().filter(query.build()).map(x -> x.getAuid()).distinct().sorted().iterator()
+            index.values().stream().filter(query.build()).map(x -> x.getAuid()).distinct().sorted().iterator()
         );
+      }
     }
 
     /**
@@ -270,42 +308,57 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
+
+        // Filter by committed status equal to true?
+        if (!includeUncommitted)
+            q.filterByCommitStatus(true);
+
         q.filterByCollection(collection);
         q.filterByAuid(auid);
 
         // Filter, then group the Artifacts by URI, and pick the Artifacts with max version from each group
+      synchronized (index) {
         Map<String, Optional<Artifact>> result = index.values().stream().filter(q.build()).collect(
-                Collectors.groupingBy(Artifact::getUri, Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
+            Collectors.groupingBy(Artifact::getUri, Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
         );
 
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
         return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
-                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
+                .sorted(ArtifactComparators.BY_URI).iterator());
+      }
     }
 
     /**
-     * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
+     *          artifacts.
+     * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
+
+        if (!includeUncommitted) {
+            query.filterByCommitStatus(true);
+        }
+
         query.filterByCollection(collection);
         query.filterByAuid(auid);
 
         // Apply the filter, sort by artifact URL then descending version, and return an iterator over the Artifacts
+      synchronized (index) {
         return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+            .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION).iterator());
+      }
     }
 
     /**
@@ -322,22 +375,24 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
         q.filterByCommitStatus(true);
         q.filterByCollection(collection);
         q.filterByAuid(auid);
         q.filterByURIPrefix(prefix);
 
+      synchronized (index) {
         // Apply the filter, group the Artifacts by URL, then pick the Artifact with highest version from each group
         Map<String, Optional<Artifact>> result = index.values().stream().filter(q.build()).collect(
-                Collectors.groupingBy(Artifact::getUri, Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
+            Collectors.groupingBy(Artifact::getUri, Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
         );
 
         // Return an iterator over the artifact from each group (one per URI), after sorting them by artifact URI then
         // descending version.
         return IteratorUtils.asIterable(result.values().stream().filter(Optional::isPresent).map(x -> x.get())
-                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST).iterator());
+            .sorted(ArtifactComparators.BY_URI).iterator());
+      }
     }
 
     /**
@@ -350,20 +405,46 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByAuid(auid);
         query.filterByURIPrefix(prefix);
 
-        // Apply filter then sort the resulting Artifacts by URL and descending version
-        return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-                .sorted(ArtifactComparators.BY_URI_SLASH_FIRST_BY_DECREASING_VERSION).iterator());
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by URL and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_URI_BY_DECREASING_VERSION).iterator());
+        }
+    }
+
+    /**
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
+        query.filterByURIPrefix(prefix);
+
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+        }
     }
 
     /**
@@ -379,16 +460,41 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByAuid(auid);
         query.filterByURIMatch(url);
 
-        // Apply filter then sort the resulting Artifacts by URL and descending version
-        return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-                .sorted(ArtifactComparators.BY_DECREASING_VERSION).iterator());
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by URL and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_DECREASING_VERSION).iterator());
+        }
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) {
+        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+        query.filterByCommitStatus(true);
+        query.filterByCollection(collection);
+        query.filterByURIMatch(url);
+
+        synchronized (index) {
+          // Apply filter then sort the resulting Artifacts by date, AUID and descending version
+          return IteratorUtils.asIterable(index.values().stream().filter(query.build())
+              .sorted(ArtifactComparators.BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+        }
     }
 
     /**
@@ -400,22 +506,31 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *          A {@code String} containing the Archival Unit ID.
      * @param url
      *          A {@code String} containing a URL.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
+     *          artifacts of a URL.
      * @return An {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     @Override
-    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+    public Artifact getArtifact(String collection, String auid, String url, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
+
+        if (!includeUncommitted) {
+            q.filterByCommitStatus(true);
+        }
+
         q.filterByCollection(collection);
         q.filterByAuid(auid);
         q.filterByURIMatch(url);
 
-        // Apply the filter then get the artifact with max version
-        Optional<Artifact> result = index.values().stream().filter(q.build()).max(Comparator.comparingInt(Artifact::getVersion));
+        synchronized (index) {
+          // Apply the filter then get the artifact with max version
+          Optional<Artifact> result = index.values().stream().filter(q.build()).max(Comparator.comparingInt(Artifact::getVersion));
 
-        // Return the artifact, or null if one was not found
-        return result.orElse(null);
+          // Return the artifact, or null if one was not found
+          return result.orElse(null);
+        }
     }
 
     /**
@@ -440,8 +555,9 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         q.filterByURIMatch(url);
         q.filterByVersion(version);
 
-        // Apply filter
-        Iterator<Artifact> result = index.values().stream().filter(q.build()).iterator();
+        synchronized (index) {
+          // Apply filter
+          Iterator<Artifact> result = index.values().stream().filter(q.build()).iterator();
 
         if (!result.hasNext()) {
           return null;
@@ -459,6 +575,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         }
 
         return ret;
+        }
     }
 
     /**
@@ -477,6 +594,65 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         q.filterByCollection(collection);
         q.filterByAuid(auid);
 
-        return index.values().stream().filter(q.build()).mapToLong(artifact -> artifact.getContentLength()).sum();
+        synchronized (index) {
+          Map<String, Optional<Artifact>> result = index.values().stream()
+              .filter(q.build())
+              .collect(Collectors.groupingBy(Artifact::getUri,
+                  Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
+              );
+
+          return result.values().stream()
+              .filter(Optional::isPresent)
+              .map(Optional::get)
+              .mapToLong(Artifact::getContentLength)
+              .sum();
+        }
+    }
+
+    /**
+     * Adds an artifact to the index.
+     *
+     * @param id
+     *          A String with the identifier of the article to be added.
+     * @param artifact
+     *          An Artifact with the artifact to be added.
+     */
+    protected void addToIndex(String id, Artifact artifact) {
+      synchronized (index) {
+        // Add Artifact to the index.
+        index.put(id, artifact);
+      }
+    }
+
+    /**
+     * Removes an artifact from the index.
+     *
+     * @param id
+     *          A String with the identifier of the article to be removed.
+     * @return an Artifact with the artifact that has been removed from the
+     *         index.
+     */
+    protected Artifact removeFromIndex(String id) {
+      synchronized (index) {
+        // Remove Artifact from the index.
+        return index.remove(id);
+      }
+    }
+
+    @Override
+    public String toString() {
+      synchronized (index) {
+        return "[VolatileArtifactIndex index=" + index + "]";
+      }
+    }
+
+    /**
+     * Returns a boolean indicating whether this artifact index is ready.
+     *
+     * Always returns true in the violate implementation.
+     */
+    @Override
+    public boolean isReady() {
+        return true;
     }
 }

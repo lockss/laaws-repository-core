@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2000-2018, Board of Trustees of Leland Stanford Jr. University
+Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -33,16 +33,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.io.index;
 
 import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.util.lang.Ready;
+import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Interface of the artifact index.
  */
-public interface ArtifactIndex {
+public interface ArtifactIndex extends Ready {
 
     /**
      * Adds an artifact to the index.
@@ -123,6 +127,18 @@ public interface ArtifactIndex {
     boolean artifactExists(String artifactId) throws IOException;
 
     /**
+     * Updates the storage URL for an existing artifact.
+     *
+     * @param artifactId
+     *          A {@code String) with the artifact ID to update.
+     * @param storageUrl
+     *          A {@code String} containing the new storage URL for this artifact.
+     * @return {@code Artifact} with the new storage URL.
+     * @throws IOException
+     */
+    Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException;
+
+    /**
      * Provides the collection identifiers of the committed artifacts in the index.
      *
      * @return An {@code Iterable<String>} with the index committed artifacts
@@ -151,10 +167,12 @@ public interface ArtifactIndex {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifacts(String collection,
-                                       String auid)
-        throws IOException;
-    
+    default Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
+        return getArtifacts(collection, auid, false);
+    }
+
+    Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException;
+
     /**
      * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
@@ -165,9 +183,32 @@ public interface ArtifactIndex {
      * @param auid
      *          A String with the Archival Unit identifier.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @throws IOException
      */
-    Iterable<Artifact> getAllArtifactsAllVersions(String collection,
-                                                  String auid)
+    default Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                                       String auid)
+        throws IOException {
+        return getArtifactsAllVersions(collection, auid, false);
+    }
+
+    /**
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
+     * and for each URL, with version numbers in decreasing order.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
+     *          artifacts.
+     * @return An {@code Iterable<Artifact>} containing the artifacts of all version of all URLs in an AU.
+     * @throws IOException
+     */
+    Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                               String auid,
+                                               boolean includeUncommitted)
         throws IOException;
 
     /**
@@ -184,9 +225,9 @@ public interface ArtifactIndex {
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getAllArtifactsWithPrefix(String collection,
-                                                 String auid,
-                                                 String prefix)
+    Iterable<Artifact> getArtifactsWithPrefix(String collection,
+                                              String auid,
+                                              String prefix)
         throws IOException;
 
     /**
@@ -201,12 +242,28 @@ public interface ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
-    Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection,
-                                                            String auid,
-                                                            String prefix)
+    Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection,
+                                                         String auid,
+                                                         String prefix)
+        throws IOException;
+
+    /**
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
+     * and for each URL, with version numbers in decreasing order.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection,
+                                                               String prefix)
         throws IOException;
 
     /**
@@ -222,9 +279,23 @@ public interface ArtifactIndex {
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL from an
      *         Archival Unit.
      */
-    Iterable<Artifact> getArtifactAllVersions(String collection,
-                                              String auid,
-                                              String url)
+    Iterable<Artifact> getArtifactsAllVersions(String collection,
+                                               String auid,
+                                               String url)
+        throws IOException;
+
+    /**
+     * Returns the artifacts of all committed versions of a given URL, from a specified collection.
+     * Returns artifacts ordered with version numbers in decreasing order.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection,
+                                                     String url)
         throws IOException;
 
     /**
@@ -236,12 +307,34 @@ public interface ArtifactIndex {
      *          A {@code String} containing the Archival Unit ID.
      * @param url
      *          A {@code String} containing a URL.
+     * @return
+     * @throws IOException
+     */
+    default Artifact getArtifact(String collection,
+                         String auid,
+                         String url) throws IOException {
+        return getArtifact(collection, auid, url, false);
+    }
+
+    /**
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A {@code String} containing the collection ID.
+     * @param auid
+     *          A {@code String} containing the Archival Unit ID.
+     * @param url
+     *          A {@code String} containing a URL.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
+     *          artifacts of a URL.
      * @return The {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     Artifact getArtifact(String collection,
                          String auid,
-                         String url)
+                         String url,
+                         boolean includeUncommitted)
         throws IOException;
 
     /**
@@ -273,4 +366,39 @@ public interface ArtifactIndex {
      * @return A {@code Long} with the total size of the specified AU in bytes.
      */
     Long auSize(String collection, String auid) throws IOException;
+
+    long DEFAULT_WAITREADY = 5000;
+
+    @Override
+    default void waitReady(Deadline deadline) throws TimeoutException {
+        final L4JLogger log = L4JLogger.getLogger();
+
+        while (!isReady()) {
+            if (deadline.expired()) {
+                throw new TimeoutException("Deadline for artifact index to become ready expired");
+            }
+
+            long remainingTime = deadline.getRemainingTime();
+            long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
+
+            log.debug(
+                "Waiting for artifact index to become ready (retrying in {} ms; deadline in {} ms)",
+                sleepTime,
+                remainingTime
+            );
+
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for artifact index to become ready");
+            }
+        }
+    }
+
+    default void initIndex() {
+        // No-op
+    }
+    default void shutdownIndex() {
+        // No-op
+    }
 }

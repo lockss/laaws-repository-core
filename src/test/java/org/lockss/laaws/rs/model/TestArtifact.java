@@ -30,16 +30,15 @@
 
 package org.lockss.laaws.rs.model;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.Test;
-import org.lockss.test.LockssTestCase4;
+import org.junit.jupiter.api.Test;
+import org.lockss.log.L4JLogger;
+import org.lockss.util.test.LockssTestCase5;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.model.Artifact}
  */
-public class TestArtifact extends LockssTestCase4 {
-    private static final Log log = LogFactory.getLog(TestArtifact.class);
+public class TestArtifact extends LockssTestCase5 {
+  private final static L4JLogger log = L4JLogger.getLogger();
 
     @Test
     public void testConstructor() {

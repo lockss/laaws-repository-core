@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,69 +30,38 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.AfterEach;
+import org.lockss.log.L4JLogger;
+import org.springframework.util.FileSystemUtils;
+import java.io.File;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
  */
-public class TestLocalLockssRepository {
+public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
+    private final static L4JLogger log = L4JLogger.getLogger();
 
-    @Before
-    public void setUp() throws Exception {
+    // The local repository root directory.
+    private File repoBaseDir = null;
+
+    @Override
+    public LockssRepository makeLockssRepository() throws Exception {
+        repoBaseDir = getTempDir();
+        return new LocalLockssRepository(repoBaseDir, null);
     }
 
-    @Test
-    public void addArtifact() {
-    }
+    /**
+     * Run after the test is finished.
+     */
+    @AfterEach
+    @Override
+    public void tearDownArtifactDataStore() throws Exception {
+        super.tearDownArtifactDataStore();
 
-    @Test
-    public void getArtifact() {
-    }
-
-    @Test
-    public void commitArtifact() {
-    }
-
-    @Test
-    public void deleteArtifact() {
-    }
-
-    @Test
-    public void artifactExists() {
-    }
-
-    @Test
-    public void isArtifactCommitted() {
-    }
-
-    @Test
-    public void getCollectionIds() {
-    }
-
-    @Test
-    public void getAuIds() {
-    }
-
-    @Test
-    public void getArtifactsInAU() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURL() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURL1() {
-    }
-
-    @Test
-    public void getArtifactsInAUWithURLMatch1() {
+        // Clean up the local repository directory tree used in the test.
+        log.info("Cleaning up local repository directory used for tests: {}", repoBaseDir);
+        if (!FileSystemUtils.deleteRecursively(repoBaseDir)) {
+          log.warn("Failed to delete temporary directory " + repoBaseDir);
+        }
     }
 }

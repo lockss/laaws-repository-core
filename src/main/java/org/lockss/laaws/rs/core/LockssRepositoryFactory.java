@@ -31,14 +31,13 @@
 package org.lockss.laaws.rs.core;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.solr.client.solrj.SolrClient;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
 
-import java.io.File;
+import java.io.*;
 import java.net.URL;
 
 /**
@@ -50,7 +49,7 @@ public class LockssRepositoryFactory {
      *
      * @return A {@code VolatileLockssRepository} instance.
      */
-    public static LockssRepository createVolatileRepository() {
+    public static LockssRepository createVolatileRepository() throws IOException {
         return new VolatileLockssRepository();
     }
 
@@ -60,10 +59,12 @@ public class LockssRepositoryFactory {
      *
      * @param basePath
      *          A {@code File} containing the base path of this LOCKSS Repository.
+     * @param persistedIndexName
+     *          A String with the name of the file where to persist the index.
      * @return A {@code LocalLockssRepository} instance.
      */
-    public static LockssRepository createLocalRepository(File basePath) {
-        return new LocalLockssRepository(basePath);
+    public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
+        return new LocalLockssRepository(basePath, persistedIndexName);
     }
 
     /**
@@ -76,8 +77,8 @@ public class LockssRepositoryFactory {
      *          An {@code ArtifactIndex} to use as this repository's artifact index.
      * @return A {@code LocalLockssRepository} instance.
      */
-    public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) {
-        return new LocalLockssRepository(basePath, index);
+    public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) throws IOException {
+        return new LocalLockssRepository(index, basePath);
     }
 
     /**
@@ -92,10 +93,13 @@ public class LockssRepositoryFactory {
      *          A HDFS {@code Path} containing the base path under the HDFS cluster to use for the storage of artifacts.
      * @return A {@code BaseLockssRepository} instance configured to use Solr and HDFS.
      */
-    public static LockssRepository createLargeLockssRepository(SolrClient solrClient, Configuration hadoopConf, Path basePath) {
-        ArtifactIndex index = new SolrArtifactIndex(solrClient);
-        ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, basePath);
-        return new BaseLockssRepository(index, store);
+    public static LockssRepository createLargeLockssRepository(SolrClient solrClient,
+                                                               Configuration hadoopConf,
+                                                               String basePath)
+        throws IOException {
+      ArtifactIndex index = new SolrArtifactIndex(solrClient);
+      ArtifactDataStore store = new HdfsWarcArtifactDataStore(index, hadoopConf, basePath);
+      return new BaseLockssRepository(index, store);
     }
 
     /**

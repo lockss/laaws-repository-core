@@ -30,23 +30,21 @@
 
 package org.lockss.laaws.rs.io.util;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.util.NamedByteArrayResource;
-
-import static org.junit.Assert.assertEquals;
+import org.lockss.util.test.LockssTestCase5;
 
 /**
  * Test for NamedByteArrayResource: Nothing fancy since we're essentially testing getters and setters but that's the
  * main feature of this extended class. It is assumed that ByteArrayResource is tested by the Spring developers.
  */
-public class TestNamedByteArrayResource {
+public class TestNamedByteArrayResource extends LockssTestCase5 {
     private static final String RESOURCE_NAME = "foo";
     private static final String RESOURCE_BYTES = "bar";
 
     private NamedByteArrayResource namedBar;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         this.namedBar = new NamedByteArrayResource(RESOURCE_NAME, RESOURCE_BYTES.getBytes());
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,44 +28,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.ceph;
+package org.lockss.laaws.rs.core;
 
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-
-import java.io.IOException;
-import java.net.URISyntaxException;
+import org.junit.jupiter.api.AfterEach;
+import org.lockss.log.L4JLogger;
+import org.springframework.util.FileSystemUtils;
+import java.io.File;
 
 /**
- * CephFS implementation of WarcArtifactDataStore.
+ * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
  */
-public class CephArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends WarcArtifactDataStore<ID, AD, MD> {
+public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTest {
+    private final static L4JLogger log = L4JLogger.getLogger();
+
+    // The local repository root directory.
+    private File repoBaseDir = null;
 
     @Override
-    public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
-        return null;
+    public LockssRepository makeLockssRepository() throws Exception {
+        repoBaseDir = getTempDir();
+        return new LocalLockssRepository(repoBaseDir, "persist.ser");
     }
 
+    /**
+     * Run after the test is finished.
+     */
+    @AfterEach
     @Override
-    public AD getArtifactData(Artifact artifact) throws IOException {
-        return null;
-    }
+    public void tearDownArtifactDataStore() throws Exception {
+        super.tearDownArtifactDataStore();
 
-    @Override
-    public MD updateArtifactMetadata(ArtifactIdentifier artifactId, RepositoryArtifactMetadata metadata) throws IOException {
-        return null;
-    }
-
-    @Override
-    public MD commitArtifactData(Artifact artifact) throws IOException, URISyntaxException {
-        return null;
-    }
-
-    @Override
-    public MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException {
-        return null;
+        // Clean up the local repository directory tree used in the test.
+        log.info("Cleaning up local repository directory used for tests: {}", repoBaseDir);
+        if (!FileSystemUtils.deleteRecursively(repoBaseDir)) {
+          log.warn("Failed to delete temporary directory " + repoBaseDir);
+        }
     }
 }

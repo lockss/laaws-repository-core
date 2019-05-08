@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,31 +28,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.ceph;
+package org.lockss.laaws.rs.io.index;
 
-import org.junit.Test;
+import org.lockss.util.test.LockssTestCase5;
 
-import static org.junit.Assert.*;
-
-public class TestCephArtifactStore {
-
-    @Test
-    public void addArtifact() {
-    }
-
-    @Test
-    public void getArtifact() {
-    }
-
-    @Test
-    public void updateArtifactMetadata() {
-    }
-
-    @Test
-    public void commitArtifact() {
-    }
-
-    @Test
-    public void deleteArtifact() {
-    }
+public class AbstractArtifactIndexTest extends LockssTestCase5 {
+  // TODO
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,9 +30,8 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -41,11 +40,14 @@ import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.CursorMarkParams;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.util.*;
@@ -54,11 +56,14 @@ import java.util.*;
  * An Apache Solr implementation of ArtifactIndex.
  */
 public class SolrArtifactIndex implements ArtifactIndex {
-    private static final Log log = LogFactory.getLog(Artifact.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
+    private static final long DEFAULT_TIMEOUT = 10;
     private final SolrClient solr;
 
     private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
+    private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
+    private boolean initialized = false;
 
     /**
      * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -75,44 +80,74 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * Constructor that uses a given SolrClient.
      *
      * @param client
-     *          A {@code SolrClient} to use to index artifacts.
+     *          A {@code SolrClient} to use to artifactIndex artifacts.
      */
     public SolrArtifactIndex(SolrClient client) {
-        // Modify the schema to support an artifact index
-        createArtifactSchema(client);
         this.solr = client;
+        init();
     }
 
     /**
      * Modifies the schema of a collection pointed to by a SolrClient, to support artifact indexing.
      *
-     * @param solr
-     *          An instance of {@code SolrClient} pointing to the Solr Core or Collection to be modified.
      */
-    private static void createArtifactSchema(SolrClient solr) {
-        try {
+    private synchronized void init() {
+      if (!initialized) {
+          // Modify Solr schema to handle artifact metadata
+          try {
 //            createSolrField(solr,"artfactId", "string");
-            createSolrField(solr,"collection", "string");
-            createSolrField(solr,"auid", "string");
-            createSolrField(solr,"uri", "string");
-            createSolrField(solr,"committed", "boolean");
-            createSolrField(solr,"storageUrl", "string");
-            createSolrField(solr, "contentLength", "plong");
-            createSolrField(solr, "contentDigest", "string");
+              createSolrField(solr, "collection", "string");
+              createSolrField(solr, "auid", "string");
+              createSolrField(solr, "uri", "string");
+              createSolrField(solr, "committed", "boolean");
+              createSolrField(solr, "storageUrl", "string");
+              createSolrField(solr, "contentLength", "plong");
+              createSolrField(solr, "contentDigest", "string");
 
-            // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
-            // sorting when the field is a single value field. See the link below for more information:
-            // https://lucene.apache.org/solr/guide/6_6/field-types-included-with-solr.html
-            Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
-            versionFieldAttributes.put("docValues", true);
-//            createSolrField(solr,"version", "pdate", versionFieldAttributes);
-            createSolrField(solr,"version", "pint");
+              // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
+              // sorting when the field is a single value field. See the link below for more information:
+              // https://lucene.apache.org/solr/guide/6_6/field-types-included-with-solr.html
+//              Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
+//              versionFieldAttributes.put("docValues", true);
+//              createSolrField(solr,"version", "pdate", versionFieldAttributes);
+              createSolrField(solr, "version", "pint");
+              createSolrField(solr, "collectionDate", "long");
 
-        } catch (IOException e) {
-            throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
-        } catch (SolrServerException e) {
-            throw new RuntimeException("SolrServerException caught while attempting to create the fields in the Solr schema");
-        }
+              initialized = true;
+
+          } catch (IOException e) {
+              throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
+          } catch (SolrServerException e) {
+            log.warn(String.format("Could not initialize Solr artifact index: %s", e));
+          }
+      }
+    }
+
+  /**
+   * Checks whether the Solr cluster is alive by calling {@code SolrClient#ping()}.
+   *
+   * @return
+   */
+  private boolean checkAlive() {
+    try {
+      solr.ping();
+      return true;
+    } catch (Exception e) {
+      log.warn(String.format("Could not ping Solr: %s", e));
+    }
+
+    return false;
+  }
+
+  /**
+   * Returns a boolean indicating whether this artifact index is ready.
+   *
+   * @return
+   */
+  @Override
+    public boolean isReady() {
+      init();
+      return initialized && checkAlive();
     }
 
     /**
@@ -148,13 +183,6 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws SolrServerException
      */
     private static void createSolrField(SolrClient solr, String fieldName, String fieldType, Map<String,Object> fieldAttributes) throws IOException, SolrServerException {
-        log.info(String.format(
-                "Attempting to add field to schema: (name: %s, type: %s) to %s",
-                fieldName,
-                fieldType,
-                solr
-        ));
-
         // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
         Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
         newFieldAttributes.put("name", fieldName);
@@ -168,19 +196,31 @@ public class SolrArtifactIndex implements ArtifactIndex {
         if (fieldAttributes != null)
             newFieldAttributes.putAll(fieldAttributes);
 
-        // Create and submit add field request
-        SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
-        addFieldReq.process(solr);
+        // Get a list of fields from the Solr schema
+        SchemaRequest.Fields fieldsReq = new SchemaRequest.Fields();
+        SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
+
+        // Only create the field if it does not exist
+        if (!fieldsResponse.getFields().contains(newFieldAttributes)) {
+            // Create and process new field request
+            log.debug("Adding field to Solr schema: {}", newFieldAttributes);
+            SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
+            addFieldReq.process(solr);
+        } else {
+            log.warn("Field already exists in Solr schema: {}; skipping field addition", newFieldAttributes);
+        }
     }
 
     /**
-     * Adds an artifact to the index.
+     * Adds an artifact to the artifactIndex.
      *
-     * @param artifactData An ArtifactData with the artifact to be added to the index,.
+     * @param artifactData An ArtifactData with the artifact to be added to the artifactIndex,.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
+        log.debug("Adding artifact to index: {}", artifactData);
+
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
         // Create an instance of Artifact to represent the artifact
@@ -192,6 +232,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
                 artifactData.getContentDigest()
         );
 
+        // Save the artifact collection date.
+        artifact.setCollectionDate(artifactData.getCollectionDate());
+
         // Add the Artifact to Solr as a bean
         try {
             this.solr.addBean(artifact);
@@ -201,14 +244,16 @@ public class SolrArtifactIndex implements ArtifactIndex {
         }
 
         // Return the Artifact added to the Solr collection
+        log.debug("Added artifact to index: {}", artifactData);
+
         return artifact;
     }
 
     /**
-     * Provides the index data of an artifact with a given text index
+     * Provides the artifactIndex data of an artifact with a given text artifactIndex
      * identifier.
      *
-     * @param artifactId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact artifactIndex identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
@@ -222,7 +267,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         Artifact indexData = null;
 
         try {
-            // Query the Solr index and get results as Artifact
+            // Query the Solr artifactIndex and get results as Artifact
             final QueryResponse response = solr.query(q);
             final List<Artifact> documents = response.getBeans(Artifact.class);
 
@@ -248,10 +293,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides the index data of an artifact with a given index identifier
+     * Provides the artifactIndex data of an artifact with a given artifactIndex identifier
      * UUID.
      *
-     * @param artifactId An UUID with the artifact index identifier.
+     * @param artifactId An UUID with the artifact artifactIndex identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
@@ -260,9 +305,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Commits to the index an artifact with a given text index identifier.
+     * Commits to the artifactIndex an artifact with a given text artifactIndex identifier.
      *
-     * @param artifactId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact artifactIndex identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
@@ -289,9 +334,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Commits to the index an artifact with a given index identifier UUID.
+     * Commits to the artifactIndex an artifact with a given artifactIndex identifier UUID.
      *
-     * @param artifactId An UUID with the artifact index identifier.
+     * @param artifactId An UUID with the artifact artifactIndex identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
@@ -300,9 +345,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Removes from the index an artifact with a given text index identifier.
+     * Removes from the artifactIndex an artifact with a given text artifactIndex identifier.
      *
-     * @param artifactId A String with the artifact index identifier.
+     * @param artifactId A String with the artifact artifactIndex identifier.
      * @throws IOException
      */
     @Override
@@ -316,10 +361,10 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Removes from the index an artifact with a given index identifier UUID.
+     * Removes from the artifactIndex an artifact with a given artifactIndex identifier UUID.
      *
-     * @param artifactId A String with the artifact index identifier.
-     * @return <code>true</code> if the artifact was removed from in the index,
+     * @param artifactId A String with the artifact artifactIndex identifier.
+     * @return <code>true</code> if the artifact was removed from in the artifactIndex,
      * <code>false</code> otherwise.
      */
     @Override
@@ -328,11 +373,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
-     * Provides an indication of whether an artifact with a given text index
-     * identifier exists in the index.
+     * Provides an indication of whether an artifact with a given text artifactIndex
+     * identifier exists in the artifactIndex.
      *
      * @param artifactId A String with the artifact identifier.
-     * @return <code>true</code> if the artifact exists in the index,
+     * @return <code>true</code> if the artifact exists in the artifactIndex,
      * <code>false</code> otherwise.
      */
     @Override
@@ -340,30 +385,83 @@ public class SolrArtifactIndex implements ArtifactIndex {
         return getArtifact(artifactId) != null;
     }
 
+    @Override
+    public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
+      // Perform an atomic update
+      SolrInputDocument document = new SolrInputDocument();
+      document.addField("id", artifactId);
+
+      // Setup type of field modification, and replacement value
+      Map<String, Object> fieldModifier = new HashMap<>();
+      fieldModifier.put("set", storageUrl);
+      document.addField("storageUrl", fieldModifier);
+
+      try {
+          // Update the field
+          this.solr.add(document);
+          this.solr.commit();
+      } catch (SolrServerException e) {
+          throw new IOException(e);
+      }
+
+      // Return updated Artifact
+      return getArtifact(artifactId);
+    }
+
+  /**
+   * Returns a boolean indicating whether the Solr index is empty.
+   *
+   * @return A boolean indicating whether the Solr index is empty.
+   * @throws IOException
+   * @throws SolrServerException
+   */
+    private boolean isEmptySolrIndex() throws IOException, SolrServerException {
+      // Match all documents but set the number of documents to be returned to zero
+      SolrQuery q = new SolrQuery();
+      q.setQuery("*:*");
+      q.setRows(0);
+
+      // Return the number of documents our query matched
+      QueryResponse result = solr.query(q);
+      return result.getResults().getNumFound() == 0;
+    }
+
     /**
-     * Provides the collection identifiers of the committed artifacts in the index.
+     * Provides the collection identifiers of the committed artifacts in the artifactIndex.
      *
-     * @return An {@code Iterator<String>} with the index committed artifacts
+     * @return An {@code Iterator<String>} with the artifactIndex committed artifacts
      * collection identifiers.
      */
     @Override
     public Iterable<String> getCollectionIds() throws IOException {
-        SolrQuery q = new SolrQuery();
-        q.addFacetQuery("committed:true");
-        q.addFacetField("collection");
-        q.setRows(0); // Do not return matched documents
-
         try {
+            // Cannot perform facet field query on an empty Solr index; one or more artifacts must exist for a
+            // collection to exist
+            if (isEmptySolrIndex()) {
+              return IterableUtils.emptyIterable();
+            }
+
+            // Perform a Solr facet query on the collection ID field
+            SolrQuery q = new SolrQuery();
+            q.setQuery("*:*");
+            q.setRows(0);
+            q.addFacetQuery("committed:true");
+            q.addFacetField("collection");
+
+            // Get the facet field from the result
             QueryResponse result = solr.query(q);
             FacetField ff = result.getFacetField("collection");
 
-            log.info(String.format(
-                    "FacetField: [getName: %s, getValues: %s, getValuesCount: %s]",
-                    ff.getName(),
-                    ff.getValues(),
-                    ff.getValueCount()
-            ));
+            if (log.isDebug2Enabled()) {
+              log.debug2(
+                  "FacetField: [getName: {}, getValues: {}, getValuesCount: {}]",
+                  ff.getName(),
+                  ff.getValues(),
+                  ff.getValueCount()
+              );
+            }
 
+            // Transform facet field value names into iterable
             return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).sorted().iterator());
 
         } catch (SolrServerException e) {
@@ -409,34 +507,59 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
+
+
     @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.addFilterQuery(String.format("committed:%s", true));
+
+        // Filter by committed status equal to true?
+        if (!includeUncommitted)
+            q.addFilterQuery(String.format("committed:%s", true));
+
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
-        q.addFilterQuery("{!collapse field=uri max=version}");
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
 
+        // Ensure the result is not empty for the collapse filter query
+        if (isEmptyResult(q)) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
+                    collection,
+                    auid
+            ));
+
+            return IteratorUtils.asIterable(IteratorUtils.emptyIterator());
+        }
+
+        // Perform collapse filter query and return result
+        q.addFilterQuery("{!collapse field=uri max=version}");
         return IteratorUtils.asIterable(query(q));
     }
 
     /**
-     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
      * @param auid
      *          A String with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
+     *          artifacts.
+     * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.addFilterQuery(String.format("committed:%s", true));
+
+        if (!includeUncommitted) {
+            q.addFilterQuery(String.format("committed:%s", true));
+        }
+
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addSort(URI_ASC);
@@ -459,17 +582,30 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
-        q.addFilterQuery("{!collapse field=uri max=version}");
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
 
+        // Ensure the result is not empty for the collapse filter query
+        if (isEmptyResult(q)) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s, uri (prefix): %s)",
+                    collection,
+                    auid,
+                    prefix
+            ));
+
+            return IteratorUtils.asIterable(IteratorUtils.emptyIterator());
+        }
+
+        // Perform collapse filter query and return result
+        q.addFilterQuery("{!collapse field=uri max=version}");
         return IteratorUtils.asIterable(query(q));
     }
 
@@ -483,11 +619,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A String with the Archival Unit identifier.
      * @param prefix
      *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -496,6 +632,30 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
+
+        return IteratorUtils.asIterable(query(q));
+    }
+
+    /**
+     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param prefix
+     *          A String with the URL prefix.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+     *         prefix.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
+        q.addSort(AUID_ASC);
 
         return IteratorUtils.asIterable(query(q));
     }
@@ -513,7 +673,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
@@ -527,6 +687,29 @@ public class SolrArtifactIndex implements ArtifactIndex {
     }
 
     /**
+     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     *
+     * @param collection
+     *          A {@code String} with the collection identifier.
+     * @param url
+     *          A {@code String} with the URL to be matched.
+     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+     */
+    @Override
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+        SolrQuery q = new SolrQuery();
+        q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
+        q.addFilterQuery(String.format("{!term f=uri}%s", url));
+        q.addSort(URI_ASC);
+        q.addSort(VERSION_DESC);
+        q.addSort(AUID_ASC);
+
+        return IteratorUtils.asIterable(query(q));
+    }
+
+    /**
      * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
      *
      * @param collection
@@ -535,20 +718,43 @@ public class SolrArtifactIndex implements ArtifactIndex {
      *          A {@code String} containing the Archival Unit ID.
      * @param url
      *          A {@code String} containing a URL.
+     * @param includeUncommitted
+     *          A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
+     *          artifacts of a URL.
      * @return An {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
     @Override
-    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+    public Artifact getArtifact(String collection, String auid, String url, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
-        q.addFilterQuery(String.format("committed:%s", true));
+
+        if (!includeUncommitted) {
+            // Restrict to only committed artifacts
+            q.addFilterQuery(String.format("committed:%s", true));
+        }
+
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
-        q.addFilterQuery("{!collapse field=uri max=version}");
 
+        // Ensure the result is not empty for the collapse filter query
+        if (isEmptyResult(q)) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (collection: %s, auid: %s, uri: %s)",
+                    collection,
+                    auid,
+                    url
+            ));
+
+            return null;
+        }
+
+        // Perform a collapse filter query (must have documents in result set to operate on)
+        q.addFilterQuery("{!collapse field=uri max=version}");
         Iterator<Artifact> result = query(q);
+
+        // Return the latest artifact
         if (result.hasNext()) {
             Artifact artifact = result.next();
 
@@ -615,6 +821,19 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
+
+        // Ensure the result is not empty for the collapse filter query
+        if (isEmptyResult(q)) {
+            log.debug(String.format(
+                    "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
+                    collection,
+                    auid
+            ));
+
+            return null;
+        }
+
+        q.addFilterQuery("{!collapse field=uri max=version}");
         q.setGetFieldStatistics(true);
         q.setGetFieldStatistics("contentLength");
         q.setRows(0);
@@ -624,7 +843,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             QueryResponse response = solr.query(q);
             FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
 
-            return (Long)contentLengthStats.getSum();
+            return ((Double)contentLengthStats.getSum()).longValue();
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
@@ -640,12 +859,48 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     private Iterator<Artifact> query(SolrQuery q) throws IOException {
         try {
+          // Set paging parameters
+          q.setRows(10);
+          q.addSort(SolrQuery.SortClause.asc("id"));
+
+          String cursorMark = CursorMarkParams.CURSOR_MARK_START;
+          List<Artifact> artifacts = new ArrayList<>();
+
+          while (true) {
+            // Set the query's cursor mark and perform the query
+            q.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
             QueryResponse response = solr.query(q);
+            String nextCursorMark = response.getNextCursorMark();
+
             // TODO: Potential to exhaust memory for large enough query results; find a better way to do this
-            List<Artifact> documents = response.getBeans(Artifact.class);
-            return documents.iterator();
+            artifacts.addAll(response.getBeans(Artifact.class));
+
+            // Determine whether there are more pages to retrieve from Solr
+            if (!cursorMark.equals(nextCursorMark)) {
+              // Update the cursor mark for the next page
+              cursorMark = nextCursorMark;
+            } else {
+              // We have reached the end - break out of the while loop
+              break;
+            }
+          }
+
+          return artifacts.iterator();
         } catch (SolrServerException e) {
-            throw new IOException(e);
+          throw new IOException(e);
         }
+    }
+
+    private boolean isEmptyResult(SolrQuery q) throws IOException {
+      // Override number of rows to return
+      q.setRows(0);
+
+      // Perform query and find the number of documents
+      try {
+        QueryResponse response = solr.query(q);
+        return response.getResults().getNumFound() == 0;
+      } catch (SolrServerException e) {
+        throw new IOException(String.format("Caught SolrServerException attempting to execute Solr query: %s", q));
+      }
     }
 }

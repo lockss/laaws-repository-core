@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,26 +30,59 @@
 
 package org.lockss.laaws.rs.model;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
+import org.lockss.log.L4JLogger;
+import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.*;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Objects;
 
 /**
- * An {@code ArtifactData} serves as an atomic unit of data archived in the LOCKSS Repository.
+ * An {@code ArtifactData} serves as an atomic unit of data archived in the
+ * LOCKSS Repository.
+ * <br>
+ * Reusability and release:<ul>
+ * <li>{@link #getInputStream()} may be called only once.</li>
+ * <li>Once an ArtifactData is obtained, it <b>must</b> be released (by
+ * calling {@link #release()}, whether or not {@link #getInputStream()} has
+ * been called.
+ * </ul>
  */
 public class ArtifactData implements Comparable<ArtifactData> {
+    private final static L4JLogger log = L4JLogger.getLogger();
+    public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
+
     // Core artifact attributes
     private ArtifactIdentifier identifier;
-    private InputStream artifactStream;
 
-    // Metadata
+    // Artifact data stream
+    private InputStream artifactStream;
+    private final CountingInputStream cis;
+    private final DigestInputStream dis;
+
+    // The byte stream of this artifact before it is wrapped in the WARC
+    // processing code that does not honor close().
+    private InputStream closableInputStream;
+
+    // Artifact data properties
     private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
     private StatusLine httpStatus;
+    private long contentLength;
+    private String contentDigest;
+
+    // Internal repository metadata
     private RepositoryArtifactMetadata repositoryMetadata;
     private String storageUrl;
-    private String contentDigest;
-    private long contentLength;
+
+    // The collection date.
+    private long collectionDate = TimeBase.nowMs();
 
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
@@ -78,7 +111,10 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * @param httpStatus
      *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
      */
-    public ArtifactData(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus) {
+    public ArtifactData(ArtifactIdentifier identifier,
+                        HttpHeaders artifactMetadata,
+                        InputStream inputStream,
+                        StatusLine httpStatus) {
         this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
     }
 
@@ -98,13 +134,46 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * @param repoMetadata
      *          A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
      */
-    public ArtifactData(ArtifactIdentifier identifier, HttpHeaders artifactMetadata, InputStream inputStream, StatusLine httpStatus, String storageUrl, RepositoryArtifactMetadata repoMetadata) {
+    public ArtifactData(ArtifactIdentifier identifier,
+                        HttpHeaders artifactMetadata,
+                        InputStream inputStream,
+                        StatusLine httpStatus,
+                        String storageUrl,
+                        RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
-        this.artifactMetadata = artifactMetadata;
-        this.artifactStream = inputStream;
         this.httpStatus = httpStatus;
         this.storageUrl = storageUrl;
         this.repositoryMetadata = repoMetadata;
+
+        this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+        setCollectionDate(this.artifactMetadata.getDate());
+
+        try {
+            // Wrap the stream in a DigestInputStream
+            cis = new CountingInputStream(inputStream);
+            dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
+
+            // Wrap the WARC-aware byte stream of this artifact so that the
+            // underlying stream can be closed.
+            artifactStream = new CloseCallbackInputStream(
+                dis,
+                new CloseCallbackInputStream.Callback() {
+                    // Called when the close() method of the stream is closed.
+              	@Override
+              	public void streamClosed(Object o) {
+              	    // Release any resources bound to this object.
+              	    ((ArtifactData)o).release();
+              	}
+                },
+                this);
+        } catch (NoSuchAlgorithmException e) {
+            String errMsg = String.format(
+                    "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
+            );
+
+            log.error(errMsg);
+            throw new RuntimeException(errMsg);
+        }
     }
 
     /**
@@ -122,7 +191,12 @@ public class ArtifactData implements Comparable<ArtifactData> {
      * @return An {@code InputStream} containing this artifact's byte stream.
      */
     public InputStream getInputStream() {
-        return artifactStream;
+	if (artifactStream == null) {
+	  throw new IllegalStateException("Can't call getInputStream() more than once");
+	}
+        InputStream res = artifactStream;
+        artifactStream = null;
+        return res;
     }
 
     /**
@@ -222,5 +296,76 @@ public class ArtifactData implements Comparable<ArtifactData> {
 
     public void setContentLength(long contentLength) {
         this.contentLength = contentLength;
+    }
+
+    /**
+     * Provides the artifact collection date.
+     * 
+     * @return a long with the artifact collection date in milliseconds since
+     *         the epoch.
+     */
+    public long getCollectionDate() {
+      return collectionDate;
+    }
+
+    /**
+     * Saves the artifact collection date.
+     * 
+     * @param collectionDate
+     *          A long with the artifact collection date in milliseconds since
+     *          the epoch.
+     */
+    public void setCollectionDate(long collectionDate) {
+      if (collectionDate >= 0) {
+	this.collectionDate = collectionDate;
+      }
+    }
+
+    /**
+     * Returns a closable version of this artifact's byte stream.
+     *
+     * @return an {@code InputStream} with the underlying, closable, byte
+     *         stream.
+     */
+    public InputStream getClosableInputStream() {
+      return closableInputStream;
+    }
+
+    /**
+     * Sets the closable version of this artifact's byte stream.
+     * 
+     * @param closableInputStream
+     *          A {@code InputStream} containing the underlying, closable, byte
+     *          stream.
+     */
+    public void setClosableInputStream(InputStream closableInputStream) {
+      this.closableInputStream = closableInputStream;
+    }
+
+    /**
+     * Releases resources used.
+     */
+    public void release() {
+      IOUtils.closeQuietly(closableInputStream);
+      artifactStream = null;
+      closableInputStream = null;
+    }
+
+    @Override
+    public String toString() {
+        return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
+            + artifactMetadata + ", httpStatus=" + httpStatus
+            + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
+            + storageUrl + ", contentDigest=" + getContentDigest()
+            + ", contentLength=" + getContentLength() + ", collectionDate="
+            + getCollectionDate() + "]";
+    }
+
+    public long getBytesRead() {
+        return cis.getByteCount();
+    }
+
+    public MessageDigest getMessageDigest() {
+        return dis.getMessageDigest();
     }
 }

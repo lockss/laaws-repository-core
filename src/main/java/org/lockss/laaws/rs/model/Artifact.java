@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,18 +30,21 @@
 
 package org.lockss.laaws.rs.model;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
+import org.lockss.log.L4JLogger;
 
 /**
  * LOCKSS repository Artifact
  *
  * Represents an atomic unit of data in a LOCKSS repository.
  */
-public class Artifact {
-    private static final Log log = LogFactory.getLog(Artifact.class);
+public class Artifact implements Serializable {
+    private static final long serialVersionUID = 1961138745993115018L;
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     @Field("id")
     private String id;
@@ -69,6 +72,9 @@ public class Artifact {
 
     @Field("contentDigest")
     private String contentDigest;
+
+    @Field("collectionDate")
+    private long collectionDate;
 
     /**
      * Constructor. Needed by SolrJ for getBeans() support. *
@@ -234,6 +240,32 @@ public class Artifact {
         this.contentDigest = contentDigest;
     }
 
+  /**
+   * Provides the artifact collection date.
+   * 
+   * @return a long with the artifact collection date in milliseconds since the
+   *         epoch.
+   */
+  public long getCollectionDate() {
+    return collectionDate;
+  }
+
+  /**
+   * Saves the artifact collection date.
+   * 
+   * @param collectionDate
+   *          A long with the artifact collection date in milliseconds since the
+   *          epoch.
+   */
+  public void setCollectionDate(long collectionDate) {
+    this.collectionDate = collectionDate;
+  }
+
+    public static String getPathFromStorageUrl(String storageUrl)
+	throws URISyntaxException {
+      return new URI(storageUrl).getPath();
+    }
+
     @Override
     public String toString() {
         return "Artifact{" +
@@ -246,6 +278,25 @@ public class Artifact {
                 ", storageUrl='" + storageUrl + '\'' +
                 ", contentLength='" + contentLength + '\'' +
                 ", contentDigest='" + contentDigest + '\'' +
+                ", collectionDate='" + collectionDate + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        Artifact other = (Artifact)o;
+
+        if (this.getIdentifier().equals(other.getIdentifier())
+                && storageUrl.equalsIgnoreCase(other.getStorageUrl())
+                && committed.equals(other.getCommitted())
+                && getContentLength() == other.getContentLength()
+                && ((contentDigest == null && other.getContentDigest() == null)
+                    || contentDigest.equals(other.getContentDigest()))
+                && getCollectionDate() == other.getCollectionDate()
+        ) {
+            return true;
+        }
+
+       return false;
     }
 }

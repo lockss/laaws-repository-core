@@ -30,19 +30,16 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
+import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.log.L4JLogger;
 
-import static org.junit.Assert.*;
-
-public class TestSolrArtifactIndex {
-    private static final Log log = LogFactory.getLog(TestSolrArtifactIndex.class);
+public class TestSolrArtifactIndex extends AbstractArtifactIndexTest {
+    private final static L4JLogger log = L4JLogger.getLogger();
     private ArtifactIndex index;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
 //        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
     }

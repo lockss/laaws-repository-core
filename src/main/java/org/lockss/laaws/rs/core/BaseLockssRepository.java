@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,338 +30,468 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.*;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * Base implementation of the LOCKSS Repository service.
  */
 public class BaseLockssRepository implements LockssRepository {
-    private final static Log log = LogFactory.getLog(BaseLockssRepository.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
-    protected ArtifactDataStore store = null;
-    protected ArtifactIndex index = null;
+  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
+  protected ArtifactIndex index;
 
-    /**
-     * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
-     */
-    public BaseLockssRepository() {
-        this(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+  /**
+   * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
+   */
+  public BaseLockssRepository() throws IOException {
+    index = new VolatileArtifactIndex();
+    store = new VolatileWarcArtifactDataStore(index);
+  }
+
+  /**
+   * Configures this LOCKSS repository with the provided artifact index and storage layers.
+   *
+   * @param index An instance of {@code ArtifactIndex}.
+   * @param store An instance of {@code ArtifactDataStore}.
+   */
+  public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) throws IOException {
+    if (index == null || store == null) {
+      throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
     }
 
-    /**
-     * Configures this LOCKSS repository with the provided artifact index and storage layers.
-     *
-     * @param index
-     *          An instance of {@code ArtifactIndex}.
-     * @param store
-     *          An instance of {@code ArtifactDataStore}.
-     */
-    public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) {
-        this.index = index;
-        this.store = store;
+    this.index = index;
+    this.store = store;
+  }
+
+  @Override
+  public void initRepository() throws IOException {
+    log.info("Initializing repository");
+    index.initIndex();
+    store.initDataStore();
+  }
+
+  @Override
+  public void shutdownRepository() throws InterruptedException {
+    log.info("Shutting down repository");
+    index.shutdownIndex();
+    store.shutdownDataStore();
+  }
+
+  /**
+   * Adds an artifact to this LOCKSS repository.
+   *
+   * @param artifactData {@code ArtifactData} instance to add to this LOCKSS repository.
+   * @return The artifact ID of the newly added artifact.
+   * @throws IOException
+   */
+  @Override
+  public Artifact addArtifact(ArtifactData artifactData) throws IOException {
+    if (artifactData == null) {
+      throw new IllegalArgumentException("Null ArtifactData");
     }
 
-    /**
-     * Adds an artifact to this LOCKSS repository.
-     *
-     * @param artifactData
-     *          {@code ArtifactData} instance to add to this LOCKSS repository.
-     * @return The artifact ID of the newly added artifact.
-     * @throws IOException
-     */
-    @Override
-    public Artifact addArtifact(ArtifactData artifactData) throws IOException {
-        if (artifactData == null)
-            throw new IllegalArgumentException("ArtifactData is null");
+    ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-        ArtifactIdentifier artifactId = artifactData.getIdentifier();
+    //// Determine the next artifact version
+    synchronized (index) {
+      // Retrieve latest version in this URL lineage
+      Artifact latestVersion = index.getArtifact(
+          artifactId.getCollection(),
+          artifactId.getAuid(),
+          artifactId.getUri(),
+          true
+      );
 
-        //// Determine the next artifact version
+      // Create a new artifact identifier for this artifact
+      ArtifactIdentifier newId = new ArtifactIdentifier(
+          // Assign a new artifact ID
+          UUID.randomUUID().toString(), // FIXME: Namespace collision unlikely but possible
+          artifactId.getCollection(),
+          artifactId.getAuid(),
+          artifactId.getUri(),
+          // Set the next version
+          (latestVersion == null) ? 1 : latestVersion.getVersion() + 1
+      );
 
-        // Retrieve latest version in this URL lineage
-        Artifact latestVersion = index.getArtifact(
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri()
-        );
+      // Set the new artifact identifier
+      artifactData.setIdentifier(newId);
 
-        // Create a new artifact identifier for this
-        ArtifactIdentifier newId = new ArtifactIdentifier(
-                // Assign a new artifact ID
-                UUID.randomUUID().toString(),
-                artifactId.getCollection(),
-                artifactId.getAuid(),
-                artifactId.getUri(),
-                // Set the next version
-                (latestVersion == null) ? 1 : latestVersion.getVersion() + 1
-        );
+      // Add the artifact the data store and index
+      Artifact artifact = store.addArtifactData(artifactData);
 
-        artifactData.setIdentifier(newId);
+      return artifact;
+    }
+  }
 
-        //// Add the ArtifactData to the repository
-        Artifact storedArtifact = store.addArtifactData(artifactData);
-        Artifact artifact = index.indexArtifact(artifactData);
+  /**
+   * Retrieves an artifact from this LOCKSS repository.
+   *
+   * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+   * @return The {@code ArtifactData} referenced by this artifact ID.
+   * @throws IOException
+   */
+  @Override
+  public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
+    if ((collection == null) || (artifactId == null))
+      throw new IllegalArgumentException("Null collection id or artifact id");
 
-        return artifact;
+    // Return null if artifact doesn't exist
+    if (!artifactExists(collection, artifactId)) {
+      return null;
     }
 
-    /**
-     * Retrieves an artifact from this LOCKSS repository.
-     *
-     * @param artifactId
-     *          A {@code String} with the artifact ID of the artifact to retrieve from this repository.
-     * @return The {@code ArtifactData} referenced by this artifact ID.
-     * @throws IOException
-     */
-    @Override
-    public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-            Artifact artifact = index.getArtifact(artifactId);
-            if (artifact == null)
-                return null;
+    return store.getArtifactData(index.getArtifact(artifactId));
+  }
 
-            return store.getArtifactData(index.getArtifact(artifactId));
+  /**
+   * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
+   *
+   * @param collection A {code String} containing the collection ID containing the artifact to commit.
+   * @param artifactId A {@code String} with the artifact ID of the artifact to commit to the repository.
+   * @return An {@code Artifact} containing the updated artifact state information.
+   * @throws IOException
+   */
+  @Override
+  public Artifact commitArtifact(String collection, String artifactId) throws IOException {
+    if ((collection == null) || (artifactId == null)) {
+      throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    /**
-     * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
-     *
-     * @param collection
-     *          A {code String} containing the collection ID containing the artifact to commit.
-     * @param artifactId
-     *          A {@code String} with the artifact ID of the artifact to commit to the repository.
-     * @return An {@code Artifact} containing the updated artifact state information.
-     * @throws IOException
-     */
-    @Override
-    public Artifact commitArtifact(String collection, String artifactId) throws IOException {
-        if ((collection == null) || (artifactId == null))
-            throw new IllegalArgumentException("Null collection or artifactId");
+    synchronized (index) {
+      // Get artifact as it is currently
+      Artifact artifact = index.getArtifact(artifactId);
 
-        // Get artifact as it is currently
-        Artifact artifact = index.getArtifact(artifactId);
-        ArtifactData artifactData = null;
+      if (artifact == null) {
+        log.warn("Artifact not found in index");
+        return null;
+      }
 
-        // Record the changed status in store
-        store.updateArtifactMetadata(artifact.getIdentifier(), new RepositoryArtifactMetadata(
-                artifact.getIdentifier(),
-                true,
-                false
-        ));
+      if (!artifact.getCommitted()) {
+        // Commit artifact in data store and index
+        Future<Artifact> future = store.commitArtifactData(artifact);
+        index.commitArtifact(artifactId);
 
-        // Update the commit status in index and return the updated artifact
-        return index.commitArtifact(artifactId);
-    }
+        if (future != null) {
+          try {
+            Artifact committedArtifact = future.get();
+            index.updateStorageUrl(artifact.getId(), committedArtifact.getStorageUrl());
+            return committedArtifact;
+          } catch (InterruptedException e) {
+            log.error(
+                "Move of artifact [artifactId: {}] to permanent storage was interrupted: {}",
+                artifactId,
+                e
+            );
 
-    /**
-     * Permanently removes an artifact from this LOCKSS repository.
-     *
-     * @param artifactId
-     *          A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
-     * @throws IOException
-     */
-    @Override
-    public void deleteArtifact(String collection, String artifactId) throws IOException {
-        if ((collection == null) || (artifactId == null))
-            throw new IllegalArgumentException("Null collection ID or artifact ID");
-
-        try {
-            store.deleteArtifactData(index.getArtifact(artifactId));
-            index.deleteArtifact(artifactId);
-        } catch (URISyntaxException e) {
+            // TODO: Requeue?
             throw new IOException(e);
+          } catch (ExecutionException e) {
+            log.error(
+                "Caught ExecutionException while moving artifact [artifactId: {}] to permanent storage",
+                artifactId,
+                e
+            );
+
+            // TODO: Need to discuss what to do here - for now wrap and throw
+            throw new IOException(e);
+          }
         }
+      }
+
+      // TODO: An Artifact could be marked as committed but have no pending move to permanent storage queued
+      return artifact;
+    }
+  }
+
+  /**
+   * Permanently removes an artifact from this LOCKSS repository.
+   *
+   * @param artifactId A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
+   * @throws IOException
+   */
+  @Override
+  public void deleteArtifact(String collection, String artifactId) throws IOException {
+    if (collection == null || artifactId == null) {
+      throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    /**
-     * Checks whether an artifact exists in this LOCKSS repository.
-     *
-     * @param artifactId
-     *          A {@code String} containing the artifact ID to check.
-     * @return A boolean indicating whether an artifact exists in this repository.
-     */
-    @Override
-    public boolean artifactExists(String artifactId) throws IOException {
-        return index.artifactExists(artifactId);
+    synchronized (index) {
+      Artifact artifact = index.getArtifact(artifactId);
+
+      if (artifact == null) {
+        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+      }
+
+      // Remove from index and data store
+      index.deleteArtifact(artifactId);
+      store.deleteArtifactData(artifact);
+    }
+  }
+
+  /**
+   * Checks whether an artifact exists in this LOCKSS repository.
+   *
+   * @param artifactId A {@code String} containing the artifact ID to check.
+   * @return A boolean indicating whether an artifact exists in this repository.
+   */
+  @Override
+  public Boolean artifactExists(String collectionId, String artifactId) throws IOException {
+    if (collectionId == null || artifactId == null) {
+      throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    /**
-     * Checks whether an artifact is committed to this LOCKSS repository.
-     *
-     * @param artifactId
-     *          A {@code String} containing the artifact ID to check.
-     * @return A boolean indicating whether the artifact is committed.
-     */
-    @Override
-    public boolean isArtifactCommitted(String artifactId) throws IOException {
-        Artifact artifact = index.getArtifact(artifactId);
-        return artifact.getCommitted();
+    synchronized (index) {
+      return index.artifactExists(artifactId);
+    }
+  }
+
+  /**
+   * Checks whether an artifact is committed to this LOCKSS repository.
+   *
+   * @param artifactId A {@code String} containing the artifact ID to check.
+   * @return A boolean indicating whether the artifact is committed.
+   */
+  @Override
+  public Boolean isArtifactCommitted(String collectionId, String artifactId) throws IOException {
+    if (collectionId == null || artifactId == null) {
+      throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    /**
-     * Provides the collection identifiers of the committed artifacts in the index.
-     *
-     * @return An {@code Iterator<String>} with the index committed artifacts
-     * collection identifiers.
-     */
-    @Override
-    public Iterable<String> getCollectionIds() throws IOException {
-        return index.getCollectionIds();
+    synchronized (index) {
+      Artifact artifact = index.getArtifact(artifactId);
+
+      if (artifact == null) {
+        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+      }
+
+      return artifact.getCommitted();
+    }
+  }
+
+  /**
+   * Provides the collection identifiers of the committed artifacts in the index.
+   *
+   * @return An {@code Iterator<String>} with the index committed artifacts
+   * collection identifiers.
+   */
+  @Override
+  public Iterable<String> getCollectionIds() throws IOException {
+    return index.getCollectionIds();
+  }
+
+  /**
+   * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+   *
+   * @param collection A {@code String} containing the LOCKSS repository collection ID.
+   * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+   * @throws IOException
+   */
+  @Override
+  public Iterable<String> getAuIds(String collection) throws IOException {
+    if (collection == null) {
+      throw new IllegalArgumentException("Null collection");
     }
 
-    /**
-     * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
-     *
-     * @param collection
-     *          A {@code String} containing the LOCKSS repository collection ID.
-     * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
-     * @throws IOException
-     */
-    @Override
-    public Iterable<String> getAuIds(String collection) throws IOException {
-        return index.getAuIds(collection);
+    return index.getAuIds(collection);
+  }
+
+  /**
+   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+   *
+   * @param collection A {@code String} containing the collection ID.
+   * @param auid       A {@code String} containing the Archival Unit ID.
+   * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
+   * @throws IOException
+   */
+  @Override
+  public Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
+    if (collection == null || auid == null) {
+      throw new IllegalArgumentException("Null collection id or au id");
     }
 
-    /**
-     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
-     *
-     * @param collection
-     *          A {@code String} containing the collection ID.
-     * @param auid
-     *          A {@code String} containing the Archival Unit ID.
-     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
-     * @throws IOException
-     */
-    @Override
-    public Iterable<Artifact> getAllArtifacts(String collection, String auid) throws IOException {
-        return index.getAllArtifacts(collection, auid);
+    return index.getArtifacts(collection, auid);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+   *
+   * @param collection A String with the collection identifier.
+   * @param auid       A String with the Archival Unit identifier.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) throws IOException {
+    if (collection == null || auid == null) {
+      throw new IllegalArgumentException("Null collection id or au id");
     }
 
-    /**
-     * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
-     *
-     * @param collection
-     *          A String with the collection identifier.
-     * @param auid
-     *          A String with the Archival Unit identifier.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
-     */
-    @Override
-    public Iterable<Artifact> getAllArtifactsAllVersions(String collection, String auid) throws IOException {
-        return index.getAllArtifactsAllVersions(collection, auid);
+    return index.getArtifactsAllVersions(collection, auid);
+  }
+
+  /**
+   * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
+   * Unit and collection.
+   *
+   * @param collection A {@code String} containing the collection ID.
+   * @param auid       A {@code String} containing the Archival Unit ID.
+   * @param prefix     A {@code String} containing a URL prefix.
+   * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
+   * @throws IOException
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    if (collection == null || auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null collection id, au id or prefix");
     }
 
-    /**
-     * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
-     * Unit and collection.
-     *
-     * @param collection
-     *          A {@code String} containing the collection ID.
-     * @param auid
-     *          A {@code String} containing the Archival Unit ID.
-     * @param prefix
-     *          A {@code String} containing a URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
-     * @throws IOException
-     */
-    @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
-        return index.getAllArtifactsWithPrefix(collection, auid, prefix);
+    return index.getArtifactsWithPrefix(collection, auid, prefix);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
+   * collection.
+   *
+   * @param collection A String with the collection identifier.
+   * @param auid       A String with the Archival Unit identifier.
+   * @param prefix     A String with the URL prefix.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+   * prefix from an AU.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
+    if (collection == null || auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null collection id, au id or prefix");
     }
 
-    /**
-     * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
-     * collection.
-     *
-     * @param collection
-     *          A String with the collection identifier.
-     * @param auid
-     *          A String with the Archival Unit identifier.
-     * @param prefix
-     *          A String with the URL prefix.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matchign a
-     *         prefix from an AU.
-     */
-    @Override
-    public Iterable<Artifact> getAllArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
-        return index.getAllArtifactsWithPrefixAllVersions(collection, auid, prefix);
+    return index.getArtifactsWithPrefixAllVersions(collection, auid, prefix);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a collection.
+   *
+   * @param collection A String with the collection identifier.
+   * @param prefix     A String with the URL prefix.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
+   * prefix.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+    if (collection == null || prefix == null) {
+      throw new IllegalArgumentException("Null collection id or prefix");
     }
 
-    /**
-     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
-     *
-     * @param collection
-     *          A {@code String} with the collection identifier.
-     * @param auid
-     *          A {@code String} with the Archival Unit identifier.
-     * @param url
-     *          A {@code String} with the URL to be matched.
-     * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
-     *         Archival Unit.
-     */
-    @Override
-    public Iterable<Artifact> getArtifactAllVersions(String collection, String auid, String url) throws IOException {
-        return index.getArtifactAllVersions(collection, auid, url);
+    return index.getArtifactsWithPrefixAllVersionsAllAus(collection, prefix);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+   *
+   * @param collection A {@code String} with the collection identifier.
+   * @param auid       A {@code String} with the Archival Unit identifier.
+   * @param url        A {@code String} with the URL to be matched.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
+   * Archival Unit.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
+    if (collection == null || auid == null || url == null) {
+      throw new IllegalArgumentException("Null collection id, au id or url");
     }
 
-    /**
-     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
-     *
-     * @param collection
-     *          A {@code String} containing the collection ID.
-     * @param auid
-     *          A {@code String} containing the Archival Unit ID.
-     * @param url
-     *          A {@code String} containing a URL.
-     * @return The {@code Artifact} representing the latest version of the URL in the AU.
-     * @throws IOException
-     */
-    @Override
-    public Artifact getArtifact(String collection, String auid, String url) throws IOException {
-        return index.getArtifact(collection, auid, url);
+    return index.getArtifactsAllVersions(collection, auid, url);
+  }
+
+  /**
+   * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+   *
+   * @param collection A {@code String} with the collection identifier.
+   * @param url        A {@code String} with the URL to be matched.
+   * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
+   */
+  @Override
+  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+    if (collection == null || url == null) {
+      throw new IllegalArgumentException("Null collection id or url");
     }
 
-    /**
-     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
-     *
-     * @param collection
-     *          A String with the collection identifier.
-     * @param auid
-     *          A String with the Archival Unit identifier.
-     * @param url
-     *          A String with the URL to be matched.
-     * @param version
-     *          A String with the version.
-     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
-     */
-    @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
-        return index.getArtifactVersion(collection, auid, url, version);
+    return index.getArtifactsAllVersionsAllAus(collection, url);
+  }
+
+  /**
+   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+   *
+   * @param collection A {@code String} containing the collection ID.
+   * @param auid       A {@code String} containing the Archival Unit ID.
+   * @param url        A {@code String} containing a URL.
+   * @return The {@code Artifact} representing the latest version of the URL in the AU.
+   * @throws IOException
+   */
+  @Override
+  public Artifact getArtifact(String collection, String auid, String url) throws IOException {
+    if (collection == null || auid == null || url == null) {
+      throw new IllegalArgumentException("Null collection id, au id or url");
     }
 
-    /**
-     * Returns the size, in bytes, of AU in a collection.
-     *
-     * @param collection
-     *          A {@code String} containing the collection ID.
-     * @param auid
-     *          A {@code String} containing the Archival Unit ID.
-     * @return A {@code Long} with the total size of the specified AU in bytes.
-     */
-    @Override
-    public Long auSize(String collection, String auid) throws IOException {
-        return index.auSize(collection, auid);
+    return index.getArtifact(collection, auid, url);
+  }
+
+  /**
+   * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+   *
+   * @param collection A String with the collection identifier.
+   * @param auid       A String with the Archival Unit identifier.
+   * @param url        A String with the URL to be matched.
+   * @param version    A String with the version.
+   * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+   */
+  @Override
+  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
+    if (collection == null || auid == null || url == null || version == null) {
+      throw new IllegalArgumentException("Null collection id, au id, url or version");
     }
+
+    return index.getArtifactVersion(collection, auid, url, version);
+  }
+
+  /**
+   * Returns the size, in bytes, of AU in a collection.
+   *
+   * @param collection A {@code String} containing the collection ID.
+   * @param auid       A {@code String} containing the Archival Unit ID.
+   * @return A {@code Long} with the total size of the specified AU in bytes.
+   */
+  @Override
+  public Long auSize(String collection, String auid) throws IOException {
+    if (collection == null || auid == null) {
+      throw new IllegalArgumentException("Null collection id or au id");
+    }
+
+    return index.auSize(collection, auid);
+  }
+
+  /**
+   * Returns a boolean indicating whether this repository is ready.
+   * <p>
+   * Delegates to readiness of internal artifact index and data store components.
+   *
+   * @return
+   */
+  @Override
+  public boolean isReady() {
+    return store.isReady() && index.isReady();
+  }
 }

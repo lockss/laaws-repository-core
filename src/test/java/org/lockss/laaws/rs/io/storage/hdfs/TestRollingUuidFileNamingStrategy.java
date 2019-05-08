@@ -31,8 +31,9 @@
 package org.lockss.laaws.rs.io.storage.hdfs;
 
 import org.apache.hadoop.fs.Path;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.storage.hdfs.RollingUuidFileNamingStrategy;
+import org.lockss.util.test.LockssTestCase5;
 import org.springframework.data.hadoop.store.strategy.naming.FileNamingStrategy;
 import org.springframework.data.hadoop.store.strategy.naming.UuidFileNamingStrategy;
 
@@ -41,7 +42,8 @@ import static org.junit.Assert.*;
 /**
  * Test for RollingUuidFileNamingStrategy
  */
-public class TestRollingUuidFileNamingStrategy {
+@Deprecated
+public class TestRollingUuidFileNamingStrategy extends LockssTestCase5 {
     private FileNamingStrategy namingStrategy = new RollingUuidFileNamingStrategy();
 
     @Test

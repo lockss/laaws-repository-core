@@ -30,24 +30,22 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.ByteArrayInputStream;
 
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.*;
+import org.lockss.util.test.LockssTestCase5;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.util.NamedInputStreamResource}.
  */
-public class TestNamedInputStreamResource {
+public class TestNamedInputStreamResource extends LockssTestCase5 {
     private static final String RESOURCE_BYTES = "foobar";
     private static final String RESOURCE_NAME = "xyzzy";
     private static final String RESOURCE_DESC = "Named InputStream resource [resource loaded through InputStream]";
 
     private NamedInputStreamResource namedResource;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
        namedResource = new NamedInputStreamResource(RESOURCE_NAME, new ByteArrayInputStream(RESOURCE_BYTES.getBytes()));
     }

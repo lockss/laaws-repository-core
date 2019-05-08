@@ -31,9 +31,13 @@
 package org.lockss.laaws.rs.io.storage;
 
 import org.lockss.laaws.rs.model.*;
+import org.lockss.log.L4JLogger;
+import org.lockss.util.lang.Ready;
+import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 
 /**
  * ArtifactData storage interface.
@@ -45,31 +49,61 @@ import java.net.URISyntaxException;
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
-public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> {
-  
+public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
+    /**
+     *
+     * @throws IOException
+     */
+    void initDataStore() throws IOException;
+
+    void shutdownDataStore() throws InterruptedException;
+
+    /**
+     * Initializes a collection storage structure in an artifact data store implementation.
+     *
+     * @param collectionId
+     *          A {@code String} containing the collection ID of the collection to initialize.
+     */
+    void initCollection(String collectionId) throws IOException;
+
+    /**
+     * Initializes an Archival Unit (AU) storage structure in an artifact data store implementation.
+     *
+     * @param collectionId
+     *          A {@code String} containing the collection ID of this AU.
+     * @param auid
+     *          A {@code String} containing the AU ID of the AU to initialize.
+     */
+    void initAu(String collectionId, String auid) throws IOException;
+
     /**
      * Adds an artifact to this artifact store.
+     *
+     * Records an ArtifactData exactly as it has been received but does change its state. In particular, this method
+     * will exhaust the ArtifactData's InputStream, computes the length, digest of its stream, and sets a storage URL.
      *
      * @param artifactData
      *          An {@code ArtifactData} to add to this artifact store.
      * @return Returns the {@code ArtifactData} as it is now recorded in this artifact store.
+     * @throws NullPointerException
+     *          if the given {@link ArtifactData} instance is null
      * @throws IOException
      */
-    Artifact addArtifactData(ArtifactData artifactData) throws IOException;
+    Artifact addArtifactData(AD artifactData) throws IOException;
 
-  /**
-   * Retrieves an artifact from this artifact data store.
-   *
-   * @param artifact
-   *          An {@link Artifact} instance containing a reference to the
-   *          artifact to retrieve from storage.
-   * @return An {@link ArtifactData} instance retrieved from this artifact data
-   *         store.
-   * @throws IOException
-   * @throws IllegalArgumentException
-   *           if the given artifact is null
-   */
-  AD getArtifactData(Artifact artifact) throws IOException;
+    /**
+     * Retrieves an artifact from this artifact data store.
+     *
+     * @param artifact
+     *          An {@link Artifact} instance containing a reference to the
+     *          artifact to retrieve from storage.
+     * @return An {@link ArtifactData} instance retrieved from this artifact data
+     *         store.
+     * @throws IOException
+     * @throws NullPointerException
+     *          if the given {@link Artifact} instance is null
+     */
+    AD getArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Updates an artifact's associated metadata in this artifact store.
@@ -80,6 +114,8 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          An updated {@code ArtifactMetadata} write to this artifact store, for the referenced artifact.
      * @return ArtifactData metadata as it is now recorded in this artifact store.
      * @throws IOException
+     * @throws NullPointerException
+     *          if the given artifact ID or metadata is null
      */
     MD updateArtifactMetadata(ID artifactId, MD metadata) throws IOException;
 
@@ -90,9 +126,10 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          An {@code Artifact} containing a reference to the artifact to update in storage.
      * @return A {@code RepositoryArtifactMetadata} representing the updated state of this artifact's repository metadata.
      * @throws IOException
-     * @throws URISyntaxException
+     * @throws NullPointerException
+     *          if the given {@link Artifact} instance is null
      */
-    MD commitArtifactData(Artifact artifact) throws IOException, URISyntaxException;
+    Future<Artifact> commitArtifactData(Artifact artifact) throws IOException;
 
     /**
      * Permanently removes an artifact from this artifact store.
@@ -101,8 +138,36 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          An {@code Artifact} containing a reference to the artifact to remove from this artifact store.
      * @return A {@code RepositoryArtifactMetadata} with the final state of the removed artifact's repository metadata.
      * @throws IOException
-     * @throws URISyntaxException
+     * @throws NullPointerException
+     *          if the given {@link Artifact} instance is null
      */
-    MD deleteArtifactData(Artifact artifact) throws IOException, URISyntaxException;
+    void deleteArtifactData(Artifact artifact) throws IOException;
+    
+    long DEFAULT_WAITREADY = 5000;
 
+    @Override
+    default void waitReady(Deadline deadline) throws TimeoutException {
+        final L4JLogger log = L4JLogger.getLogger();
+
+        while (!isReady()) {
+            if (deadline.expired()) {
+                throw new TimeoutException("Deadline for artifact data store to become ready expired");
+            }
+
+            long remainingTime = deadline.getRemainingTime();
+            long sleepTime = Math.min(deadline.getSleepTime(), DEFAULT_WAITREADY);
+
+            log.debug(
+                "Waiting for artifact data store to become ready (retrying in {} ms; deadline in {} ms)",
+                sleepTime,
+                remainingTime
+            );
+
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for artifact data store to become ready");
+            }
+        }
+    }
 }

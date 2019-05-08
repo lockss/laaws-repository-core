@@ -30,11 +30,8 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
-import org.apache.http.impl.entity.LaxContentLengthStrategy;
 import org.apache.http.impl.io.*;
 import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
@@ -42,8 +39,12 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,13 +53,14 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
  */
 public class ArtifactDataFactory {
-    private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
+  private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String RESPONSE_TYPE = WARCConstants.WARCRecordType.response.toString();
     private static final String RESOURCE_TYPE = WARCConstants.WARCRecordType.resource.toString();
@@ -132,11 +134,11 @@ public class ArtifactDataFactory {
 
         // Parse the InputStream to a HttpResponse object
         HttpResponse response = (new DefaultHttpResponseParser(buffer)).parse();
-        long len = (new LaxContentLengthStrategy()).determineLength(response);
+//        long len = (new LaxContentLengthStrategy()).determineLength(response);
 
         // Create and attach an HTTP entity to the HttpResponse
         BasicHttpEntity responseEntity = new BasicHttpEntity();
-        responseEntity.setContentLength(len);
+//        responseEntity.setContentLength(len);
         responseEntity.setContent(new IdentityInputStream(buffer));
         response.setEntity(responseEntity);
 
@@ -164,7 +166,7 @@ public class ArtifactDataFactory {
                 response.getStatusLine()
         );
 
-        artifactData.setContentLength(response.getEntity().getContentLength());
+//        artifactData.setContentLength(response.getEntity().getContentLength());
 
         return artifactData;
     }
@@ -179,17 +181,17 @@ public class ArtifactDataFactory {
     private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
         Integer version = -1;
 
-        String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACTID_VERSION_KEY);
+        String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACT_VERSION_KEY);
 
         if ((versionHeader != null) && (!versionHeader.isEmpty())) {
             version = Integer.valueOf(versionHeader);
         }
 
         return new ArtifactIdentifier(
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_ID_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_AUID_KEY),
-                getHeaderValue(headers, ArtifactConstants.ARTIFACTID_URI_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_ID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_AUID_KEY),
+                getHeaderValue(headers, ArtifactConstants.ARTIFACT_URI_KEY),
                 version
         );
     }
@@ -201,21 +203,21 @@ public class ArtifactDataFactory {
      *          An {@code ArchiveRecordHeader} ARC / WARC header containing an artifact identity.
      * @return An {@code ArtifactIdentifier}.
      */
-   private static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
+   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
         Integer version = -1;
 
-        String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_VERSION_KEY);
+        String versionHeader = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);
 
         if ((versionHeader != null) && (!versionHeader.isEmpty())) {
             version = Integer.valueOf(versionHeader);
         }
 
         return new ArtifactIdentifier(
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_ID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_COLLECTION_KEY),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_AUID_KEY),
-                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACTID_URI_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
+                (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
                 version
         );
@@ -255,10 +257,8 @@ public class ArtifactDataFactory {
      */
     private static HttpHeaders transformHeaderArrayToHttpHeaders(Header[] headerArray) {
         HttpHeaders headers = new HttpHeaders();
-        for (Header header : headerArray)
-            headers.add(header.getName(), header.getValue());
+        Arrays.stream(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
 
-        //Stream.of(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
         return headers;
     }
 
@@ -343,6 +343,20 @@ public class ArtifactDataFactory {
             // Parse the ArchiveRecord into an artifact and return it
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(record);
             artifact.setIdentifier(artifactId);
+
+            String artifactContentLength = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
+            if (log.isDebug2Enabled()) log.debug2("artifactContentLength = " + artifactContentLength);
+            if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
+                artifact.setContentLength(Long.parseLong(artifactContentLength));
+            }
+
+            String artifactDigest = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
+            if (log.isDebug2Enabled()) log.debug2("artifactDigest = " + artifactDigest);
+            if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
+                artifact.setContentDigest(artifactDigest);
+            }
+
+            if (log.isDebug2Enabled()) log.debug2("artifact = " + artifact);
             return artifact;
 
         } else if (recordType.equals(RESOURCE_TYPE)) {
@@ -362,7 +376,7 @@ public class ArtifactDataFactory {
             //));
 
             // Custom header to indicate the origin of this artifact
-            metadata.add(ArtifactConstants.ARTIFACTID_ORIGIN_KEY, "warc");
+            metadata.add(ArtifactConstants.ARTIFACT_ORIGIN_KEY, "warc");
 
             // Parse the ArchiveRecord into an artifact and return it
             return ArtifactDataFactory.fromResourceStream(metadata, record);
@@ -377,5 +391,25 @@ public class ArtifactDataFactory {
 
         // Could not return an artifact elsewhere
         return null;
+    }
+
+    public static ArtifactData fromTransportResponseEntity(ResponseEntity<Resource> response) throws IOException {
+        ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getBody().getInputStream());
+
+        ad.setIdentifier(buildArtifactIdentifier(response.getHeaders()));
+        ad.setRepositoryMetadata(buildRepositoryMetadata(response.getHeaders()));
+        ad.setContentLength(Long.valueOf(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+        ad.setContentDigest(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+//        ad.setStorageUrl();
+
+        return ad;
+    }
+
+    private static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
+        return new RepositoryArtifactMetadata(
+                buildArtifactIdentifier(headers),
+                headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED).equalsIgnoreCase(String.valueOf(true)),
+                headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED).equalsIgnoreCase(String.valueOf(true))
+        );
     }
 }

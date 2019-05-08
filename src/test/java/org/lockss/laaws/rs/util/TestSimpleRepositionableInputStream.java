@@ -1,3 +1,5 @@
+/*
+
 Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University
 All rights reserved.
 
@@ -26,3 +28,49 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+*/
+
+package org.lockss.laaws.rs.util;
+
+import java.io.InputStream;
+
+import org.apache.commons.io.input.*;
+import org.junit.jupiter.api.Test;
+import org.lockss.util.test.LockssTestCase5;
+
+public class TestSimpleRepositionableInputStream extends LockssTestCase5 {
+
+  @Test
+  public void testUsage() throws Exception {
+    InputStream is = new CharSequenceInputStream("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "US-ASCII");
+    try (
+      SimpleRepositionableStream srs = new SimpleRepositionableStream(is)
+    ) {
+      // Start at position 0
+      assertEquals(0L, srs.position());
+      // Read one byte (A)
+      assertEquals('A', srs.read());
+      assertEquals(1L, srs.position());
+      // Read 12 bytes (B through M)
+      byte[] BthroughM = new byte[12];
+      assertEquals(12, srs.read(BthroughM));
+      assertEquals("BCDEFGHIJKLM", new String(BthroughM, "US-ASCII"));
+      assertEquals(13L, srs.position());
+      // Demonstrate that resetting the position obeys no matter what
+      srs.position(999L);
+      assertEquals(999L, srs.position());
+      srs.position(-1000L);
+      assertEquals(-1000L, srs.position());
+      // Demonstrate that it doesn't do anything to the underlying stream either
+      byte[] NthroughZ = new byte[13];
+      assertEquals(13, srs.read(NthroughZ));
+      assertEquals("NOPQRSTUVWXYZ", new String(NthroughZ, "US-ASCII"));
+      assertEquals(-987L, srs.position());
+      // Read EOF
+      assertEquals(-1, srs.read());
+      assertEquals(-987L, srs.position());
+    }
+  }
+  
+}

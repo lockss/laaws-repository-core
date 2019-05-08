@@ -31,8 +31,6 @@
 package org.lockss.laaws.rs.util;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.ProtocolVersion;
@@ -41,11 +39,12 @@ import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.archive.io.warc.WARCRecord;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.log.L4JLogger;
+import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
@@ -53,13 +52,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static org.junit.Assert.*;
-
 /**
  * Test class for the ArtifactData factory {@code org.lockss.laaws.rs.util.ArtifactDataFactory}.
  */
-public class TestArtifactDataFactory {
-    private final static Log log = LogFactory.getLog(ArtifactDataFactory.class);
+public class TestArtifactDataFactory extends LockssTestCase5 {
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     private static final String ARTIFACT_BYTES = "If kittens could talk, they would whisper soft riddles into my ear," +
             " tickling me with their whiskers, making me laugh.";
@@ -73,12 +70,12 @@ public class TestArtifactDataFactory {
             "Connection: keep-alive\n" +
             "ETag: \"595f57cc-76\"\n" +
             "Accept-Ranges: bytes\n" +
-            "X-Lockss-ArtifactId: id1\n" +
-            "X-Lockss-Collection: coll1\n" +
-            "X-Lockss-AuId: auid1\n" +
-            "X-Lockss-Uri: url1\n" +
-            "X-Lockss-Version: 1\n" +
-            "X-Lockss-Origin: warc\n" +
+            "X-LockssRepo-Artifact-Id: id1\n" +
+            "X-LockssRepo-Artifact-Collection: coll1\n" +
+            "X-LockssRepo-Artifact-AuId: auid1\n" +
+            "X-LockssRepo-Artifact-Uri: url1\n" +
+            "X-LockssRepo-Artifact-Version: 1\n" +
+            "X-LockssRepo-Artifact-Origin: warc\n" +
             "\n" +
             ARTIFACT_BYTES;
 
@@ -89,16 +86,16 @@ public class TestArtifactDataFactory {
             "WARC-Type: response\n" +
             "WARC-Target-URI: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
             "Content-Type: application/http; msgtype=response\n" +
-            "X-Lockss-ArtifactId: 74e3b795-c1e6-49ce-8b27-de7e747322b7\n" +
-            "X-Lockss-Collection: demo\n" +
-            "X-Lockss-AuId: testauid\n" +
-            "X-Lockss-Uri: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
-            "X-Lockss-Version: 1" +
+            "X-LockssRepo-Artifact-Id: 74e3b795-c1e6-49ce-8b27-de7e747322b7\n" +
+            "X-LockssRepo-Artifact-Collection: demo\n" +
+            "X-LockssRepo-Artifact-AuId: testauid\n" +
+            "X-LockssRepo-Artifact-Uri: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
+            "X-LockssRepo-Artifact-Version: 1" +
             "\n" +
             ARTIFACT_HTTP_ENCODED;
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
 
     }
