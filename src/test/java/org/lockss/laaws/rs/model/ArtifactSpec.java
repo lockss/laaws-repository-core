@@ -372,8 +372,21 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactData getArtifactData() {
-    return new ArtifactData(getArtifactIdentifier(), getMetdata(),
-        getInputStream(), getStatusLine());
+    ArtifactData ad = new ArtifactData(
+        getArtifactIdentifier(),
+        getMetdata(),
+        getInputStream(),
+        getStatusLine(),
+        getStorageUrl(),
+        null
+    );
+
+    if (this.hasContent()) {
+      ad.setContentDigest(this.getContentDigest());
+      ad.setContentLength(this.getContentLength());
+    }
+
+    return ad;
   }
 
   public InputStream getInputStream() {
@@ -469,6 +482,7 @@ public class ArtifactSpec implements Comparable<Object> {
   public void assertArtifactCommon(Artifact art) {
     Assertions.assertNotNull(art, "Comparing with " + this);
 
+//    Assertions.assertEquals(getArtifactId(), art.getId());
     Assertions.assertEquals(getCollection(), art.getCollection());
     Assertions.assertEquals(getAuid(), art.getAuid());
     Assertions.assertEquals(getUrl(), art.getUri());

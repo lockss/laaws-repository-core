@@ -30,21 +30,148 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
-import org.junit.jupiter.api.*;
+import org.apache.solr.client.solrj.embedded.JettyConfig;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.cloud.MiniSolrCloudCluster;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.log.L4JLogger;
 
-public class TestSolrArtifactIndex extends AbstractArtifactIndexTest {
-    private final static L4JLogger log = L4JLogger.getLogger();
-    private ArtifactIndex index;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
 
-    @BeforeEach
-    public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
+public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifactIndex> {
+  private final static L4JLogger log = L4JLogger.getLogger();
+
+  private static MiniSolrCloudCluster cluster;
+  private static CloudSolrClient client;
+  private String collectionName;
+
+  @BeforeAll
+  protected static void startMiniSolrCloudCluster() throws IOException {
+    // Base directory for the MiniSolrCloudCluster
+    Path tempDir = Files.createTempDirectory("MiniSolrCloudCluster");
+
+    // Jetty configuration
+    JettyConfig.Builder jettyConfig = JettyConfig.builder();
+    jettyConfig.waitForLoadingCoresToFinish(null);
+
+    try {
+      // Start new MiniSolrCloudCluster with default solr.xml
+      cluster = new MiniSolrCloudCluster(1, tempDir, jettyConfig.build());
+
+      // Upload our Solr configuration set for tests
+      cluster.uploadConfigSet(new File("src/test/resources/solr/configsets/lockss-solrtest/conf").getAbsoluteFile().toPath(), "lockss-solrtest");
+
+      // Get a Solr client handle to the Solr Cloud cluster
+      client = cluster.getSolrClient();
+      client.connect();
+    } catch (Exception e) {
+      log.error("Could not start MiniSolrCloudCluster", e);
+    }
+  }
+
+  //@BeforeEach
+  @Override
+  protected SolrArtifactIndex makeArtifactIndex() throws IOException {
+    // New collection name for this test
+    collectionName = String.format("lockss-solrtest.%s", UUID.randomUUID());
+
+    log.debug("collectionName = {}", collectionName);
+
+    try {
+      // Create a new Solr collection
+      CollectionAdminRequest
+          .createCollection(collectionName, "lockss-solrtest", 1, 1)
+          .processAndWait(client, 30);
+
+      // Set default collection
+      client.setDefaultCollection(collectionName);
+
+    } catch (Exception e) {
+      log.error("Could not create temporary Solr collection [collectionName: {}]:", collectionName, e);
+      throw new IOException(e); // FIXME
     }
 
-    @Test
-    public void performTests() throws Exception {
-    }
+    return new SolrArtifactIndex(client);
+  }
+
+  @AfterEach
+  public void removeSolrCollection() throws Exception {
+    // Get a Solr client handle to the Solr Cloud cluster
+    CloudSolrClient client = cluster.getSolrClient();
+    client.connect();
+
+    CollectionAdminRequest.deleteCollection(collectionName).processAndWait(client, 30);
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void getAllArtifactsWithPrefixAllVersions() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void getArtifactAllVersions() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testCommitArtifact() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testDeleteArtifact() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testGetArtifactIndexData() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testGetArtifactsInAU() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testGetAuIds() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testGetCollectionIds() throws Exception {
+    // WIP - disabled
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testGetCommittedArtifactsInAU() throws Exception {
+    // WIP - disabled
+  }
 }

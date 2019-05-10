@@ -111,7 +111,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 //              versionFieldAttributes.put("docValues", true);
 //              createSolrField(solr,"version", "pdate", versionFieldAttributes);
               createSolrField(solr, "version", "pint");
-              createSolrField(solr, "collectionDate", "long");
+              createSolrField(solr, "collectionDate", "plong");
 
               initialized = true;
 
@@ -266,38 +266,44 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact getArtifact(String artifactId) throws IOException {
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null or empty identifier");
+      }
+
         SolrQuery q = new SolrQuery();
-//        q.addFilterQuery(String.format("committed:%s", true));
-//        q.addFilterQuery(String.format("{!term f=id}%s", artifactId));
         q.setQuery(String.format("id:%s", artifactId));
+//        q.addFilterQuery(String.format("{!term f=id}%s", artifactId));
+//        q.addFilterQuery(String.format("committed:%s", true));
 
         // Artifact to eventually return
-        Artifact indexData = null;
+        Artifact indexedArtifact = null;
 
         try {
-            // Query the Solr artifactIndex and get results as Artifact
+            // Submit the Solr query and get results as Artifact objects
             final QueryResponse response = solr.query(q);
-            final List<Artifact> documents = response.getBeans(Artifact.class);
+            final List<Artifact> artifacts = response.getBeans(Artifact.class);
 
-            // Run some checks against the results of the query
-            if (!documents.isEmpty()) {
-                if (documents.size() > 1) {
+            // Run some checks against the results
+            if (!artifacts.isEmpty()) {
+                if (artifacts.size() > 1) {
                     // This should never happen; id field should be unique
-                    throw new RuntimeException(String.format("Multiple Solr documents found for id: %s!", artifactId));
+                    throw new RuntimeException(
+                        String.format("More than one artifact found with same artifact ID [artifactId: %s]", artifactId)
+                    );
                 } else {
                     // Set indexData to the single result to return
-                    indexData = documents.get(0);
+                    indexedArtifact = artifacts.get(0);
                 }
             }
         } catch (SolrServerException e) {
             throw new IOException(e);
         }
 
-        // TODO: Should we throw an exception instead?
-        if (indexData == null)
-            log.warn(String.format("No Solr documents found with artifact ID: %s", artifactId));
+        if (indexedArtifact == null) {
+          log.debug("No Solr documents found [artifactId: {}]", artifactId);
+        }
 
-        return indexData;
+        return indexedArtifact;
     }
 
     /**
@@ -320,25 +326,29 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact commitArtifact(String artifactId) throws IOException {
-        // Perform an atomic update
+      if (artifactExists(artifactId)) {
         SolrInputDocument document = new SolrInputDocument();
         document.addField("id", artifactId);
 
-        // Setup type of field modification, and replacement value
+        // Perform an atomic update (see https://lucene.apache.org/solr/guide/6_6/updating-parts-of-documents.html) by
+        // setting the type of field modification and its replacement value
         Map<String, Object> fieldModifier = new HashMap<>();
         fieldModifier.put("set", true);
         document.addField("committed", fieldModifier);
 
         try {
-            // Update the field
-            this.solr.add(document);
-            this.solr.commit();
+          // Update the field
+          this.solr.add(document);
+          this.solr.commit();
         } catch (SolrServerException e) {
-            throw new IOException(e);
+          throw new IOException(e);
         }
 
         // Return updated Artifact
         return getArtifact(artifactId);
+      } else {
+        return null;
+      }
     }
 
     /**
@@ -362,6 +372,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
     public boolean deleteArtifact(String artifactId) throws IOException {
         try {
             solr.deleteById(artifactId);
+            solr.commit();
             return true;
         } catch (SolrServerException e) {
             throw new IOException(e);
