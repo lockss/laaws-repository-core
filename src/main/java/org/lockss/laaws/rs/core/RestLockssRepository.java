@@ -30,6 +30,9 @@
 
 package org.lockss.laaws.rs.core;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
@@ -41,7 +44,6 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.log.L4JLogger;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
@@ -182,16 +184,19 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
         // POST the multipart entity to the remote LOCKSS repository and return the result
-        ResponseEntity<Artifact> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                     builder.build().encode().toUri(),
                     HttpMethod.POST,
                     multipartEntity,
-                    Artifact.class);
+                    String.class);
 
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
-            return response.getBody();
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+        	false);
+            return mapper.readValue(response.getBody(), Artifact.class);
         }
     
         String errMsg = String.format("Could not add artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
@@ -259,11 +264,11 @@ public class RestLockssRepository implements LockssRepository {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.valueOf("multipart/form-data"));
 
-        ResponseEntity<Artifact> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
             builder.build().encode().toUri(),
             HttpMethod.PUT,
             new HttpEntity<>(null, headers),
-            Artifact.class);
+            String.class);
 
         HttpStatus status = response.getStatusCode();
 
@@ -273,7 +278,10 @@ public class RestLockssRepository implements LockssRepository {
           throw new IOException(errMsg);
         }
 
-        return response.getBody();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+            false);
+        return mapper.readValue(response.getBody(), Artifact.class);
     }
 
     /**
@@ -320,21 +328,24 @@ public class RestLockssRepository implements LockssRepository {
      * @param parts
      * @return
      */
-    private Artifact updateArtifactProperties(String collection, String artifactId, MultiValueMap<String, Object> parts) {
+    private Artifact updateArtifactProperties(String collection, String artifactId, MultiValueMap<String, Object> parts) throws IOException {
         // Create PUT request entity
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(parts, null);
 
         // Submit PUT request and return artifact index data
-        ResponseEntity<Artifact> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                     artifactEndpoint(collection, artifactId),
                     HttpMethod.PUT,
                     requestEntity,
-                    Artifact.class);
+                    String.class);
 
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
-          return response.getBody();
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+        	false);
+            return mapper.readValue(response.getBody(), Artifact.class);
         }
 
         String errMsg = String.format("Could not update artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
@@ -433,22 +444,25 @@ public class RestLockssRepository implements LockssRepository {
      * collection identifiers.
      */
     @Override
-    public Iterable<String> getCollectionIds() {
+    public Iterable<String> getCollectionIds() throws IOException {
         String endpoint = String.format("%s/collections", repositoryUrl);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-        ResponseEntity<List<String>> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                 builder.build().encode().toUri(),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<List<String>>() {}
+                String.class
         );
 
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
-          return IteratorUtils.asIterable(response.getBody().iterator());
+          ObjectMapper mapper = new ObjectMapper();
+          List<String> result = mapper.readValue((String)response.getBody(),
+    	  new TypeReference<List<String>>(){});
+          return IteratorUtils.asIterable(result.iterator());
         }
 
         String errMsg = String.format("Could not get collection IDs; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
@@ -473,18 +487,20 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
         try {
-          ResponseEntity<List<String>> response = restTemplate.exchange(
+          ResponseEntity<String> response = restTemplate.exchange(
                     builder.build().encode().toUri(),
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<List<String>>() {
-                    }
+                    String.class
               );
 
           HttpStatus status = response.getStatusCode();
 
           if (status.is2xxSuccessful()) {
-            return IteratorUtils.asIterable(response.getBody().iterator());
+            ObjectMapper mapper = new ObjectMapper();
+            List<String> result = mapper.readValue((String)response.getBody(),
+        	new TypeReference<List<String>>(){});
+            return IteratorUtils.asIterable(result.iterator());
           }
         } catch (Exception e) {
         }
@@ -498,7 +514,7 @@ public class RestLockssRepository implements LockssRepository {
      * @param builder A {@code UriComponentsBuilder} containing a REST endpoint that returns artifacts.
      * @return An {@code Iterable<Artifact>} containing artifacts.
      */
-    private Iterable<Artifact> getArtifacts(UriComponentsBuilder builder) {
+    private Iterable<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
         return getArtifacts(builder.build().encode().toUri());
     }
 
@@ -508,18 +524,23 @@ public class RestLockssRepository implements LockssRepository {
      * @param endpoint A {@code URI} containing a REST endpoint that returns artifacts.
      * @return An {@code Iterable<Artifact>} containing artifacts.
      */
-    private Iterable<Artifact> getArtifacts(URI endpoint) {
-        ResponseEntity<List<Artifact>> response = restTemplate.exchange(
+    private Iterable<Artifact> getArtifacts(URI endpoint) throws IOException {
+        ResponseEntity<String> response = restTemplate.exchange(
                   endpoint,
                   HttpMethod.GET,
                   null,
-                  new ParameterizedTypeReference<List<Artifact>>() {}
+                  String.class
             );
 
       HttpStatus status = response.getStatusCode();
 
       if (status.is2xxSuccessful()) {
-        return IteratorUtils.asIterable(response.getBody().iterator());
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+            false);
+        List<Artifact> result = mapper.readValue((String)response.getBody(),
+    	new TypeReference<List<Artifact>>(){});
+        return IteratorUtils.asIterable(result.iterator());
       }
 
       String errMsg = String.format("Could not fetch artifacts; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
@@ -538,7 +559,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getArtifacts(String collection, String auid) {
+    public Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
         if ((collection == null) || (auid == null))
             throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -559,7 +580,7 @@ public class RestLockssRepository implements LockssRepository {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) throws IOException {
         if ((collection == null) || (auid == null))
             throw new IllegalArgumentException("Null collection id or au id");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -584,7 +605,7 @@ public class RestLockssRepository implements LockssRepository {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
         if ((collection == null) || (auid == null) || (prefix == null))
             throw new IllegalArgumentException("Null collection id, au id or prefix");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -609,7 +630,7 @@ public class RestLockssRepository implements LockssRepository {
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
         if ((collection == null) || (auid == null) || (prefix == null))
             throw new IllegalArgumentException("Null collection id, au id or prefix");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -632,7 +653,7 @@ public class RestLockssRepository implements LockssRepository {
      *         prefix.
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
       if (collection == null || prefix == null)
         throw new IllegalArgumentException("Null collection id or prefix");
       String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
@@ -657,7 +678,7 @@ public class RestLockssRepository implements LockssRepository {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
         if ((collection == null) || (auid == null) || (url == null))
             throw new IllegalArgumentException("Null collection id, au id or url");
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
@@ -713,17 +734,21 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("url", url)
                 .queryParam("version", "latest");
 
-        ResponseEntity<List<Artifact>> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                 builder.build().encode().toUri(),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<List<Artifact>>() {}
+                String.class
         );
 
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
-          List<Artifact> artifacts = response.getBody();
+          ObjectMapper mapper = new ObjectMapper();
+          mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+              false);
+          List<Artifact> artifacts = mapper.readValue((String)
+              response.getBody(), new TypeReference<List<Artifact>>(){});
 
           if (!artifacts.isEmpty()) {
               if (artifacts.size() > 1) {
@@ -765,7 +790,7 @@ public class RestLockssRepository implements LockssRepository {
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
         if ((collection == null) || (auid == null) ||
 	    (url == null) || version == null)
             throw new IllegalArgumentException("Null collection id, au id, url or version");
@@ -775,17 +800,21 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("url", url)
                 .queryParam("version", version);
 
-        ResponseEntity<List<Artifact>> response = restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                 builder.build().encode().toUri(),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<List<Artifact>>() {}
+                String.class
         );
 
         HttpStatus status = response.getStatusCode();
 
         if (status.is2xxSuccessful()) {
-          List<Artifact> artifacts = response.getBody();
+          ObjectMapper mapper = new ObjectMapper();
+          mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+              false);
+          List<Artifact> artifacts = mapper.readValue((String)
+              response.getBody(), new TypeReference<List<Artifact>>(){});
 
           if (!artifacts.isEmpty()) {
             // Warn if the server returned more than one ar
@@ -830,17 +859,18 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("version", "all");
 
         try {
-            ResponseEntity<Long> response = restTemplate.exchange(
+            ResponseEntity<String> response = restTemplate.exchange(
         	    builder.build().encode().toUri(),
                     HttpMethod.GET,
                     null,
-                    Long.class
+                    String.class
         	);
 
             HttpStatus status = response.getStatusCode();
 
             if (status.is2xxSuccessful()) {
-              return response.getBody();
+              ObjectMapper objectMapper = new ObjectMapper();
+              return objectMapper.readValue(response.getBody(), Long.class);
             }
         } catch (Exception e) {
         }
