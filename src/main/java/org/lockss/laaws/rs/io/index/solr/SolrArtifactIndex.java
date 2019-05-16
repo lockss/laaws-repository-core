@@ -359,7 +359,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact commitArtifact(UUID artifactId) throws IOException {
-        return commitArtifact(artifactId.toString());
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null UUID");
+      }
+
+      return commitArtifact(artifactId.toString());
     }
 
     /**
