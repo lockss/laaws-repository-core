@@ -79,20 +79,20 @@ public class VariantState {
   }
 
   public long expectedVersions(ArtifactSpec spec) {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .filter(s -> spec.sameArtButVer(s))
         .count();
   }
 
   public List<String> addedAuids() {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .map(ArtifactSpec::getAuid)
         .distinct()
         .collect(Collectors.toList());
   }
 
   public List<String> addedCommittedAuids() {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .filter(spec -> spec.isCommitted())
         .map(ArtifactSpec::getAuid)
         .distinct()
@@ -100,7 +100,7 @@ public class VariantState {
   }
 
   public List<String> addedCommittedUrls() {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .filter(spec -> spec.isCommitted())
         .map(ArtifactSpec::getUrl)
         .distinct()
@@ -108,18 +108,11 @@ public class VariantState {
   }
 
   public List<String> addedCollections() {
-    return addedSpecs.stream()
-        .map(ArtifactSpec::getCollection)
-        .distinct()
-        .collect(Collectors.toList());
+    return collectionsOf(addedSpecStream().filter(spec -> !spec.isDeleted())).collect(Collectors.toList());
   }
 
   public List<String> addedCommittedCollections() {
-    return addedSpecs.stream()
-        .filter(spec -> spec.isCommitted())
-        .map(ArtifactSpec::getCollection)
-        .distinct()
-        .collect(Collectors.toList());
+    return collectionsOf(addedSpecStream().filter(spec -> spec.isCommitted())).collect(Collectors.toList());
   }
 
   Stream<String> collectionsOf(Stream<ArtifactSpec> specStream) {
@@ -140,17 +133,15 @@ public class VariantState {
   }
 
   public Stream<ArtifactSpec> committedSpecStream() {
-    return addedSpecs.stream()
-        .filter(spec -> spec.isCommitted());
+    return addedSpecStream().filter(spec -> spec.isCommitted());
   }
 
   public Stream<ArtifactSpec> deletedSpecStream() {
-    return addedSpecs.stream().filter(ArtifactSpec::isDeleted);
+    return addedSpecStream().filter(ArtifactSpec::isDeleted);
   }
 
   Stream<ArtifactSpec> uncommittedSpecStream() {
-    return addedSpecs.stream()
-        .filter(spec -> !spec.isCommitted());
+    return addedSpecStream().filter(spec -> !spec.isCommitted());
   }
 
   public Stream<ArtifactSpec> orderedAllCommitted() {
