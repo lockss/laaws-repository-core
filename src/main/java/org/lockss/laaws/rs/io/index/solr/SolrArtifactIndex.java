@@ -466,17 +466,16 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
             // Perform a Solr facet query on the collection ID field
             SolrQuery q = new SolrQuery();
-            q.setQuery("*:*");
+            q.setQuery("committed:true");
             q.setRows(0);
-            q.addFacetQuery("committed:true");
             q.addFacetField("collection");
 
             // Get the facet field from the result
             QueryResponse result = solr.query(q);
             FacetField ff = result.getFacetField("collection");
 
-            if (log.isDebug2Enabled()) {
-              log.debug2(
+            if (log.isDebugEnabled()) {
+              log.debug(
                   "FacetField: [getName: {}, getValues: {}, getValuesCount: {}]",
                   ff.getName(),
                   ff.getValues(),
@@ -485,7 +484,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
             }
 
             // Transform facet field value names into iterable
-            return IteratorUtils.asIterable(ff.getValues().stream().map(x -> x.getName()).sorted().iterator());
+            return IteratorUtils.asIterable(
+                ff.getValues().stream()
+                    .filter(x -> x.getCount() > 0)
+                    .map(x -> x.getName())
+                    .sorted()
+                    .iterator()
+            );
 
         } catch (SolrServerException e) {
             throw new IOException(e);
