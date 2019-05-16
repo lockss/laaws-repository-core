@@ -486,6 +486,7 @@ public class ArtifactSpec implements Comparable<Object> {
     Assertions.assertEquals(getCollection(), art.getCollection());
     Assertions.assertEquals(getAuid(), art.getAuid());
     Assertions.assertEquals(getUrl(), art.getUri());
+    Assertions.assertEquals(isCommitted(), art.getCommitted());
 
     if (getExpVer() >= 0) {
       Assertions.assertEquals(getExpVer(), (int) art.getVersion());
