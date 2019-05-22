@@ -63,6 +63,7 @@ import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
+import org.lockss.util.io.FileUtil;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 
@@ -840,12 +841,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     );
 
     // Create a DFOS to contain our serialized artifact
-    try (DeferredFileOutputStream dfos = new DeferredFileOutputStream(
-        (int)DEFAULT_DFOS_THRESHOLD,
-        "addArtifactData",
-        null,
-        new File("/tmp") // FIXME: Refactor repository code to use a custom temp dir
-    )) {
+    File tmpDFOSFile = FileUtil.createTempFile("addArtifactData", null);
+    try (DeferredFileOutputStream dfos = new DeferredFileOutputStream( (int)DEFAULT_DFOS_THRESHOLD, tmpDFOSFile)) {
       // Serialize artifact to WARC record and get the number of bytes in the serialization
       long recordLength = writeArtifactData(artifactData, dfos);
       dfos.close();
@@ -916,6 +913,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Index the artifact
       artifactIndex.indexArtifact(artifactData);
+    } finally {
+      tmpDFOSFile.delete();
     }
 
     // Create a new Artifact object to return; should reflect artifact data as it is in the data store
@@ -1529,52 +1528,51 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // We're required to pre-compute the WARC payload size (which is an artifact encoded as an HTTP response stream)
     // but it is not possible to determine the final size without exhausting the InputStream, so we use a
     // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
-    DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifactData", null, new File("/tmp")); // FIXME don't use /tmp, use system temp dir
+    File tmpDFOSFile = FileUtil.createTempFile("writeArtifactData", null);
+    try (DeferredFileOutputStream dfos = new DeferredFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, tmpDFOSFile)) {
+      // Create a HTTP response stream from the ArtifactData
+      InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
+          ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
+      );
 
-    // Create a HTTP response stream from the ArtifactData
-    InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
-        ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
-    );
+      IOUtils.copy(httpResponse, dfos);
 
-    IOUtils.copy(httpResponse, dfos);
+      dfos.flush();
+      dfos.close();
 
-    dfos.flush();
-    dfos.close();
+      // Get the temporary file created, if it exists, so that we can delete
+      // it after it's no longer needed.
+//    File dfosFile = dfos.getFile();
 
-    // Get the temporary file created, if it exists, so that we can delete
-    // it after it's no longer needed.
-    File dfosFile = dfos.getFile();
+      // Set the length of the artifact data
+      long contentLength = artifactData.getBytesRead();
+      if (log.isDebug2Enabled()) log.debug2("contentLength = " + contentLength);
+      artifactData.setContentLength(contentLength);
+      record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY,
+          String.valueOf(contentLength));
 
-    // Set the length of the artifact data
-    long contentLength = artifactData.getBytesRead();
-    if (log.isDebug2Enabled()) log.debug2("contentLength = " + contentLength);
-    artifactData.setContentLength(contentLength);
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY,
-        String.valueOf(contentLength));
+      // Set content digest of artifact data
+      String contentDigest = String.format("%s:%s",
+          artifactData.getMessageDigest().getAlgorithm(),
+          new String(Hex.encodeHex(artifactData.getMessageDigest().digest())));
+      if (log.isDebug2Enabled()) log.debug2("contentDigest = " + contentDigest);
+      artifactData.setContentDigest(contentDigest);
+      record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY,
+          contentDigest);
 
-    // Set content digest of artifact data
-    String contentDigest = String.format("%s:%s",
-        artifactData.getMessageDigest().getAlgorithm(),
-        new String(Hex.encodeHex(artifactData.getMessageDigest().digest())));
-    if (log.isDebug2Enabled()) log.debug2("contentDigest = " + contentDigest);
-    artifactData.setContentDigest(contentDigest);
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY,
-        contentDigest);
+      // Attach WARC record payload and set the payload length
+      record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));
+      record.setContentLength(dfos.getByteCount());
 
-    // Attach WARC record payload and set the payload length
-    record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfosFile));
-    record.setContentLength(dfos.getByteCount());
+      // Write WARCRecordInfo to OutputStream
+      CountingOutputStream cout = new CountingOutputStream(outputStream);
+      writeWarcRecord(record, cout);
 
-    // Write WARCRecordInfo to OutputStream
-    CountingOutputStream cout = new CountingOutputStream(outputStream);
-    writeWarcRecord(record, cout);
-
-    // Delete the temporary file created, if it exists.
-    if (dfosFile != null && !dfosFile.delete()) {
-      log.warn("Removal of temporary file " + dfosFile + " failed.");
+      return cout.getCount();
+    } finally {
+      // Delete the temporary file used for DFOS
+      tmpDFOSFile.delete();
     }
-
-    return cout.getCount();
   }
 
   /**
