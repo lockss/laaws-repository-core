@@ -1529,7 +1529,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // We're required to pre-compute the WARC payload size (which is an artifact encoded as an HTTP response stream)
     // but it is not possible to determine the final size without exhausting the InputStream, so we use a
     // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
-    DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifactData", null, new File("/tmp"));
+    DeferredFileOutputStream dfos = new DeferredFileOutputStream(16384, "artifactData", null, new File("/tmp")); // FIXME don't use /tmp, use system temp dir
 
     // Create a HTTP response stream from the ArtifactData
     InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
