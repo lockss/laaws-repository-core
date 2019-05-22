@@ -63,7 +63,7 @@ import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
-import org.lockss.util.io.FileUtil;
+import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 
@@ -841,8 +841,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     );
 
     // Create a DFOS to contain our serialized artifact
-    File tmpDFOSFile = FileUtil.createTempFile("addArtifactData", null);
-    try (DeferredFileOutputStream dfos = new DeferredFileOutputStream( (int)DEFAULT_DFOS_THRESHOLD, tmpDFOSFile)) {
+    DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int)DEFAULT_DFOS_THRESHOLD, "addArtifactData");
+    try {
       // Serialize artifact to WARC record and get the number of bytes in the serialization
       long recordLength = writeArtifactData(artifactData, dfos);
       dfos.close();
@@ -869,7 +869,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Write serialized artifact to temporary WARC file
       try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
         CountingOutputStream cout = new CountingOutputStream(output);
-        dfos.writeTo(cout);
+        IOUtils.copy(dfos.getInputStream(), cout);
         cout.close();
 
         long bytesWritten = cout.getCount();
@@ -914,7 +914,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Index the artifact
       artifactIndex.indexArtifact(artifactData);
     } finally {
-      tmpDFOSFile.delete();
+      // Delete the temporary file if one was created
+      dfos.deleteTempFile();
     }
 
     // Create a new Artifact object to return; should reflect artifact data as it is in the data store
@@ -1528,8 +1529,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // We're required to pre-compute the WARC payload size (which is an artifact encoded as an HTTP response stream)
     // but it is not possible to determine the final size without exhausting the InputStream, so we use a
     // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
-    File tmpDFOSFile = FileUtil.createTempFile("writeArtifactData", null);
-    try (DeferredFileOutputStream dfos = new DeferredFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, tmpDFOSFile)) {
+    DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "writeArtifactData");
+    try {
       // Create a HTTP response stream from the ArtifactData
       InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
           ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
@@ -1539,10 +1540,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       dfos.flush();
       dfos.close();
-
-      // Get the temporary file created, if it exists, so that we can delete
-      // it after it's no longer needed.
-//    File dfosFile = dfos.getFile();
 
       // Set the length of the artifact data
       long contentLength = artifactData.getBytesRead();
@@ -1561,7 +1558,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           contentDigest);
 
       // Attach WARC record payload and set the payload length
-      record.setContentStream(dfos.isInMemory() ? new ByteArrayInputStream(dfos.getData()) : new FileInputStream(dfos.getFile()));
+      record.setContentStream(dfos.getInputStream());
       record.setContentLength(dfos.getByteCount());
 
       // Write WARCRecordInfo to OutputStream
@@ -1570,8 +1567,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       return cout.getCount();
     } finally {
-      // Delete the temporary file used for DFOS
-      tmpDFOSFile.delete();
+      // Delete the temporary file if one was created
+      dfos.deleteTempFile();
     }
   }
 
