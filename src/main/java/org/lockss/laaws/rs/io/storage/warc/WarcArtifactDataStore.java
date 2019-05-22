@@ -869,9 +869,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Write serialized artifact to temporary WARC file
       try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
         CountingOutputStream cout = new CountingOutputStream(output);
-        IOUtils.copy(dfos.getInputStream(), cout);
-        cout.close();
 
+        // Copy serialized artifact from DeferredTempFileOutputStream to temporary WARC file
+        try (InputStream input = dfos.getInputStream()) {
+          IOUtils.copy(input, cout);
+        }
+
+        // Close CountingOutputStream and get bytes written
+        cout.close();
         long bytesWritten = cout.getCount();
 
         // Sanity check on bytes written
@@ -1558,14 +1563,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           contentDigest);
 
       // Attach WARC record payload and set the payload length
-      record.setContentStream(dfos.getInputStream());
-      record.setContentLength(dfos.getByteCount());
+      try (InputStream input = dfos.getInputStream()) {
+        record.setContentStream(input);
+        record.setContentLength(dfos.getByteCount());
 
-      // Write WARCRecordInfo to OutputStream
-      CountingOutputStream cout = new CountingOutputStream(outputStream);
-      writeWarcRecord(record, cout);
+        // Write WARCRecordInfo to OutputStream
+        CountingOutputStream cout = new CountingOutputStream(outputStream);
+        writeWarcRecord(record, cout);
 
-      return cout.getCount();
+        // Return bytes
+        return cout.getCount();
+      }
     } finally {
       // Delete the temporary file if one was created
       dfos.deleteTempFile();
