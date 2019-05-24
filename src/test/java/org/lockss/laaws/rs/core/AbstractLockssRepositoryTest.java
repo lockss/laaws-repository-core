@@ -1094,11 +1094,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     spec.setArtifactId(newArtId);
 
     variantState.add(spec);
-    // Remember the highest version of this URL we've added
-    ArtifactSpec maxVerSpec = variantState.getHighestVerSpec(spec.artButVerKey());
-    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      variantState.setHighestVerSpec(spec.artButVerKey(), spec);
-    }
+
     return newArt;
   }
 
@@ -1119,12 +1115,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     if (spec.getExpVer() > 0) {
       assertEquals(spec.getExpVer(), (int)commArt.getVersion());
     }
+
     spec.setCommitted(true);
-    // Remember the highest version of this URL we've committed
-    ArtifactSpec maxVerSpec = variantState.getHighestCommittedVerSpec(spec.artButVerKey());
-    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      variantState.setHighestCommittedVerSpec(spec.artButVerKey(), spec);
-    }
+
     assertTrue(repository.isArtifactCommitted(spec.getCollection(),
 					      commArt.getId()));
     assertTrue(commArt.getCommitted());
