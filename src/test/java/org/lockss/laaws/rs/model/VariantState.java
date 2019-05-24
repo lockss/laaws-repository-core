@@ -84,8 +84,25 @@ public class VariantState {
         .count();
   }
 
-  public List<String> addedAuids() {
+  public List<String> activeAuids(String collectionId) {
     return addedSpecStream()
+        .filter(spec -> spec.getCollection().equals(collectionId))
+        .map(spec -> spec.getAuid())
+        .distinct()
+        .sorted()
+        .collect(Collectors.toList());
+  }
+
+  public List<String> allAuids() {
+    return addedSpecStream()
+        .map(ArtifactSpec::getAuid)
+        .distinct()
+        .collect(Collectors.toList());
+  }
+
+  public List<String> allAuids(String collection) {
+    return addedSpecStream()
+        .filter(spec -> spec.getCollection().equals(collection))
         .map(ArtifactSpec::getAuid)
         .distinct()
         .collect(Collectors.toList());
@@ -107,12 +124,21 @@ public class VariantState {
         .collect(Collectors.toList());
   }
 
-  public List<String> addedCollections() {
-    return collectionsOf(addedSpecStream().filter(spec -> !spec.isDeleted())).collect(Collectors.toList());
+  public List<String> allCollections() {
+    return collectionsOf(addedSpecStream())
+        .collect(Collectors.toList());
   }
 
-  public List<String> addedCommittedCollections() {
-    return collectionsOf(addedSpecStream().filter(spec -> spec.isCommitted())).collect(Collectors.toList());
+  public List<String> activeCollections() {
+    return collectionsOf(addedSpecStream()
+        .filter(spec -> !spec.isDeleted()))
+        .collect(Collectors.toList());
+  }
+
+  public List<String> activeCommittedCollections() {
+    return collectionsOf(addedSpecStream()
+        .filter(spec -> !spec.isDeleted() && spec.isCommitted()))
+        .collect(Collectors.toList());
   }
 
   Stream<String> collectionsOf(Stream<ArtifactSpec> specStream) {
