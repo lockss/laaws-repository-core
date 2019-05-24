@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.index.solr;
 
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -207,7 +208,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
             SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
             addFieldReq.process(solr);
         } else {
-            log.warn("Field already exists in Solr schema: {}; skipping field addition", newFieldAttributes);
+            log.debug("Field already exists in Solr schema: {}; skipping field addition", newFieldAttributes);
         }
     }
 
@@ -219,7 +220,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-        log.debug("Adding artifact to index: {}", artifactData);
+      log.debug("Adding artifact to index: {}", artifactData);
 
       if (artifactData == null) {
         throw new IllegalArgumentException("Null artifact");
@@ -315,7 +316,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact getArtifact(UUID artifactId) throws IOException {
-        return this.getArtifact(artifactId.toString());
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null UUID");
+      }
+
+      return this.getArtifact(artifactId.toString());
     }
 
     /**
@@ -374,13 +379,26 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean deleteArtifact(String artifactId) throws IOException {
+      if (StringUtils.isEmpty(artifactId)) {
+        throw new IllegalArgumentException("Null or empty identifier");
+      }
+
+      if (artifactExists(artifactId)) {
+        // Yes: Artifact found - remove Solr document for this artifact
         try {
-            solr.deleteById(artifactId);
-            solr.commit();
-            return true;
+          solr.deleteById(artifactId);
+          solr.commit();
+          return true;
         } catch (SolrServerException e) {
-            throw new IOException(e);
+          log.error("Could not remove artifact from Solr index [artifactId: {}]: {}", artifactId);
+          throw new IOException(
+              String.format("Could not remove artifact from Solr index [artifactId: %s]", artifactId), e
+          );
         }
+      } else {
+        // Artifact not found in index; nothing deleted
+        return false;
+      }
     }
 
     /**
@@ -392,7 +410,11 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean deleteArtifact(UUID artifactId) throws IOException {
-        return deleteArtifact(artifactId.toString());
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Null UUID");
+      }
+
+      return deleteArtifact(artifactId.toString());
     }
 
     /**
