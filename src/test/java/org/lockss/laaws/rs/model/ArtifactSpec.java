@@ -13,6 +13,7 @@ import org.lockss.laaws.rs.core.RepoUtil;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
@@ -267,6 +268,10 @@ public class ArtifactSpec implements Comparable<Object> {
     } else {
       setContent(RandomStringUtils.randomAlphabetic(0, MAX_RANDOM_FILE));
     }
+
+    // Set an artificial collection date
+    setCollectionDate(TimeBase.nowMs());
+
     log.debug("Generated content");
     return this;
   }
@@ -342,23 +347,25 @@ public class ArtifactSpec implements Comparable<Object> {
   public long getCollectionDate() {
     if (collectionDate >= 0) {
       return collectionDate;
-    } else if (getArtifactData() != null) {
-      return getArtifactData().getCollectionDate();
     } else {
       throw new IllegalStateException("getCollectionDate() called when collection date unknown");
     }
   }
 
-  public HttpHeaders getMetdata() {
+  public void setCollectionDate(long ms) {
+    collectionDate = ms;
+  }
+
+  public HttpHeaders getMetadata() {
     return RepoUtil.httpHeadersFromMap(headers);
   }
 
   public ArtifactIdentifier getArtifactIdentifier() {
-    return new ArtifactIdentifier(artId, coll, auid, url, -1);
+    return new ArtifactIdentifier(artId, coll, auid, url, getVersion());
   }
 
   public Artifact getArtifact() {
-    return new Artifact(
+    Artifact artifact = new Artifact(
         getArtifactId(),
         getCollection(),
         getAuid(),
@@ -369,12 +376,16 @@ public class ArtifactSpec implements Comparable<Object> {
         getContentLength(),
         getContentDigest()
     );
+
+    artifact.setCollectionDate(getCollectionDate());
+
+    return artifact;
   }
 
   public ArtifactData getArtifactData() {
     ArtifactData ad = new ArtifactData(
         getArtifactIdentifier(),
-        getMetdata(),
+        getMetadata(),
         getInputStream(),
         getStatusLine(),
         getStorageUrl(),
@@ -385,6 +396,8 @@ public class ArtifactSpec implements Comparable<Object> {
       ad.setContentDigest(this.getContentDigest());
       ad.setContentLength(this.getContentLength());
     }
+
+    ad.setCollectionDate(getCollectionDate());
 
     return ad;
   }
@@ -494,6 +507,7 @@ public class ArtifactSpec implements Comparable<Object> {
 
     Assertions.assertEquals(getContentLength(), art.getContentLength());
     Assertions.assertEquals(getContentDigest(), art.getContentDigest());
+    Assertions.assertEquals(getCollectionDate(), art.getCollectionDate());
 
     if (getStorageUrl() != null) {
       Assertions.assertEquals(getStorageUrl(), art.getStorageUrl());
