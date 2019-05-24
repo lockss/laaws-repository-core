@@ -77,8 +77,7 @@ public class ArtifactPredicateBuilder {
      * @return an ArtifactPredicateBuilder with this object.
      */
     public ArtifactPredicateBuilder filterByCollection(String collection) {
-        if (collection != null)
-            predicates.add(artifact -> artifact.getCollection().equals(collection));
+        predicates.add(artifact -> artifact.getCollection().equals(collection));
         return this;
     }
 
