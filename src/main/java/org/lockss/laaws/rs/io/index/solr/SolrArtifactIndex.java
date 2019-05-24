@@ -533,14 +533,22 @@ public class SolrArtifactIndex implements ArtifactIndex {
         // because we are not actually interested in the Solr documents - only aggregate information about them.
         SolrQuery q = new SolrQuery();
         q.setQuery("*:*");
+        q.addFilterQuery(String.format("committed:%s", true));
+        q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.setFields("auid");
         q.setRows(0);
         q.addFacetField("auid");
 
         try {
             QueryResponse response = solr.query(q);
+            FacetField ff = response.getFacetField("auid");
+
             return IteratorUtils.asIterable(
-                    response.getFacetField("auid").getValues().stream().map(x -> x.getName()).sorted().iterator()
+                ff.getValues().stream()
+                    .filter(x -> x.getCount() > 0)
+                    .map(x -> x.getName())
+                    .sorted()
+                    .iterator()
             );
         } catch (SolrServerException e) {
             throw new IOException(e);
