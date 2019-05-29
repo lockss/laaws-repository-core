@@ -432,7 +432,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @Disabled
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
-  public void testGetArtifactsAllVersions_withUrl() throws Exception {
+  public void testGetArtifactsAllVersions_forUrl() throws Exception {
 
   }
 
@@ -496,6 +496,12 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @Test
   public void testAuSize(String collection, String auid) {
     // TODO
+  }
+
+  @Disabled
+  @Test
+  public void testLongUrls() {
+    // Q: What is the longest URL we can store into Solr?
   }
 
   @VariantTest
@@ -680,6 +686,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // Assert that an artifact by the spec's artifact ID no longer exists
     assertFalse(index.artifactExists(spec.getArtifactId()));
+    assertNull(index.getArtifact(spec.getArtifactId()));
   }
 
   @VariantTest

@@ -68,7 +68,11 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
       cluster = new MiniSolrCloudCluster(1, tempDir, jettyConfig.build());
 
       // Upload our Solr configuration set for tests
-      cluster.uploadConfigSet(new File("src/test/resources/solr/configsets/lockss-solrtest/conf").getAbsoluteFile().toPath(), "lockss-solrtest");
+      // TODO: Externalize this path / make it configurable elsewhere:
+      cluster.uploadConfigSet(
+          new File("target/test-classes/solr/configsets/lockss-solrtest/conf").toPath(),
+          "lockss-solrtest"
+      );
 
       // Get a Solr client handle to the Solr Cloud cluster
       client = cluster.getSolrClient();
@@ -92,9 +96,11 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
           .createCollection(collectionName, "lockss-solrtest", 1, 1)
           .processAndWait(client, 30);
 
+      // Assert collection exists
+      assertTrue(CollectionAdminRequest.listCollections(client).contains(collectionName));
+
       // Set default collection
       client.setDefaultCollection(collectionName);
-
     } catch (Exception e) {
       log.error("Could not create temporary Solr collection [collectionName: {}]:", collectionName, e);
       throw new IOException(e); // FIXME
@@ -105,10 +111,10 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
   @AfterEach
   public void removeSolrCollection() throws Exception {
-    // Get a Solr client handle to the Solr Cloud cluster
-    CloudSolrClient client = cluster.getSolrClient();
-    client.connect();
-
+    // Delete Solr collection
     CollectionAdminRequest.deleteCollection(collectionName).processAndWait(client, 30);
+
+    // Assert collection does not exist
+    assertFalse(CollectionAdminRequest.listCollections(client).contains(collectionName));
   }
 }
