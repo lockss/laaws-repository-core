@@ -291,6 +291,12 @@ POSSIBILITY OF SUCH DAMAGE.
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>${version.dependency.commons-lang}</version>
+    </dependency>
+
     <!--
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
