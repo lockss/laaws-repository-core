@@ -78,13 +78,21 @@ public class VariantState {
   }
 
   public void commit(String artifactId) {
-    ArtifactSpec spec = getArtifactSpec(artifactId);
-    spec.setCommitted(true);
+    if (artifactExists(artifactId)) {
+      ArtifactSpec spec = getArtifactSpec(artifactId);
+      spec.setCommitted(true);
 
-    ArtifactSpec maxCommittedVerSpec = getHighestCommittedVerSpec(spec.artButVerKey());
-    if (maxCommittedVerSpec == null || maxCommittedVerSpec.getVersion() < spec.getVersion()) {
-      setHighestCommittedVerSpec(spec.artButVerKey(), spec);
+      ArtifactSpec maxCommittedVerSpec = getHighestCommittedVerSpec(spec.artButVerKey());
+      if (maxCommittedVerSpec == null || maxCommittedVerSpec.getVersion() < spec.getVersion()) {
+        setHighestCommittedVerSpec(spec.artButVerKey(), spec);
+      }
+    } else {
+      // Artifact does not exist: Nothing to commit
     }
+  }
+
+  private boolean artifactExists(String artifactId) {
+    return getArtifactSpec(artifactId) == null ? false : true;
   }
 
   public void addAll(Iterable<? extends ArtifactSpec> specs) {
