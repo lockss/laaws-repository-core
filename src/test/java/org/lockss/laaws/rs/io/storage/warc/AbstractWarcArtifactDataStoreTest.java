@@ -873,6 +873,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     try {
       ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
+      spec.generateContent();
       ArtifactData ad = spec.getArtifactData();
       ad.setIdentifier(null);
       Artifact artifact = store.addArtifactData(ad);
