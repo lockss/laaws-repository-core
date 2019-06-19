@@ -243,6 +243,10 @@ public class VariantState {
         .sorted();
   }
 
+  public long auSize(String collection, String auid) {
+    return orderedAllAu(collection, auid).mapToLong(ArtifactSpec::getContentLength).sum();
+  }
+
   Stream<ArtifactSpec> orderedAllUrl(String coll, String auid, String url) {
     return committedSpecStream()
         .filter(s -> s.getCollection().equals(coll))
