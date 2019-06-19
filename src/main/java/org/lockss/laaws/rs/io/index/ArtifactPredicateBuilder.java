@@ -83,15 +83,20 @@ public class ArtifactPredicateBuilder {
 
     /**
      * Adds a filtering predicate by URI prefix.
+     *
+     * If the URI prefix is {@code null}, then a filter is not applied.
      * 
      * @param prefix
      *          A String with the URI prefix.
      * @return an ArtifactPredicateBuilder with this object.
      */
     public ArtifactPredicateBuilder filterByURIPrefix(String prefix) {
-        if (prefix != null)
-            predicates.add(artifact -> artifact.getUri().startsWith(prefix));
-        return this;
+      if (prefix != null) {
+          // Q: Perhaps it would be better to throw an IllegalArgumentException?
+          predicates.add(artifact -> artifact.getUri().startsWith(prefix));
+      }
+
+      return this;
     }
 
     /**
@@ -102,9 +107,8 @@ public class ArtifactPredicateBuilder {
      * @return an ArtifactPredicateBuilder with this object.
      */
     public ArtifactPredicateBuilder filterByURIMatch(String uri) {
-        if (uri != null)
-            predicates.add(artifact -> artifact.getUri().equals(uri));
-        return this;
+      predicates.add(artifact -> artifact.getUri().equals(uri));
+      return this;
     }
 
     /**
