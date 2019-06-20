@@ -78,7 +78,6 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
       // Upload our Solr configuration set for tests
       cluster.uploadConfigSet(SOLR_CONFIG_PATH.toPath(), SOLR_CONFIG_NAME);
-
     } catch (Exception e) {
       log.error("Could not start MiniSolrCloudCluster", e);
     }
@@ -88,7 +87,9 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   @Override
   protected SolrArtifactIndex makeArtifactIndex() throws IOException {
     // Get a Solr client handle to the Solr Cloud cluster
-    client = cluster.getSolrClient();
+    client = new CloudSolrClient.Builder()
+        .withZkHost(cluster.getZkServer().getZkAddress())
+        .build();
     client.connect();
 
     // Generate a new collection name for this test
@@ -122,6 +123,10 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
     // Assert collection does not exist
     assertFalse(CollectionAdminRequest.listCollections(client).contains(collectionName));
+
+    // Assert shutdown index
+    index.shutdownIndex();
+    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.SHUTDOWN);
   }
 
   // *******************************************************************************************************************
@@ -131,16 +136,13 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   @Test
   @Override
   public void testInitIndex() throws Exception {
-    SolrArtifactIndex index = makeArtifactIndex();
-    index.initIndex();
+    // The given index is already initialized by the test framework; just check that it is ready
     assertTrue(index.isReady());
   }
 
   @Test
   @Override
   public void testShutdownIndex() throws Exception {
-    SolrArtifactIndex index = makeArtifactIndex();
-    index.shutdownIndex();
-    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.SHUTDOWN);
+    // Intentionally left blank; see @AfterEach remoteSolrCollection()
   }
 }
