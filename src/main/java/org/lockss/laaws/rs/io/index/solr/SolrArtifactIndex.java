@@ -146,7 +146,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       solr.ping();
       return true;
     } catch (Exception e) {
-      log.warn(String.format("Could not ping Solr: %s", e));
+      log.warn("Could not ping Solr: {}", e);
     }
 
     return false;
@@ -231,10 +231,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-      log.debug("Adding artifact to index: {}", artifactData);
+      log.debug("Indexing artifact data: {}", artifactData);
 
       if (artifactData == null) {
-        throw new IllegalArgumentException("Null artifact");
+        throw new IllegalArgumentException("Null artifact data");
       }
 
       ArtifactIdentifier artifactId = artifactData.getIdentifier();
@@ -279,7 +279,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact getArtifact(String artifactId) throws IOException {
       if (artifactId == null) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
         SolrQuery q = new SolrQuery();
@@ -443,21 +443,31 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
-      // Perform an atomic update
-      SolrInputDocument document = new SolrInputDocument();
-      document.addField("id", artifactId);
+      if (artifactId == null) {
+        throw new IllegalArgumentException("Cannot update storage URL for a null artifact ID");
+      }
 
-      // Setup type of field modification, and replacement value
-      Map<String, Object> fieldModifier = new HashMap<>();
-      fieldModifier.put("set", storageUrl);
-      document.addField("storageUrl", fieldModifier);
+      if (StringUtils.isEmpty(storageUrl)) {
+        throw new IllegalArgumentException("Invalid storage URL: Must not be null or empty");
+      }
 
-      try {
+      if (artifactExists(artifactId)) {
+        // Perform a partial update of an existing Solr document
+        SolrInputDocument document = new SolrInputDocument();
+        document.addField("id", artifactId);
+
+        // Specify type of field modification, field name, and replacement value
+        Map<String, Object> fieldModifier = new HashMap<>();
+        fieldModifier.put("set", storageUrl);
+        document.addField("storageUrl", fieldModifier);
+
+        try {
           // Update the field
           this.solr.add(document);
           this.solr.commit();
-      } catch (SolrServerException e) {
+        } catch (SolrServerException e) {
           throw new IOException(e);
+        }
       }
 
       // Return updated Artifact
@@ -576,8 +586,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-
-
     @Override
     public Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException {
         SolrQuery q = new SolrQuery();
@@ -721,7 +729,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
-        q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+
+        // Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter, we
+        //    return all the committed artifacts in a collection. Is that useful?
+        if (prefix != null ) {
+          q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+        }
+
         q.addSort(URI_ASC);
         q.addSort(VERSION_DESC);
         q.addSort(AUID_ASC);
@@ -856,6 +870,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
         SolrQuery q = new SolrQuery();
+
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
@@ -864,6 +879,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         q.addFilterQuery(String.format("version:%s", version));
 
         Iterator<Artifact> result = query(q);
+
         if (result.hasNext()) {
             Artifact artifact = result.next();
             if (result.hasNext()) {
@@ -886,6 +902,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Long auSize(String collection, String auid) throws IOException {
         SolrQuery q = new SolrQuery();
+
         q.setQuery("*:*");
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
@@ -899,7 +916,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
                     auid
             ));
 
-            return null;
+            return 0L;
         }
 
         q.addFilterQuery("{!collapse field=uri max=version}");

@@ -36,10 +36,18 @@ import org.junit.jupiter.api.Test;
  */
 public class TestVolatileArtifactIndex extends AbstractArtifactIndexTest<VolatileArtifactIndex> {
 
+  // *******************************************************************************************************************
+  // * JUNIT LIFECYCLE
+  // *******************************************************************************************************************
+
   @Override
   protected VolatileArtifactIndex makeArtifactIndex() {
     return new VolatileArtifactIndex();
   }
+
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION SPECIFIC TESTS
+  // *******************************************************************************************************************
 
   @Test
   @Override

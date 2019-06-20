@@ -49,6 +49,10 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     private static final String PERSISTED_INDEX_NAME = "repository-index.ser";
     private File testBaseDir;
 
+    // *****************************************************************************************************************
+    // * JUNIT LIFECYCLE
+    // *****************************************************************************************************************
+
     public LocalArtifactIndex makeArtifactIndex() throws IOException {
       testBaseDir = getTempDir();
       testBaseDir.deleteOnExit();
@@ -60,6 +64,10 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     void tearDown() {
         quietlyDeleteDir(testBaseDir);
     }
+
+    // *****************************************************************************************************************
+    // * UTILITY METHODS
+    // *****************************************************************************************************************
 
     protected static void quietlyDeleteDir(File dir) {
         try {
@@ -103,6 +111,10 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
         }
     }
 
+    // *****************************************************************************************************************
+    // * IMPLEMENTATION SPECIFIC TESTS
+    // *****************************************************************************************************************
+
     @Test
     void addToIndexTest() throws IOException {
         // Create an Artifact to add
@@ -140,18 +152,17 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
         // TODO
     }
 
-  @Disabled
-  @Test
-  @Override
-  public void testInitIndex() throws Exception {
-    // TODO: Show that the persistent file was created?
-  }
+    @Disabled
+    @Test
+    @Override
+    public void testInitIndex() throws Exception {
+        // TODO
+    }
 
-  @Disabled
-  @Test
-  @Override
-  public void testShutdownIndex() throws Exception {
-
-  }
-
+    @Disabled
+    @Test
+    @Override
+    public void testShutdownIndex() throws Exception {
+        // TODO
+    }
 }

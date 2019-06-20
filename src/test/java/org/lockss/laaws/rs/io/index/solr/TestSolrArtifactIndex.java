@@ -36,7 +36,6 @@ import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.cloud.MiniSolrCloudCluster;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
@@ -51,6 +50,11 @@ import java.util.UUID;
 public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifactIndex> {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  // TODO: Externalize this path / make it configurable elsewhere:
+  private static final File SOLR_CONFIG_PATH = new File("target/test-classes/solr/configsets/lockss-solrtest/conf");
+  private static final String SOLR_CONFIG_NAME = "lockss-solrtest";
+  private static final int SOLR_REQ_TIMEOUT = 10; // Seconds
+
   private static MiniSolrCloudCluster cluster;
   private static CloudSolrClient client;
   private String collectionName;
@@ -64,7 +68,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     // Base directory for the MiniSolrCloudCluster
     Path tempDir = Files.createTempDirectory("MiniSolrCloudCluster");
 
-    // Jetty configuration
+    // Jetty configuration - Q: Is this really needed?
     JettyConfig.Builder jettyConfig = JettyConfig.builder();
     jettyConfig.waitForLoadingCoresToFinish(null);
 
@@ -73,15 +77,8 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
       cluster = new MiniSolrCloudCluster(1, tempDir, jettyConfig.build());
 
       // Upload our Solr configuration set for tests
-      // TODO: Externalize this path / make it configurable elsewhere:
-      cluster.uploadConfigSet(
-          new File("target/test-classes/solr/configsets/lockss-solrtest/conf").toPath(),
-          "lockss-solrtest"
-      );
+      cluster.uploadConfigSet(SOLR_CONFIG_PATH.toPath(), SOLR_CONFIG_NAME);
 
-      // Get a Solr client handle to the Solr Cloud cluster
-      client = cluster.getSolrClient();
-      client.connect();
     } catch (Exception e) {
       log.error("Could not start MiniSolrCloudCluster", e);
     }
@@ -90,16 +87,20 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   // Invoked by a @BeforeEach in AbstractArtifactIndexTest
   @Override
   protected SolrArtifactIndex makeArtifactIndex() throws IOException {
-    // New collection name for this test
+    // Get a Solr client handle to the Solr Cloud cluster
+    client = cluster.getSolrClient();
+    client.connect();
+
+    // Generate a new collection name for this test
     collectionName = String.format("lockss-solrtest.%s", UUID.randomUUID());
 
-    log.debug("collectionName = {}", collectionName);
+    log.debug2("collectionName = {}", collectionName);
 
     try {
       // Create a new Solr collection
       CollectionAdminRequest
-          .createCollection(collectionName, "lockss-solrtest", 1, 1)
-          .processAndWait(client, 30);
+          .createCollection(collectionName, SOLR_CONFIG_NAME, 1, 1)
+          .processAndWait(client, SOLR_REQ_TIMEOUT);
 
       // Assert collection exists
       assertTrue(CollectionAdminRequest.listCollections(client).contains(collectionName));
@@ -108,7 +109,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
       client.setDefaultCollection(collectionName);
     } catch (Exception e) {
       log.error("Could not create temporary Solr collection [collectionName: {}]:", collectionName, e);
-      throw new IOException(e); // FIXME
+      throw new IOException(e);
     }
 
     return new SolrArtifactIndex(client);
@@ -117,7 +118,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   @AfterEach
   public void removeSolrCollection() throws Exception {
     // Delete Solr collection
-    CollectionAdminRequest.deleteCollection(collectionName).processAndWait(client, 30);
+    CollectionAdminRequest.deleteCollection(collectionName).processAndWait(client, SOLR_REQ_TIMEOUT);
 
     // Assert collection does not exist
     assertFalse(CollectionAdminRequest.listCollections(client).contains(collectionName));
@@ -130,7 +131,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   @Test
   @Override
   public void testInitIndex() throws Exception {
-    ArtifactIndex index = makeArtifactIndex();
+    SolrArtifactIndex index = makeArtifactIndex();
     index.initIndex();
     assertTrue(index.isReady());
   }

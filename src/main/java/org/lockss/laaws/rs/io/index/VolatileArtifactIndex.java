@@ -49,7 +49,7 @@ import java.util.stream.Stream;
 public class VolatileArtifactIndex extends AbstractArtifactIndex {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    // Map from artifact ID to Artifact
+    // Internal map from artifact ID to Artifact
     protected Map<String, Artifact> index = new LinkedHashMap<>();
 
     @Override
@@ -121,7 +121,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact getArtifact(String artifactId) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
       synchronized (index) {
@@ -156,18 +156,19 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact commitArtifact(String artifactId) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
       synchronized (index) {
-        Artifact indexedData = index.get(artifactId);
+        Artifact artifact = index.get(artifactId);
 
-        if (indexedData != null) {
-          indexedData.setCommitted(true);
-          addToIndex(artifactId, indexedData);
+        if (artifact != null) {
+          artifact.setCommitted(true);
+          removeFromIndex(artifactId);
+          addToIndex(artifactId, artifact);
         }
 
-        return indexedData;
+        return artifact;
       }
     }
 
@@ -241,7 +242,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public boolean artifactExists(String artifactId) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
       synchronized (index) {
@@ -251,15 +252,28 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) {
+      if (StringUtils.isEmpty(artifactId)) {
+        throw new IllegalArgumentException("Cannot update storage URL for a null artifact ID");
+      }
+
+      if (StringUtils.isEmpty(storageUrl)) {
+        throw new IllegalArgumentException("Invalid storage URL: Must not be null or empty");
+      }
+
       synchronized (index) {
+        // Retrieve the Artifact from the internal artifacts map
         Artifact artifact = index.get(artifactId);
 
+        // Return null if the artifact could not be found
         if (artifact == null) {
-          throw new IllegalArgumentException("Cannot update storage URL: unknown artifact " + artifactId);
+          log.warn("Could not update storage URL: Artifact not found [artifactId: " + artifactId + "]");
+          return null;
         }
 
+        // Update the storage URL of this Artifact in the internal artifacts map
         artifact.setStorageUrl(storageUrl);
 
+        // Return the artifact
         return artifact;
       }
     }
@@ -448,7 +462,12 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
-        query.filterByURIPrefix(prefix);
+
+        // Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter, we
+        //    return all the committed artifacts in a collection. Is that useful?
+        if (prefix != null) {
+          query.filterByURIPrefix(prefix);
+        }
 
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
@@ -503,7 +522,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by date, AUID and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+              .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
         }
     }
 
@@ -558,34 +577,27 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      */
     @Override
     public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
-        ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
-        q.filterByCollection(collection);
-        q.filterByAuid(auid);
-        q.filterByURIMatch(url);
-        q.filterByVersion(version);
+      ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
+      q.filterByCommitStatus(true);
+      q.filterByCollection(collection);
+      q.filterByAuid(auid);
+      q.filterByURIMatch(url);
+      q.filterByVersion(version);
 
-        synchronized (index) {
-          // Apply filter
-          Iterator<Artifact> result = index.values().stream().filter(q.build()).iterator();
+      synchronized (index) {
+        List<Artifact> artifacts = index.values().stream().filter(q.build()).collect(Collectors.toList());
 
-        if (!result.hasNext()) {
-          return null;
+        switch (artifacts.size()) {
+          case 0:
+            return null;
+          case 1:
+            return artifacts.get(0);
+          default:
+            String errMsg = "Found more than one artifact having the same version!";
+            log.error(errMsg);
+            throw new IllegalStateException(errMsg);
         }
-        Artifact ret = result.next();
-        
-        // There should be only one matching artifact
-        if (result.hasNext()) { // awful hack
-          int i = 1;
-          while (result.hasNext()) { ++i; result.next(); }
-            log.error(
-                String.format("Found %d artifacts having the same (Collection, AUID, URL, Version)", i)
-            );
-            // TODO: Should we throw IllegalStateException?
-        }
-
-        return ret;
-        }
+      }
     }
 
     /**
