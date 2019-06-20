@@ -46,11 +46,21 @@ import java.util.stream.Stream;
 /**
  * ArtifactData index implemented in memory, not persisted.
  */
-public class VolatileArtifactIndex implements ArtifactIndex {
+public class VolatileArtifactIndex extends AbstractArtifactIndex {
     private final static L4JLogger log = L4JLogger.getLogger();
 
     // Map from artifact ID to Artifact
     protected Map<String, Artifact> index = new LinkedHashMap<>();
+
+    @Override
+    public void initIndex() {
+      setState(ArtifactIndexState.READY);
+    }
+
+    @Override
+    public void shutdownIndex() {
+      setState(ArtifactIndexState.SHUTDOWN);
+    }
 
     /**
      * Adds an artifact to the index.
@@ -653,6 +663,6 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean isReady() {
-        return true;
+        return getState() == ArtifactIndexState.READY;
     }
 }

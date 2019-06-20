@@ -29,6 +29,8 @@
  */
 package org.lockss.laaws.rs.io.index;
 
+import org.junit.jupiter.api.Test;
+
 /**
  * Test class for {@code org.lockss.laaws.rs.io.index.VolatileArtifactIndex}
  */
@@ -39,4 +41,19 @@ public class TestVolatileArtifactIndex extends AbstractArtifactIndexTest<Volatil
     return new VolatileArtifactIndex();
   }
 
+  @Test
+  @Override
+  public void testInitIndex() throws Exception {
+    ArtifactIndex index = makeArtifactIndex();
+    index.initIndex();
+    assertTrue(index.isReady());
+  }
+
+  @Test
+  @Override
+  public void testShutdownIndex() throws Exception {
+    VolatileArtifactIndex index = makeArtifactIndex();
+    index.shutdownIndex();
+    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.SHUTDOWN);
+  }
 }

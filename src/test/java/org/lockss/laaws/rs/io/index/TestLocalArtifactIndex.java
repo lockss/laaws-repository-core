@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.index;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -138,4 +139,19 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     void persistTest() {
         // TODO
     }
+
+  @Disabled
+  @Test
+  @Override
+  public void testInitIndex() throws Exception {
+    // TODO: Show that the persistent file was created?
+  }
+
+  @Disabled
+  @Test
+  @Override
+  public void testShutdownIndex() throws Exception {
+
+  }
+
 }

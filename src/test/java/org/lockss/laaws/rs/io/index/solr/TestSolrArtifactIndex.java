@@ -38,6 +38,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
 import org.lockss.log.L4JLogger;
 
@@ -53,6 +54,10 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   private static MiniSolrCloudCluster cluster;
   private static CloudSolrClient client;
   private String collectionName;
+
+  // *******************************************************************************************************************
+  // * JUNIT LIFECYCLE
+  // *******************************************************************************************************************
 
   @BeforeAll
   protected static void startMiniSolrCloudCluster() throws IOException {
@@ -82,7 +87,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     }
   }
 
-  //@BeforeEach
+  // Invoked by a @BeforeEach in AbstractArtifactIndexTest
   @Override
   protected SolrArtifactIndex makeArtifactIndex() throws IOException {
     // New collection name for this test
@@ -116,5 +121,25 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
     // Assert collection does not exist
     assertFalse(CollectionAdminRequest.listCollections(client).contains(collectionName));
+  }
+
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION SPECIFIC TESTS
+  // *******************************************************************************************************************
+
+  @Test
+  @Override
+  public void testInitIndex() throws Exception {
+    ArtifactIndex index = makeArtifactIndex();
+    index.initIndex();
+    assertTrue(index.isReady());
+  }
+
+  @Test
+  @Override
+  public void testShutdownIndex() throws Exception {
+    SolrArtifactIndex index = makeArtifactIndex();
+    index.shutdownIndex();
+    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.SHUTDOWN);
   }
 }

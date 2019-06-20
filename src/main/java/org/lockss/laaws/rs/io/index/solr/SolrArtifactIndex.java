@@ -44,7 +44,7 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.CursorMarkParams;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
@@ -56,15 +56,13 @@ import java.util.*;
 /**
  * An Apache Solr implementation of ArtifactIndex.
  */
-public class SolrArtifactIndex implements ArtifactIndex {
+public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
-    private static final long DEFAULT_TIMEOUT = 10;
     private final SolrClient solr;
 
     private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
     private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
-    private boolean initialized = false;
 
     /**
      * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -85,15 +83,15 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     public SolrArtifactIndex(SolrClient client) {
         this.solr = client;
-        init();
     }
 
     /**
      * Modifies the schema of a collection pointed to by a SolrClient, to support artifact indexing.
      *
      */
-    private synchronized void init() {
-      if (!initialized) {
+    @Override
+    public synchronized void initIndex() {
+      if (getState() == ArtifactIndexState.UNINITIALIZED) {
           // Modify Solr schema to handle artifact metadata
           try {
 //            createSolrField(solr,"artfactId", "string");
@@ -114,13 +112,27 @@ public class SolrArtifactIndex implements ArtifactIndex {
               createSolrField(solr, "version", "pint");
               createSolrField(solr, "collectionDate", "plong");
 
-              initialized = true;
+              setState(ArtifactIndexState.INITIALIZED);
 
           } catch (IOException e) {
               throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
           } catch (SolrServerException e) {
             log.warn(String.format("Could not initialize Solr artifact index: %s", e));
           }
+      }
+
+      if (isReady()) {
+        setState(ArtifactIndexState.READY);
+      }
+    }
+
+    @Override
+    public void shutdownIndex() {
+      try {
+        solr.close();
+        setState(ArtifactIndexState.SHUTDOWN);
+      } catch (IOException e) {
+        log.error("Could not close Solr client connection: {}", e);
       }
     }
 
@@ -146,10 +158,9 @@ public class SolrArtifactIndex implements ArtifactIndex {
    * @return
    */
   @Override
-    public boolean isReady() {
-      init();
-      return initialized && checkAlive();
-    }
+  public boolean isReady() {
+    return getState() == ArtifactIndexState.READY || getState() == ArtifactIndexState.INITIALIZED && checkAlive();
+  }
 
     /**
      * Creates a Solr field of the given name and type, that is indexed, stored, required but not multivalued.
