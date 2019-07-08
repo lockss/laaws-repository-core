@@ -60,7 +60,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
     private static final long DEFAULT_TIMEOUT = 10;
     private final SolrClient solr;
 
-    private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
+    private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
     private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
     private boolean initialized = false;
@@ -99,6 +99,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
               createSolrField(solr, "collection", "string");
               createSolrField(solr, "auid", "string");
               createSolrField(solr, "uri", "string");
+              createSolrField(solr, "sortUri", "string");
               createSolrField(solr, "committed", "boolean");
               createSolrField(solr, "storageUrl", "string");
               createSolrField(solr, "contentLength", "plong");
@@ -520,7 +521,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
 
         // Ensure the result is not empty for the collapse filter query
@@ -562,7 +563,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
@@ -589,7 +590,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
 
         // Ensure the result is not empty for the collapse filter query
@@ -630,7 +631,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
@@ -653,7 +654,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
         q.addSort(AUID_ASC);
 
@@ -680,7 +681,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=auid}%s", auid));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
 
         return IteratorUtils.asIterable(query(q));
@@ -702,7 +703,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
         q.addFilterQuery(String.format("committed:%s", true));
         q.addFilterQuery(String.format("{!term f=collection}%s", collection));
         q.addFilterQuery(String.format("{!term f=uri}%s", url));
-        q.addSort(URI_ASC);
+        q.addSort(SORTURI_ASC);
         q.addSort(VERSION_DESC);
         q.addSort(AUID_ASC);
 
