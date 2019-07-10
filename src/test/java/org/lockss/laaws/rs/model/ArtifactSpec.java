@@ -64,6 +64,7 @@ public class ArtifactSpec implements Comparable<Object> {
   String coll = COLL1;
   String auid = AUID1;
   String url;
+  String sortUrl;
   int fixedVer = -1;
 
   // used for creation and comparison of actual with expected
@@ -119,6 +120,11 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public ArtifactSpec setUrl(String url) {
     this.url = url;
+
+    if (url != null) {
+      sortUrl = url.replaceAll("/", "\u0000");
+    }
+
     return this;
   }
 
@@ -227,6 +233,10 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public String getUrl() {
     return url;
+  }
+
+  public String getSortUrl() {
+    return sortUrl;
   }
 
   public String getCollection() {
@@ -392,7 +402,7 @@ public class ArtifactSpec implements Comparable<Object> {
     return new CompareToBuilder()
         .append(this.getCollection(), s.getCollection())
         .append(this.getAuid(), s.getAuid())
-        .append(this.getUrl(), s.getUrl())
+        .append(this.getSortUrl(), s.getSortUrl())
         .append(s.getVersion(), this.getVersion())
         .toComparison();
   }
