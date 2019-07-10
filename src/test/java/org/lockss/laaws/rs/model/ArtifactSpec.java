@@ -3,7 +3,6 @@ package org.lockss.laaws.rs.model;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
@@ -12,6 +11,7 @@ import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.core.RepoUtil;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.PreOrderComparator;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
 
@@ -60,11 +60,17 @@ public class ArtifactSpec implements Comparable<Object> {
     HEADERS1.set("key2", "val2");
   }
 
+  static final Comparator<ArtifactSpec> artSpecComparator =
+      Comparator.comparing(ArtifactSpec::getCollection)
+      .thenComparing(ArtifactSpec::getAuid)
+      .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+      .thenComparing(
+	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
+
   // Identifying fields used in lookups
   String coll = COLL1;
   String auid = AUID1;
   String url;
-  String sortUrl;
   int fixedVer = -1;
 
   // used for creation and comparison of actual with expected
@@ -120,11 +126,6 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public ArtifactSpec setUrl(String url) {
     this.url = url;
-
-    if (url != null) {
-      sortUrl = url.replaceAll("/", "\u0000");
-    }
-
     return this;
   }
 
@@ -233,10 +234,6 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public String getUrl() {
     return url;
-  }
-
-  public String getSortUrl() {
-    return sortUrl;
   }
 
   public String getCollection() {
@@ -399,12 +396,8 @@ public class ArtifactSpec implements Comparable<Object> {
    */
   public int compareTo(Object o) {
     ArtifactSpec s = (ArtifactSpec) o;
-    return new CompareToBuilder()
-        .append(this.getCollection(), s.getCollection())
-        .append(this.getAuid(), s.getAuid())
-        .append(this.getSortUrl(), s.getSortUrl())
-        .append(s.getVersion(), this.getVersion())
-        .toComparison();
+
+    return artSpecComparator.compare(this, s);
   }
 
   /**
