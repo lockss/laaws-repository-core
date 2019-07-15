@@ -57,6 +57,12 @@ import java.util.*;
  */
 public class SolrArtifactIndex implements ArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  // The prefix of the name of the field that holds the LOCKSS version of the
+  // Solr schema.
+  private static final String lockssSolrSchemaVersionFieldNamePrefix =
+      "solrSchemaLockssVersion_";
+
     private static final long DEFAULT_TIMEOUT = 10;
     private final SolrClient solr;
 
@@ -64,6 +70,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
     private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
     private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
     private boolean initialized = false;
+
+    // The version of the schema to be targeted by this indexer.
+    //
+    // After this indexer has started successfully, this is the version of the
+    // schema that will be in place, as long as the schema version prior to
+    // starting the indexer was not higher already.
+    private final int targetSchemaVersion = 2;
 
     /**
      * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -93,36 +106,323 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     private synchronized void init() {
       if (!initialized) {
-          // Modify Solr schema to handle artifact metadata
-          try {
-//            createSolrField(solr,"artfactId", "string");
-              createSolrField(solr, "collection", "string");
-              createSolrField(solr, "auid", "string");
-              createSolrField(solr, "uri", "string");
-              createSolrField(solr, "sortUri", "string");
-              createSolrField(solr, "committed", "boolean");
-              createSolrField(solr, "storageUrl", "string");
-              createSolrField(solr, "contentLength", "plong");
-              createSolrField(solr, "contentDigest", "string");
+	// Update the schema, if necessary.
+	updateIfNecessary(targetSchemaVersion);
 
-              // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
-              // sorting when the field is a single value field. See the link below for more information:
-              // https://lucene.apache.org/solr/guide/6_6/field-types-included-with-solr.html
-//              Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
-//              versionFieldAttributes.put("docValues", true);
-//              createSolrField(solr,"version", "pdate", versionFieldAttributes);
-              createSolrField(solr, "version", "pint");
-              createSolrField(solr, "collectionDate", "long");
-
-              initialized = true;
-
-          } catch (IOException e) {
-              throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
-          } catch (SolrServerException e) {
-            log.warn(String.format("Could not initialize Solr artifact index: %s", e));
-          }
+	initialized = true;
       }
     }
+
+  /**
+   * Updates the schema, if necessary.
+   * 
+   * @param targetSchemaVersion An int with the LOCKSS version of the Solr
+   *                            schema to be updated.
+   */
+  private void updateIfNecessary(int targetSchemaVersion) {
+    log.debug2("targetSchemaVersion = " + targetSchemaVersion);
+
+    // Find the current schema version.
+    int existingSchemaVersion = getExistingLockssSchemaVersion();
+    log.trace("existingSchemaVersion = {}", existingSchemaVersion);
+
+    // Check whether the existing schema is newer than what this version of
+    // the service expects.
+    if (targetSchemaVersion < existingSchemaVersion) {
+      // Yes: Report the problem.
+      throw new RuntimeException("Existing LOCKSS Solr schema version is "
+	  + existingSchemaVersion
+	  + ", which is higher than the target schema version "
+	  + targetSchemaVersion
+	  + " for this service. Possibly caused by service downgrade.");
+    }
+
+    // Check whether the schema needs to be updated beyond the existing schema
+    // version.
+    if (targetSchemaVersion > existingSchemaVersion) {
+      // Yes.
+      log.trace("Schema needs to be updated from existing version "
+	  + existingSchemaVersion + " to new version " + targetSchemaVersion);
+
+      // Update the schema and get the last updated version.
+      int lastUpdatedVersion =
+	  updateSchema(existingSchemaVersion, targetSchemaVersion);
+      log.trace("lastRecordedVersion = {}", lastUpdatedVersion);
+
+      // Record it in the field with the schema version.
+      updateSolrLockssSchemaVersion(lastUpdatedVersion);
+
+      log.info("Schema has been updated to LOCKSS version {}",
+	  lastUpdatedVersion);
+    } else {
+      // No.
+      log.info("Schema is up-to-date at LOCKSS version {}",
+	  existingSchemaVersion);
+    }
+
+    log.debug2("Done.");
+  }
+
+  /**
+   * Provides the LOCKSS version of the current Solr schema.
+   *
+   * @return an int with the LOCKSS version of the current Solr schema.
+   */
+  private int getExistingLockssSchemaVersion() {
+    log.debug2("Invoked");
+    int result = getSolrSchemaLockssVersionFromField();
+    log.trace("result = {}", result);
+
+    // Check whether the schema is at version 1.
+    if (result == 0 && hasSolrField("collection", "string")
+	&& hasSolrField("auid", "string")
+	&& hasSolrField("uri", "string")
+	&& hasSolrField("committed", "boolean")
+	&& hasSolrField("storageUrl", "string")
+	&& hasSolrField("contentLength", "plong")
+	&& hasSolrField("contentDigest", "string")
+	&& hasSolrField("version", "pint")
+	&& hasSolrField("collectionDate", "long")) {
+      // Yes: The schema is at version 1.
+      result = 1;
+    }
+
+    log.debug2("result = {}", result);
+    return result;
+  }
+
+  /**
+   * Provides the LOCKSS version of the current Solr schema from the Solr field.
+   *
+   * @return an int with the LOCKSS version of the current Solr schema.
+   */
+  private int getSolrSchemaLockssVersionFromField() {
+    log.debug2("Invoked");
+    int result = 0;
+
+    try {
+      SchemaRequest.Fields fieldsSchemaRequest = new SchemaRequest.Fields();
+      SchemaResponse.FieldsResponse fieldsResponse =
+	  fieldsSchemaRequest.process(solr);
+      log.trace("fieldsResponse = {}", fieldsResponse);
+
+      List<Map<String, Object>> existingFields = fieldsResponse.getFields();
+      log.trace("existingFields = {}", existingFields);
+
+      for (Map<String, Object> field : existingFields) {
+	String fieldName = (String)field.get("name");
+	log.trace("fieldName = {}", fieldName);
+
+	if (fieldName.startsWith(lockssSolrSchemaVersionFieldNamePrefix)) {
+	  result = Integer.valueOf(fieldName.substring(
+	      lockssSolrSchemaVersionFieldNamePrefix.length()));
+	  break;
+	}
+      }
+    } catch (SolrServerException sse) {
+      String errorMessage = "Exception caught locating Solr schema field";
+      log.error(errorMessage, sse);
+      throw new RuntimeException(errorMessage, sse);
+    } catch (IOException ioe) {
+      String errorMessage = "Exception caught locating Solr schema field";
+      log.error(errorMessage, ioe);
+      throw new RuntimeException(errorMessage, ioe);
+    }
+
+    log.debug2("result = {}", result);
+    return result;
+  }
+
+  /**
+   * Provides the attributes of a new field.
+   * 
+   * @param fieldName       A String with the name of the field.
+   * @param fieldType       A String with the type of the field.
+   * @param fieldAttributes A Map<String,Object> with overriding field
+   *                        attributes, if any.
+   * @return a Map<String, Object> with the attributes of the new field.
+   */
+  private Map<String, Object> getNewFieldAttributes(String fieldName,
+      String fieldType, Map<String,Object> fieldAttributes) {
+    // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
+    Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
+    newFieldAttributes.put("name", fieldName);
+    newFieldAttributes.put("type", fieldType);
+    newFieldAttributes.put("indexed", true);
+    newFieldAttributes.put("stored", true);
+    newFieldAttributes.put("multiValued", false);
+    newFieldAttributes.put("required", true);
+
+    // Allow default attributes to be overridden if field attributes were
+    // provided.
+    if (fieldAttributes != null) {
+      newFieldAttributes.putAll(fieldAttributes);
+    }
+
+    return newFieldAttributes;
+  }
+
+  /**
+   * Provides an indication of whether a Solr schema field exists.
+   *
+   * @param fieldName       A String with the name of the field.
+   * @param fieldType       A String with the type of the field.
+   * @param required        A boolean with the indication of whether the field
+   *                        is required.
+   * @return a boolean with the indication.
+     */
+  private boolean hasSolrField(String fieldName, String fieldType) {
+    Map<String, Object> newFieldAttributes =
+	getNewFieldAttributes(fieldName, fieldType, null);
+
+    // Get a list of fields from the Solr schema.
+    SchemaRequest.Fields fieldsReq = new SchemaRequest.Fields();
+
+    try {
+      SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
+
+      return fieldsResponse.getFields().contains(newFieldAttributes);
+    } catch (SolrServerException sse) {
+      String errorMessage = "Exception caught locating Solr schema field";
+      log.error(errorMessage, sse);
+      throw new RuntimeException(errorMessage, sse);
+    } catch (IOException ioe) {
+      String errorMessage = "Exception caught locating Solr schema field";
+      log.error(errorMessage, ioe);
+      throw new RuntimeException(errorMessage, ioe);
+    }
+  }
+
+  /**
+   * Updates the schema to the target version.
+   * 
+   * @param existingVersion An int with the existing schema version.
+   * @param finalVersion    An int with the version of the schema to which the
+   *                        schema is to be updated.
+   * @return an int with the highest update version recorded in the schema.
+   */
+  private int updateSchema(int existingVersion, int finalVersion) {
+    log.debug2("existingVersion = {}", existingVersion);
+    log.debug2("finalVersion = {}", finalVersion);
+
+    int lastUpdatedVersion = existingVersion;
+
+    // Loop through all the versions to be updated to reach the targeted
+    // version.
+    for (int from = existingVersion; from < finalVersion; from++) {
+      log.trace("Updating from version {}...", from);
+
+      // Perform the appropriate update of the Solr schema for this version.
+      updateSchemaToVersion(from + 1);
+
+      // Remember the current schema version.
+      lastUpdatedVersion = from + 1;
+      log.debug("Solr Schema updated to LOCKSS version {}", lastUpdatedVersion);
+    }
+
+    log.debug2("lastRecordedVersion = {}", lastUpdatedVersion);
+    return lastUpdatedVersion;
+  }
+
+  /**
+   * Updates the Solr schema to a given LOCKSS version.
+   * 
+   * @param schemaVersion An int with the LOCKSS version of the schema to which
+   *                      the Solr schema is to be updated.
+   */
+  private void updateSchemaToVersion(int schemaVersion) {
+    log.debug2("schemaVersion = {}", schemaVersion);
+
+    // Perform the appropriate Solr schema update for this version.
+    try {
+      if (schemaVersion == 1) {
+	createSolrField(solr, "collection", "string");
+	createSolrField(solr, "auid", "string");
+	createSolrField(solr, "uri", "string");
+	createSolrField(solr, "committed", "boolean");
+	createSolrField(solr, "storageUrl", "string");
+	createSolrField(solr, "contentLength", "plong");
+	createSolrField(solr, "contentDigest", "string");
+	createSolrField(solr, "version", "pint");
+	createSolrField(solr, "collectionDate", "long");
+      } else if (schemaVersion == 2) {
+	createSolrField(solr, "sortUri", "string");
+      } else {
+	throw new RuntimeException("Non-existent method to update the schema "
+	    + "to version " + schemaVersion + ".");
+      }
+    } catch (SolrServerException sse) {
+	String errorMessage = "Exception caught updating Solr schema to LOCKSS "
+	    + "version " + schemaVersion;
+	log.error(errorMessage, sse);
+	throw new RuntimeException(errorMessage, sse);
+    } catch (IOException ioe) {
+	String errorMessage = "Exception caught updating Solr schema to LOCKSS "
+	    + "version " + schemaVersion;
+	log.error(errorMessage, ioe);
+	throw new RuntimeException(errorMessage, ioe);
+    }
+  }
+
+  /**
+   * Updates the Solr schema LOCKSS version field in the index.
+   *
+   * @param schemaVersion An int with the LOCKSS version of the Solr schema.
+   */
+  public void updateSolrLockssSchemaVersion(int schemaVersion) {
+    log.debug2("schemaVersion = {}", schemaVersion);
+
+    Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
+    newFieldAttributes.put("name", lockssSolrSchemaVersionFieldNamePrefix + schemaVersion);
+    newFieldAttributes.put("type", "int");
+    newFieldAttributes.put("indexed", true);
+    newFieldAttributes.put("stored", true);
+    newFieldAttributes.put("multiValued", false);
+    newFieldAttributes.put("required", false);
+
+    try {
+      if (getSolrSchemaLockssVersionFromField() != 0) {
+	SchemaRequest.Fields fieldsSchemaRequest = new SchemaRequest.Fields();
+	SchemaResponse.FieldsResponse initialFieldsResponse =
+	    fieldsSchemaRequest.process(solr);
+	List<Map<String, Object>> existingFields =
+	    initialFieldsResponse.getFields();
+	log.trace("existingFields = {}", existingFields);
+
+	for (Map<String, Object> field : existingFields) {
+	  String fieldName = (String)field.get("name");
+	  log.trace("fieldName = {}", fieldName);
+
+	  if (fieldName.startsWith(lockssSolrSchemaVersionFieldNamePrefix)) {
+	    // Delete the existing field.
+	    SchemaRequest.DeleteField deleteFieldRequest =
+		new SchemaRequest.DeleteField(fieldName);
+	    SchemaResponse.UpdateResponse deleteFieldResponse =
+		deleteFieldRequest.process(solr);
+	    log.trace("deleteFieldResponse = {}", deleteFieldResponse);
+	  }
+	}
+      }
+
+      // Add the field for the Solr schema LOCKSS version.
+      log.debug("Adding field to Solr schema: {}", newFieldAttributes);
+      SchemaRequest.AddField addFieldReq =
+	  new SchemaRequest.AddField(newFieldAttributes);
+      addFieldReq.process(solr);
+    } catch (SolrServerException sse) {
+	String errorMessage = "Exception caught updating Solr schema LOCKSS "
+	    + "version to " + schemaVersion;
+	log.error(errorMessage, sse);
+	throw new RuntimeException(errorMessage, sse);
+    } catch (IOException ioe) {
+	String errorMessage = "Exception caught updating Solr schema LOCKSS "
+	    + "version to " + schemaVersion;
+	log.error(errorMessage, ioe);
+	throw new RuntimeException(errorMessage, ioe);
+    }
+
+    log.debug2("Done");
+  }
 
   /**
    * Checks whether the Solr cluster is alive by calling {@code SolrClient#ping()}.
@@ -163,7 +463,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      * @throws SolrServerException
      */
-    private static void createSolrField(SolrClient solr, String fieldName, String fieldType) throws IOException, SolrServerException {
+    private void createSolrField(SolrClient solr, String fieldName, String fieldType) throws IOException, SolrServerException {
         createSolrField(solr, fieldName, fieldType, null);
     }
 
@@ -183,26 +483,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
      * @throws IOException
      * @throws SolrServerException
      */
-    private static void createSolrField(SolrClient solr, String fieldName, String fieldType, Map<String,Object> fieldAttributes) throws IOException, SolrServerException {
+    private void createSolrField(SolrClient solr, String fieldName, String fieldType, Map<String,Object> fieldAttributes) throws IOException, SolrServerException {
         // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
-        Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
-        newFieldAttributes.put("name", fieldName);
-        newFieldAttributes.put("type", fieldType);
-        newFieldAttributes.put("indexed", true);
-        newFieldAttributes.put("stored", true);
-        newFieldAttributes.put("multiValued", false);
-        newFieldAttributes.put("required", true);
-
-        // Allow default attributes to be overridden if field attributes were provided
-        if (fieldAttributes != null)
-            newFieldAttributes.putAll(fieldAttributes);
-
-        // Get a list of fields from the Solr schema
-        SchemaRequest.Fields fieldsReq = new SchemaRequest.Fields();
-        SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
+        Map<String, Object> newFieldAttributes =
+	    getNewFieldAttributes(fieldName, fieldType, fieldAttributes);
 
         // Only create the field if it does not exist
-        if (!fieldsResponse.getFields().contains(newFieldAttributes)) {
+        if (!hasSolrField(fieldName, fieldType)) {
             // Create and process new field request
             log.debug("Adding field to Solr schema: {}", newFieldAttributes);
             SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
