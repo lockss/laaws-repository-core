@@ -200,25 +200,42 @@ public class SolrArtifactIndex implements ArtifactIndex {
     log.debug2("Invoked");
     int result = 0;
 
+    // Loop through all the Solr schema fields.
+    for (Map<String, Object> field : getSolrSchemaFields()) {
+      String fieldName = (String)field.get("name");
+      log.trace("fieldName = {}", fieldName);
+
+      // Check whether the name of the field matches the name of the Solr schema
+      // LOCKSS version field.
+      if (fieldName.startsWith(lockssSolrSchemaVersionFieldNamePrefix)) {
+	// Yes: Get the version.
+	result = Integer.valueOf(fieldName.substring(
+	    lockssSolrSchemaVersionFieldNamePrefix.length()));
+	break;
+      }
+    }
+
+    log.debug2("result = {}", result);
+    return result;
+  }
+
+  /**
+   * Provides the definitions of the Solr schema fields.
+   *
+   * @return a List<Map<String, Object>> with the definitions of the Solr schema
+   *         fields.
+   */
+  private List<Map<String, Object>> getSolrSchemaFields() {
+    log.debug2("Invoked");
+    List<Map<String, Object>> result = null;
+
     try {
       SchemaRequest.Fields fieldsSchemaRequest = new SchemaRequest.Fields();
       SchemaResponse.FieldsResponse fieldsResponse =
 	  fieldsSchemaRequest.process(solr);
       log.trace("fieldsResponse = {}", fieldsResponse);
 
-      List<Map<String, Object>> existingFields = fieldsResponse.getFields();
-      log.trace("existingFields = {}", existingFields);
-
-      for (Map<String, Object> field : existingFields) {
-	String fieldName = (String)field.get("name");
-	log.trace("fieldName = {}", fieldName);
-
-	if (fieldName.startsWith(lockssSolrSchemaVersionFieldNamePrefix)) {
-	  result = Integer.valueOf(fieldName.substring(
-	      lockssSolrSchemaVersionFieldNamePrefix.length()));
-	  break;
-	}
-      }
+      result = fieldsResponse.getFields();
     } catch (SolrServerException sse) {
       String errorMessage = "Exception caught locating Solr schema field";
       log.error(errorMessage, sse);
@@ -280,6 +297,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 
     try {
       SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
+      log.trace("fieldsResponse = {}", fieldsResponse);
 
       return fieldsResponse.getFields().contains(newFieldAttributes);
     } catch (SolrServerException sse) {
@@ -346,7 +364,7 @@ public class SolrArtifactIndex implements ArtifactIndex {
 	createSolrField(solr, "version", "pint");
 	createSolrField(solr, "collectionDate", "long");
       } else if (schemaVersion == 2) {
-	createSolrField(solr, "sortUri", "string");
+	updateSchemaFrom1To2();
       } else {
 	throw new RuntimeException("Non-existent method to update the schema "
 	    + "to version " + schemaVersion + ".");
@@ -365,6 +383,53 @@ public class SolrArtifactIndex implements ArtifactIndex {
   }
 
   /**
+   * Updates the Solr schema from LOCKSS version 1 to 2.
+   */
+  private void updateSchemaFrom1To2() {
+    log.debug2("Invoked");
+
+    try {
+      // Create the new field in the schema.
+      createSolrField(solr, "sortUri", "string");
+
+      // Loop through all the documents in the index.
+      SolrQuery q = new SolrQuery().setQuery("*:*");
+
+      for (Artifact artifact : IteratorUtils.asIterable(query(q))) {
+	// Initialize a document with the artifact identifier.
+	SolrInputDocument document = new SolrInputDocument();
+	document.addField("id", artifact.getId());
+
+	// Add the new field value.
+	Map<String, Object> fieldModifier = new HashMap<>();
+	fieldModifier.put("set", artifact.getSortUri());
+	document.addField("sortUri", fieldModifier);
+	log.trace("document = {}", document);
+
+	try {
+	  // Add the document with the new field.
+	  this.solr.add(document);
+	  this.solr.commit();
+	} catch (SolrServerException e) {
+	  throw new IOException(e);
+	}
+      }
+    } catch (SolrServerException sse) {
+	String errorMessage =
+	    "Exception caught updating Solr schema to LOCKSS version 2";
+	log.error(errorMessage, sse);
+	throw new RuntimeException(errorMessage, sse);
+    } catch (IOException ioe) {
+	String errorMessage =
+	    "Exception caught updating Solr schema to LOCKSS version 2";
+	log.error(errorMessage, ioe);
+	throw new RuntimeException(errorMessage, ioe);
+    }
+
+    log.debug2("Done");
+  }
+
+  /**
    * Updates the Solr schema LOCKSS version field in the index.
    *
    * @param schemaVersion An int with the LOCKSS version of the Solr schema.
@@ -373,7 +438,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
     log.debug2("schemaVersion = {}", schemaVersion);
 
     Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
-    newFieldAttributes.put("name", lockssSolrSchemaVersionFieldNamePrefix + schemaVersion);
+    newFieldAttributes.put("name",
+	lockssSolrSchemaVersionFieldNamePrefix + schemaVersion);
     newFieldAttributes.put("type", "int");
     newFieldAttributes.put("indexed", true);
     newFieldAttributes.put("stored", true);
@@ -381,26 +447,21 @@ public class SolrArtifactIndex implements ArtifactIndex {
     newFieldAttributes.put("required", false);
 
     try {
-      if (getSolrSchemaLockssVersionFromField() != 0) {
-	SchemaRequest.Fields fieldsSchemaRequest = new SchemaRequest.Fields();
-	SchemaResponse.FieldsResponse initialFieldsResponse =
-	    fieldsSchemaRequest.process(solr);
-	List<Map<String, Object>> existingFields =
-	    initialFieldsResponse.getFields();
-	log.trace("existingFields = {}", existingFields);
+      // Loop through all the Solr schema fields.
+      for (Map<String, Object> field : getSolrSchemaFields()) {
+	String fieldName = (String)field.get("name");
+	log.trace("fieldName = {}", fieldName);
 
-	for (Map<String, Object> field : existingFields) {
-	  String fieldName = (String)field.get("name");
-	  log.trace("fieldName = {}", fieldName);
-
-	  if (fieldName.startsWith(lockssSolrSchemaVersionFieldNamePrefix)) {
-	    // Delete the existing field.
-	    SchemaRequest.DeleteField deleteFieldRequest =
-		new SchemaRequest.DeleteField(fieldName);
-	    SchemaResponse.UpdateResponse deleteFieldResponse =
-		deleteFieldRequest.process(solr);
-	    log.trace("deleteFieldResponse = {}", deleteFieldResponse);
-	  }
+        // Check whether the name of the field matches the name of the Solr
+        // schema LOCKSS version field.
+	if (fieldName.startsWith(lockssSolrSchemaVersionFieldNamePrefix)) {
+	  // Delete the existing field.
+	  SchemaRequest.DeleteField deleteFieldRequest =
+	      new SchemaRequest.DeleteField(fieldName);
+	  SchemaResponse.UpdateResponse deleteFieldResponse =
+	      deleteFieldRequest.process(solr);
+	  log.trace("deleteFieldResponse = {}", deleteFieldResponse);
+	  break;
 	}
       }
 
@@ -408,7 +469,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
       log.debug("Adding field to Solr schema: {}", newFieldAttributes);
       SchemaRequest.AddField addFieldReq =
 	  new SchemaRequest.AddField(newFieldAttributes);
-      addFieldReq.process(solr);
+      SchemaResponse.UpdateResponse addFieldResponse =addFieldReq.process(solr);
+      log.trace("addFieldResponse = {}", addFieldResponse);
     } catch (SolrServerException sse) {
 	String errorMessage = "Exception caught updating Solr schema LOCKSS "
 	    + "version to " + schemaVersion;
