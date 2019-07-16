@@ -74,7 +74,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       log.debug("Adding artifact to index: {}", artifactData);
 
         if (artifactData == null) {
-          throw new IllegalArgumentException("Null artifact");
+          throw new IllegalArgumentException("Null artifact data");
         }
 
         ArtifactIdentifier artifactId = artifactData.getIdentifier();

@@ -30,13 +30,17 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import com.ibm.icu.text.Collator;
+import com.ibm.icu.text.RuleBasedCollator;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.schema.FieldTypeDefinition;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -49,7 +53,10 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 
@@ -61,6 +68,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final SolrClient solr;
 
   private static final SolrQuery.SortClause URI_ASC = new SolrQuery.SortClause("uri", SolrQuery.ORDER.asc);
+  private static final SolrQuery.SortClause URI_SORT_ASC = new SolrQuery.SortClause("uri_sort", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
   private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
 
@@ -83,31 +91,90 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     this.solr = client;
   }
 
+
+  private void addUrlSortFieldType() throws Exception {
+    // Get base rule set
+    RuleBasedCollator baseCollator = (RuleBasedCollator) Collator.getInstance(Locale.US);
+
+    // Custom rules
+    String customRules = "& '\u002f' < '\u0000'";
+//    String customRules = "& y < x";
+
+    RuleBasedCollator customCollator = new RuleBasedCollator(baseCollator.getRules() + customRules);
+
+//    FileOutputStream os = new FileOutputStream(FileUtil.createTempFile("rules.dat", null));
+    FileOutputStream os = new FileOutputStream(new File("rules.dat"));
+    IOUtils.write(customCollator.getRules(), os, "UTF-8");
+
+    // Add new field type to Solr
+    Map<String, Object> fieldTypeParams = new HashMap<>();
+
+    fieldTypeParams.put("name", "collatedUrl");
+    fieldTypeParams.put("class", "solr.ICUCollationField");
+    fieldTypeParams.put("custom", "rules.dat");
+    fieldTypeParams.put("strength", "primary");
+
+    FieldTypeDefinition def = new FieldTypeDefinition();
+    def.setAttributes(fieldTypeParams);
+
+    SchemaRequest.AddFieldType request = new SchemaRequest.AddFieldType(def);
+    SchemaResponse.UpdateResponse response = request.process(solr);
+
+    log.debug("response = {}", response.toString());
+  }
+
   /**
    * Modifies the schema of a collection pointed to by a SolrClient, to support artifact indexing.
    */
   @Override
   public synchronized void initIndex() {
     if (getState() == ArtifactIndexState.UNINITIALIZED) {
+      try {
+        addUrlSortFieldType();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+
       // Modify Solr schema to handle artifact metadata
       try {
+        List<Map<String, Object>> fields = new ArrayList<>();
+
 //            createSolrField(solr,"artfactId", "string");
-        createSolrField(solr, "collection", "string");
-        createSolrField(solr, "auid", "string");
-        createSolrField(solr, "uri", "string");
-        createSolrField(solr, "committed", "boolean");
-        createSolrField(solr, "storageUrl", "string");
-        createSolrField(solr, "contentLength", "plong");
-        createSolrField(solr, "contentDigest", "string");
+        fields.add(createDefaultSolrFieldParams("collection", "string"));
+        fields.add(createDefaultSolrFieldParams("auid", "string"));
+        fields.add(createDefaultSolrFieldParams("uri", "string"));
+        fields.add(createDefaultSolrFieldParams("committed", "boolean"));
+        fields.add(createDefaultSolrFieldParams("storageUrl", "string"));
+        fields.add(createDefaultSolrFieldParams("contentLength", "plong"));
+        fields.add(createDefaultSolrFieldParams("contentDigest", "string"));
 
         // Version is a DatePointField type which requires the field attribute docValues to be set to true to enable
         // sorting when the field is a single value field. See the link below for more information:
         // https://lucene.apache.org/solr/guide/6_6/field-types-included-with-solr.html
 //              Map<String, Object> versionFieldAttributes = new LinkedHashMap<>();
 //              versionFieldAttributes.put("docValues", true);
-//              createSolrField(solr,"version", "pdate", versionFieldAttributes);
-        createSolrField(solr, "version", "pint");
-        createSolrField(solr, "collectionDate", "plong");
+//              createDefaultSolrFieldParams(solr,"version", "pdate", versionFieldAttributes);
+        fields.add(createDefaultSolrFieldParams("version", "pint"));
+        fields.add(createDefaultSolrFieldParams("collectionDate", "plong"));
+
+        // Add new uri_sort field of type collatedUrl
+        fields.add(createDefaultSolrFieldParams("uri_sort", "collatedUrl", null, false));
+
+        createSolrFields(solr, fields);
+
+
+        // Determine if the copyField from uri to uri_sort already exists
+        SchemaRequest.CopyFields req1 = new SchemaRequest.CopyFields();
+        SchemaResponse.CopyFieldsResponse res = req1.process(solr);
+        List<Map<String, Object>> a = res.getCopyFields();
+        boolean copyFieldExists = a.stream().anyMatch(cf -> cf.get("source").equals("uri"));
+
+        if (!copyFieldExists) {
+          // Add copyField from uri to uri_sort
+          SchemaRequest.AddCopyField req2 = new SchemaRequest.AddCopyField("uri", ListUtil.list("uri_sort"));
+          SchemaResponse.UpdateResponse response = req2.process(solr);
+          log.debug("response = {}", response);
+        }
 
         setState(ArtifactIndexState.INITIALIZED);
 
@@ -159,17 +226,60 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     return getState() == ArtifactIndexState.READY || getState() == ArtifactIndexState.INITIALIZED && checkAlive();
   }
 
+  private static void createSolrFields(SolrClient solr, List<Map<String, Object>> fields) throws IOException, SolrServerException {
+    // Get list of fields currently in the schema
+    SchemaRequest.Fields req = new SchemaRequest.Fields();
+    SchemaResponse.FieldsResponse res = req.process(solr);
+
+    // Subtract existing from fields to add
+    fields.removeAll(res.getFields());
+
+    // Add new fields
+    for (Map<String, Object> field : fields) {
+      createSolrField(solr, field);
+    }
+  }
+
+  private static void createSolrField(SolrClient solr, Map<String, Object> field) throws IOException, SolrServerException {
+    // Get a list of fields from the Solr schema
+    SchemaRequest.Fields fieldsReq = new SchemaRequest.Fields();
+    SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
+
+    // Only create the field if it does not exist
+    if (!fieldsResponse.getFields().contains(field)) {
+      // Create and process new field request
+      log.debug("Adding field to Solr schema: {}", field);
+      SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(field);
+      addFieldReq.process(solr);
+    } else {
+      log.debug("Field already exists in Solr schema", field);
+    }
+  }
+
+  private static Map<String, Object> createSolrFieldParams(String name, String type, boolean indexed, boolean stored, boolean multivalued, boolean required) {
+    // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
+    Map<String, Object> fieldParams = new LinkedHashMap<>();
+
+    fieldParams.put("name", name);
+    fieldParams.put("type", type);
+    fieldParams.put("indexed", indexed);
+    fieldParams.put("stored", stored);
+    fieldParams.put("multiValued", multivalued);
+    fieldParams.put("required", required);
+
+    return fieldParams;
+  }
+
   /**
    * Creates a Solr field of the given name and type, that is indexed, stored, required but not multivalued.
    *
-   * @param solr      A {@code SolrClient} that points to a Solr core or collection to add the field to.
    * @param fieldName A {@code String} containing the name of the new field.
    * @param fieldType A {@code String} containing the name of the type of the new field.
    * @throws IOException
    * @throws SolrServerException
    */
-  private static void createSolrField(SolrClient solr, String fieldName, String fieldType) throws IOException, SolrServerException {
-    createSolrField(solr, fieldName, fieldType, null);
+  private static Map<String, Object> createDefaultSolrFieldParams(String fieldName, String fieldType) {
+    return createDefaultSolrFieldParams(fieldName, fieldType, null, true);
   }
 
   /**
@@ -177,40 +287,20 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * <p>
    * Additional field attributes can be provided, or default attributes can be overridden, by passing field attributes.
    *
-   * @param solr            A {@code SolrClient} that points to a Solr core or collection to add the field to.
    * @param fieldName       A {@code String} containing the name of the new field.
    * @param fieldType       A {@code String} containing the name of the type of the new field.
    * @param fieldAttributes A {@code Map<String, Object>} containing additional field attributes, and/or a map of fields to override.
    * @throws IOException
    * @throws SolrServerException
    */
-  private static void createSolrField(SolrClient solr, String fieldName, String fieldType, Map<String, Object> fieldAttributes) throws IOException, SolrServerException {
-    // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
-    Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
-    newFieldAttributes.put("name", fieldName);
-    newFieldAttributes.put("type", fieldType);
-    newFieldAttributes.put("indexed", true);
-    newFieldAttributes.put("stored", true);
-    newFieldAttributes.put("multiValued", false);
-    newFieldAttributes.put("required", true);
+  private static Map<String, Object> createDefaultSolrFieldParams(String fieldName, String fieldType, Map<String, Object> fieldAttributes, boolean stored) {
+    Map<String, Object> fieldParams = createSolrFieldParams(fieldName, fieldType, true, stored, false, true);
 
     // Allow default attributes to be overridden if field attributes were provided
     if (fieldAttributes != null)
-      newFieldAttributes.putAll(fieldAttributes);
+      fieldParams.putAll(fieldAttributes);
 
-    // Get a list of fields from the Solr schema
-    SchemaRequest.Fields fieldsReq = new SchemaRequest.Fields();
-    SchemaResponse.FieldsResponse fieldsResponse = fieldsReq.process(solr);
-
-    // Only create the field if it does not exist
-    if (!fieldsResponse.getFields().contains(newFieldAttributes)) {
-      // Create and process new field request
-      log.debug("Adding field to Solr schema: {}", newFieldAttributes);
-      SchemaRequest.AddField addFieldReq = new SchemaRequest.AddField(newFieldAttributes);
-      addFieldReq.process(solr);
-    } else {
-      log.debug("Field already exists in Solr schema: {}; skipping field addition", newFieldAttributes);
-    }
+    return fieldParams;
   }
 
   /**
@@ -584,7 +674,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
-    q.addSort(URI_ASC);
+    q.addSort(URI_SORT_ASC);
     q.addSort(VERSION_DESC);
 
     // Ensure the result is not empty for the collapse filter query

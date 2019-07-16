@@ -30,11 +30,14 @@
 
 package org.lockss.laaws.rs.io.index;
 
+import com.ibm.icu.text.CollationKey;
+import com.ibm.icu.text.Collator;
+import com.ibm.icu.text.RawCollationKey;
+import com.ibm.icu.text.RuleBasedCollator;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.model.*;
@@ -179,6 +182,12 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     Artifact addedArtifact = index.indexArtifact(ad);
     variantState.add(spec);
     spec.assertArtifactCommon(addedArtifact);
+
+    try {
+      Thread.sleep(500);
+    } catch (InterruptedException e) {
+      // oh well.
+    }
 
     // Sanity checks
     assertTrue(index.artifactExists(spec.getArtifactId()));
@@ -694,19 +703,63 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   }
 
   private static final int MAXIMUM_URL_LENGTH = 32766;
+//  private static final int MAXIMUM_URL_LENGTH = 32000;
+
+  @Test
+  public void testCollationInIsolation() throws Exception {
+    String s[] = {
+        "foo",
+        "foo/y",
+        "foo/x",
+        "foo.bar",
+        "foo/",
+        "foox",
+        RandomStringUtils.randomAlphanumeric(32766)
+    };
+
+    CollationKey keys[] = new CollationKey[s.length];
+    RawCollationKey rkeys[] = new RawCollationKey[s.length];
+
+    Collator coll = Collator.getInstance(Locale.US);
+//    Collator coll = new RuleBasedCollator("& '/' < '.' < \u0000");
+//    Collator coll = new RuleBasedCollator("& y < x");
+
+    Map<CollationKey, String> test = new HashMap<>();
+
+    for (int i = 0; i < s.length; i++) {
+      keys[i] = coll.getCollationKey(s[i]);
+      rkeys[i] = coll.getRawCollationKey(s[i], new RawCollationKey());
+
+      log.debug("keys[{}] = {} [length: {}], s[{}] = {} [length: {}]", i, keys[i].toByteArray(), keys[i].toByteArray().length, i, s[i], s[i].length());
+      log.debug("rkeys[{}] = {} (size: {})", i, rkeys[i].toString(), rkeys[i].size);
+
+      test.put(keys[i], s[i]);
+    }
+
+    Arrays.sort(keys);
+
+    for (CollationKey key : keys) {
+      log.debug("s = {}", test.get(key));
+    }
+  }
 
   @Test
   public void testLongUrls() throws Exception {
     // Build successively longer URLs (not really necessary but good for debugging)
-    List<String> urls = IntStream.range(1, 14)
+      List<String> urls = IntStream.range(1, 15)
+//        .mapToObj(i -> RandomStringUtils.random((int) Math.pow(2, i)))
         .mapToObj(i -> RandomStringUtils.randomAscii((int) Math.pow(2, i)))
-        .collect(Collectors.toList());
+//          .mapToObj(i -> RandomStringUtils.randomAlphanumeric((int) Math.pow(2, i)))
+          .collect(Collectors.toList());
 
     // Add URL with maximum length
-    urls.add(RandomStringUtils.randomAscii(MAXIMUM_URL_LENGTH));
+//    urls.add(RandomStringUtils.randomAscii(MAXIMUM_URL_LENGTH));
+//    urls.add(RandomStringUtils.randomAlphanumeric(MAXIMUM_URL_LENGTH));
+//    urls.add(RandomStringUtils.randomAlphanumeric(MAXIMUM_URL_LENGTH) + "/.");
 
     // Create and index artifact specs for each URL
     for (String url : urls) {
+      log.debug("url.length() = {}, url.utf8.length = {}", url.length(), url.getBytes("UTF-8").length);
       ArtifactSpec spec = createArtifactSpec("c", "a", url, 1, false);
       indexArtifactSpec(spec);
     }
@@ -1127,6 +1180,27 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getCollection(), spec.getAuid(), false));
       assertTrue(result.contains(spec.getArtifact()));
     }
+  }
+
+  @Test
+  public void testUrlSortOrder() throws Exception {
+    List<ArtifactSpec> specs = new ArrayList<>();
+
+    specs.add(createArtifactSpec("c", "a", "foo/x", 1, true));
+    specs.add(createArtifactSpec("c", "a", "foox", 1, true));
+    specs.add(createArtifactSpec("c", "a", "foo/y", 1, true));
+    specs.add(createArtifactSpec("c", "a", "foo", 1, true));
+    specs.add(createArtifactSpec("c", "a", "foo/", 1, true));
+    specs.add(createArtifactSpec("c", "a", "foo.bar", 1, true));
+    specs.add(createArtifactSpec("c", "a", "foo/bar", 1, true));
+
+    populateIndex(index, specs);
+
+    index.getArtifacts("c","a").forEach(artifact -> log.debug("artifact= {}", artifact));
+
+    index.getArtifactsWithPrefix("c", "a", "foo").forEach(artifact -> {
+      log.info("artifactId = {}, url = {}", artifact.getId(), artifact.getUri());
+    });
   }
 
   // *******************************************************************************************************************
