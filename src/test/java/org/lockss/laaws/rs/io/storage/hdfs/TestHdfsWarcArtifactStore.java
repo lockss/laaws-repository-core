@@ -78,7 +78,9 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     @AfterAll
     private static void stopMiniDFSCluster() {
+      if (hdfsCluster != null) {
         hdfsCluster.shutdown(true);
+      }
     }
 
     @Override

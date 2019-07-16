@@ -30,21 +30,119 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
-import org.junit.jupiter.api.*;
+import org.apache.solr.client.solrj.embedded.JettyConfig;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.cloud.MiniSolrCloudCluster;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.log.L4JLogger;
 
-public class TestSolrArtifactIndex extends AbstractArtifactIndexTest {
-    private final static L4JLogger log = L4JLogger.getLogger();
-    private ArtifactIndex index;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
 
-    @BeforeEach
-    public void setUp() throws Exception {
-//        this.index = new SolrArtifactIndex("http://localhost:8983/solr/test");
+public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifactIndex> {
+  private final static L4JLogger log = L4JLogger.getLogger();
+
+  // TODO: Externalize this path / make it configurable elsewhere:
+  private static final File SOLR_CONFIG_PATH = new File("target/test-classes/solr/configsets/lockss-solrtest/conf");
+  private static final String SOLR_CONFIG_NAME = "lockss-solrtest";
+  private static final int SOLR_REQ_TIMEOUT = 10; // Seconds
+
+  private static MiniSolrCloudCluster cluster;
+  private static CloudSolrClient client;
+  private String collectionName;
+
+  // *******************************************************************************************************************
+  // * JUNIT LIFECYCLE
+  // *******************************************************************************************************************
+
+  @BeforeAll
+  protected static void startMiniSolrCloudCluster() throws IOException {
+    // Base directory for the MiniSolrCloudCluster
+    Path tempDir = Files.createTempDirectory("MiniSolrCloudCluster");
+
+    // Jetty configuration - Q: Is this really needed?
+    JettyConfig.Builder jettyConfig = JettyConfig.builder();
+    jettyConfig.waitForLoadingCoresToFinish(null);
+
+    try {
+      // Start new MiniSolrCloudCluster with default solr.xml
+      cluster = new MiniSolrCloudCluster(1, tempDir, jettyConfig.build());
+
+      // Upload our Solr configuration set for tests
+      cluster.uploadConfigSet(SOLR_CONFIG_PATH.toPath(), SOLR_CONFIG_NAME);
+    } catch (Exception e) {
+      log.error("Could not start MiniSolrCloudCluster", e);
+    }
+  }
+
+  // Invoked by a @BeforeEach in AbstractArtifactIndexTest
+  @Override
+  protected SolrArtifactIndex makeArtifactIndex() throws IOException {
+    // Get a Solr client handle to the Solr Cloud cluster
+    client = new CloudSolrClient.Builder()
+        .withZkHost(cluster.getZkServer().getZkAddress())
+        .build();
+    client.connect();
+
+    // Generate a new collection name for this test
+    collectionName = String.format("lockss-solrtest.%s", UUID.randomUUID());
+
+    log.debug2("collectionName = {}", collectionName);
+
+    try {
+      // Create a new Solr collection
+      CollectionAdminRequest
+          .createCollection(collectionName, SOLR_CONFIG_NAME, 1, 1)
+          .processAndWait(client, SOLR_REQ_TIMEOUT);
+
+      // Assert collection exists
+      assertTrue(CollectionAdminRequest.listCollections(client).contains(collectionName));
+
+      // Set default collection
+      client.setDefaultCollection(collectionName);
+    } catch (Exception e) {
+      log.error("Could not create temporary Solr collection [collectionName: {}]:", collectionName, e);
+      throw new IOException(e);
     }
 
-    @Test
-    public void performTests() throws Exception {
-    }
+    return new SolrArtifactIndex(client);
+  }
+
+  @AfterEach
+  public void removeSolrCollection() throws Exception {
+    // Delete Solr collection
+    CollectionAdminRequest.deleteCollection(collectionName).processAndWait(client, SOLR_REQ_TIMEOUT);
+
+    // Assert collection does not exist
+    assertFalse(CollectionAdminRequest.listCollections(client).contains(collectionName));
+
+    // Assert shutdown index
+    index.shutdownIndex();
+    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.SHUTDOWN);
+  }
+
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION SPECIFIC TESTS
+  // *******************************************************************************************************************
+
+  @Test
+  @Override
+  public void testInitIndex() throws Exception {
+    // The given index is already initialized by the test framework; just check that it is ready
+    assertTrue(index.isReady());
+  }
+
+  @Test
+  @Override
+  public void testShutdownIndex() throws Exception {
+    // Intentionally left blank; see @AfterEach remoteSolrCollection()
+  }
 }

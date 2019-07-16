@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,43 +28,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.io.storage.hdfs;
+package org.lockss.laaws.rs.io.index;
 
-import org.junit.jupiter.api.*;
-import org.lockss.util.test.LockssTestCase5;
+public abstract class AbstractArtifactIndex implements ArtifactIndex {
+  protected ArtifactIndexState indexState = ArtifactIndexState.UNINITIALIZED;
 
-@Deprecated
-public class TestHdfsWarcFileWriter extends LockssTestCase5 {
+  public enum ArtifactIndexState {
+    UNINITIALIZED,
+    INITIALIZED,
+    READY,
+    SHUTDOWN
+  }
 
-    @BeforeEach
-    public void setUp() throws Exception {
-    }
+  public ArtifactIndexState getState() {
+    return indexState;
+  }
 
-    @Test
-    public void close() {
-    }
-
-    @Test
-    public void flush() {
-    }
-
-    @Test
-    public void hflush() {
-    }
-
-    @Test
-    public void handleTimeout() {
-    }
-
-    @Test
-    public void getOutput() {
-    }
-
-    @Test
-    public void getPosition() {
-    }
-
-    @Test
-    public void write() {
-    }
+  public void setState(ArtifactIndexState indexState) {
+    this.indexState = indexState;
+  }
 }
