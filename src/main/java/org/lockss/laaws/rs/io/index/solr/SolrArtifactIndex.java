@@ -445,7 +445,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
     newFieldAttributes.put("name",
         lockssSolrSchemaVersionFieldNamePrefix + schemaVersion);
-    newFieldAttributes.put("type", "int");
+    newFieldAttributes.put("type", "pint");
     newFieldAttributes.put("indexed", true);
     newFieldAttributes.put("stored", true);
     newFieldAttributes.put("multiValued", false);
