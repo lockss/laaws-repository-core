@@ -216,18 +216,19 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
   @Test
   public void testWaitReady() throws Exception {
+    // Instantiate a new index (that has not had initIndex() called already)
     ArtifactIndex index = makeArtifactIndex();
 
     // Assert waiting on a deadline that expires immediately results in a TimeoutException thrown
     assertThrows(TimeoutException.class, () -> index.waitReady(Deadline.in(0L)));
 
-    // Initialize the artifact index in a separate thread
+    // Initialize the index in a separate thread
     new Thread(() -> index.initIndex()).start();
 
     // Assert waiting with a sufficient deadline works
     try {
       log.debug("Calling waitReady()");
-      index.waitReady(Deadline.in(1000L)); // Arbitrary - might fail on slow or busy systems!
+      index.waitReady(Deadline.in(TIMEOUT_SHOULDNT)); // Arbitrary - might fail on slow or busy systems!
     } catch (TimeoutException e) {
       fail(String.format("Unexpected TimeoutException thrown: %s", e));
     }
@@ -236,25 +237,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testIndexArtifact() throws Exception {
-    String expectedMessage = "Null artifact data";
-
     // Assert attempting to index a null ArtifactData throws an IllegalArgumentException
-    try {
-      index.indexArtifact(null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException iae) {
-      assertEquals(expectedMessage, iae.getMessage());
-    }
-
-    expectedMessage = "ArtifactData has null identifier";
+    assertThrowsMatch(IllegalArgumentException.class, "Null artifact data", () -> index.indexArtifact(null));
 
     // Assert attempting to index an ArtifactData with null ArtifactIdentifier throws an IllegalArgumentException
-    try {
+    assertThrowsMatch(IllegalArgumentException.class, "ArtifactData has null identifier", () -> {
       index.indexArtifact(new ArtifactData(null, null, null, null, null, null));
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException iae) {
-      assertEquals(expectedMessage, iae.getMessage());
-    }
+    });
 
     // Assert against variant scenario
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
@@ -285,25 +274,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testGetArtifact_artifactId() throws Exception {
-    String expectedMessage = null;
-
-    // Assert retrieving an artifact with a null artifact ID (String) throws IllegalArgumentException
-    try {
-      expectedMessage = "Null or empty artifact ID";
-      index.getArtifact((String) null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException e) {
-      assertEquals(expectedMessage, e.getMessage());
-    }
-
-    // Assert retrieving an artifact with a null artifact ID (UUID) throws IllegalArgumentException
-    try {
-      expectedMessage = "Null UUID";
-      index.getArtifact((UUID) null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException iae) {
-      assertEquals(expectedMessage, iae.getMessage());
-    }
+    // Assert retrieving an artifact with a null artifact ID (String or UUID) throws IllegalArgumentException
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact ID", () -> index.getArtifact((String) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null UUID", () -> index.getArtifact((UUID) null));
 
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
@@ -660,7 +633,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testUpdateStorageUrl() throws Exception {
     // Attempt to update the storage URL of a null artifact ID
-    assertThrows(IllegalArgumentException.class, () -> index.updateStorageUrl(null, "xxx"));
+    assertThrowsMatch(IllegalArgumentException.class, "Cannot update storage URL", () -> index.updateStorageUrl(null, "xxx"));
 
     // Attempt to update the storage URL of an unknown artifact ID
     assertNull(index.updateStorageUrl("xyzzy", "xxx"));
@@ -756,24 +729,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testCommitArtifact() throws Exception {
-    String expectedMessage = "Null or empty artifact ID";
-
-    // Assert committing an artifact with a null artifact ID (String) throws IllegalArgumentException
-    try {
-      index.commitArtifact((String) null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException e) {
-      assertEquals(expectedMessage, e.getMessage());
-    }
-
-    // Assert committing an artifact with a null artifact ID (UUID) throws IllegalArgumentException
-    try {
-      expectedMessage = "Null UUID";
-      index.commitArtifact((UUID) null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException e) {
-      assertEquals(expectedMessage, e.getMessage());
-    }
+    // Assert committing an artifact with a null artifact ID (String or UUID) throws IllegalArgumentException
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact ID", () -> index.commitArtifact((String) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null UUID", () -> index.commitArtifact((UUID) null));
 
     // Assert committing an artifact of unknown artifact ID returns null
     assertNull(index.commitArtifact("unknown"));
@@ -828,24 +786,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testDeleteArtifact() throws Exception {
-    String expectedMessage = "Null or empty identifier";
-
-    // Assert deleting an artifact with null artifact ID (String) throws IllegalArgumentException
-    try {
-      index.deleteArtifact((String) null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException e) {
-      assertEquals(expectedMessage, e.getMessage());
-    }
-
-    // Assert deleting an artifact with null artifact ID (UUID) throws IllegalArgumentException
-    try {
-      expectedMessage = "Null UUID";
-      index.deleteArtifact((UUID) null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException e) {
-      assertEquals(expectedMessage, e.getMessage());
-    }
+    // Assert deleting an artifact with null artifact ID (String or UUID) throws IllegalArgumentException
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty identifier", () -> index.deleteArtifact((String) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null UUID", () -> index.deleteArtifact((UUID) null));
 
     // Assert removing a non-existent artifact ID returns false (String and UUID)
     assertFalse(index.deleteArtifact("unknown"));
@@ -887,16 +830,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testArtifactExists() throws Exception {
-    String expectedMessage = "Null or empty artifact ID";
-
     // Attempt calling artifactExists() with null artifact ID; should throw IllegalArgumentException
-    try {
-      assertNotNull(index);
-      index.artifactExists(null);
-      fail("Should have thrown IllegalArgumentException(" + expectedMessage + ")");
-    } catch (IllegalArgumentException e) {
-      assertEquals(expectedMessage, e.getMessage());
-    }
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact ID", () -> index.artifactExists(null));
 
     // Assert artifactExists() returns false for an artifact with an unknown artifact ID
     assertFalse(index.artifactExists("unknown"));

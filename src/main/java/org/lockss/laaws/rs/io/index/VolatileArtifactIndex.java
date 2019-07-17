@@ -74,7 +74,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       log.debug("Adding artifact to index: {}", artifactData);
 
         if (artifactData == null) {
-          throw new IllegalArgumentException("Null artifact");
+          throw new IllegalArgumentException("Null artifact data");
         }
 
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
@@ -253,11 +253,11 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Cannot update storage URL for a null artifact ID");
+        throw new IllegalArgumentException("Cannot update storage URL: Null or empty artifact ID");
       }
 
       if (StringUtils.isEmpty(storageUrl)) {
-        throw new IllegalArgumentException("Invalid storage URL: Must not be null or empty");
+        throw new IllegalArgumentException("Cannot update storage URL: Null or empty storage URL");
       }
 
       synchronized (index) {
