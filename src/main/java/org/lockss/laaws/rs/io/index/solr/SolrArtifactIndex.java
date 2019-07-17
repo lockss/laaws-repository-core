@@ -180,7 +180,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         && hasSolrField("contentLength", "plong")
         && hasSolrField("contentDigest", "string")
         && hasSolrField("version", "pint")
-        && hasSolrField("collectionDate", "long")) {
+        && hasSolrField("collectionDate", "plong")) {
+
       // Yes: The schema is at version 1.
       result = 1;
     }
@@ -358,7 +359,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         createSolrField(solr, "contentLength", "plong");
         createSolrField(solr, "contentDigest", "string");
         createSolrField(solr, "version", "pint");
-        createSolrField(solr, "collectionDate", "long");
+        createSolrField(solr, "collectionDate", "plong");
       } else if (schemaVersion == 2) {
         updateSchemaFrom1To2();
       } else {
