@@ -79,16 +79,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @BeforeEach
   public void setupTestContext() throws Exception {
     TimeBase.setSimulated();
-    ArtifactIndex index = new VolatileArtifactIndex();
 
+    // Create a volatile index for all data store tests
+    ArtifactIndex index = new VolatileArtifactIndex();
     index.initIndex();
 
+    // Create a new WARC artifact data store
     store = makeWarcArtifactDataStore(index);
     assertNotNull(store.getArtifactIndex());
     assertSame(index, store.getArtifactIndex());
 
+    // Initialize data store and assert state
     store.initDataStore();
+    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
 
+    // Setup variant
     beforeVariant();
   }
 
@@ -113,6 +118,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public enum TestRepoScenarios {
     empty, commit1, delete1, double_delete, double_commit, commit_delete_2x2, overlap
   }
+
   // Commonly used artifact identifiers and contents
   protected static String COLL1 = "coll1";
   protected static String COLL2 = "coll2";
@@ -867,6 +873,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     try {
       ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
+      spec.generateContent();
       ArtifactData ad = spec.getArtifactData();
       ad.setIdentifier(null);
       Artifact artifact = store.addArtifactData(ad);
