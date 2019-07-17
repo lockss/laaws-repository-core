@@ -359,8 +359,9 @@ public class ArtifactSpec implements Comparable<Object> {
     }
   }
 
-  public void setCollectionDate(long ms) {
+  public ArtifactSpec setCollectionDate(long ms) {
     collectionDate = ms;
+    return this;
   }
 
   public HttpHeaders getMetadata() {
