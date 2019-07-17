@@ -315,7 +315,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // up variants, and by testArtifactSizes(), but for the sake of
     // completeness ...
 
-    ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1);
+    ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1).setCollectionDate(0);
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
     spec.assertArtifact(repository, commArt);
@@ -1104,6 +1104,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     Artifact commArt = null;
     try {
       commArt = repository.commitArtifact(spec.getCollection(), artId);
+      variantState.commit(spec.getArtifactId());
     } catch (Exception e) {
       log.error("Caught exception committing artifact: {}", e);
       log.error("spec = {}", spec);
