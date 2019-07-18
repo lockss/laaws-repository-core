@@ -40,6 +40,7 @@ import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.response.SolrResponseBase;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.CursorMarkParams;
@@ -77,8 +78,8 @@ public class SolrArtifactIndex implements ArtifactIndex {
     // starting the indexer was not higher already.
     private final int targetSchemaVersion = 2;
 
-    // The fields defined in the Solr schema.
-    private List<Map<String, Object>> solrSchemafields = null;
+    // The fields defined in the Solr schema, indexed by their names.
+    private Map<String, Map<String, Object>> solrSchemafields = null;
 
     /**
      * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -108,10 +109,16 @@ public class SolrArtifactIndex implements ArtifactIndex {
      */
     private synchronized void init() {
       if (!initialized) {
-	// Update the schema, if necessary.
-	updateIfNecessary(targetSchemaVersion);
+	try {
+	  // Update the schema, if necessary.
+	  updateIfNecessary(targetSchemaVersion);
 
-	initialized = true;
+	  initialized = true;
+        } catch (IOException e) {
+          throw new RuntimeException("IOException caught while attempting to create the fields in the Solr schema");
+        } catch (SolrServerException | SorlNonZeroStatusException e) {
+          log.warn(String.format("Could not initialize Solr artifact index: %s", e));
+        }
       }
     }
 
@@ -120,8 +127,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
    * 
    * @param targetSchemaVersion An int with the LOCKSS version of the Solr
    *                            schema to be updated.
+   * @throws SorlNonZeroStatusException if Solr reports problems.
+   * @throws SolrServerException        if Solr reports problems.
+   * @throws IOException                if Solr reports problems.
    */
-  private void updateIfNecessary(int targetSchemaVersion) {
+  private void updateIfNecessary(int targetSchemaVersion)
+      throws SorlNonZeroStatusException, SolrServerException, IOException {
     log.debug2("targetSchemaVersion = " + targetSchemaVersion);
 
     // Get the Solr schema fields.
@@ -171,43 +182,69 @@ public class SolrArtifactIndex implements ArtifactIndex {
   /**
    * Provides the definitions of the Solr schema fields.
    *
-   * @return a List<Map<String, Object>> with the definitions of the Solr schema
+   * @return a Map<Map<String, Object>> with the definitions of the Solr schema
    *         fields.
+   * @throws SorlNonZeroStatusException if Solr reports problems.
+   * @throws SolrServerException        if Solr reports problems.
+   * @throws IOException                if Solr reports problems.
    */
-  private List<Map<String, Object>> getSolrSchemaFields() {
+  private Map<String, Map<String, Object>> getSolrSchemaFields()
+      throws SorlNonZeroStatusException, SolrServerException, IOException {
     log.debug2("Invoked");
-    List<Map<String, Object>> result = null;
+    SchemaResponse.FieldsResponse fieldsResponse = null;
 
     try {
       // Request the Solr schema fields.
-      SchemaRequest.Fields fieldsSchemaRequest = new SchemaRequest.Fields();
-      SchemaResponse.FieldsResponse fieldsResponse =
-	  fieldsSchemaRequest.process(solr);
-      log.trace("fieldsResponse = {}", fieldsResponse);
-
-      // Check whether the response does not indicate success.
-      if (fieldsResponse.getStatus() != 0) {
-	// Yes: Report the problem.
-	String errorMessage =
-	    "SchemaResponse.FieldsResponse = " + fieldsResponse;
-	log.error(errorMessage);
-	throw new RuntimeException(errorMessage);
-      }
-
-      // No: Get the fields.
-      result = fieldsResponse.getFields();
-    } catch (SolrServerException sse) {
+      fieldsResponse =
+	  handleSolrResponse(new SchemaRequest.Fields().process(solr),
+	  "Problem getting Solr schema fields");
+    } catch (SolrServerException | IOException e) {
       String errorMessage = "Exception caught getting Solr schema fields";
-      log.error(errorMessage, sse);
-      throw new RuntimeException(errorMessage, sse);
-    } catch (IOException ioe) {
-      String errorMessage = "Exception caught getting Solr schema fields";
-      log.error(errorMessage, ioe);
-      throw new RuntimeException(errorMessage, ioe);
+      log.error(errorMessage, e);
+      throw e;
+    }
+
+    Map<String, Map<String, Object>> result = new HashMap<>();
+
+    // Loop through all the fields.
+    for (Map<String, Object> field : fieldsResponse.getFields()) {
+      // Get the field name.
+      String fieldName = (String)field.get("name");
+      log.trace("fieldName = {}", fieldName);
+
+      // Add the field to  the result.
+      result.put(fieldName, field);
     }
 
     log.debug2("result = {}", result);
     return result;
+  }
+
+  /**
+   * Returns a Solr response unchanged, if it has a zero status; throws,
+   * otherwise.
+   * 
+   * @param solrResponse A SolrResponseBase with the Solr response tobe handled.
+   * @param errorMessage A String with a custom error message to be included in
+   *                     the thrown exception, if necessary.
+   * @return a SolrResponseBase with the passed Solr response unchanged, if it
+   *         has a zero status.
+   * @throws SorlNonZeroStatusException if the passed Solr response has a
+   *                                    non-zero status.
+   */
+  private <T extends SolrResponseBase> T handleSolrResponse(T solrResponse,
+      String errorMessage) throws SorlNonZeroStatusException {
+    // Check whether the response does indicate success.
+    if (solrResponse.getStatus() == 0) {
+      // Yes: Return the successful response.
+      return solrResponse;
+    }
+
+    // No: Report the problem.
+    SorlNonZeroStatusException snzse =
+	new SorlNonZeroStatusException(errorMessage, solrResponse);
+    log.error(snzse);
+    throw snzse;
   }
 
   /**
@@ -247,18 +284,14 @@ public class SolrArtifactIndex implements ArtifactIndex {
     log.debug2("Invoked");
     int result = 0;
 
-    // Loop through all the Solr schema fields.
-    for (Map<String, Object> field : solrSchemafields) {
-      // Get the field name.
-      String fieldName = (String)field.get("name");
-      log.trace("fieldName = {}", fieldName);
+    // Get the Solr schema LOCKSS version field.
+    Map<String, Object> field =
+	solrSchemafields.get(lockssSolrSchemaVersionFieldName);
 
-      // Check whether it is the name of the Solr schema LOCKSS version field.
-      if (fieldName.equals(lockssSolrSchemaVersionFieldName)) {
-	// Yes: Get the version.
-	result = Integer.valueOf((String)field.get("default"));
-	break;
-      }
+    // Check whether it exists.
+    if (field != null) {
+      // Yes: Get the version.
+      result = Integer.valueOf((String)field.get("default"));
     }
 
     log.debug2("result = {}", result);
@@ -268,15 +301,15 @@ public class SolrArtifactIndex implements ArtifactIndex {
   /**
    * Provides an indication of whether a Solr schema field exists.
    *
-   * @param fieldName       A String with the name of the field.
-   * @param fieldType       A String with the type of the field.
-   * @param required        A boolean with the indication of whether the field
-   *                        is required.
+   * @param fieldName A String with the name of the field.
+   * @param fieldType A String with the type of the field.
    * @return a boolean with the indication.
-     */
+   */
   private boolean hasSolrField(String fieldName, String fieldType) {
-    return solrSchemafields.contains(
-	getNewFieldAttributes(fieldName, fieldType, null));
+    Map<String, Object> field = solrSchemafields.get(fieldName);
+
+    return field != null
+	&& field.equals(getNewFieldAttributes(fieldName, fieldType, null));
   }
 
   /**
@@ -315,8 +348,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
    * @param finalVersion    An int with the version of the schema to which the
    *                        schema is to be updated.
    * @return an int with the highest update version recorded in the schema.
+   * @throws SorlNonZeroStatusException if Solr reports problems.
+   * @throws SolrServerException        if Solr reports problems.
+   * @throws IOException                if Solr reports problems.
    */
-  private int updateSchema(int existingVersion, int finalVersion) {
+  private int updateSchema(int existingVersion, int finalVersion)
+      throws SorlNonZeroStatusException, SolrServerException, IOException {
     log.debug2("existingVersion = {}", existingVersion);
     log.debug2("finalVersion = {}", finalVersion);
 
@@ -344,8 +381,12 @@ public class SolrArtifactIndex implements ArtifactIndex {
    * 
    * @param schemaVersion An int with the LOCKSS version of the schema to which
    *                      the Solr schema is to be updated.
+   * @throws SorlNonZeroStatusException if Solr reports problems.
+   * @throws SolrServerException        if Solr reports problems.
+   * @throws IOException                if Solr reports problems.
    */
-  private void updateSchemaToVersion(int schemaVersion) {
+  private void updateSchemaToVersion(int schemaVersion)
+      throws SorlNonZeroStatusException, SolrServerException, IOException {
     log.debug2("schemaVersion = {}", schemaVersion);
 
     // Perform the appropriate Solr schema update for this version.
@@ -363,26 +404,26 @@ public class SolrArtifactIndex implements ArtifactIndex {
       } else if (schemaVersion == 2) {
 	updateSchemaFrom1To2();
       } else {
-	throw new RuntimeException("Non-existent method to update the schema "
-	    + "to version " + schemaVersion + ".");
+	throw new IllegalArgumentException("Non-existent method to update the "
+	    + "schema to version " + schemaVersion + ".");
       }
-    } catch (SolrServerException sse) {
-	String errorMessage = "Exception caught updating Solr schema to LOCKSS "
-	    + "version " + schemaVersion;
-	log.error(errorMessage, sse);
-	throw new RuntimeException(errorMessage, sse);
-    } catch (IOException ioe) {
-	String errorMessage = "Exception caught updating Solr schema to LOCKSS "
-	    + "version " + schemaVersion;
-	log.error(errorMessage, ioe);
-	throw new RuntimeException(errorMessage, ioe);
+    } catch (SolrServerException | IOException e) {
+      String errorMessage = "Exception caught updating Solr schema to LOCKSS "
+	  + "version " + schemaVersion;
+      log.error(errorMessage, e);
+      throw e;
     }
   }
 
   /**
    * Updates the Solr schema from LOCKSS version 1 to 2.
+   * 
+   * @throws SorlNonZeroStatusException if Solr reports problems.
+   * @throws SolrServerException        if Solr reports problems.
+   * @throws IOException                if Solr reports problems.
    */
-  private void updateSchemaFrom1To2() {
+  private void updateSchemaFrom1To2()
+      throws SorlNonZeroStatusException, SolrServerException, IOException {
     log.debug2("Invoked");
 
     try {
@@ -404,19 +445,16 @@ public class SolrArtifactIndex implements ArtifactIndex {
 	log.trace("document = {}", document);
 
 	// Add the document with the new field.
-	this.solr.add(document);
-	this.solr.commit();
+	handleSolrResponse(solr.add(document), "Problem adding document '"
+	    + document + "' to the Solr schema");
+	handleSolrResponse(solr.commit(), "Problem committing addition of "
+	    + "document '" + document + "' to the Solr schema");
       }
-    } catch (SolrServerException sse) {
-	String errorMessage =
-	    "Exception caught updating Solr schema to LOCKSS version 2";
-	log.error(errorMessage, sse);
-	throw new RuntimeException(errorMessage, sse);
-    } catch (IOException ioe) {
-	String errorMessage =
-	    "Exception caught updating Solr schema to LOCKSS version 2";
-	log.error(errorMessage, ioe);
-	throw new RuntimeException(errorMessage, ioe);
+    } catch (SolrServerException | IOException e) {
+      String errorMessage =
+	  "Exception caught updating Solr schema to LOCKSS version 2";
+      log.error(errorMessage, e);
+      throw e;
     }
 
     log.debug2("Done");
@@ -426,11 +464,13 @@ public class SolrArtifactIndex implements ArtifactIndex {
    * Updates the Solr schema LOCKSS version field in the index.
    *
    * @param schemaVersion An int with the LOCKSS version of the Solr schema.
+   * @throws SorlNonZeroStatusException if Solr reports problems.
+   * @throws SolrServerException        if Solr reports problems.
+   * @throws IOException                if Solr reports problems.
    */
-  public void updateSolrLockssSchemaVersion(int schemaVersion) {
+  public void updateSolrLockssSchemaVersion(int schemaVersion)
+      throws SorlNonZeroStatusException, SolrServerException, IOException {
     log.debug2("schemaVersion = {}", schemaVersion);
-
-    boolean replaced = false;
 
     Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
     newFieldAttributes.put("name", lockssSolrSchemaVersionFieldName);
@@ -442,68 +482,30 @@ public class SolrArtifactIndex implements ArtifactIndex {
     newFieldAttributes.put("default", String.valueOf(schemaVersion));
 
     try {
-      // Loop through all the Solr schema fields.
-      for (Map<String, Object> field : solrSchemafields) {
-	// Get the field name.
-	String fieldName = (String)field.get("name");
-	log.trace("fieldName = {}", fieldName);
+      // Get the Solr schema LOCKSS version field.
+      Map<String, Object> field =
+	  solrSchemafields.get(lockssSolrSchemaVersionFieldName);
+      log.trace("field = {}", field);
 
-	// Check whether it is the name of the Solr schema LOCKSS version field.
-	if (fieldName.equals(lockssSolrSchemaVersionFieldName)) {
-	  // Yes: Replace the existing field.
-	  log.trace("Replacing field {} in Solr schema", fieldName);
-	  SchemaRequest.ReplaceField replaceFieldRequest =
-	      new SchemaRequest.ReplaceField(newFieldAttributes);
-	  SchemaResponse.UpdateResponse replaceFieldResponse =
-	      replaceFieldRequest.process(solr);
-	  log.trace("replaceFieldResponse = {}", replaceFieldResponse);
-
-	  // Check whether the response does not indicate success.
-	  if (replaceFieldResponse.getStatus() != 0) {
-	    // Yes: Report the problem.
-	    String errorMessage =
-		"SchemaResponse.UpdateResponse = " + replaceFieldResponse;
-	    log.error(errorMessage);
-	    throw new RuntimeException(errorMessage);
-	  }
-
-	  // No: Remember that the field has been replaced.
-	  replaced = true;
-
-	  // Don't look at other fields.
-	  break;
-	}
-      }
-
-      // Check whether the field has not been replaced already.
-      if (!replaced) {
-	// Yes: Add the field for the Solr schema LOCKSS version.
+      // Check whether it exists.
+      if (field != null) {
+	// Yes: Replace the existing field.
+	log.trace("Replacing field '{}' in Solr schema", field);
+	handleSolrResponse(new SchemaRequest.ReplaceField(newFieldAttributes)
+	    .process(solr),
+	    "Problem replacing field '" + field + "' in the Solr schema");
+      } else {
+	// No: Add the field for the Solr schema LOCKSS version.
 	log.trace("Adding field to Solr schema: {}", newFieldAttributes);
-	SchemaRequest.AddField addFieldReq =
-	    new SchemaRequest.AddField(newFieldAttributes);
-	SchemaResponse.UpdateResponse addFieldResponse =
-	    addFieldReq.process(solr);
-	log.trace("addFieldResponse = {}", addFieldResponse);
-
-	// Check whether the response does not indicate success.
-	if (addFieldResponse.getStatus() != 0) {
-	  // Yes: Report the problem.
-	  String errorMessage =
-	      "SchemaResponse.UpdateResponse = " + addFieldResponse;
-	  log.error(errorMessage);
-	  throw new RuntimeException(errorMessage);
-	}
+	handleSolrResponse(new SchemaRequest.AddField(newFieldAttributes)
+	    .process(solr),
+	    "Problem adding field '" + field + "' in the Solr schema");
       }
-    } catch (SolrServerException sse) {
-	String errorMessage = "Exception caught updating Solr schema LOCKSS "
-	    + "version to " + schemaVersion;
-	log.error(errorMessage, sse);
-	throw new RuntimeException(errorMessage, sse);
-    } catch (IOException ioe) {
-	String errorMessage = "Exception caught updating Solr schema LOCKSS "
-	    + "version to " + schemaVersion;
-	log.error(errorMessage, ioe);
-	throw new RuntimeException(errorMessage, ioe);
+    } catch (SolrServerException | IOException e) {
+      String errorMessage = "Exception caught updating Solr schema LOCKSS "
+	  + "version field to " + schemaVersion;
+      log.error(errorMessage, e);
+      throw e;
     }
 
     log.debug2("Done");
