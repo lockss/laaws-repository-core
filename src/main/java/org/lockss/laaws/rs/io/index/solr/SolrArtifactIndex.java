@@ -44,7 +44,6 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.SolrResponseBase;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactData;
@@ -235,7 +234,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws SorlResponseErrorException if the passed Solr response has a
    *                                    non-zero status.
    */
-  private <T extends SolrResponseBase> T handleSolrResponse(T solrResponse,
+  static <T extends SolrResponseBase> T handleSolrResponse(T solrResponse,
       String errorMessage) throws SorlResponseErrorException {
     log.debug2("solrResponse = {}", solrResponse);
 
@@ -446,7 +445,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Loop through all the documents in the index.
       SolrQuery q = new SolrQuery().setQuery("*:*");
 
-      for (Artifact artifact : IteratorUtils.asIterable(query(q))) {
+      for (Artifact artifact :
+	IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q))) {
 	// Initialize a document with the artifact identifier.
 	SolrInputDocument document = new SolrInputDocument();
 	document.addField("id", artifact.getId());
@@ -994,7 +994,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform collapse filter query and return result
     q.addFilterQuery("{!collapse field=uri max=version}");
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1020,7 +1020,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1058,7 +1058,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform collapse filter query and return result
     q.addFilterQuery("{!collapse field=uri max=version}");
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1082,7 +1082,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1108,7 +1108,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
 
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1131,7 +1131,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1152,7 +1152,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
 
-    return IteratorUtils.asIterable(query(q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
   }
 
   /**
@@ -1194,7 +1194,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform a collapse filter query (must have documents in result set to operate on)
     q.addFilterQuery("{!collapse field=uri max=version}");
-    Iterator<Artifact> result = query(q);
+    Iterator<Artifact> result = new SolrQueryArtifactIterator(solr, q);
 
     // Return the latest artifact
     if (result.hasNext()) {
@@ -1233,7 +1233,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
     q.addFilterQuery(String.format("version:%s", version));
 
-    Iterator<Artifact> result = query(q);
+    Iterator<Artifact> result = new SolrQueryArtifactIterator(solr, q);
     if (result.hasNext()) {
       Artifact artifact = result.next();
       if (result.hasNext()) {
@@ -1284,48 +1284,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
 
       return ((Double) contentLengthStats.getSum()).longValue();
-    } catch (SorlResponseErrorException | SolrServerException e) {
-      throw new IOException(e);
-    }
-  }
-
-  /**
-   * Executes a Solr query and returns an interator of Artifact.
-   *
-   * @param q An instance of {@code SolrQuery} containing the query to submit.
-   * @return An {@code Iterator<Artifact} containing the matched Artifact from the query.
-   * @throws IOException
-   */
-  private Iterator<Artifact> query(SolrQuery q) throws IOException {
-    try {
-      // Set paging parameters
-      q.setRows(10);
-      q.addSort(SolrQuery.SortClause.asc("id"));
-
-      String cursorMark = CursorMarkParams.CURSOR_MARK_START;
-      List<Artifact> artifacts = new ArrayList<>();
-
-      while (true) {
-        // Set the query's cursor mark and perform the query
-        q.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
-        QueryResponse response =
-            handleSolrResponse(solr.query(q), "Problem performing Solr query");
-        String nextCursorMark = response.getNextCursorMark();
-
-        // TODO: Potential to exhaust memory for large enough query results; find a better way to do this
-        artifacts.addAll(response.getBeans(Artifact.class));
-
-        // Determine whether there are more pages to retrieve from Solr
-        if (!cursorMark.equals(nextCursorMark)) {
-          // Update the cursor mark for the next page
-          cursorMark = nextCursorMark;
-        } else {
-          // We have reached the end - break out of the while loop
-          break;
-        }
-      }
-
-      return artifacts.iterator();
     } catch (SorlResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
