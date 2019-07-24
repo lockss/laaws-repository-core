@@ -122,7 +122,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
    *         returned, {@code false} otherwise.
    */
   @Override
-  public boolean hasNext() throws RuntimeException {
+  public boolean hasNext() throws SolrRuntimeException {
     log.debug2("Invoked");
     log.trace("artifactBatchIterator.hasNext() = {}",
 	artifactBufferIterator.hasNext());
@@ -144,7 +144,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
 	fillArtifactBuffer();
       } catch (SorlResponseErrorException | SolrServerException | IOException e)
       {
-	throw new RuntimeException(e);
+	throw new SolrRuntimeException(e);
       }
 
       // Yes: The answer is determined by the contents of the internal buffer.
