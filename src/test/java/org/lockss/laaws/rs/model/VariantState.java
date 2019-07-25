@@ -333,7 +333,7 @@ public class VariantState {
     return addedSpecStream()
         .filter(s -> s.getCollection().equals(collection))
         .filter(s -> s.getAuid().equals(auid))
-        .filter(s -> s.isCommitted() || includeUncommitted)
+        .filter(s -> includeUncommitted || s.isCommitted())
         .filter(s -> !s.isDeleted())
         .sorted();
   }
@@ -352,7 +352,7 @@ public class VariantState {
     return getHighestVerSpecs().stream()
         .filter(spec -> spec.getCollection().equals(collection))
         .filter(spec -> spec.getAuid().equals(auid))
-        .filter(s -> s.isCommitted() || includeUncommitted)
+        .filter(s -> includeUncommitted || s.isCommitted())
         .sorted();
   }
 }

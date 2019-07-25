@@ -78,6 +78,12 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
       // Upload our Solr configuration set for tests
       cluster.uploadConfigSet(SOLR_CONFIG_PATH.toPath(), SOLR_CONFIG_NAME);
+
+      // Get a Solr client handle to the Solr Cloud cluster
+      client = new CloudSolrClient.Builder()
+          .withZkHost(cluster.getZkServer().getZkAddress())
+          .build();
+      client.connect();
     } catch (Exception e) {
       log.error("Could not start MiniSolrCloudCluster", e);
     }
@@ -86,12 +92,6 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   // Invoked by a @BeforeEach in AbstractArtifactIndexTest
   @Override
   protected SolrArtifactIndex makeArtifactIndex() throws IOException {
-    // Get a Solr client handle to the Solr Cloud cluster
-    client = new CloudSolrClient.Builder()
-        .withZkHost(cluster.getZkServer().getZkAddress())
-        .build();
-    client.connect();
-
     // Generate a new collection name for this test
     collectionName = String.format("lockss-solrtest.%s", UUID.randomUUID());
 
