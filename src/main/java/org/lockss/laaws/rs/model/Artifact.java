@@ -315,4 +315,40 @@ public class Artifact implements Serializable {
 
        return false;
     }
+
+
+    /** Return a String that uniquely identifies this Artifact */
+    public String makeKey() {
+	return Artifact.makeKey(getCollection(), getAuid(),
+				getUri(), getVersion());
+    }
+
+    /** Return a String that uniquely identifies "the latest committed
+     * version of the Artifact" */
+    public String makeLatestKey() {
+	return Artifact.makeLatestKey(getCollection(), getAuid(), getUri());
+    }
+
+    /** Return a String that uniquely identifies "the latest committed
+     * version of the Artifact with the specified values" */
+    public static String makeLatestKey(String collection, String auid,
+				       String uri) {
+	return makeKey(collection, auid, uri, -1);
+    }
+
+    /** Return a String that uniquely identifies the Artifact with the
+     * specified values.  version -1 means latest version */
+    public static String makeKey(String collection, String auid,
+				 String uri, int version) {
+	StringBuilder sb = new StringBuilder(200);
+	sb.append(collection);
+	sb.append(":");
+	sb.append(auid);
+	sb.append(":");
+	sb.append(uri);
+	sb.append(":");
+	sb.append(version);
+	return sb.toString();
+    }
+
 }

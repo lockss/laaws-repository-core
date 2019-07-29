@@ -38,6 +38,8 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.util.*;
+import org.lockss.util.jms.JmsFactory;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
@@ -48,11 +50,13 @@ import java.util.concurrent.Future;
 /**
  * Base implementation of the LOCKSS Repository service.
  */
-public class BaseLockssRepository implements LockssRepository {
+public class BaseLockssRepository implements LockssRepository,
+					     JmsFactorySource {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
   protected ArtifactIndex index;
+  protected JmsFactory jmsFact;
 
   /**
    * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
@@ -75,6 +79,7 @@ public class BaseLockssRepository implements LockssRepository {
 
     this.index = index;
     this.store = store;
+//     store.setLockssRepository(this);
   }
 
   @Override
@@ -89,6 +94,14 @@ public class BaseLockssRepository implements LockssRepository {
     log.info("Shutting down repository");
     index.shutdownIndex();
     store.shutdownDataStore();
+  }
+
+  public void setJmsFactory(JmsFactory fact) {
+    this.jmsFact = fact;
+  }
+
+  public JmsFactory getJmsFactory() {
+    return jmsFact;
   }
 
   /**

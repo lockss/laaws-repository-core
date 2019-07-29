@@ -44,6 +44,9 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.jms.*;
+import org.lockss.util.time.TimeUtil;
+import org.lockss.util.time.TimerUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
@@ -58,12 +61,24 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import javax.jms.*;
 
 /**
- * REST client implementation of the LOCKSS Repository API; makes REST calls to a remote LOCKSS Repository REST server.
+ * REST client implementation of the LOCKSS Repository API; makes REST
+ * calls to a remote LOCKSS Repository REST server.
+ *
+ * Recently returned Artifacts are cached in an ArtifactCache so that
+ * subsequent lookups can be satisfied without a REST roundtrip.
+ * Currently, only lookups for specific Artifacts (either by version or
+ * "latest") return items freo the cache, and only those, plus
+ * addArtifact() and commitArtifact() store items in the cache.
+ * getArtifacts() and friends do not interact with the cache at all.
  */
 public class RestLockssRepository implements LockssRepository {
     private final static L4JLogger log = L4JLogger.getLogger();
+
+    public static final int DEFAULT_MAX_CACHE_SIZE = 500;
 
     private RestTemplate restTemplate;
     private URL repositoryUrl;
@@ -196,7 +211,9 @@ public class RestLockssRepository implements LockssRepository {
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
         	false);
-            return mapper.readValue(response.getBody(), Artifact.class);
+	    Artifact res = mapper.readValue(response.getBody(), Artifact.class);
+	    artCache.put(res);
+            return res;
         }
     
         String errMsg = String.format("Could not add artifact; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
@@ -281,7 +298,11 @@ public class RestLockssRepository implements LockssRepository {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
             false);
-        return mapper.readValue(response.getBody(), Artifact.class);
+	Artifact res = mapper.readValue(response.getBody(), Artifact.class);
+	// Possible to commit out-of-order so we don't know whether this is
+	// the latest
+	artCache.put(res);
+	return res;
     }
 
     /**
@@ -728,6 +749,11 @@ public class RestLockssRepository implements LockssRepository {
     public Artifact getArtifact(String collection, String auid, String url) throws IOException {
         if ((collection == null) || (auid == null) || (url == null))
             throw new IllegalArgumentException("Null collection id, au id or url");
+	Artifact cached = artCache.get(collection, auid, url);
+	if (cached != null) {
+	  return cached;
+	}
+
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -761,7 +787,12 @@ public class RestLockssRepository implements LockssRepository {
                   ));
               }
 
-              return artifacts.get(0);
+	      Artifact res = artifacts.get(0);
+	      if (res != null) {
+		// This is the latest, cache as that as well as real version
+		artCache.putLatest(res);
+	      }
+              return res;
           }
 
           // No artifact found
@@ -794,6 +825,12 @@ public class RestLockssRepository implements LockssRepository {
         if ((collection == null) || (auid == null) ||
 	    (url == null) || version == null)
             throw new IllegalArgumentException("Null collection id, au id, url or version");
+
+	Artifact cached = artCache.get(collection, auid, url, version);
+	if (cached != null) {
+	  return cached;
+	}
+
         String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
@@ -829,8 +866,9 @@ public class RestLockssRepository implements LockssRepository {
                 ));
             }
 
-            //
-            return artifacts.get(0);
+	    Artifact res = artifacts.get(0);
+	    artCache.put(res);
+	    return res;
           }
 
           // No artifact found
@@ -898,4 +936,103 @@ public class RestLockssRepository implements LockssRepository {
     public boolean isReady() {
       return checkAlive();
     }
+
+
+  // ArtifactCache support.
+
+  public static final String REST_ARTIFACT_CACHE_ID = "RestLockssRepository";
+  public static final String REST_ARTIFACT_CACHE_TOPIC = "ArtifactCacheTopic";
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION = "CacheAction";
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE = "Invalidate";
+  public static final String REST_ARTIFACT_CACHE_MSG_OP = "InvalidateOp";
+  public static final String REST_ARTIFACT_CACHE_MSG_KEY = "ArtifactKey";
+
+  // Artifact cache.  Disable by default; our client will enable if
+  // desired
+  private ArtifactCache artCache =
+      new ArtifactCache(DEFAULT_MAX_CACHE_SIZE).enable(false);
+  private JmsConsumer jmsConsumer;
+
+  /**
+   * Enable JMS messaging, using the supplied factory to create producers
+   * and consumers.
+   * @param fact a JmsFactory
+   */
+  /**
+   * Enable JMS messaging, using the supplied factory to create producers
+   * and consumers.
+   * @param fact a JmsFactory
+   */
+  public RestLockssRepository enableArtifactCache(boolean val,
+						  JmsFactory fact) {
+    if (val) {
+      if (!artCache.isEnabled())
+      makeJmsConsumer(fact);
+    } else {
+      artCache.enable(false);
+    }
+    return this;
+  }
+
+  private void makeJmsConsumer(JmsFactory fact) {
+    new Thread(new Runnable() {
+	@Override
+	public void run() {
+	  log.info("Creating JMS consumer");
+	  while (jmsConsumer == null) {
+	    try {
+	      log.trace("Attempting to create JMS consumer");
+	      jmsConsumer = fact.createTopicConsumer(REST_ARTIFACT_CACHE_ID,
+					   REST_ARTIFACT_CACHE_TOPIC,
+					   new ArtifactCacheListener());
+	      log.info("Created JMS consumer: {}", REST_ARTIFACT_CACHE_TOPIC);
+	      break;
+	    } catch (JMSException | NullPointerException exc) {
+	      log.trace("Could not establish JMS connection; sleeping and retrying");
+	    }
+	    TimerUtil.guaranteedSleep(1 * TimeUtil.SECOND);
+	  }
+	  artCache.enable(true);
+	}
+      }).start();
+  }
+
+  /** For statistics monitoring */
+  public ArtifactCache getArtifactCache() {
+    return artCache;
+  }
+
+  //
+  // This is here, rather than in ArtifactCache, to make ArtifactCache
+  // independent of the particular notification mechanism.
+  //
+  private class ArtifactCacheListener implements MessageListener {
+    @Override
+    public void onMessage(Message message) {
+      try {
+	Map<String,String> msgMap =
+	  (Map<String,String>)JmsUtil.convertMessage(message);
+	String action = msgMap.get(REST_ARTIFACT_CACHE_MSG_ACTION);
+	String key = msgMap.get(REST_ARTIFACT_CACHE_MSG_KEY);
+	log.debug("Received Artifact catch notification: {} key: {}",
+		  action, key);
+	if (action != null) {
+	  switch (action) {
+	  case REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE:
+	    artCache.invalidate(msgOp(REST_ARTIFACT_CACHE_MSG_OP), key);
+	    break;
+	  default:
+	    log.warn("Unknown message action: {}", action);
+	  }
+	}
+      } catch (JMSException | RuntimeException e) {
+	log.error("Malformed Artifact cache message: {}", message, e);
+      }
+    }
+  }
+
+  ArtifactCache.InvalidateOp msgOp(String op) throws IllegalArgumentException {
+    return Enum.valueOf(ArtifactCache.InvalidateOp.class, op);
+  }
+  
 }

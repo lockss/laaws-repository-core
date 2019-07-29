@@ -50,6 +50,7 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
 import org.json.JSONObject;
+import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.RepoAuid;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -66,14 +67,16 @@ import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
 import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
+import org.lockss.util.jms.*;
 
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StreamUtils;
 
-import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.MessageListener;
+import javax.jms.JMSException;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -131,6 +134,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected long uncommittedArtifactExpiration;
 
   protected ArtifactIndex artifactIndex;
+  protected LockssRepository lockssRepo;
   protected String basePath;
   protected WarcFilePool tmpWarcPool;
   protected Map<RepoAuid, String> auActiveWarcMap;
@@ -241,6 +245,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     this.basePath = basePath;
     this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePath());
+  }
+
+  public WarcArtifactDataStore setLockssRepository(LockssRepository repo) {
+    lockssRepo = repo;
+    return this;
   }
 
   // *******************************************************************************************************************
@@ -2097,28 +2106,27 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   private void makeJmsConsumer() {
     new Thread(new Runnable() {
-      @Override
-      public void run() {
-        String uri = System.getProperty(JmsConsumer.SYSPROP_JMS_URI);
-        log.trace("uri: {}", uri);
-
-        if (uri == null || uri.trim().isEmpty()) {
-          return;
-        }
-
-        log.info("Establishing JMS connection with {}", uri);
-        while (jmsConsumer == null) {
-          try {
-            log.trace("Attempting to establish JMS connection with {}", uri);
-            jmsConsumer = JmsConsumer.createTopicConsumer(CLIENT_ID, JMS_TOPIC, new DataStoreCrawlListener("AuEvent Listener"));
-            log.info("Successfully established JMS connection with {}", uri);
-          } catch (JMSException | NullPointerException exc) {
-            log.trace("Could not establish JMS connection with {}; sleeping and retrying", uri);
-            TimerUtil.guaranteedSleep(retryDelay);
-          }
-        }
-      }
-    }).start();
+	@Override
+	public void run() {
+	  log.info("Creating JMS consumer");
+	  while (jmsConsumer == null) {
+	    // In Spring env, lockssRepo doesn't get set until some time
+	    // after this starts running
+	    if (lockssRepo != null && lockssRepo instanceof JmsFactorySource) {
+	      JmsFactory fact = ((JmsFactorySource)lockssRepo).getJmsFactory();
+	      try {
+		log.trace("Attempting to create JMS consumer");
+		jmsConsumer = fact.createTopicConsumer(CLIENT_ID, JMS_TOPIC, new DataStoreCrawlListener("AuEvent Listener"));
+		log.info("Successfully created JMS consumer");
+		break;
+	      } catch (JMSException | NullPointerException exc) {
+		log.trace("Could not establish JMS connection; sleeping and retrying");
+	      }
+	    }
+	    TimerUtil.guaranteedSleep(retryDelay);
+	  }
+	}
+      }).start();
   }
 
   public static final String KEY_AUID = "auid";
@@ -2128,17 +2136,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   static Pattern REPO_SPEC_PATTERN =
       Pattern.compile("([^:]+):([^:]+)(?::(.*$))?");
 
-  private class DataStoreCrawlListener extends JmsConsumer.SubscriptionListener {
+  private class DataStoreCrawlListener implements MessageListener {
 
     DataStoreCrawlListener(String listenerName) {
-      super(listenerName);
     }
 
     @Override
     public void onMessage(Message message) {
 
       try {
-        Map<String, Object> msgMap = (Map<String, Object>) JmsConsumer.convertMessage(message);
+        Map<String, Object> msgMap = (Map<String, Object>) JmsUtil.convertMessage(message);
         String auId = (String) msgMap.get(KEY_AUID);
         String event = (String) msgMap.get(KEY_TYPE);
         String repospec = (String) msgMap.get(KEY_REPO_SPEC);

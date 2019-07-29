@@ -36,6 +36,7 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
+import org.lockss.util.jms.*;
 
 import java.io.*;
 import java.net.URL;
@@ -109,7 +110,8 @@ public class LockssRepositoryFactory {
      *          Base {@code URL} of the remote LOCKSS Repository service.
      * @return A {@code RestLockssRepository}.
      */
-    public static LockssRepository createRestLockssRepository(URL repositoryServiceUrl) {
+    public static RestLockssRepository createRestLockssRepository(URL repositoryServiceUrl) {
         return new RestLockssRepository(repositoryServiceUrl);
     }
+
 }
