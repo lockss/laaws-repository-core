@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 
@@ -40,10 +41,15 @@ import java.io.IOException;
  */
 public class VolatileLockssRepository extends BaseLockssRepository {
 
-    /**
-     * Constructor.
-     */
-    public VolatileLockssRepository() throws IOException {
-      super();
-    }
+  /**
+   * Constructor.
+   */
+  public VolatileLockssRepository() throws IOException {
+    this(new VolatileArtifactIndex());
+  }
+
+  // Needed by constructor above
+  private VolatileLockssRepository(ArtifactIndex ai) throws IOException {
+    super(ai, new VolatileWarcArtifactDataStore(ai));
+  }
 }

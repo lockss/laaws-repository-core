@@ -59,15 +59,7 @@ public class BaseLockssRepository implements LockssRepository,
   protected JmsFactory jmsFact;
 
   /**
-   * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
-   */
-  public BaseLockssRepository() throws IOException {
-    index = new VolatileArtifactIndex();
-    store = new VolatileWarcArtifactDataStore(index);
-  }
-
-  /**
-   * Configures this LOCKSS repository with the provided artifact index and storage layers.
+   * Create a LOCKSS repository with the provided artifact index and storage layers.
    *
    * @param index An instance of {@code ArtifactIndex}.
    * @param store An instance of {@code ArtifactDataStore}.
@@ -79,7 +71,6 @@ public class BaseLockssRepository implements LockssRepository,
 
     this.index = index;
     this.store = store;
-//     store.setLockssRepository(this);
   }
 
   @Override
