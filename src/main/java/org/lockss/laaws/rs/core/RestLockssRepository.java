@@ -940,7 +940,7 @@ public class RestLockssRepository implements LockssRepository {
 
   // ArtifactCache support.
 
-  public static final String REST_ARTIFACT_CACHE_ID = "RestLockssRepository";
+  public static final String REST_ARTIFACT_CACHE_ID = null;
   public static final String REST_ARTIFACT_CACHE_TOPIC = "ArtifactCacheTopic";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION = "CacheAction";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE = "Invalidate";
@@ -983,8 +983,8 @@ public class RestLockssRepository implements LockssRepository {
 	    try {
 	      log.trace("Attempting to create JMS consumer");
 	      jmsConsumer = fact.createTopicConsumer(REST_ARTIFACT_CACHE_ID,
-					   REST_ARTIFACT_CACHE_TOPIC,
-					   new ArtifactCacheListener());
+						     REST_ARTIFACT_CACHE_TOPIC,
+						     new ArtifactCacheListener());
 	      log.info("Created JMS consumer: {}", REST_ARTIFACT_CACHE_TOPIC);
 	      break;
 	    } catch (JMSException | NullPointerException exc) {
@@ -1014,12 +1014,13 @@ public class RestLockssRepository implements LockssRepository {
 	  (Map<String,String>)JmsUtil.convertMessage(message);
 	String action = msgMap.get(REST_ARTIFACT_CACHE_MSG_ACTION);
 	String key = msgMap.get(REST_ARTIFACT_CACHE_MSG_KEY);
-	log.debug("Received Artifact catch notification: {} key: {}",
-		  action, key);
+	log.debug2("Received Artifact cache notification: {} key: {}",
+		   action, key);
 	if (action != null) {
 	  switch (action) {
 	  case REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE:
-	    artCache.invalidate(msgOp(REST_ARTIFACT_CACHE_MSG_OP), key);
+	    artCache.invalidate(msgOp(msgMap.get(REST_ARTIFACT_CACHE_MSG_OP)),
+				key);
 	    break;
 	  default:
 	    log.warn("Unknown message action: {}", action);

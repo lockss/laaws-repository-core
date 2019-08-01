@@ -165,6 +165,7 @@ public class ArtifactCache {
     if (artMap == null) return;
     Artifact verArt = artMap.get(key);
     if (verArt != null) {
+      cacheInvalidates++;
       artMap.remove(key);
       String latestKey = verArt.makeLatestKey();
       Artifact latestArt = artMap.get(latestKey);
