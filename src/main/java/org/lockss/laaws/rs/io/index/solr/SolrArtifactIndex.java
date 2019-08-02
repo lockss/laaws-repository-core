@@ -427,10 +427,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
   private void updateSchemaFrom0To1() throws SolrServerException, IOException, SorlResponseErrorException {
     // New field type definition for "long" (uses TrieLongField; depreciated in Solr 7.x)
+    // <fieldType name="long" class="solr.TrieLongField" docValues="true" precisionStep="0" positionIncrementGap="0"/>
     Map<String, Object> ftd = new HashMap<>();
     ftd.put("name", "long");
     ftd.put("class", "solr.TrieLongField");
     ftd.put("docValues", "true");
+    ftd.put("precisionStep", 0);
+    ftd.put("positionIncrementGap", 0);
 
     // Create "long" field type if it does not exist
     if (!hasSolrFieldType(ftd)) {
