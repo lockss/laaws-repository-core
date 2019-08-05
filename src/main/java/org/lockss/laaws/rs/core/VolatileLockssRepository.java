@@ -45,11 +45,8 @@ public class VolatileLockssRepository extends BaseLockssRepository {
    * Constructor.
    */
   public VolatileLockssRepository() throws IOException {
-    this(new VolatileArtifactIndex());
+    index = new VolatileArtifactIndex();
+    store = new VolatileWarcArtifactDataStore(index);
   }
 
-  // Needed by constructor above
-  private VolatileLockssRepository(ArtifactIndex ai) throws IOException {
-    super(ai, new VolatileWarcArtifactDataStore(ai));
-  }
 }

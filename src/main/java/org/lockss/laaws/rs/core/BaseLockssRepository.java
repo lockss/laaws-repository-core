@@ -73,6 +73,10 @@ public class BaseLockssRepository implements LockssRepository,
     this.store = store;
   }
 
+  /** No-arg constructor for subclasses */
+  protected BaseLockssRepository() throws IOException {
+  }
+
   @Override
   public void initRepository() throws IOException {
     log.info("Initializing repository");
@@ -87,10 +91,20 @@ public class BaseLockssRepository implements LockssRepository,
     store.shutdownDataStore();
   }
 
+  /** JmsFactorySource method to store a JmsFactory for use by (a user of)
+   * this index.
+   * @param fact a JmsFactory for creating JmsProducer and JmsConsumer
+   * instances.
+   */
+  @Override
   public void setJmsFactory(JmsFactory fact) {
     this.jmsFact = fact;
   }
 
+  /** JmsFactorySource method to provide a JmsFactory.
+   * @return a JmsFactory for creating JmsProducer and JmsConsumer
+   * instances.
+   */
   public JmsFactory getJmsFactory() {
     return jmsFact;
   }
@@ -139,6 +153,17 @@ public class BaseLockssRepository implements LockssRepository,
 
       return artifact;
     }
+  }
+
+  /**
+   * Returns the artifact with the specified artifactId
+   *
+   * @param artifactId
+   * @return The {@code Artifact} with the artifactId, or null if none
+   * @throws IOException
+   */
+  public Artifact getArtifactFromId(String artifactId) throws IOException {
+    return index.getArtifact(artifactId);
   }
 
   /**
