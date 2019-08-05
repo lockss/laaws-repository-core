@@ -358,6 +358,28 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   @VariantTest
   @EnumSource(StdVariants.class)
+  public void testGetArtifactFromId() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null",
+		      () -> {repository.getArtifactFromId(null);});
+
+    // Artifact not found
+    assertNull(repository.getArtifactFromId("Not a likely artifact id"),
+	       "Non-existent artifactId shouldn't be found");
+
+    for (ArtifactSpec highSpec : variantState.getHighestCommittedVerSpecs()) {
+      log.info("highSpec: " + highSpec);
+      Artifact art = repository.getArtifact(highSpec.getCollection(),
+					    highSpec.getAuid(),
+					    highSpec.getUrl());
+      assertSame(art, repository.getArtifactFromId(art.getId()));
+    }
+
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
   public void testGetArtifactData() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,

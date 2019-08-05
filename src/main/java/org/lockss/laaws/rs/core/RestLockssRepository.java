@@ -59,9 +59,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.*;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import javax.jms.*;
 
 /**
@@ -70,10 +68,6 @@ import javax.jms.*;
  *
  * Recently returned Artifacts are cached in an ArtifactCache so that
  * subsequent lookups can be satisfied without a REST roundtrip.
- * Currently, only lookups for specific Artifacts (either by version or
- * "latest") return items freo the cache, and only those, plus
- * addArtifact() and commitArtifact() store items in the cache.
- * getArtifacts() and friends do not interact with the cache at all.
  */
 public class RestLockssRepository implements LockssRepository {
     private final static L4JLogger log = L4JLogger.getLogger();
@@ -220,6 +214,17 @@ public class RestLockssRepository implements LockssRepository {
         log.error(errMsg);
         throw new IOException(errMsg);
     }
+
+  /**
+   * Returns the artifact with the specified artifactId
+   *
+   * @param artifactId
+   * @return The {@code Artifact} with the artifactId, or null if none
+   * @throws IOException
+   */
+  public Artifact getArtifactFromId(String artifactId) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 
     /**
      * Retrieves an artifact from a remote REST LOCKSS Repository server.
@@ -533,9 +538,9 @@ public class RestLockssRepository implements LockssRepository {
      * Returns an iterable object over artifacts, given a REST endpoint that returns artifacts.
      *
      * @param builder A {@code UriComponentsBuilder} containing a REST endpoint that returns artifacts.
-     * @return An {@code Iterable<Artifact>} containing artifacts.
+     * @return An {@code Iterator<Artifact>} containing artifacts.
      */
-    private Iterable<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
+    private Iterator<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
         return getArtifacts(builder.build().encode().toUri());
     }
 
@@ -543,9 +548,9 @@ public class RestLockssRepository implements LockssRepository {
      * Returns an iterable object over artifacts, given a REST endpoint that returns artifacts.
      *
      * @param endpoint A {@code URI} containing a REST endpoint that returns artifacts.
-     * @return An {@code Iterable<Artifact>} containing artifacts.
+     * @return An {@code Iterator<Artifact>} containing artifacts.
      */
-    private Iterable<Artifact> getArtifacts(URI endpoint) throws IOException {
+    private Iterator<Artifact> getArtifacts(URI endpoint) throws IOException {
         ResponseEntity<String> response = restTemplate.exchange(
                   endpoint,
                   HttpMethod.GET,
@@ -561,12 +566,12 @@ public class RestLockssRepository implements LockssRepository {
             false);
         List<Artifact> result = mapper.readValue((String)response.getBody(),
     	new TypeReference<List<Artifact>>(){});
-        return IteratorUtils.asIterable(result.iterator());
+        return result.iterator();
       }
 
       String errMsg = String.format("Could not fetch artifacts; remote server responded with status: %s %s", status.toString(), status.getReasonPhrase());
       log.error(errMsg);
-      return new ArrayList<Artifact>();
+      return Collections.emptyIterator();
     }
 
     /**
@@ -588,7 +593,7 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("version", "latest");
 
-        return getArtifacts(builder);
+        return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifacts(builder)));
     }
 
     /**
@@ -609,7 +614,7 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("version", "all");
 
-        return getArtifacts(builder);
+        return IteratorUtils.asIterable(getArtifacts(builder));
     }
 
     /**
@@ -634,7 +639,7 @@ public class RestLockssRepository implements LockssRepository {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("urlPrefix", prefix);
 
-        return getArtifacts(builder);
+        return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifacts(builder)));
     }
 
     /**
@@ -660,7 +665,7 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("version", "all")
                 .queryParam("urlPrefix", prefix);
 
-        return getArtifacts(builder);
+        return IteratorUtils.asIterable(getArtifacts(builder));
     }
 
     /**
@@ -683,7 +688,7 @@ public class RestLockssRepository implements LockssRepository {
               .queryParam("version", "all")
               .queryParam("urlPrefix", prefix);
 
-      return getArtifacts(builder);
+      return IteratorUtils.asIterable(getArtifacts(builder));
     }
 
     /**
@@ -708,7 +713,7 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("url", url)
                 .queryParam("version", "all");
 
-        return getArtifacts(builder);
+        return IteratorUtils.asIterable(getArtifacts(builder));
     }
 
     /**
@@ -730,7 +735,7 @@ public class RestLockssRepository implements LockssRepository {
                 .queryParam("url", url)
                 .queryParam("version", "all");
 
-        return getArtifacts(builder);
+        return IteratorUtils.asIterable(getArtifacts(builder));
     }
 
     /**
@@ -940,6 +945,7 @@ public class RestLockssRepository implements LockssRepository {
 
   // ArtifactCache support.
 
+  // Definitions for cache invalidate messages from repo service
   public static final String REST_ARTIFACT_CACHE_ID = null;
   public static final String REST_ARTIFACT_CACHE_TOPIC = "ArtifactCacheTopic";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION = "CacheAction";
@@ -954,18 +960,15 @@ public class RestLockssRepository implements LockssRepository {
   private JmsConsumer jmsConsumer;
 
   /**
-   * Enable JMS messaging, using the supplied factory to create producers
-   * and consumers.
-   * @param fact a JmsFactory
+   * Enable the ArtifactCache
+   * @param enable true to enable
+   * @param fact JmsFactory to using to create a JMS consumer for cache
+   * invalidate messages
+   * @return this
    */
-  /**
-   * Enable JMS messaging, using the supplied factory to create producers
-   * and consumers.
-   * @param fact a JmsFactory
-   */
-  public RestLockssRepository enableArtifactCache(boolean val,
+  public RestLockssRepository enableArtifactCache(boolean enable,
 						  JmsFactory fact) {
-    if (val) {
+    if (enable) {
       if (!artCache.isEnabled())
       makeJmsConsumer(fact);
     } else {
@@ -997,7 +1000,7 @@ public class RestLockssRepository implements LockssRepository {
       }).start();
   }
 
-  /** For statistics monitoring */
+  /** @return the ArtifactCache */
   public ArtifactCache getArtifactCache() {
     return artCache;
   }

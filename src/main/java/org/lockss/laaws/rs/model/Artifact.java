@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.regex.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
@@ -317,25 +318,6 @@ public class Artifact implements Serializable {
     }
 
 
-    /** Return a String that uniquely identifies this Artifact */
-    public String makeKey() {
-	return Artifact.makeKey(getCollection(), getAuid(),
-				getUri(), getVersion());
-    }
-
-    /** Return a String that uniquely identifies "the latest committed
-     * version of the Artifact" */
-    public String makeLatestKey() {
-	return Artifact.makeLatestKey(getCollection(), getAuid(), getUri());
-    }
-
-    /** Return a String that uniquely identifies "the latest committed
-     * version of the Artifact with the specified values" */
-    public static String makeLatestKey(String collection, String auid,
-				       String uri) {
-	return makeKey(collection, auid, uri, -1);
-    }
-
     /** Return a String that uniquely identifies the Artifact with the
      * specified values.  version -1 means latest version */
     public static String makeKey(String collection, String auid,
@@ -349,6 +331,38 @@ public class Artifact implements Serializable {
 	sb.append(":");
 	sb.append(version);
 	return sb.toString();
+    }
+
+    /** Return a String that uniquely identifies "the latest committed
+     * version of the Artifact with the specified values" */
+    public static String makeLatestKey(String collection, String auid,
+				       String uri) {
+	return makeKey(collection, auid, uri, -1);
+    }
+
+    /** Return a String that uniquely identifies this Artifact */
+    public String makeKey() {
+	return Artifact.makeKey(getCollection(), getAuid(),
+				getUri(), getVersion());
+    }
+
+    /** Return a String that uniquely identifies "the latest committed
+     * version of the Artifact" */
+    public String makeLatestKey() {
+	return Artifact.makeLatestKey(getCollection(), getAuid(), getUri());
+    }
+
+    // matches ":<ver>" at the end
+    static Pattern LATEST_VER_PATTERN = Pattern.compile(":[^:]+$");
+
+    /** Return a String that uniquely identifies "the latest committed
+     * version of the Artifact with the specified key" */
+    public static String makeLatestKey(String key) {
+	Matcher m1 = LATEST_VER_PATTERN.matcher(key);
+	if (m1.find()) {
+	    return m1.replaceAll(":-1");
+	}
+	return null;
     }
 
 }

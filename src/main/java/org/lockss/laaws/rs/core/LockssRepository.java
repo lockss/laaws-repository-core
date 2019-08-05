@@ -303,6 +303,17 @@ public interface LockssRepository extends Ready {
         throws IOException;
 
     /**
+     * Returns the artifact with the specified artifactId
+     *
+     * @param artifactId
+     * @return The {@code Artifact} representing that artifactId, or null
+     * if none
+     * @throws IOException
+     */
+    Artifact getArtifactFromId(String artifactId)
+        throws IOException;
+
+    /**
      * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
      *
      * @param collection
