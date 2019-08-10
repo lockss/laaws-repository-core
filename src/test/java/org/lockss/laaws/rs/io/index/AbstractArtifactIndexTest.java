@@ -59,7 +59,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   // * ABSTRACT METHODS
   // *******************************************************************************************************************
 
-  protected abstract AI makeArtifactIndex() throws IOException;
+  protected abstract AI makeArtifactIndex() throws Exception;
 
   public abstract void testInitIndex() throws Exception;
   public abstract void testShutdownIndex() throws Exception;
@@ -672,11 +672,11 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   public void testLongUrls() throws Exception {
     // Build successively longer URLs (not really necessary but good for debugging)
     List<String> urls = IntStream.range(1, 14)
-        .mapToObj(i -> RandomStringUtils.randomAscii((int) Math.pow(2, i)))
+        .mapToObj(i -> RandomStringUtils.randomAlphanumeric((int) Math.pow(2, i)))
         .collect(Collectors.toList());
 
     // Add URL with maximum length
-    urls.add(RandomStringUtils.randomAscii(MAXIMUM_URL_LENGTH));
+    urls.add(RandomStringUtils.randomAlphanumeric(MAXIMUM_URL_LENGTH));
 
     // Create and index artifact specs for each URL
     for (String url : urls) {

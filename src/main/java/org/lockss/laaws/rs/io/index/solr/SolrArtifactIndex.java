@@ -37,6 +37,7 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.schema.FieldTypeDefinition;
 import org.apache.solr.client.solrj.request.schema.SchemaRequest;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FieldStatsInfo;
@@ -65,7 +66,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private static final String lockssSolrSchemaVersionFieldName =
       "solrSchemaLockssVersion";
 
-  private final SolrClient solr;
+  private SolrClient solrClient;
+  private boolean internalClient;
 
   private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
@@ -82,7 +84,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final int targetSchemaVersion = 2;
 
   // The fields defined in the Solr schema, indexed by their names.
-  private Map<String, Map<String, Object>> solrSchemafields = null;
+  private Map<String, Map<String, Object>> solrSchemaFields = null;
 
   /**
    * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -91,7 +93,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   public SolrArtifactIndex(String solrCollectionUrl) {
     // Get a handle to the Solr collection
-    this(new HttpSolrClient.Builder(solrCollectionUrl).build());
+    setSolrClient(new HttpSolrClient.Builder(solrCollectionUrl).build(), true);
   }
 
   /**
@@ -100,8 +102,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @param client A {@code SolrClient} to use to artifactIndex artifacts.
    */
   public SolrArtifactIndex(SolrClient client) {
-    this.solr = client;
+    setSolrClient(client, false);
+  }
 
+  private void setSolrClient(SolrClient client, boolean internalClient) {
+    this.solrClient = client;
+    this.internalClient = internalClient;
   }
 
   /**
@@ -115,7 +121,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	updateIfNecessary(targetSchemaVersion);
       } catch (SorlResponseErrorException | SolrServerException | IOException e)
       {
-	String errorMessage = "Exception caught initilizing Solr index";
+	String errorMessage = "Exception caught initializing Solr index";
 	log.error(errorMessage, e);
 	throw new RuntimeException(errorMessage, e);
       }
@@ -138,7 +144,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug2("targetSchemaVersion = " + targetSchemaVersion);
 
     // Get the Solr schema fields.
-    solrSchemafields = getSolrSchemaFields();
+    solrSchemaFields = getSolrSchemaFields();
 
     // Find the current schema version.
     int existingSchemaVersion = getExistingLockssSchemaVersion();
@@ -198,7 +204,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     try {
       // Request the Solr schema fields.
       fieldsResponse =
-	  handleSolrResponse(new SchemaRequest.Fields().process(solr),
+	  handleSolrResponse(new SchemaRequest.Fields().process(solrClient),
 	  "Problem getting Solr schema fields");
     } catch (SolrServerException | IOException e) {
       String errorMessage = "Exception caught getting Solr schema fields";
@@ -278,7 +284,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	&& hasSolrField("contentLength", solrLongType)
 	&& hasSolrField("contentDigest", "string")
 	&& hasSolrField("version", solrIntegerType)
-	&& hasSolrField("collectionDate", solrLongType)) {
+	&& hasSolrField("collectionDate", "long")) {
       // Yes: The schema is at version 1.
       result = 1;
     }
@@ -298,7 +304,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Get the Solr schema LOCKSS version field.
     Map<String, Object> field =
-	solrSchemafields.get(lockssSolrSchemaVersionFieldName);
+	solrSchemaFields.get(lockssSolrSchemaVersionFieldName);
 
     // Check whether it exists.
     if (field != null) {
@@ -318,7 +324,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @return a boolean with the indication.
    */
   private boolean hasSolrField(String fieldName, String fieldType) {
-    Map<String, Object> field = solrSchemafields.get(fieldName);
+    Map<String, Object> field = solrSchemaFields.get(fieldName);
 
     return field != null
 	&& field.equals(getNewFieldAttributes(fieldName, fieldType, null));
@@ -391,40 +397,59 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Updates the Solr schema to a given LOCKSS version.
    *
-   * @param schemaVersion An int with the LOCKSS version of the schema to which
+   * @param targetVersion An int with the LOCKSS version of the schema to which
    *                      the Solr schema is to be updated.
    * @throws SorlResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
-  private void updateSchemaToVersion(int schemaVersion)
+  private void updateSchemaToVersion(int targetVersion)
       throws SorlResponseErrorException, SolrServerException, IOException {
-    log.debug2("schemaVersion = {}", schemaVersion);
+    log.debug2("targetVersion = {}", targetVersion);
 
     // Perform the appropriate Solr schema update for this version.
     try {
-      if (schemaVersion == 1) {
-	createSolrField(solr, "collection", "string");
-	createSolrField(solr, "auid", "string");
-	createSolrField(solr, "uri", "string");
-	createSolrField(solr, "committed", "boolean");
-	createSolrField(solr, "storageUrl", "string");
-	createSolrField(solr, "contentLength", solrLongType);
-	createSolrField(solr, "contentDigest", "string");
-	createSolrField(solr, "version", solrIntegerType);
-	createSolrField(solr, "collectionDate", solrLongType);
-      } else if (schemaVersion == 2) {
+      if (targetVersion == 1) {
+        updateSchemaFrom0To1();
+      } else if (targetVersion == 2) {
 	updateSchemaFrom1To2();
       } else {
 	throw new IllegalArgumentException("Non-existent method to update the "
-	    + "schema to version " + schemaVersion + ".");
+	    + "schema to version " + targetVersion + ".");
       }
     } catch (SolrServerException | IOException e) {
       String errorMessage = "Exception caught updating Solr schema to LOCKSS "
-	  + "version " + schemaVersion;
+	  + "version " + targetVersion;
       log.error(errorMessage, e);
       throw e;
     }
+  }
+
+  private void updateSchemaFrom0To1() throws SolrServerException, IOException, SorlResponseErrorException {
+    // New field type definition for "long" (uses TrieLongField; depreciated in Solr 7.x)
+    // <fieldType name="long" class="solr.TrieLongField" docValues="true" precisionStep="0" positionIncrementGap="0"/>
+    Map<String, Object> ftd = new HashMap<>();
+    ftd.put("name", "long");
+    ftd.put("class", "solr.TrieLongField");
+    ftd.put("docValues", "true");
+    ftd.put("precisionStep", 0);
+    ftd.put("positionIncrementGap", 0);
+
+    // Create "long" field type if it does not exist
+    if (!hasSolrFieldType(ftd)) {
+      createSolrFieldType(ftd);
+    }
+
+    // Create initial set of fields
+    createSolrField(solrClient, "collection", "string");
+    createSolrField(solrClient, "auid", "string");
+    createSolrField(solrClient, "uri", "string");
+    createSolrField(solrClient, "committed", "boolean");
+    createSolrField(solrClient, "storageUrl", "string");
+    createSolrField(solrClient, "contentLength", solrLongType);
+    createSolrField(solrClient, "contentDigest", "string");
+    createSolrField(solrClient, "version", solrIntegerType);
+    createSolrField(solrClient, "collectionDate", "long");
   }
 
   /**
@@ -438,15 +463,25 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throws SorlResponseErrorException, SolrServerException, IOException {
     log.debug2("Invoked");
 
+    // Replace collectionDate field type with "plong"
+    SchemaRequest.ReplaceField req = new SchemaRequest.ReplaceField(
+        getNewFieldAttributes("collectionDate", solrLongType, null)
+    );
+    req.process(solrClient);
+
+    // Remove "long" field type
+    SchemaRequest.DeleteFieldType delReq = new SchemaRequest.DeleteFieldType("long");
+    delReq.process(solrClient);
+
     try {
       // Create the new field in the schema.
-      createSolrField(solr, "sortUri", "string");
+      createSolrField(solrClient, "sortUri", "string");
 
       // Loop through all the documents in the index.
       SolrQuery q = new SolrQuery().setQuery("*:*");
 
       for (Artifact artifact :
-	IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q))) {
+	IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q))) {
 	// Initialize a document with the artifact identifier.
 	SolrInputDocument document = new SolrInputDocument();
 	document.addField("id", artifact.getId());
@@ -458,9 +493,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	log.trace("document = {}", document);
 
 	// Add the document with the new field.
-	handleSolrResponse(solr.add(document), "Problem adding document '"
+	handleSolrResponse(solrClient.add(document), "Problem adding document '"
 	    + document + "' to Solr");
-	handleSolrResponse(solr.commit(), "Problem committing addition of "
+	handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	    + "document '" + document + "' to Solr");
       }
     } catch (SolrServerException | IOException e) {
@@ -497,7 +532,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     try {
       // Get the Solr schema LOCKSS version field.
       Map<String, Object> field =
-	  solrSchemafields.get(lockssSolrSchemaVersionFieldName);
+	  solrSchemaFields.get(lockssSolrSchemaVersionFieldName);
       log.trace("field = {}", field);
 
       // Check whether it exists.
@@ -505,13 +540,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	// Yes: Replace the existing field.
 	log.trace("Replacing field '{}' in Solr schema", field);
 	handleSolrResponse(new SchemaRequest.ReplaceField(newFieldAttributes)
-	    .process(solr),
+	    .process(solrClient),
 	    "Problem replacing field '" + field + "' in the Solr schema");
       } else {
 	// No: Add the field for the Solr schema LOCKSS version.
 	log.trace("Adding field to Solr schema: {}", newFieldAttributes);
 	handleSolrResponse(new SchemaRequest.AddField(newFieldAttributes)
-	    .process(solr),
+	    .process(solrClient),
 	    "Problem adding field '" + field + "' in the Solr schema");
       }
     } catch (SolrServerException | IOException e) {
@@ -527,7 +562,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   @Override
   public void shutdownIndex() {
     try {
-      solr.close();
+      if (internalClient) {
+        solrClient.close();
+      }
+
       setState(ArtifactIndexState.SHUTDOWN);
     } catch (IOException e) {
       log.error("Could not close Solr client connection: {}", e);
@@ -541,7 +579,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   private boolean checkAlive() {
     try {
-      handleSolrResponse(solr.ping(), "Problem pinging Solr");
+      handleSolrResponse(solrClient.ping(), "Problem pinging Solr");
       return true;
     } catch (Exception e) {
       log.warn("Could not ping Solr: {}", e);
@@ -608,6 +646,41 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
+   * Creates a new Solr field type, provided the new field type's attributes. Does not support setting an analyzer.
+   *
+   * @param fieldTypeAttributes A {@code Map<String, Object>} containing attributes of the field type to create.
+   * @return An {@code UpdateResponse} from Solr.
+   * @throws IOException         if Solr reports problems.
+   * @throws SolrServerException if Solr reports problems.
+   */
+  private SchemaResponse.UpdateResponse createSolrFieldType(Map<String, Object> fieldTypeAttributes)
+      throws IOException, SolrServerException {
+    // Create new field type definition
+    FieldTypeDefinition ftd = new FieldTypeDefinition();
+    ftd.setAttributes(fieldTypeAttributes);
+
+    // Create and submit new add-field-type request
+    SchemaRequest.AddFieldType req = new SchemaRequest.AddFieldType(ftd);
+    return req.process(solrClient);
+  }
+
+  /**
+   * Returns a boolean indicating whether a Solr field type matching the provided field type attributes exists in the
+   * Solr schema.
+   *
+   * @param fieldTypeAttributes A {@code Map<String, Object>} containing attributes of the field type to search for.
+   * @return A {@code boolean} indicating whether the field type exists in the Solr schema.
+   * @throws IOException         if Solr reports problems.
+   * @throws SolrServerException if Solr reports problems.
+   */
+  private boolean hasSolrFieldType(Map<String, Object> fieldTypeAttributes) throws IOException, SolrServerException {
+    SchemaRequest.FieldTypes req = new SchemaRequest.FieldTypes();
+    SchemaResponse.FieldTypesResponse res = req.process(solrClient);
+
+    return res.getFieldTypes().stream().anyMatch(ft -> ft.equals(fieldTypeAttributes));
+  }
+
+  /**
    * Adds an artifact to the artifactIndex.
    *
    * @param artifactData An ArtifactData with the artifact to be added to the artifactIndex,.
@@ -639,9 +712,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Add the Artifact to Solr as a bean
     try {
-      handleSolrResponse(solr.addBean(artifact), "Problem adding artifact '"
+      handleSolrResponse(solrClient.addBean(artifact), "Problem adding artifact '"
 	    + artifact + "' to Solr");
-      handleSolrResponse(solr.commit(), "Problem committing addition of "
+      handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	    + "artifact '" + artifact + "' to Solr");
     } catch (SorlResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -677,7 +750,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     try {
       // Submit the Solr query and get results as Artifact objects
       final QueryResponse response = 
-	  handleSolrResponse(solr.query(q), "Problem performing Solr query");
+	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       final List<Artifact> artifacts = response.getBeans(Artifact.class);
 
       // Run some checks against the results
@@ -736,9 +809,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       // Update the artifact.
-      handleSolrResponse(solr.add(document), "Problem adding document '"
+      handleSolrResponse(solrClient.add(document), "Problem adding document '"
 	  + document + "' to Solr");
-      handleSolrResponse(solr.commit(), "Problem committing addition of "
+      handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	  + "document '" + document + "' to Solr");
     } catch (SorlResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -779,9 +852,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     if (artifactExists(artifactId)) {
       // Yes: Artifact found - remove Solr document for this artifact
       try {
-        handleSolrResponse(solr.deleteById(artifactId), "Problem deleting "
+        handleSolrResponse(solrClient.deleteById(artifactId), "Problem deleting "
   	  + "artifact '" + artifactId + "' from Solr");
-        handleSolrResponse(solr.commit(), "Problem committing deletion of "
+        handleSolrResponse(solrClient.commit(), "Problem committing deletion of "
   	  + "artifact '" + artifactId + "' from Solr");
         return true;
       } catch (SorlResponseErrorException | SolrServerException e) {
@@ -845,9 +918,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       // Update the field
-      handleSolrResponse(solr.add(document), "Problem adding document '"
+      handleSolrResponse(solrClient.add(document), "Problem adding document '"
 	  + document + "' to Solr");
-      handleSolrResponse(solr.commit(), "Problem committing addition of "
+      handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	  + "document '" + document + "' to Solr");
     } catch (SorlResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -873,7 +946,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Return the number of documents our query matched
     QueryResponse result =
-	handleSolrResponse(solr.query(q), "Problem performing Solr query");
+	handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
     return result.getResults().getNumFound() == 0;
   }
 
@@ -898,10 +971,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       q.setRows(0);
 
       q.addFacetField("collection");
+      q.setFacetLimit(-1); // Unlimited
 
       // Get the facet field from the result
       QueryResponse result =
-  	  handleSolrResponse(solr.query(q), "Problem performing Solr query");
+  	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       FacetField ff = result.getFacetField("collection");
 
       if (log.isDebugEnabled()) {
@@ -945,10 +1019,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setFields("auid");
     q.setRows(0);
     q.addFacetField("auid");
+    q.setFacetLimit(-1); // Unlimited
 
     try {
       QueryResponse response =
-  	  handleSolrResponse(solr.query(q), "Problem performing Solr query");
+  	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       FacetField ff = response.getFacetField("auid");return IteratorUtils.asIterable(
           ff.getValues().stream()
               .filter(x -> x.getCount() > 0).map(x -> x.getName()).sorted().iterator()
@@ -994,7 +1069,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform collapse filter query and return result
     q.addFilterQuery("{!collapse field=uri max=version}");
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1020,7 +1095,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1058,7 +1133,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform collapse filter query and return result
     q.addFilterQuery("{!collapse field=uri max=version}");
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1082,7 +1157,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1108,7 +1183,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1131,7 +1206,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1152,7 +1227,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solr, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
   }
 
   /**
@@ -1194,7 +1269,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform a collapse filter query (must have documents in result set to operate on)
     q.addFilterQuery("{!collapse field=uri max=version}");
-    Iterator<Artifact> result = new SolrQueryArtifactIterator(solr, q);
+    Iterator<Artifact> result = new SolrQueryArtifactIterator(solrClient, q);
 
     // Return the latest artifact
     if (result.hasNext()) {
@@ -1233,7 +1308,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
     q.addFilterQuery(String.format("version:%s", version));
 
-    Iterator<Artifact> result = new SolrQueryArtifactIterator(solr, q);
+    Iterator<Artifact> result = new SolrQueryArtifactIterator(solrClient, q);
     if (result.hasNext()) {
       Artifact artifact = result.next();
       if (result.hasNext()) {
@@ -1280,7 +1355,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     try {
       // Query Solr and get
       QueryResponse response =
-  	  handleSolrResponse(solr.query(q), "Problem performing Solr query");
+  	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
 
       return ((Double) contentLengthStats.getSum()).longValue();
@@ -1296,7 +1371,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     // Perform query and find the number of documents
     try {
       QueryResponse response =
-	  handleSolrResponse(solr.query(q), "Problem performing Solr query");
+	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       return response.getResults().getNumFound() == 0;
     } catch (SorlResponseErrorException | SolrServerException e) {
       throw new IOException(String.format("Caught SolrServerException attempting to execute Solr query: %s", q));
