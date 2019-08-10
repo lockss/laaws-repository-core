@@ -78,17 +78,20 @@ public class TestArtifactCache extends LockssTestCase5 {
     assertEquals(1, stats.getCacheMisses());
 
     assertNull(cache.get(makeArt(COLL1, AUID1, URL1, -1)));
+    assertNull(cache.getLatest(COLL1, AUID1, URL1));
     assertSame(u2v1, cache.putLatest(u2v1));
     assertSame(u2v1, cache.get(u2v1));
     assertSame(u2v1, cache.get(makeArt(COLL1, AUID1, URL2, 1)));
     assertSame(u2v1, cache.get(COLL1, AUID1, URL2, -1));
+    assertSame(u2v1, cache.getLatest(COLL1, AUID1, URL2));
     assertEquals(-1, (int)makeArt(COLL1, AUID1, URL2, -1).getVersion());
     assertSame(u2v1, cache.get(makeArt(COLL1, AUID1, URL2, -1)));
-    assertEquals(6, stats.getCacheHits());
-    assertEquals(2, stats.getCacheMisses());
+    assertEquals(7, stats.getCacheHits());
+    assertEquals(3, stats.getCacheMisses());
 
     assertSame(u2v2, cache.putLatest(u2v2));
     assertSame(u2v2, cache.get(COLL1, AUID1, URL2, -1));
+    assertSame(u2v2, cache.getLatest(COLL1, AUID1, URL2));
     assertSame(u2v2, cache.get(COLL1, AUID1, URL2, 2));
     assertSame(u2v1, cache.get(COLL1, AUID1, URL2, 1));
 
@@ -154,6 +157,63 @@ public class TestArtifactCache extends LockssTestCase5 {
 
     assertEquals(5, stats.getCacheIterHits());
     assertEquals(40, stats.getCacheHits());
+  }
+
+  @Test
+  public void testIterator() throws Exception {
+    cache.setMaxSize(5);
+    ArtifactCache.Stats stats = cache.getStats();
+    List<Artifact> lst = new ArrayList<>();
+    for (int ii=1; ii<=10; ii++) {
+      lst.add(makeArt(COLL2, AUID1, URL1, ii));
+    }
+
+    Artifact s1 = makeArt(COLL2, AUID1, URL2, 1);
+    Artifact s2 = makeArt(COLL2, AUID1, URL2, 2);
+    Artifact s3 = makeArt(COLL2, AUID1, URL3, 1);
+    cache.putLatest(s1);
+    cache.putLatest(s2);
+    cache.put(lst.get(3));
+
+    Iterator<Artifact> iter = cache.cachingLatestIterator(lst.iterator());
+    assertTrue(iter.hasNext());
+    Artifact a1 = iter.next();
+    assertEquals(1, (int)a1.getVersion());
+    assertSame(a1, lst.get(0));
+    assertEquals(0, stats.getCacheHits());
+    assertEquals(0, stats.getCacheIterHits());
+    assertSame(a1, cache.get(COLL2, AUID1, URL1, 1));
+    assertEquals(0, stats.getCacheHits());
+    assertEquals(1, stats.getCacheIterHits());
+    assertSame(s1, cache.get(COLL2, AUID1, URL2, 1));
+    assertSame(s2, cache.getLatest(COLL2, AUID1, URL2));
+    assertEquals(2, stats.getCacheHits());
+    assertEquals(1, stats.getCacheIterHits());
+
+    Artifact a2 = iter.next();
+    Artifact a3 = iter.next();
+    Artifact a4 = iter.next();
+    Artifact a5 = iter.next();
+    assertSame(a2, lst.get(1));
+    assertEquals(2, stats.getCacheHits());
+    assertEquals(1, stats.getCacheIterHits());
+    assertSame(a2, cache.get(COLL2, AUID1, URL1, 2));
+    assertSame(a3, cache.get(COLL2, AUID1, URL1, 3));
+    assertSame(a4, cache.get(COLL2, AUID1, URL1, 4));
+    assertSame(a5, cache.get(COLL2, AUID1, URL1, 5));
+    assertEquals(3, stats.getCacheHits());
+    assertEquals(4, stats.getCacheIterHits());
+
+    assertTrue(cache.containsIterKey(a2.makeKey()));
+    cache.putLatest(s3);
+    Artifact a6 = iter.next();
+    assertTrue(cache.containsIterKey(a2.makeKey()));
+    Artifact a7 = iter.next();
+    assertFalse(cache.containsIterKey(a2.makeKey()));
+
+    // Items in regular cache shouldn't have aged out
+    assertSame(s2, cache.getLatest(COLL2, AUID1, URL2));
+    assertSame(s3, cache.getLatest(COLL2, AUID1, URL3));
   }
 
 }

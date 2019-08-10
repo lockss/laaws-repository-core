@@ -106,10 +106,11 @@ public class ArtifactCache {
       stats.cacheMisses++;
     } else if (isIterMap) {
       stats.cacheIterHits++;
+      log.trace("get({} (iter)): {}", key, res);
     } else {
       stats.cacheHits++;
+      log.trace("get({}): {}", key, res);
     }
-    log.trace("get({}): {}", key, res);
     return res;
   }
 
@@ -129,7 +130,7 @@ public class ArtifactCache {
    * @return cached latest version of specified Artifact or null if not
    * found in cache.
    */
-  public Artifact get(String collection, String auid, String url) {
+  public Artifact getLatest(String collection, String auid, String url) {
     // "latest"
     return get(Artifact.makeLatestKey(collection, auid, url));
   }
@@ -205,8 +206,18 @@ public class ArtifactCache {
     if (!art.getCommitted()) {
       throw new IllegalStateException("putLatest() called with uncommitted Artifact: " + art);
     }
-    artIterMap.put(art.makeLatestKey(), art);
-    artIterMap.put(art.makeKey(), art);
+    String key = art.makeKey();
+    String latestKey = art.makeLatestKey();
+    // if already in artMap, leave it there,
+    if (artMap.containsKey(key)) {
+      artMap.put(key, art);
+      artMap.put(latestKey, art);
+      artIterMap.remove(key);
+      artIterMap.remove(latestKey);
+    } else {
+      artIterMap.put(key, art);
+      artIterMap.put(latestKey, art);
+    }
     return art;
   }
 
@@ -338,4 +349,15 @@ public class ArtifactCache {
       return cacheInvalidates;
     }
   }
+
+  // for unit tests
+
+  boolean containsKey(String key) {
+    return artMap.containsKey(key);
+  }
+
+  boolean containsIterKey(String key) {
+    return artIterMap.containsKey(key);
+  }
+
 }

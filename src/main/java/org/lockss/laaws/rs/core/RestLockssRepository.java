@@ -754,7 +754,7 @@ public class RestLockssRepository implements LockssRepository {
     public Artifact getArtifact(String collection, String auid, String url) throws IOException {
         if ((collection == null) || (auid == null) || (url == null))
             throw new IllegalArgumentException("Null collection id, au id or url");
-	Artifact cached = artCache.get(collection, auid, url);
+	Artifact cached = artCache.getLatest(collection, auid, url);
 	if (cached != null) {
 	  return cached;
 	}
