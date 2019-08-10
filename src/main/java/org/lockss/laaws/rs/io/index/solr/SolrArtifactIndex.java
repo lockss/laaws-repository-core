@@ -971,6 +971,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       q.setRows(0);
 
       q.addFacetField("collection");
+      q.setFacetLimit(-1); // Unlimited
 
       // Get the facet field from the result
       QueryResponse result =
@@ -1018,6 +1019,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setFields("auid");
     q.setRows(0);
     q.addFacetField("auid");
+    q.setFacetLimit(-1); // Unlimited
 
     try {
       QueryResponse response =
