@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
@@ -39,7 +40,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.io.FileUtil;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -52,19 +56,29 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   private static final String SOLR_TEST_CORE_DIR = "testcore";
 
   private static SolrClient client;
+  private static File tmpSolrHome;
 
   // *******************************************************************************************************************
   // * JUNIT LIFECYCLE
   // *******************************************************************************************************************
 
   @BeforeAll
-  protected static void startEmbeddedSolrServer() {
-    client = new EmbeddedSolrServer(SOLR_BASE_PATH, SOLR_TEST_CORE_NAME);
+  protected static void startEmbeddedSolrServer() throws IOException {
+    // Make a copy of the test Solr home environment
+    tmpSolrHome = FileUtil.createTempDir("testSolrHome", null);
+    FileUtils.copyDirectory(SOLR_BASE_PATH.toFile(), tmpSolrHome);
+
+    // Start EmbeddedSolrServer pointing to the temporary
+    client = new EmbeddedSolrServer(tmpSolrHome.toPath(), SOLR_TEST_CORE_NAME);
   }
 
   @AfterAll
   protected static void shutdownEmbeddedSolrServer() throws Exception {
+    // Shutdown the EmbeddedSolrServer
     client.close();
+
+    // Remove temporary Solr home copy
+    FileUtils.deleteQuietly(tmpSolrHome);
   }
 
   @Override
