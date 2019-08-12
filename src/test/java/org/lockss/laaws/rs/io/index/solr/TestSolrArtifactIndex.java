@@ -64,11 +64,11 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
   @BeforeAll
   protected static void startEmbeddedSolrServer() throws IOException {
-    // Make a copy of the test Solr home environment
+    // Make a temporary copy of the test Solr home environment
     tmpSolrHome = FileUtil.createTempDir("testSolrHome", null);
     FileUtils.copyDirectory(SOLR_BASE_PATH.toFile(), tmpSolrHome);
 
-    // Start EmbeddedSolrServer pointing to the temporary
+    // Start EmbeddedSolrServer with the copy
     client = new EmbeddedSolrServer(tmpSolrHome.toPath(), SOLR_TEST_CORE_NAME);
   }
 
@@ -77,7 +77,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     // Shutdown the EmbeddedSolrServer
     client.close();
 
-    // Remove temporary Solr home copy
+    // Remove temporary Solr home environment
     FileUtils.deleteQuietly(tmpSolrHome);
   }
 
