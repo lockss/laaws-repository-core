@@ -426,7 +426,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   private void updateSchemaFrom0To1() throws SolrServerException, IOException, SorlResponseErrorException {
-    // New field type definition for "long" (uses TrieLongField; depreciated in Solr 7.x)
+    // New field type definition for "long" (using depreciated TrieLongField)
     // <fieldType name="long" class="solr.TrieLongField" docValues="true" precisionStep="0" positionIncrementGap="0"/>
     Map<String, Object> ftd = new HashMap<>();
     ftd.put("name", "long");
@@ -463,15 +463,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throws SorlResponseErrorException, SolrServerException, IOException {
     log.debug2("Invoked");
 
-    // Replace collectionDate field type with "plong"
+    // Replace collectionDate field definition with one that uses field type "plong"
     SchemaRequest.ReplaceField req = new SchemaRequest.ReplaceField(
         getNewFieldAttributes("collectionDate", solrLongType, null)
     );
     req.process(solrClient);
 
-    // Remove "long" field type
-    SchemaRequest.DeleteFieldType delReq = new SchemaRequest.DeleteFieldType("long");
-    delReq.process(solrClient);
+    // Remove "long" field type definition
+//    SchemaRequest.DeleteFieldType delReq = new SchemaRequest.DeleteFieldType("long");
+//    delReq.process(solrClient);
 
     try {
       // Create the new field in the schema.
@@ -480,32 +480,45 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Loop through all the documents in the index.
       SolrQuery q = new SolrQuery().setQuery("*:*");
 
-      for (Artifact artifact :
-	IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q))) {
-	// Initialize a document with the artifact identifier.
-	SolrInputDocument document = new SolrInputDocument();
-	document.addField("id", artifact.getId());
+      for (Artifact artifact : IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q))) {
+        // Initialize a document with the artifact identifier.
+        SolrInputDocument document = new SolrInputDocument();
+        document.addField("id", artifact.getId());
 
-	// Add the new field value.
-	Map<String, Object> fieldModifier = new HashMap<>();
-	fieldModifier.put("set", artifact.getSortUri());
-	document.addField("sortUri", fieldModifier);
-	log.trace("document = {}", document);
+        // Add the new field value.
+        document.addField("sortUri", getFieldModifier("set", artifact.getSortUri()));
+        document.addField("collectionDate", getFieldModifier("set", artifact.getCollectionDate()));
+        log.trace("document = {}", document);
 
-	// Add the document with the new field.
-	handleSolrResponse(solrClient.add(document), "Problem adding document '"
-	    + document + "' to Solr");
-	handleSolrResponse(solrClient.commit(), "Problem committing addition of "
-	    + "document '" + document + "' to Solr");
+        // Add the document with the new field.
+        handleSolrResponse(solrClient.add(document), "Problem adding document '" + document + "' to Solr");
       }
+
+      // Commit all changes
+      handleSolrResponse(solrClient.commit(), "Problem committing changes to Solr");
+
     } catch (SolrServerException | IOException e) {
-      String errorMessage =
-	  "Exception caught updating Solr schema to LOCKSS version 2";
+      String errorMessage = "Exception caught updating Solr schema to LOCKSS version 2";
       log.error(errorMessage, e);
       throw e;
     }
 
     log.debug2("Done");
+  }
+
+  /**
+   * Creates a {@code Map} containing a field modifier.
+   *
+   * See https://lucene.apache.org/solr/guide/6_6/updating-parts-of-documents.html#UpdatingPartsofDocuments-In-PlaceUpdates
+   *
+   * @param modifier A {@code String} specifying the modifier. Can be one of "set" or "inc".
+   * @param value A {@code Object} new value of the field, or number to increment a numeric field.
+   * @return A {@code Map<String, Object>} containing the field modifier.
+   */
+  private Map<String, Object> getFieldModifier(String modifier, Object value) {
+    Map<String, Object> fieldModifier = new HashMap<>();
+    fieldModifier.put(modifier, value);
+    return fieldModifier;
   }
 
   /**
@@ -749,7 +762,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       // Submit the Solr query and get results as Artifact objects
-      final QueryResponse response = 
+      final QueryResponse response =
 	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       final List<Artifact> artifacts = response.getBeans(Artifact.class);
 

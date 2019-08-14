@@ -123,8 +123,7 @@ public class Artifact implements Serializable {
           throw new IllegalArgumentException(
               "Cannot create Artifact with null or empty URI");
         }
-        this.uri = uri;
-        this.sortUri = uri.replaceAll("/", "\u0000");
+        this.setUri(uri);
 
         if (version == null) {
           throw new IllegalArgumentException(
@@ -183,10 +182,14 @@ public class Artifact implements Serializable {
         if (StringUtils.isEmpty(uri)) {
           throw new IllegalArgumentException("Cannot set null or empty URI");
         }
-        this.uri = uri;
+      this.uri = uri;
+      this.setSortUri(uri.replaceAll("/", "\u0000"));
     }
 
     public String getSortUri() {
+        if ((sortUri == null) && (uri != null)) {
+          this.setSortUri(uri.replaceAll("/", "\u0000"));
+        }
         return sortUri;
     }
 

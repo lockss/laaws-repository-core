@@ -17,7 +17,7 @@
 -->
 
 <!--
-   This is an example of a simple "solr.xml" file for configuring one or
+   This is an example of a simple "solr.xml" file for configuring one or 
    more Solr Cores, as well as allowing Cores to be added, removed, and 
    reloaded via HTTP requests.
 
