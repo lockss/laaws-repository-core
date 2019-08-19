@@ -47,6 +47,7 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.*;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
+import org.lockss.util.time.Deadline;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
@@ -949,7 +950,11 @@ public class RestLockssRepository implements LockssRepository {
   public static final String REST_ARTIFACT_CACHE_ID = null;
   public static final String REST_ARTIFACT_CACHE_TOPIC = "ArtifactCacheTopic";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION = "CacheAction";
-  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE = "Invalidate";
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE =
+    "Invalidate";
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_ECHO = "Echo";
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_ECHO_RESP =
+    "EchoResp";
   public static final String REST_ARTIFACT_CACHE_MSG_OP = "InvalidateOp";
   public static final String REST_ARTIFACT_CACHE_MSG_KEY = "ArtifactKey";
 
@@ -958,6 +963,10 @@ public class RestLockssRepository implements LockssRepository {
   private ArtifactCache artCache =
       new ArtifactCache(DEFAULT_MAX_CACHE_SIZE).enable(false);
   private JmsConsumer jmsConsumer;
+  private JmsProducer jmsProducer;
+  boolean isEnablingCache = false;
+  boolean invalidateCheckCompleted = false;
+  Deadline invCheckDeadline;
 
   /**
    * Enable the ArtifactCache
@@ -969,36 +978,96 @@ public class RestLockssRepository implements LockssRepository {
   public RestLockssRepository enableArtifactCache(boolean enable,
 						  JmsFactory fact) {
     if (enable) {
-      if (!artCache.isEnabled())
-      makeJmsConsumer(fact);
+      synchronized (this) {
+	if (!artCache.isEnabled() && !isEnablingCache) {
+	  makeJmsConsumer(fact);
+	}
+      }
     } else {
       artCache.enable(false);
     }
     return this;
   }
 
+  /** Return true if enableArtifactCache(true) has been called, whether or
+   * not the cache has actually been enabled yet. */
+  public boolean isArtifactCacheEnabled() {
+    return isEnablingCache || artCache.isEnabled();
+  }
+
   private void makeJmsConsumer(JmsFactory fact) {
+    isEnablingCache = true;
     new Thread(new Runnable() {
 	@Override
 	public void run() {
-	  log.info("Creating JMS consumer");
-	  while (jmsConsumer == null) {
-	    try {
-	      log.trace("Attempting to create JMS consumer");
-	      jmsConsumer = fact.createTopicConsumer(REST_ARTIFACT_CACHE_ID,
-						     REST_ARTIFACT_CACHE_TOPIC,
-						     new ArtifactCacheListener());
-	      log.info("Created JMS consumer: {}", REST_ARTIFACT_CACHE_TOPIC);
-	      break;
-	    } catch (JMSException | NullPointerException exc) {
-	      log.trace("Could not establish JMS connection; sleeping and retrying");
+	  try {
+	    log.debug("Creating JMS consumer");
+	    while (jmsConsumer == null || jmsProducer == null) {
+	      if (jmsConsumer == null) {
+		try {
+		  log.trace("Attempting to create JMS consumer");
+		  jmsConsumer =
+		    fact.createTopicConsumer(REST_ARTIFACT_CACHE_ID,
+					     REST_ARTIFACT_CACHE_TOPIC,
+					     new ArtifactCacheListener());
+		  log.debug("Created JMS consumer: {}",REST_ARTIFACT_CACHE_TOPIC);
+		} catch (JMSException | NullPointerException exc) {
+		  log.trace("Could not establish JMS connection; sleeping and retrying");
+		}
+	      }
+	      if (jmsProducer == null) {
+		try {
+		  log.trace("Attempting to create JMS producer");
+		  jmsProducer =
+		    fact.createTopicProducer(REST_ARTIFACT_CACHE_ID,
+					     REST_ARTIFACT_CACHE_TOPIC);
+		  log.debug("Created JMS producer: {}",
+			    REST_ARTIFACT_CACHE_TOPIC);
+		} catch (JMSException | NullPointerException e) {
+		  log.error("Could not create JMS producer for {}",
+			    REST_ARTIFACT_CACHE_ID, e);
+		}
+	      }
+	      if (jmsConsumer != null && jmsProducer != null) {
+		break;
+	      }
+	      TimerUtil.guaranteedSleep(1 * TimeUtil.SECOND);
 	    }
-	    TimerUtil.guaranteedSleep(1 * TimeUtil.SECOND);
+	    // producer and consumer have been created, probe service with
+	    // ECHO request to determine whether it support sending JMS
+	    // cache invalidate messages, enable cache iff it responds.
+	    while (!invalidateCheckCompleted) {
+	      sendPing();
+	      invCheckDeadline = Deadline.in(5 * TimeUtil.SECOND);
+	      try {
+		invCheckDeadline.sleep();
+	      } catch (InterruptedException e) {
+		// ignore
+	      }
+	    }
+	    artCache.enable(true);
+	    log.info("Enabled Artifact cache");
+	  } finally {
+	    isEnablingCache = false;
 	  }
-	  artCache.enable(true);
-	}
-      }).start();
+	}}).start();
   }
+
+  protected void sendPing() {
+    if (jmsProducer != null) {
+      Map<String,Object> map = new HashMap<>();
+      map.put(RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION,
+	      RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION_ECHO);
+      map.put(RestLockssRepository.REST_ARTIFACT_CACHE_MSG_KEY,
+	      repositoryUrl.toString());
+      try {
+	jmsProducer.sendMap(map);
+      } catch (javax.jms.JMSException e) {
+	log.error("Couldn't send ping", e);
+      }
+    }
+  }
+
 
   /** @return the ArtifactCache */
   public ArtifactCache getArtifactCache() {
@@ -1024,6 +1093,18 @@ public class RestLockssRepository implements LockssRepository {
 	  case REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE:
 	    artCache.invalidate(msgOp(msgMap.get(REST_ARTIFACT_CACHE_MSG_OP)),
 				key);
+	    break;
+	  case REST_ARTIFACT_CACHE_MSG_ACTION_ECHO_RESP:
+	    if (repositoryUrl.toString().equals(key)) {
+	      invalidateCheckCompleted = true;
+	      if (invCheckDeadline != null) {
+		invCheckDeadline.expire();
+	      }
+	      log.debug("invalidateCheckCompleted");
+	    }
+	    break;
+	  case REST_ARTIFACT_CACHE_MSG_ACTION_ECHO:
+	    // expected, ignore
 	    break;
 	  default:
 	    log.warn("Unknown message action: {}", action);
