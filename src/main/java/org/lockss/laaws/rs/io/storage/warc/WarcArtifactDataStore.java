@@ -422,7 +422,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     String tmpWarcBasePath = getTmpWarcBasePath();
 
-    log.debug("Reloading temporary WARCs from {}", tmpWarcBasePath);
+    log.info("Reloading temporary WARCs from {}", tmpWarcBasePath);
 
     Collection<String> tmpWarcs = findWarcs(tmpWarcBasePath);
     log.debug("Found {} temporary WARCs: {}", tmpWarcs.size(), tmpWarcs);
@@ -460,7 +460,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           String artifactId = artifactData.getIdentifier().getId();
           artifactData.setStorageUrl(makeStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
 
-          log.debug2("artifactData.getStorageUrl() = {}", artifactData.getStorageUrl());
+          log.trace("artifactData.getStorageUrl() = {}", artifactData.getStorageUrl());
 
           // Handle the different life cycle states in which the artifact may be.
           switch (
@@ -478,7 +478,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               break;
             case COMMITTED:
               // Requeue the copy of this artifact from temporary to permanent storage
-              log.debug2("Requeuing pending move to permanent storage for artifact [artifactId: {}]", artifactId);
+              log.trace("Requeuing pending move to permanent storage for artifact [artifactId: {}]", artifactId);
 
               try {
                 stripedExecutor.submit(new CommitArtifactTask(artifactIndex.getArtifact(artifactId)));
@@ -712,7 +712,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           artifactIndex.getArtifact(artifactId)
       );
 
-      log.debug2("artifactId: {}, artifactState = {}", artifactId, artifactState);
+      log.trace("artifactId: {}, artifactState = {}", artifactId, artifactState);
 
       // Handle the different life cycle states in which the artifact may be.
       switch (artifactState) {
@@ -1310,7 +1310,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Null artifact");
     }
 
-    // TODO: Should this be replaced by checking that repoMetadata is not null?
     // Guard against non-existent artifact
     if (!artifactIndex.artifactExists(artifact.getId())) {
       log.warn("Artifact doesn't exist [artifactId: {}]", artifact.getId());
@@ -1849,7 +1848,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       try (InputStream warcStream = markAndGetInputStream(warcFile)) {
         for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", warcStream)) {
-          log.debug2(
+          log.trace(
               "Re-indexing artifact from WARC {} record {} from {}",
               record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
               record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
@@ -1880,7 +1879,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                   false
               ));
 
-              log.debug2("artifactData({}).getStorageUrl() = {}",
+              log.trace("artifactData({}).getStorageUrl() = {}",
                   artifactData.getIdentifier().getId(),
                   artifactData.getStorageUrl()
               );
