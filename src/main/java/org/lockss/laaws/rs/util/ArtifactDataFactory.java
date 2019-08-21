@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -345,18 +345,18 @@ public class ArtifactDataFactory {
             artifact.setIdentifier(artifactId);
 
             String artifactContentLength = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
-            if (log.isDebug2Enabled()) log.debug2("artifactContentLength = " + artifactContentLength);
+            log.debug2("artifactContentLength = {}", artifactContentLength);
             if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
                 artifact.setContentLength(Long.parseLong(artifactContentLength));
             }
 
             String artifactDigest = (String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
-            if (log.isDebug2Enabled()) log.debug2("artifactDigest = " + artifactDigest);
+            log.debug2("artifactDigest = {}", artifactDigest);
             if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
                 artifact.setContentDigest(artifactDigest);
             }
 
-            if (log.isDebug2Enabled()) log.debug2("artifact = " + artifact);
+            log.debug2("artifact = {}", artifact);
             return artifact;
 
         } else if (recordType.equals(RESOURCE_TYPE)) {
