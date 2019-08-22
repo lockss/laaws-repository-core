@@ -119,7 +119,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       try {
 	// Update the schema, if necessary.
 	updateIfNecessary(targetSchemaVersion);
-      } catch (SorlResponseErrorException | SolrServerException | IOException e)
+      } catch (SolrResponseErrorException | SolrServerException | IOException e)
       {
 	String errorMessage = "Exception caught initializing Solr index";
 	log.error(errorMessage, e);
@@ -135,12 +135,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param targetSchemaVersion An int with the LOCKSS version of the Solr
    *                            schema to be updated.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private void updateIfNecessary(int targetSchemaVersion)
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("targetSchemaVersion = " + targetSchemaVersion);
 
     // Get the Solr schema fields.
@@ -192,12 +192,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @return a Map<Map<String, Object>> with the definitions of the Solr schema
    *         fields.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private Map<String, Map<String, Object>> getSolrSchemaFields()
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("Invoked");
     SchemaResponse.FieldsResponse fieldsResponse = null;
 
@@ -237,11 +237,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *                     the thrown exception, if necessary.
    * @return a SolrResponseBase with the passed Solr response unchanged, if it
    *         has a zero status.
-   * @throws SorlResponseErrorException if the passed Solr response has a
+   * @throws SolrResponseErrorException if the passed Solr response has a
    *                                    non-zero status.
    */
   static <T extends SolrResponseBase> T handleSolrResponse(T solrResponse,
-      String errorMessage) throws SorlResponseErrorException {
+      String errorMessage) throws SolrResponseErrorException {
     log.debug2("solrResponse = {}", solrResponse);
 
     NamedList<Object> solrResponseResponse =
@@ -259,8 +259,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     // No: Report the problem.
     log.trace("solrResponse indicates failure");
 
-    SorlResponseErrorException snzse =
-	new SorlResponseErrorException(errorMessage, solrResponse);
+    SolrResponseErrorException snzse =
+	new SolrResponseErrorException(errorMessage, solrResponse);
     log.error(snzse);
     throw snzse;
   }
@@ -366,12 +366,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @param finalVersion    An int with the version of the schema to which the
    *                        schema is to be updated.
    * @return an int with the highest update version recorded in the schema.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private int updateSchema(int existingVersion, int finalVersion)
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("existingVersion = {}", existingVersion);
     log.debug2("finalVersion = {}", finalVersion);
 
@@ -399,12 +399,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param targetVersion An int with the LOCKSS version of the schema to which
    *                      the Solr schema is to be updated.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private void updateSchemaToVersion(int targetVersion)
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("targetVersion = {}", targetVersion);
 
     // Perform the appropriate Solr schema update for this version.
@@ -425,7 +425,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
   }
 
-  private void updateSchemaFrom0To1() throws SolrServerException, IOException, SorlResponseErrorException {
+  private void updateSchemaFrom0To1() throws SolrServerException, IOException, SolrResponseErrorException {
     // New field type definition for "long" (using depreciated TrieLongField)
     // <fieldType name="long" class="solr.TrieLongField" docValues="true" precisionStep="0" positionIncrementGap="0"/>
     Map<String, Object> ftd = new HashMap<>();
@@ -455,12 +455,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Updates the Solr schema from LOCKSS version 1 to 2.
    *
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private void updateSchemaFrom1To2()
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("Invoked");
 
     // Replace collectionDate field definition with one that uses field type "plong"
@@ -525,12 +525,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Updates the Solr schema LOCKSS version field in the index.
    *
    * @param schemaVersion An int with the LOCKSS version of the Solr schema.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   public void updateSolrLockssSchemaVersionField(int schemaVersion)
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("schemaVersion = {}", schemaVersion);
 
     Map<String, Object> newFieldAttributes = new LinkedHashMap<>();
@@ -618,12 +618,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @param solr      A {@code SolrClient} that points to a Solr core or collection to add the field to.
    * @param fieldName A {@code String} containing the name of the new field.
    * @param fieldType A {@code String} containing the name of the type of the new field.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private void createSolrField(SolrClient solr, String fieldName, String fieldType)
-      throws SorlResponseErrorException, IOException, SolrServerException {
+      throws SolrResponseErrorException, IOException, SolrServerException {
     createSolrField(solr, fieldName, fieldType, null);
   }
 
@@ -636,12 +636,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @param fieldName       A {@code String} containing the name of the new field.
    * @param fieldType       A {@code String} containing the name of the type of the new field.
    * @param fieldAttributes A {@code Map<String, Object>} containing additional field attributes, and/or a map of fields to override.
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private void createSolrField(SolrClient solr, String fieldName, String fieldType, Map<String, Object> fieldAttributes)
-      throws SorlResponseErrorException, IOException, SolrServerException {
+      throws SolrResponseErrorException, IOException, SolrServerException {
     // https://lucene.apache.org/solr/guide/7_2/defining-fields.html#DefiningFields-OptionalFieldTypeOverrideProperties
     Map<String, Object> newFieldAttributes =
     getNewFieldAttributes(fieldName, fieldType, fieldAttributes);
@@ -729,7 +729,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	    + artifact + "' to Solr");
       handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	    + "artifact '" + artifact + "' to Solr");
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
 
@@ -776,7 +776,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
           indexedArtifact = artifacts.get(0);
         }
       }
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
 
@@ -826,7 +826,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	  + document + "' to Solr");
       handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	  + "document '" + document + "' to Solr");
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
 
@@ -870,7 +870,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         handleSolrResponse(solrClient.commit(), "Problem committing deletion of "
   	  + "artifact '" + artifactId + "' from Solr");
         return true;
-      } catch (SorlResponseErrorException | SolrServerException e) {
+      } catch (SolrResponseErrorException | SolrServerException e) {
         log.error("Could not remove artifact from Solr index [artifactId: {}]: {}", artifactId);
         throw new IOException(
             String.format("Could not remove artifact from Solr index [artifactId: %s]", artifactId), e
@@ -935,7 +935,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	  + document + "' to Solr");
       handleSolrResponse(solrClient.commit(), "Problem committing addition of "
 	  + "document '" + document + "' to Solr");
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }}
 
@@ -951,7 +951,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws SolrServerException
    */
   private boolean isEmptySolrIndex()
-      throws SorlResponseErrorException, IOException, SolrServerException {
+      throws SolrResponseErrorException, IOException, SolrServerException {
     // Match all documents but set the number of documents to be returned to zero
     SolrQuery q = new SolrQuery();
     q.setQuery("*:*");
@@ -1009,7 +1009,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
               .iterator()
       );
 
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
   }
@@ -1041,7 +1041,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
           ff.getValues().stream()
               .filter(x -> x.getCount() > 0).map(x -> x.getName()).sorted().iterator()
       );
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
   }
@@ -1372,7 +1372,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
 
       return ((Double) contentLengthStats.getSum()).longValue();
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
   }
@@ -1386,7 +1386,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       QueryResponse response =
 	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       return response.getResults().getNumFound() == 0;
-    } catch (SorlResponseErrorException | SolrServerException e) {
+    } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(String.format("Caught SolrServerException attempting to execute Solr query: %s", q));
     }
   }

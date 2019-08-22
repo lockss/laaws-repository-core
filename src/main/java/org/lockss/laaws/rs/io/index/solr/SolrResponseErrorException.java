@@ -39,7 +39,7 @@ import org.apache.solr.client.solrj.response.SolrResponseBase;
  * @version 1.0
  */
 @SuppressWarnings("serial")
-public class SorlResponseErrorException extends Exception {
+public class SolrResponseErrorException extends Exception {
 
   // The status provided in the Solr response.
   private int solrStatus = -1;
@@ -53,7 +53,7 @@ public class SorlResponseErrorException extends Exception {
    * @param solrResponse A SolrResponseBase with the Solr response to be
    *                     wrapped.
    */
-  public SorlResponseErrorException(SolrResponseBase solrResponse) {
+  public SolrResponseErrorException(SolrResponseBase solrResponse) {
     super();
     setSolrStatus(solrResponse.getStatus());
     setSolrMessage(solrResponse.getResponse().toString());
@@ -66,8 +66,8 @@ public class SorlResponseErrorException extends Exception {
    * @param solrResponse A SolrResponseBase with the Solr response to be
    *                     wrapped.
    */
-  public SorlResponseErrorException(String message,
-      SolrResponseBase solrResponse) {
+  public SolrResponseErrorException(String message,
+                                    SolrResponseBase solrResponse) {
     super(message);
     setSolrStatus(solrResponse.getStatus());
     setSolrMessage(solrResponse.getResponse().toString());

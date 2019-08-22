@@ -142,7 +142,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
       // No: Fill the internal buffer with another batch from Solr.
       try {
 	fillArtifactBuffer();
-      } catch (SorlResponseErrorException | SolrServerException | IOException e)
+      } catch (SolrResponseErrorException | SolrServerException | IOException e)
       {
 	throw new SolrRuntimeException(e);
       }
@@ -173,12 +173,12 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
   /**
    * Fills the internal buffer with the next batch of artifacts from Solr.
    * 
-   * @throws SorlResponseErrorException if Solr reports problems.
+   * @throws SolrResponseErrorException if Solr reports problems.
    * @throws SolrServerException        if Solr reports problems.
    * @throws IOException                if Solr reports problems.
    */
   private void fillArtifactBuffer()
-      throws SorlResponseErrorException, SolrServerException, IOException {
+      throws SolrResponseErrorException, SolrServerException, IOException {
     log.debug2("Invoked");
     log.trace("cursorMark = {}", cursorMark);
 
