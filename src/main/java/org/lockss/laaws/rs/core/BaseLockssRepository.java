@@ -266,7 +266,6 @@ public class BaseLockssRepository implements LockssRepository,
       }
 
       // Remove from index and data store
-      index.deleteArtifact(artifactId);
       store.deleteArtifactData(artifact);
     }
   }

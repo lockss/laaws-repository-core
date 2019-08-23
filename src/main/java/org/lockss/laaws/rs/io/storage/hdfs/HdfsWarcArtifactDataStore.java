@@ -172,7 +172,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     if (fs.mkdirs(fullPath)) {
-      log.debug("Created directory [fullPath: {}]", fullPath);
+      log.debug2("Created directory [fullPath: {}]", fullPath);
     } else {
       throw new IOException(String.format("Error creating directory: %s", fullPath));
     }
@@ -255,7 +255,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     Path fullPath = new Path(warcPath);
 
     if (fs.createNewFile(fullPath)) {
-      log.debug("Created new WARC file under HDFS [fullPath: {}]", fullPath);
+      log.debug2("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
 
     writeWarcInfoRecord(warcPath);
@@ -263,7 +263,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
-    log.debug("Opening appendable OutputStream [filePath: {}]", filePath);
+    log.debug2("Opening appendable OutputStream [filePath: {}]", filePath);
 
     Path extPath = new Path(filePath);
     return fs.append(extPath);

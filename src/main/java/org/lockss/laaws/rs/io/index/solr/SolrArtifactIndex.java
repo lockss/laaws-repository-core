@@ -701,7 +701,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-    log.debug("Indexing artifact data: {}", artifactData);
+    log.debug2("Indexing artifact data: {}", artifactData);
 
     if (artifactData == null) {
       throw new IllegalArgumentException("Null artifact data");
@@ -734,7 +734,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Return the Artifact added to the Solr collection
-    log.debug("Added artifact to index: {}", artifactData);
+    log.debug("Added artifact to index: {}", artifact);
 
     return artifact;
   }
@@ -782,7 +782,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
 
     if (indexedArtifact == null) {
-      log.debug("No Solr documents found [artifactId: {}]", artifactId);
+      log.debug2("No Solr documents found [artifactId: {}]", artifactId);
     }
 
     return indexedArtifact;
@@ -991,8 +991,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
       FacetField ff = result.getFacetField("collection");
 
-      if (log.isDebugEnabled()) {
-        log.debug(
+      if (log.isDebug2Enabled()) {
+        log.debug2(
             "FacetField: [getName: {}, getValues: {}, getValuesCount: {}]",
             ff.getName(),
             ff.getValues(),
@@ -1071,7 +1071,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
-      log.debug(String.format(
+      log.debug2(String.format(
           "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
           collection,
           auid
@@ -1134,7 +1134,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
-      log.debug(String.format(
+      log.debug2(String.format(
           "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s, uri (prefix): %s)",
           collection,
           auid,
@@ -1270,7 +1270,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
-      log.debug(String.format(
+      log.debug2(String.format(
           "Solr returned null result set after filtering by (collection: %s, auid: %s, uri: %s)",
           collection,
           auid,
@@ -1351,7 +1351,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
-      log.debug(String.format(
+      log.debug2(String.format(
           "Solr returned null result set after filtering by (committed: true, collection: %s, auid: %s)",
           collection,
           auid
