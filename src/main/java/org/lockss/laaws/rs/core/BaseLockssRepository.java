@@ -211,34 +211,7 @@ public class BaseLockssRepository implements LockssRepository,
 
       if (!artifact.getCommitted()) {
         // Commit artifact in data store and index
-        Future<Artifact> future = store.commitArtifactData(artifact);
-        index.commitArtifact(artifactId);
-
-        if (future != null) {
-          try {
-            Artifact committedArtifact = future.get();
-            index.updateStorageUrl(artifact.getId(), committedArtifact.getStorageUrl());
-            return committedArtifact;
-          } catch (InterruptedException e) {
-            log.error(
-                "Move of artifact [artifactId: {}] to permanent storage was interrupted: {}",
-                artifactId,
-                e
-            );
-
-            // TODO: Requeue?
-            throw new IOException(e);
-          } catch (ExecutionException e) {
-            log.error(
-                "Caught ExecutionException while moving artifact [artifactId: {}] to permanent storage",
-                artifactId,
-                e
-            );
-
-            // TODO: Need to discuss what to do here - for now wrap and throw
-            throw new IOException(e);
-          }
-        }
+	return store.commitArtifactData(artifact);
       }
 
       // TODO: An Artifact could be marked as committed but have no pending move to permanent storage queued

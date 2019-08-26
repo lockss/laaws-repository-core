@@ -1064,19 +1064,22 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @param artifact
    *          The {@code Artifact} to commit to permanent storage.
-   * @return An {@code Future<Artifact>} reflecting the new committed state and storage URL.
+   * @return An {@code Artifact} containing the updated artifact state information.
    * @throws IOException
    */
   @Override
-  public Future<Artifact> commitArtifactData(Artifact artifact) throws IOException {
+  public Artifact commitArtifactData(Artifact artifact, long timeout,
+      TimeUnit unit) throws IOException {
     if (artifact == null) {
       throw new IllegalArgumentException("Artifact is null");
     }
 
-    log.debug2("Committing artifact {} in AU {}", artifact.getId(), artifact.getAuid());
+    String artifactId = artifact.getId();
+    log.debug2("Committing artifact {} in AU {}", artifactId, artifact.getAuid());
 
     // Read current state of repository metadata for this artifact
     RepositoryArtifactMetadata artifactState = getRepositoryMetadata(artifact.getIdentifier());
+    Future<Artifact> future = null;
 
     try {
       // Determine what action to take based on the state of the artifact
@@ -1090,14 +1093,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         case COMMITTED:
           // Submit the task to copy the artifact data from temporary to permanent storage
-          return stripedExecutor.submit(new CommitArtifactTask(artifact));
+          future = stripedExecutor.submit(new CommitArtifactTask(artifact));
+          break;
 
         case COPIED:
           // This artifact is already marked committed and is in permanent storage. Wrap in Future and return it.
-          return new CompletedFuture<Artifact>(artifact);
+          future = new CompletedFuture<Artifact>(artifact);
+          break;
 
         case DELETED:
-          log.warn("Cannot commit deleted artifact (artifactId: {})", artifact.getId());
+          log.warn("Cannot commit deleted artifact (artifactId: {})", artifactId);
 
         default: // Includes UNKNOWN, NOT_INDEXED, EXPIRED, DELETED
           return null;
@@ -1106,6 +1111,53 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // This should never happen since storage URLs are internal
       throw new IllegalStateException(e);
     }
+
+    if (future != null) {
+      try {
+	Artifact committedArtifact = future.get(timeout, unit);
+	log.trace("committedArtifact = {}", committedArtifact);
+
+	synchronized (artifactIndex) {
+	  artifactIndex.updateStorageUrl(artifactId,
+	      committedArtifact.getStorageUrl());
+
+	  // Commit artifact in index
+	  artifactIndex.commitArtifact(artifactId);
+	}
+
+        return committedArtifact;
+      } catch (InterruptedException e) {
+        log.error(
+            "Move of artifact [artifactId: {}] to permanent storage was interrupted: {}",
+            artifactId,
+            e
+        );
+
+        // TODO: Requeue?
+        throw new IOException(e);
+      } catch (ExecutionException e) {
+        log.error(
+            "Caught ExecutionException while moving artifact [artifactId: {}] to permanent storage",
+            artifactId,
+            e
+        );
+
+        // TODO: Need to discuss what to do here - for now wrap and throw
+        throw new IOException(e);
+      } catch (TimeoutException e) {
+	log.error(
+	    "Move of artifact [artifactId: {}] to permanent storage timed out: {}",
+	    artifactId,
+	    e
+	);
+
+	// TODO: Requeue?
+	throw new IOException(e);
+      }
+    }
+
+    log.debug2("Committed artifact {} in AU {}", artifactId, artifact.getAuid());
+    return artifact;
   }
 
   /**

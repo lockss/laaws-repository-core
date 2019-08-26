@@ -310,14 +310,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(indexedArtifact);
     assertTrue(indexedArtifact.getCommitted());
 
-    // Commit the artifact data in the data store
-    Future<Artifact> future = store.commitArtifactData(artifact);
-    assertNotNull(future);
-
     Artifact committedArtifact = null;
 
     try {
-      committedArtifact = future.get(10, TimeUnit.SECONDS); // FIXME: Use other timeout facilities
+      // Commit the artifact data in the data store
+      committedArtifact = store.commitArtifactData(artifact, 10, TimeUnit.SECONDS); // FIXME: Use other timeout facilities
       assertNotNull(committedArtifact);
     } catch (Exception e) {
       log.error("Caught exception committing artifact: {}", e);
@@ -675,13 +672,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(Artifact.getPathFromStorageUrl(artifact.getStorageUrl()).startsWith(tmpWarcBasePath));
 
     if (commit) {
-      // Commit to artifact data store and index
-      index.commitArtifact(storedArtifact.getId());
-      Future<Artifact> future = store.commitArtifactData(storedArtifact);
-      assertNotNull(future);
-
-      // Wait for data store commit (copy from temporary to permanent storage) to complete - 10 seconds should be plenty
-      artifact = future.get(10, TimeUnit.SECONDS);
+      // Commit the artifact data store and index, wait for data store commit (copy
+      // from temporary to permanent storage) to complete - 10 seconds should be
+      // plenty
+      artifact = store.commitArtifactData(artifact, 10, TimeUnit.SECONDS);
       assertNotNull(artifact);
       assertTrue(artifact.getCommitted());
 
@@ -1039,17 +1033,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     if (committedSpec != null) {
 
       // Commit this committed artifact again
-      Future<Artifact> future = store.commitArtifactData(committedSpec.getArtifact());
+      Artifact committedArtifact = store.commitArtifactData(committedSpec.getArtifact(), 10, TimeUnit.SECONDS);
 
-      if (future != null) {
-        // Wait for async commit operation to complete
-        Artifact committedArtifact = future.get(10, TimeUnit.SECONDS); // FIXME
-
-        // Assert spec and committed artifact (nothing should have changed after double commit)
-        committedSpec.assertArtifact(store, committedArtifact);
+      if (committedArtifact != null) {
+	// Assert spec and committed artifact (nothing should have changed after double commit)
+	committedSpec.assertArtifact(store, committedArtifact);
       } else {
-        // Artifact could not be committed (because it is deleted)
-        assertTrue(committedSpec.isDeleted());
+	// Artifact could not be committed (because it is deleted)
+	assertTrue(committedSpec.isDeleted());
       }
     }
 
@@ -1413,9 +1404,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact a2 = store.addArtifactData(ad2);
     assertNotNull(a2);
     index1.commitArtifact(a2.getId());
-    Future<Artifact> future = store.commitArtifactData(a2);
-    assertNotNull(future);
-    Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
+    Artifact committed_a2 = store.commitArtifactData(a2, 10, TimeUnit.SECONDS);
     assertTrue(committed_a2.getCommitted());
 
     // Add third artifact to the repository - don't commit but immediately delete
@@ -1432,9 +1421,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Commit fourth artifact
     index1.commitArtifact(a4.getId());
-    future = store.commitArtifactData(a4);
-    assertNotNull(future);
-    Artifact committed_a4 = future.get(10, TimeUnit.SECONDS);
+    Artifact committed_a4 = store.commitArtifactData(a4, 10, TimeUnit.SECONDS);
     assertTrue(committed_a4.getCommitted());
 
     // Delete fourth artifact
@@ -1766,12 +1753,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(ArtifactState.COMMITTED,
 	store.getArtifactState(expired, false, artifact));
 
-    // Commit to artifact data store
-    Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
-    assertNotNull(artifactFuture);
-
-    // Wait for data store commit (copy from temporary to permanent storage) to complete
-    artifact = artifactFuture.get(10, TimeUnit.SECONDS);
+    // Commit the artifact data store and index, wait for data store commit (copy
+    // from temporary to permanent storage) to complete
+    artifact = store.commitArtifactData(artifact, 10, TimeUnit.SECONDS);
     assertNotNull(artifact);
     assertTrue(artifact.getCommitted());
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -36,7 +36,7 @@ import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -124,12 +124,31 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *
      * @param artifact
      *          An {@code Artifact} containing a reference to the artifact to update in storage.
-     * @return A {@code RepositoryArtifactMetadata} representing the updated state of this artifact's repository metadata.
+     * @return An {@code Artifact} containing a reference to the committed artifact.
      * @throws IOException
-     * @throws NullPointerException
+     * @throws IllegalArgumentException
      *          if the given {@link Artifact} instance is null
      */
-    Future<Artifact> commitArtifactData(Artifact artifact) throws IOException;
+    default Artifact commitArtifactData(Artifact artifact) throws IOException {
+      return commitArtifactData(artifact, 10, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Commits an artifact to this artifact store.
+     *
+     * @param artifact An {@code Artifact} containing a reference to the
+     *                 artifact to update in storage.
+     * @param timeout  A long with the maximum time to wait.
+     * @param unit     A {@code TimeUnit} with the time unit of the timeout
+     *                 argument.
+     * @return An {@code Artifact} containing a reference to the committed
+     *         artifact.
+     * @throws IOException
+     * @throws IllegalArgumentException if the given {@link Artifact} instance
+     *                                  is null
+     */
+    Artifact commitArtifactData(Artifact artifact, long timeout, TimeUnit unit)
+	throws IOException;
 
     /**
      * Permanently removes an artifact from this artifact store.
