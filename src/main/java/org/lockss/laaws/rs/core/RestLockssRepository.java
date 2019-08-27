@@ -824,10 +824,13 @@ public class RestLockssRepository implements LockssRepository {
      *          A String with the URL to be matched.
      * @param version
      *          An Integer with the version.
+     * @param includeUncommitted
+     *          A boolean with the indication of whether an uncommitted artifact
+     *          may be returned.
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
         if ((collection == null) || (auid == null) ||
 	    (url == null) || version == null)
             throw new IllegalArgumentException("Null collection id, au id, url or version");
@@ -841,7 +844,8 @@ public class RestLockssRepository implements LockssRepository {
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("url", url)
-                .queryParam("version", version);
+                .queryParam("version", version)
+                .queryParam("includeUncommitted", includeUncommitted);
 
         ResponseEntity<String> response = restTemplate.exchange(
                 builder.build().encode().toUri(),

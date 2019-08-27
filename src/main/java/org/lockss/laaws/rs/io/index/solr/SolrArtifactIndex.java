@@ -1304,18 +1304,24 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
    *
-   * @param collection A String with the collection identifier.
-   * @param auid       A String with the Archival Unit identifier.
-   * @param url        A String with the URL to be matched.
-   * @param version    A String with the version.
+   * @param collection         A String with the collection identifier.
+   * @param auid               A String with the Archival Unit identifier.
+   * @param url                A String with the URL to be matched.
+   * @param version            A String with the version.
+   * @param includeUncommitted A boolean with the indication of whether an uncommitted artifact may be returned.
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   @Override
-  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
+  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
     SolrQuery q = new SolrQuery();
 
     q.setQuery("*:*");
-    q.addFilterQuery(String.format("committed:%s", true));
+
+    // Only filter by commit status when no uncommitted artifact is to be returned.
+    if (!includeUncommitted) {
+      q.addFilterQuery(String.format("committed:%s", true));
+    }
+
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));

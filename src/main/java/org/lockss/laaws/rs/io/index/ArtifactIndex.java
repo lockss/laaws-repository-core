@@ -338,7 +338,7 @@ public interface ArtifactIndex extends Ready {
         throws IOException;
 
     /**
-     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     * Returns the committed artifact of a given version of a URL, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
@@ -350,10 +350,35 @@ public interface ArtifactIndex extends Ready {
      *          A String with the version.
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
+    default Artifact getArtifactVersion(String collection,
+                                        String auid,
+                                        String url,
+                                        Integer version)
+        throws IOException {
+      return getArtifactVersion(collection, auid, url, version, false);
+    }
+
+    /**
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param url
+     *          A String with the URL to be matched.
+     * @param version
+     *          A String with the version.
+     * @param includeUncommitted
+     *          A boolean with the indication of whether an uncommitted artifact
+     *          may be returned.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+     */
     Artifact getArtifactVersion(String collection,
                                 String auid,
                                 String url,
-                                Integer version)
+                                Integer version,
+                                boolean includeUncommitted)
         throws IOException;
 
     /**

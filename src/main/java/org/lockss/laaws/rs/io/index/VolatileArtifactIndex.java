@@ -573,12 +573,20 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
+     * @param includeUncommitted
+     *          A boolean with the indication of whether an uncommitted artifact
+     *          may be returned.
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) {
       ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-      q.filterByCommitStatus(true);
+
+      // Only filter by commit status when no uncommitted artifact is to be returned.
+      if (!includeUncommitted) {
+	q.filterByCommitStatus(true);
+      }
+
       q.filterByCollection(collection);
       q.filterByAuid(auid);
       q.filterByURIMatch(url);
