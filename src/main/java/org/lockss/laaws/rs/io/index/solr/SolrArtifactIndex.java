@@ -173,9 +173,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	  updateSchema(existingSchemaVersion, targetSchemaVersion);
       log.trace("lastRecordedVersion = {}", lastUpdatedVersion);
 
-      // Record it in the field with the schema version.
-      updateSolrLockssSchemaVersionField(lastUpdatedVersion);
-
       log.info("Schema has been updated to LOCKSS version {}",
 	  lastUpdatedVersion);
     } else {
@@ -388,6 +385,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Remember the current schema version.
       lastUpdatedVersion = from + 1;
       log.debug("Solr Schema updated to LOCKSS version {}", lastUpdatedVersion);
+
+      // Record it in the field with the schema version.
+      updateSolrLockssSchemaVersionField(lastUpdatedVersion);
     }
 
     log.debug2("lastRecordedVersion = {}", lastUpdatedVersion);
