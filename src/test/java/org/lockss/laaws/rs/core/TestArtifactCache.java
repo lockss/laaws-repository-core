@@ -95,6 +95,12 @@ public class TestArtifactCache extends LockssTestCase5 {
     assertSame(u2v2, cache.get(COLL1, AUID1, URL2, 2));
     assertSame(u2v1, cache.get(COLL1, AUID1, URL2, 1));
 
+    cache.flush();
+    assertEquals(1, stats.getCacheFlushes());
+    assertNull(cache.get(COLL1, AUID1, URL2, -1));
+    assertNull(cache.getLatest(COLL1, AUID1, URL2));
+    assertNull(cache.get(COLL1, AUID1, URL2, 2));
+    assertNull(cache.get(COLL1, AUID1, URL2, 1));
   }
 
   @Test

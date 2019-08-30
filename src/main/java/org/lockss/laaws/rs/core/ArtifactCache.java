@@ -223,8 +223,10 @@ public class ArtifactCache {
 
   /** Delete all cache entries. */
   public synchronized void flush() {
+    if (artMap == null) return;
     artMap.clear();
     artIterMap.clear();
+    stats.cacheFlushes++;
   }
 
   public enum InvalidateOp {Commit, Delete};
@@ -253,7 +255,7 @@ public class ArtifactCache {
       stats.cacheInvalidates++;
     }
   }
-      
+
   /** Wrap an artifact iterator so that each Artifact it returns is added
    * to the cache as "latest".  Should only be used when it is known that
    * all the Artifacts returned by the underlying iterator are latest.
@@ -328,6 +330,7 @@ public class ArtifactCache {
     private int cacheMisses = 0;
     private int cacheStores = 0;
     private int cacheInvalidates = 0;
+    private int cacheFlushes = 0;
 
     public int getCacheHits() {
       return cacheHits;
@@ -347,6 +350,10 @@ public class ArtifactCache {
 
     public int getCacheInvalidates() {
       return cacheInvalidates;
+    }
+
+    public int getCacheFlushes() {
+      return cacheFlushes;
     }
   }
 

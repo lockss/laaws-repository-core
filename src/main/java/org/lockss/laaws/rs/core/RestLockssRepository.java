@@ -952,6 +952,7 @@ public class RestLockssRepository implements LockssRepository {
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION = "CacheAction";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE =
     "Invalidate";
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_FLUSH = "Flush";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION_ECHO = "Echo";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION_ECHO_RESP =
     "EchoResp";
@@ -1093,6 +1094,10 @@ public class RestLockssRepository implements LockssRepository {
 	  case REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE:
 	    artCache.invalidate(msgOp(msgMap.get(REST_ARTIFACT_CACHE_MSG_OP)),
 				key);
+	    break;
+	  case REST_ARTIFACT_CACHE_MSG_ACTION_FLUSH:
+	    log.debug("Flushing Artifact cache");
+	    artCache.flush();
 	    break;
 	  case REST_ARTIFACT_CACHE_MSG_ACTION_ECHO_RESP:
 	    if (repositoryUrl.toString().equals(key)) {
