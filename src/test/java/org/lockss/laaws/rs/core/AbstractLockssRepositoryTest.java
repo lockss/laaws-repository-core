@@ -945,18 +945,12 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Compare with expected auid list for each collection
     for (String coll : variantState.activeCollections()) {
       Iterator<String> expAuids =
-	variantState.orderedAllColl(coll)
+	variantState.orderedAllCollIncludeUncommitted(coll)
 	.map(ArtifactSpec::getAuid)
 	.distinct()
 	.iterator();
       assertEquals(IteratorUtils.toList(expAuids),
 		   IteratorUtils.toList(repository.getAuIds(coll).iterator()));
-    }
-
-    // Try getAuIds() on collections that have no committed artifacts
-    for (String coll : CollectionUtils.subtract(variantState.activeCollections(),
-						variantState.activeCommittedCollections())) {
-      assertEmpty(repository.getAuIds(coll));
     }
   }
 
@@ -964,7 +958,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   @EnumSource(StdVariants.class)
   public void testGetCollectionIds() throws IOException {
     Iterator<String> expColl =
-      variantState.orderedAllCommitted()
+      variantState.orderedAll()
       .map(ArtifactSpec::getCollection)
       .distinct()
       .iterator();

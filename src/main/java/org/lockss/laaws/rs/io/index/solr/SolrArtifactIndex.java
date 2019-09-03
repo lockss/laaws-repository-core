@@ -980,7 +980,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       // Perform a Solr facet query on the collection ID field
       SolrQuery q = new SolrQuery();
-      q.setQuery("committed:true");
       q.setRows(0);
 
       q.addFacetField("collection");
@@ -1003,7 +1002,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Transform facet field value names into iterable
       return IteratorUtils.asIterable(
           ff.getValues().stream()
-              .filter(x -> x.getCount() > 0)
               .map(x -> x.getName())
               .sorted()
               .iterator()
@@ -1027,7 +1025,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     // because we are not actually interested in the Solr documents - only aggregate information about them.
     SolrQuery q = new SolrQuery();
     q.setQuery("*:*");
-    q.addFilterQuery(String.format("committed:%s", true));
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.setFields("auid");
     q.setRows(0);

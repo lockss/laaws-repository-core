@@ -880,7 +880,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactVersion_400() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123&includeUncommitted=false", BASEURL)))
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
@@ -892,7 +892,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactVersion_404() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123&includeUncommitted=false", BASEURL)))
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
@@ -904,7 +904,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactVersion_empty() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123&includeUncommitted=false", BASEURL)))
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
@@ -916,7 +916,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactVersion_found() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123&includeUncommitted=false", BASEURL)))
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("[{\"id\":\"1\",\"version\":123}]", MediaType.APPLICATION_JSON));
 
@@ -930,7 +930,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
 
     @Test
     public void testGetArtifactVersion_failure() throws Exception {
-        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123&includeUncommitted=false", BASEURL)))
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 

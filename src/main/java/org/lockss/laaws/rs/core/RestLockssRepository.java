@@ -844,8 +844,11 @@ public class RestLockssRepository implements LockssRepository {
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
                 .queryParam("url", url)
-                .queryParam("version", version)
-                .queryParam("includeUncommitted", includeUncommitted);
+                .queryParam("version", version);
+
+        if (includeUncommitted) {
+          builder.queryParam("includeUncommitted", includeUncommitted);
+        }
 
         ResponseEntity<String> response = restTemplate.exchange(
                 builder.build().encode().toUri(),

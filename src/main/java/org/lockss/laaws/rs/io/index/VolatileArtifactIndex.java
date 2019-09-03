@@ -288,8 +288,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     public Iterable<String> getCollectionIds() {
       synchronized (index) {
         Stream<Artifact> artifactStream = index.values().stream();
-        Stream<Artifact> committedArtifacts = artifactStream.filter(x -> x.getCommitted());
-        Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
+        Map<String, List<Artifact>> collections = artifactStream.collect(Collectors.groupingBy(Artifact::getCollection));
 
         // Sort the collection IDs for return
         List<String> collectionIds = new ArrayList<String>(collections.keySet());
@@ -312,7 +311,6 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     public Iterable<String> getAuIds(String collection) throws IOException {
       synchronized (index) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
         return IteratorUtils.asIterable(
