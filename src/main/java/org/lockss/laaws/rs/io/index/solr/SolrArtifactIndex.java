@@ -543,6 +543,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     newFieldAttributes.put("default", String.valueOf(schemaVersion));
 
     try {
+      // Update map of current Solr schema fields
+      solrSchemaFields = getSolrSchemaFields();
+
       // Get the Solr schema LOCKSS version field.
       Map<String, Object> field =
 	  solrSchemaFields.get(lockssSolrSchemaVersionFieldName);
