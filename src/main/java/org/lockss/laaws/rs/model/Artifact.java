@@ -306,18 +306,15 @@ public class Artifact implements Serializable {
     public boolean equals(Object o) {
         Artifact other = (Artifact)o;
 
-        if (this.getIdentifier().equals(other.getIdentifier())
-                && storageUrl.equalsIgnoreCase(other.getStorageUrl())
-                && committed.equals(other.getCommitted())
-                && getContentLength() == other.getContentLength()
-                && ((contentDigest == null && other.getContentDigest() == null)
-                    || contentDigest.equals(other.getContentDigest()))
-                && getCollectionDate() == other.getCollectionDate()
-        ) {
-            return true;
-        }
-
-       return false;
+        return other != null
+            && ((this.getIdentifier() == null && other.getIdentifier() == null)
+        	|| (this.getIdentifier() != null && this.getIdentifier().equals(other.getIdentifier())))
+            && storageUrl.equalsIgnoreCase(other.getStorageUrl())
+            && committed.equals(other.getCommitted())
+            && getContentLength() == other.getContentLength()
+            && ((contentDigest == null && other.getContentDigest() == null)
+        	|| (contentDigest != null && contentDigest.equals(other.getContentDigest())))
+            && getCollectionDate() == other.getCollectionDate();
     }
 
 

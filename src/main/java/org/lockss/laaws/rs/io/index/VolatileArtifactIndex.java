@@ -288,8 +288,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     public Iterable<String> getCollectionIds() {
       synchronized (index) {
         Stream<Artifact> artifactStream = index.values().stream();
-        Stream<Artifact> committedArtifacts = artifactStream.filter(x -> x.getCommitted());
-        Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
+        Map<String, List<Artifact>> collections = artifactStream.collect(Collectors.groupingBy(Artifact::getCollection));
 
         // Sort the collection IDs for return
         List<String> collectionIds = new ArrayList<String>(collections.keySet());
@@ -312,7 +311,6 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     public Iterable<String> getAuIds(String collection) throws IOException {
       synchronized (index) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
         return IteratorUtils.asIterable(
@@ -573,12 +571,20 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
+     * @param includeUncommitted
+     *          A boolean with the indication of whether an uncommitted artifact
+     *          may be returned.
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) {
       ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-      q.filterByCommitStatus(true);
+
+      // Only filter by commit status when no uncommitted artifact is to be returned.
+      if (!includeUncommitted) {
+	q.filterByCommitStatus(true);
+      }
+
       q.filterByCollection(collection);
       q.filterByAuid(auid);
       q.filterByURIMatch(url);

@@ -484,15 +484,19 @@ public class BaseLockssRepository implements LockssRepository,
    * @param auid       A String with the Archival Unit identifier.
    * @param url        A String with the URL to be matched.
    * @param version    A String with the version.
+   * @param includeUncommitted
+   *          A boolean with the indication of whether an uncommitted artifact
+   *          may be returned.
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   @Override
-  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
+  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
     if (collection == null || auid == null || url == null || version == null) {
       throw new IllegalArgumentException("Null collection id, au id, url or version");
     }
 
-    return index.getArtifactVersion(collection, auid, url, version);
+    return index.getArtifactVersion(collection, auid, url, version,
+	includeUncommitted);
   }
 
   /**

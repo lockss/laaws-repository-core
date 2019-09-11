@@ -214,6 +214,11 @@ public class VariantState {
     return addedSpecStream().filter(spec -> !spec.isCommitted());
   }
 
+  public Stream<ArtifactSpec> orderedAll() {
+    return addedSpecStream()
+        .sorted();
+  }
+
   public Stream<ArtifactSpec> orderedAllCommitted() {
     return committedSpecStream()
         .sorted();
@@ -222,6 +227,12 @@ public class VariantState {
   public Stream<ArtifactSpec> orderedAllCommittedAllAus() {
     return committedSpecStream()
         .sorted(BY_DATE_BY_AUID_BY_DECREASING_VERSION);
+  }
+
+  public Stream<ArtifactSpec> orderedAllCollIncludeUncommitted(String coll) {
+    return addedSpecStream()
+        .filter(s -> s.getCollection().equals(coll))
+        .sorted();
   }
 
   public Stream<ArtifactSpec> orderedAllColl(String coll) {

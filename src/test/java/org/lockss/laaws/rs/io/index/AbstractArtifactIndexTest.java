@@ -897,8 +897,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     Artifact retrieved = index.getArtifact(spec1.getArtifactId());
     assertFalse(retrieved.getCommitted());
 
-    // Assert the uncommitted artifact's collection ID is not included
-    assertFalse(IterableUtils.contains(index.getCollectionIds(), spec1.getCollection()));
+    // Assert the uncommitted artifact's collection ID is included
+    assertTrue(IterableUtils.contains(index.getCollectionIds(), spec1.getCollection()));
 
     // Commit artifact
     index.commitArtifact(spec1.getArtifactId());
@@ -929,8 +929,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     Artifact indexed = index.indexArtifact(spec.getArtifactData());
     spec.assertArtifactCommon(indexed);
 
-    // Assert that set of AUIDs for the collection is empty until the artifact is committed
-    assertTrue(IterableUtils.isEmpty(index.getAuIds(spec.getCollection())));
+    // Assert that set of AUIDs for the collection is not empty until the artifact is committed
+    assertFalse(IterableUtils.isEmpty(index.getAuIds(spec.getCollection())));
 
     // Commit the artifact
     Artifact committed = index.commitArtifact(spec.getArtifactId());
