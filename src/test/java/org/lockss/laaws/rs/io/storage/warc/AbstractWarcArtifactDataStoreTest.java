@@ -1139,6 +1139,69 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // TODO: Finish
   }
 
+  @Test
+  public void testSealActiveWarc() throws Exception {
+    // Constants for this test so that we can be consistent
+    final String testCollection = "testCollection";
+    final String testAuid = "testAuid";
+    final String testUri = "testUri";
+
+    // Attempt to seal the active WARC of an AU with no active WARC
+    store.sealActiveWarc(testCollection, testAuid);
+    assertEmpty(store.findWarcs(store.getAuPath(testCollection, testAuid)));
+
+    // Assert the active WARC for this AU does not exist yet
+    String activeWarcPath = store.getActiveWarcPath(testCollection, testAuid);
+    assertFalse(pathExists(activeWarcPath));
+
+    // Add an artifact
+    ArtifactData artifactData = generateTestArtifactData(testCollection, testAuid, testUri, 1, 1234);
+    Artifact artifact = store.addArtifactData(artifactData);
+
+    // Commit the artifact
+    Future<Artifact> future = store.commitArtifactData(artifact);
+    Artifact committed = future.get(TIMEOUT_SHOULDNT, TimeUnit.MILLISECONDS);
+    assertNotNull(committed);
+    assertTrue(committed.getCommitted());
+
+    // Assert the active WARC now exists
+    assertTrue(pathExists(activeWarcPath));
+
+    // Seal the AU's active WARC
+    store.sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+    Iterable<String> warcsBefore = store.findWarcs(store.getAuPath(artifact.getCollection(), artifact.getAuid()));
+
+    // Get the interim active WARC path for this AU and assert it does not exist in storage
+    String interimActiveWarcPath = store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    assertFalse(pathExists(interimActiveWarcPath));
+
+    // Attempt to seal the AU's active WARC again
+    store.sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+
+    // Assert interim active WARC still does not exist (since nothing was written to it before second seal)
+    assertFalse(pathExists(interimActiveWarcPath));
+
+    // Get set of WARC files in the AU directory after second seal
+    Iterable<String> warcsAfter = store.findWarcs(store.getAuPath(artifact.getCollection(), artifact.getAuid()));
+
+    // Assert the contents of the AU directory did not change after performing another seal
+    assertIterableEquals(warcsBefore, warcsAfter);
+
+    // Insert sleep for volatile data store (on fast machines there isn't enough resolution in the timestamp used in the
+    // active WARC file name which causes the interim and latest active WARC paths to match incorrectly)
+    Thread.sleep(10);
+
+    // Assert the interim active WARC path DOES NOT match new the active WARC path
+    String latestActiveWarcPath = store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    assertNotEquals(interimActiveWarcPath, latestActiveWarcPath);
+
+    // Assert the new active WARC for this artifact's AU does not exist
+    assertFalse(pathExists(latestActiveWarcPath));
+
+    // Assert latest active WARC path are not the same as the original
+    assertNotEquals(activeWarcPath, latestActiveWarcPath);
+  }
+
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
   public void testDeleteArtifact() throws Exception {

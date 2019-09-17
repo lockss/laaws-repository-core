@@ -1251,9 +1251,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     if (sealBeforeAppend) {
-      // Seal active WARC and get path to new active WARC
+      // Seal active WARC
       sealActiveWarc(artifact.getCollection(), artifact.getAuid());
+
+      // Get path to new active WARC and ensure it exists
       dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+      initWarc(dst);
       warcLength = getWarcLength(dst);
     }
 
@@ -1402,30 +1405,31 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Seals the active WARC being maintained in permanent storage for an AU from further writes, and starts a new active
-   * WARC for the AU.
+   * Seals the active WARC of an AU in permanent storage from further writes.
    *
-   * @param auid
+   * @param collection A {@code String} containing the collection ID of the AU.
+   * @param auid A {@code String} containing the AUID of the AU.
+   * @throws IOException
    */
   public void sealActiveWarc(String collection, String auid) throws IOException {
     // Key into the active WARC map
     RepoAuid au = new RepoAuid(collection, auid);
 
-    // Prevent a commit thread (via getActiveWarcPath(...)) from getting the active WARC and writing to it further
     synchronized (auActiveWarcMap) {
-      // Queue delivery of current active WARC to third-party applications
-      stripedExecutor.submit(new DeliverSealedWarcTask(collection, auid));
+      if (auActiveWarcMap.containsKey(au)) {
+        // Queue delivery of current active WARC to third-party applications
+//        stripedExecutor.submit(new DeliverSealedWarcTask(collection, auid));
 
-      // Set new active WARC
-      auActiveWarcMap.put(au, generateActiveWarcName(collection, auid));
-
-      // Initialize the active WARC file
-      initWarc(getActiveWarcPath(collection, auid));
+        // Clear the active WARC path for this AU
+        auActiveWarcMap.remove(au);
+      } else {
+        log.debug2("AU has no active WARC to seal [collection: {}, auid: {}]", collection, auid);
+      }
     }
   }
 
   /**
-   * This implementation of {@code StripedRunnable} wraps {@codesealActiveWarc()} to allow for out-of-band requests to
+   * This implementation of {@code StripedRunnable} wraps {@code sealActiveWarc()} to allow for out-of-band requests to
    * seal the active WARC of an AU are handled in the correct chronological order. This is achieved by using the same
    * stripe used by {@code CommitArtifactTask}.
    */
