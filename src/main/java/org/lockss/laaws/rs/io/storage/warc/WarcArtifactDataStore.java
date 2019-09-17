@@ -1387,10 +1387,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return getAuPath(collection, auid) + SEPARATOR + getActiveWarcName(collection, auid);
   }
 
-  public String getActiveWarcPath(ArtifactIdentifier artifactIdent) {
-    return getActiveWarcPath(artifactIdent.getCollection(), artifactIdent.getAuid());
-  }
-
   public String getActiveWarcName(String collection, String auid) {
     synchronized (auActiveWarcMap) {
       RepoAuid repoAuid = new RepoAuid(collection, auid);

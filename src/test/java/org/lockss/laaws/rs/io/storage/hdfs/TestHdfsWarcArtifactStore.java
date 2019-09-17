@@ -157,7 +157,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
         return String.format("%s%s?offset=%d&length=%d",
             store.fs.getUri(),
-            store.getActiveWarcPath(aid),
+            store.getActiveWarcPath(aid.getCollection(), aid.getAuid()),
             offset,
             length
         );
