@@ -1066,8 +1066,19 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact badArtifact = new Artifact();
     badArtifact.setStorageUrl("fake");
     assertThrows(IllegalArgumentException.class, () -> store.moveToPermanentStorage(badArtifact));
+  }
 
-    // TODO moving a valid URL is passed but doesn't correspond to a WARC record, etc...
+  @Test
+  public void testMoveToPermanentStorage_badStorageUrls() throws Exception {
+    // Assert moving an artifact with a valid storage URL missing WARC results in a FileNotFound exception
+    Artifact badArtifact = new Artifact();
+    badArtifact.setCollection("fakeCollection");
+    badArtifact.setAuid("fakeAuid");
+    badArtifact.setStorageUrl("fakeStorageUrl?offset=1234&length=1234");
+    assertThrows(FileNotFoundException.class, () -> store.moveToPermanentStorage(badArtifact));
+
+    // TODO: Assert moving an artifact with a valid storage URL but bad offset results in XXX
+    // TODO: Assert moving an artifact with a valid storage URL but bad length results in XXX
   }
 
   @Test
