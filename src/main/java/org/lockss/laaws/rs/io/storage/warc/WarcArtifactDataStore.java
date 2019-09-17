@@ -37,7 +37,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.io.output.DeferredFileOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.hadoop.yarn.webapp.MimeType;
@@ -1821,9 +1820,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     return new CloseCallbackInputStream(
         warcStream,
-        o -> {
+        cookie -> {
           // Decrement the counter of times that the file is in use.
-          TempWarcInUseTracker.INSTANCE.markUseEnd((String)o);
+          TempWarcInUseTracker.INSTANCE.markUseEnd((String)cookie);
         },
         warcFile
     );
