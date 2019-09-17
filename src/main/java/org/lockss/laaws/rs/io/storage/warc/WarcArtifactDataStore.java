@@ -1199,9 +1199,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact is null");
     }
 
-    WarcRecordLocation loc = parseStorageUrl(artifact.getStorageUrl());
-    long recordLength = Long.valueOf(loc.length);
-    long recordOffset = Long.valueOf(loc.offset);
+    WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(artifact.getStorageUrl());
+
+    long recordOffset = Long.valueOf(loc.getOffset());
+    long recordLength = Long.valueOf(loc.getLength());
 
     // Get the current active permanent WARC for this AU
     String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
@@ -1259,7 +1260,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Append WARC record to active WARC
     try (OutputStream output = getAppendableOutputStream(dst)) {
-      try (InputStream is = markAndGetInputStreamAndSeek(loc.path, loc.offset)) {
+      try (InputStream is = markAndGetInputStreamAndSeek(loc.getPath(), loc.getOffset())) {
         long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
         log.debug2("Moved artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is now {}",
@@ -1589,66 +1590,77 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected InputStream getInputStreamFromStorageUrl(String storageUrl) throws IOException {
-    WarcRecordLocation loc = parseStorageUrl(storageUrl);
-    return getInputStreamAndSeek(loc.path, loc.offset);
+    WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(storageUrl);
+    return getInputStreamAndSeek(loc.getPath(), loc.getOffset());
   }
 
-  private class WarcRecordLocation {
-    String path;
-    long offset;
-    long length;
+  private static class WarcRecordLocation {
+    private String path;
+    private long offset;
+    private long length;
 
     public WarcRecordLocation(String path, long offset, long length) {
       this.path = path;
       this.offset = offset;
       this.length = length;
     }
-  }
 
-  protected WarcRecordLocation parseStorageUrl(String storageUrl) {
-    try {
-      URI storageUri = new URI(storageUrl);
-
-      // Get path to WARC file
-      String path = storageUri.getPath();
-
-      // Get WARC record offset and length
-      MultiValueMap queries = parseQuery(storageUri.getQuery());
-      long offset = Long.parseLong((String) queries.getFirst("offset"));
-      long length = Long.parseLong((String) queries.getFirst("length"));
-
-      log.debug2(
-	  "path = {}, offset = {}, length = {} [storageUrl: {}]",
-	  path,
-	  offset,
-	  length,
-	  storageUrl
-      );
-
-      return new WarcRecordLocation(path, offset, length);
-
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException("Bad storage URL");
-    }
-  }
-
-  protected MultiValueMap<String, String> parseQuery(String query) {
-    MultiValueMap<String, String> queries = new LinkedMultiValueMap<>();
-
-    if (query == null) {
-      return queries;
+    public String getPath() {
+      return this.path;
     }
 
-    String[] kvps = query.split("&");
+    public long getOffset() {
+      return this.offset;
+    }
 
-    if (kvps.length > 0) {
-      for (String kvp : query.split("&")) {
-        String[] kv = kvp.split("=");
-        queries.add(kv[0], kv[1]);
+    public long getLength() {
+      return this.length;
+    }
+
+    public static WarcRecordLocation fromStorageUrl(String storageUrl) {
+      try {
+        URI storageUri = new URI(storageUrl);
+
+        // Get path to WARC file
+        String path = storageUri.getPath();
+
+        // Get WARC record offset and length
+        MultiValueMap queryArgs = parseQueryArgs(storageUri.getQuery());
+        long offset = Long.parseLong((String) queryArgs.getFirst("offset"));
+        long length = Long.parseLong((String) queryArgs.getFirst("length"));
+
+        log.debug2(
+            "path = {}, offset = {}, length = {} [storageUrl: {}]",
+            path,
+            offset,
+            length,
+            storageUrl
+        );
+
+        return new WarcRecordLocation(path, offset, length);
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException("Bad storage URL");
       }
     }
 
-    return queries;
+    private static MultiValueMap<String, String> parseQueryArgs(String query) {
+      MultiValueMap<String, String> queries = new LinkedMultiValueMap<>();
+
+      if (query == null) {
+        return queries;
+      }
+
+      String[] kvps = query.split("&");
+
+      if (kvps.length > 0) {
+        for (String kvp : query.split("&")) {
+          String[] kv = kvp.split("=");
+          queries.add(kv[0], kv[1]);
+        }
+      }
+
+      return queries;
+    }
   }
 
   /**
