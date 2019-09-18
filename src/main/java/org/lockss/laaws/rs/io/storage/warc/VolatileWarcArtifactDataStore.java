@@ -38,12 +38,8 @@ import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -146,15 +142,17 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public InputStream getInputStreamAndSeek(String path, long seek) throws IOException {
     synchronized (warcs) {
       ByteArrayOutputStream warc = warcs.get(path);
-      if (warc != null) {
+
+      if (warc == null) {
+        // Translate to FileNotFound exception if the WARC could not be found in the map
+        throw new FileNotFoundException(path);
+      } else {
         InputStream is = warc.toInputStream();
         long skipped = is.skip(seek);
         assert(skipped == seek);
         return is;
       }
     }
-
-    return null;
   }
 
   @Override

@@ -131,26 +131,30 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   /**
-   * Recursively finds artifact WARC files under a given base path.
+   * Recursively finds WARC files under a given base path.
    *
-   * @param basePath The base path to scan recursively for WARC files.
-   * @return A collection of paths to WARC files under the given base path.
+   * @param path A {@code String} containing the base path to scan recursively for WARC files.
+   * @return A {@code Collection<String>} containing paths to WARC files under the base path.
    * @throws IOException
    */
   @Override
-  public Collection<String> findWarcs(String basePath) throws IOException {
+  public Collection<String> findWarcs(String path) throws IOException {
     Collection<String> warcFiles = new ArrayList<>();
 
-    RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
+    Path basePath = new Path(path);
 
-    while (files.hasNext()) {
-      // Get located file status and name
-      LocatedFileStatus status = files.next();
-      String fileName = status.getPath().getName();
+    if (fs.exists(basePath) && fs.getFileStatus(basePath).isDirectory()) {
+      RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, true);
 
-      // Add this file to the list of WARC files found
-      if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
-        warcFiles.add(status.getPath().toString().substring(fs.getUri().toString().length()));
+      while (files.hasNext()) {
+        // Get located file status and name
+        LocatedFileStatus status = files.next();
+        String fileName = status.getPath().getName();
+
+        // Add this file to the list of WARC files found
+        if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
+          warcFiles.add(status.getPath().toString().substring(fs.getUri().toString().length()));
+        }
       }
     }
 
