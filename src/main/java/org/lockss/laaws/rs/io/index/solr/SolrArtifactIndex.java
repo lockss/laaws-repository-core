@@ -714,7 +714,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     if (artifactId == null) {
       throw new IllegalArgumentException("ArtifactData has null identifier");
-    }// Create an instance of Artifact to represent the artifact
+    }
+
+    // Create an instance of Artifact to represent the artifact
     Artifact artifact = new Artifact(
         artifactId,
         false,
