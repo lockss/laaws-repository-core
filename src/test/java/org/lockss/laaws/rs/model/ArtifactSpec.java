@@ -181,6 +181,11 @@ public class ArtifactSpec implements Comparable<Object> {
     return this;
   }
 
+  public ArtifactSpec setContent(InputStream is) {
+    this.iStream = is;
+    return this;
+  }
+
   public ArtifactSpec setVersion(int version) {
     this.fixedVer = version;
     return this;
@@ -329,14 +334,15 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public String getContentDigest() {
-    // Check whether content has been defined.
-    if (content != null) {
-      if (log.isTraceEnabled()) log.trace("content(0,40) = "
-	  + content.substring(0, content.length() > 40 ? 40 : content.length())
-	  );
-
-      // Yes: Check whether the content digest needs to be computed.
-      if (contentDigest == null) {
+    if (log.isTraceEnabled()) {
+      log.trace("content(0,40) = " +
+		content.substring(0, content.length() > 40 ? 40
+				  : content.length()));
+    }
+    // Check whether the content digest needs to be computed.
+    if (contentDigest == null) {
+      // Yes, Check whether content has been defined.
+      if (content != null) {
         // Yes: Compute it.
         String algorithmName = ArtifactData.DEFAULT_DIGEST_ALGORITHM;
 
@@ -351,16 +357,13 @@ public class ArtifactSpec implements Comparable<Object> {
           log.error(errMsg);
           throw new RuntimeException(errMsg);
         }
+      } else {
+	// No: Report the problem.
+	throw new IllegalStateException("getContentDigest() called when content unknown");
       }
-
-      log.trace("contentDigest = " + contentDigest);
-      return contentDigest;
-    } else {
-      // No: Report the problem.
-      log.trace("content = " + content);
-      throw new IllegalStateException(
-          "getContentDigest() called when content unknown");
     }
+    log.trace("contentDigest = " + contentDigest);
+    return contentDigest;
   }
 
   public String getStorageUrl() {
@@ -436,8 +439,8 @@ public class ArtifactSpec implements Comparable<Object> {
     );
 
     if (this.hasContent()) {
-      ad.setContentDigest(this.getContentDigest());
       ad.setContentLength(this.getContentLength());
+      ad.setContentDigest(this.getContentDigest());
     }
 
     ad.setCollectionDate(getCollectionDate());
@@ -448,6 +451,9 @@ public class ArtifactSpec implements Comparable<Object> {
   public InputStream getInputStream() {
     if (content != null) {
       return IOUtils.toInputStream(content, Charset.defaultCharset());
+    }
+    if (iStream != null) {
+      return iStream;
     }
     return null;
   }
