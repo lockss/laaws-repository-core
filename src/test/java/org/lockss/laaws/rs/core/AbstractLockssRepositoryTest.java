@@ -40,6 +40,7 @@ import java.util.function.Predicate;
 import java.util.stream.*;
 import org.apache.commons.collections4.*;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.lang3.tuple.*;
 import org.apache.http.*;
 import org.apache.http.message.BasicStatusLine;
@@ -316,6 +317,24 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // completeness ...
 
     ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1).setCollectionDate(0);
+    Artifact newArt = addUncommitted(spec);
+    Artifact commArt = commit(spec, newArt);
+    spec.assertArtifact(repository, commArt);
+  }
+
+  // Test ArtifactSpec from InputStream generator.  (This is really more a
+  // test of ArtifactSpec)
+  @Test
+  public void testArtifactSpecInputStream() throws IOException {
+    ArtifactSpec spec = new ArtifactSpec()
+      .setUrl("https://mr/ed/")
+      .setContentGenerator(() ->
+			   IOUtils.toInputStream("abcd",
+						 Charset.defaultCharset()))
+      .setCollectionDate(0);
+    assertEquals(4, IOUtils.copy(spec.getInputStream(),
+				 new NullOutputStream()));
+
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
     spec.assertArtifact(repository, commArt);

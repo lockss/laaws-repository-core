@@ -33,6 +33,8 @@ package org.lockss.laaws.rs.model;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
+import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
@@ -52,8 +54,10 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.DigestInputStream;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 // NOTE: this class is used by TestRestLockssRepository in the
@@ -111,7 +115,7 @@ public class ArtifactSpec implements Comparable<Object> {
   StatusLine statLine = STATUS_LINE_OK;
   Map<String, String> headers = RepoUtil.mapFromHttpHeaders(HEADERS1);
   String content;
-  InputStream iStream;
+  Supplier<InputStream> contentGenerator;
 
   // expected values
   long len = -1;
@@ -181,8 +185,11 @@ public class ArtifactSpec implements Comparable<Object> {
     return this;
   }
 
-  public ArtifactSpec setContent(InputStream is) {
-    this.iStream = is;
+  /** Specify a Supplier to generate an InputStream to provide content.
+   * The Supplier will be called multiple times and must return a new
+   * InputStream each time, with the same content. */
+  public ArtifactSpec setContentGenerator(Supplier<InputStream> func) {
+    this.contentGenerator = func;
     return this;
   }
 
@@ -298,7 +305,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public boolean hasContent() {
-    return content != null || iStream != null;
+    return content != null || contentGenerator != null;
   }
 
   public ArtifactSpec generateContent() {
@@ -328,6 +335,15 @@ public class ArtifactSpec implements Comparable<Object> {
       return len;
     } else if (content != null) {
       return content.length();
+    } else if (contentGenerator != null) {
+      CountingInputStream cis = new CountingInputStream(getInputStream());
+      try {
+	IOUtils.copy(cis, new NullOutputStream());
+      } catch (IOException e) {
+	throw new RuntimeException("Couldn't read InputStream", e);
+      }
+      len = cis.getByteCount();
+      return len;
     } else {
       throw new IllegalStateException("getContentLen() called when length unknown");
     }
@@ -344,19 +360,22 @@ public class ArtifactSpec implements Comparable<Object> {
       // Yes, Check whether content has been defined.
       if (content != null) {
         // Yes: Compute it.
-        String algorithmName = ArtifactData.DEFAULT_DIGEST_ALGORITHM;
+	MessageDigest digest = makeDigest();
+	contentDigest =
+	  String.format("%s:%s", digest.getAlgorithm(),
+			new String(Hex.encodeHex(digest.digest(content.getBytes(StandardCharsets.UTF_8)))));
+      } else if (contentGenerator != null) {
+	MessageDigest digest = makeDigest();
+	DigestInputStream dis = new DigestInputStream(getInputStream(), digest);
+	try {
+	  IOUtils.copy(dis, new NullOutputStream());
+	} catch (IOException e) {
+	  throw new RuntimeException("Couldn't read InputStream", e);
+	}
 
-        try {
-          MessageDigest digest = MessageDigest.getInstance(algorithmName);
-          contentDigest = String.format("%s:%s", digest.getAlgorithm(),
-              new String(Hex.encodeHex(
-                  digest.digest(content.getBytes(StandardCharsets.UTF_8)))));
-        } catch (NoSuchAlgorithmException nsae) {
-          String errMsg = String.format("Unknown digest algorithm: %s; "
-              + "could not instantiate a MessageDigest", algorithmName);
-          log.error(errMsg);
-          throw new RuntimeException(errMsg);
-        }
+	contentDigest =
+	  String.format("%s:%s", dis.getMessageDigest().getAlgorithm(),
+			new String(Hex.encodeHex(dis.getMessageDigest().digest())));
       } else {
 	// No: Report the problem.
 	throw new IllegalStateException("getContentDigest() called when content unknown");
@@ -364,6 +383,19 @@ public class ArtifactSpec implements Comparable<Object> {
     }
     log.trace("contentDigest = " + contentDigest);
     return contentDigest;
+  }
+
+  private MessageDigest makeDigest() {
+    String algorithmName = ArtifactData.DEFAULT_DIGEST_ALGORITHM;
+    try {
+      return MessageDigest.getInstance(algorithmName);
+    } catch (NoSuchAlgorithmException nsae) {
+      String errMsg = String.format("Unknown digest algorithm: %s; "
+				    + "could not instantiate a MessageDigest",
+				    algorithmName);
+      log.error(errMsg);
+      throw new RuntimeException(errMsg);
+    }
   }
 
   public String getStorageUrl() {
@@ -452,8 +484,8 @@ public class ArtifactSpec implements Comparable<Object> {
     if (content != null) {
       return IOUtils.toInputStream(content, Charset.defaultCharset());
     }
-    if (iStream != null) {
-      return iStream;
+    if (contentGenerator != null) {
+      return contentGenerator.get();
     }
     return null;
   }
@@ -603,9 +635,11 @@ public class ArtifactSpec implements Comparable<Object> {
       sb.append("C");
     }
     if (hasContent()) {
-      sb.append(String.format(", len: %s", getContentLength()));
+      if (len >= 0 || content != null) {
+	sb.append(String.format(", len: %s", getContentLength()));
 // 	sb.append(String.format(", len: %s, content: %.30s",
 // 				getContentLength(), getContent()));
+      }
     }
     sb.append("]");
     return sb.toString();
