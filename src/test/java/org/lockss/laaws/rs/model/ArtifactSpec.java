@@ -350,7 +350,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public String getContentDigest() {
-    if (log.isTraceEnabled()) {
+    if (log.isTraceEnabled() && content != null) {
       log.trace("content(0,40) = " +
 		content.substring(0, content.length() > 40 ? 40
 				  : content.length()));
