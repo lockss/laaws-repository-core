@@ -573,10 +573,11 @@ public class ArtifactSpec implements Comparable<Object> {
     Assertions.assertNotNull(art, "Comparing with " + this);
 
 //    Assertions.assertEquals(getArtifactId(), art.getId());
-    Assertions.assertEquals(getCollection(), art.getCollection());
-    Assertions.assertEquals(getAuid(), art.getAuid());
-    Assertions.assertEquals(getUrl(), art.getUri());
-    Assertions.assertEquals(isCommitted(), art.getCommitted());
+    Assertions.assertEquals(getCollection(), art.getCollection(), "Collection");
+    Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
+    Assertions.assertEquals(getUrl(), art.getUri(), "URL");
+    Assertions.assertEquals(isCommitted(), art.getCommitted(),
+			    "Committed state");
 
     if (getExpVer() >= 0) {
       Assertions.assertEquals(getExpVer(), (int) art.getVersion());
