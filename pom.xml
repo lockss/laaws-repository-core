@@ -60,8 +60,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
     <dependency>
       <groupId>org.lockss</groupId>
-      <artifactId>lockss-util</artifactId>
-      <version>${version.lockss.lockss-util}</version>
+      <artifactId>lockss-util-core</artifactId>
+      <version>${version.lockss.lockss-util-core}</version>
     </dependency>
 
     <dependency>
