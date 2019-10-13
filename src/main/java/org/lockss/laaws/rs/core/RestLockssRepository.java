@@ -213,7 +213,7 @@ public class RestLockssRepository implements LockssRepository {
 
     } catch (LockssRestException e) {
       log.error("Could not add artifact", e);
-      throw new IOException(e);
+      throw e;
     }
   }
 
@@ -263,10 +263,10 @@ public class RestLockssRepository implements LockssRepository {
 	return null;
       }
       log.error("Could not get artifact data", e);
-      throw new IOException(e);
+      throw e;
     } catch (LockssRestException e) {
       log.error("Could not get artifact data", e);
-      throw new IOException(e);
+      throw e;
     }
   }
 
@@ -311,7 +311,7 @@ public class RestLockssRepository implements LockssRepository {
       artCache.put(res);
       return res;
     } catch (LockssRestException e) {
-      throw new IOException(e);
+      throw e;
     }
   }
 
@@ -352,10 +352,10 @@ public class RestLockssRepository implements LockssRepository {
 	throw new IllegalArgumentException("Non-existent artifact id: " + artifactId + ": " + e.getHttpStatus().toString());
       }
       log.error("Could not remove artifact id: {}", artifactId, e);
-      throw new IOException(e);
+      throw e;
     } catch (LockssRestException e) {
       log.error("Could not remove artifact id: {}", artifactId, e);
-      throw new IOException(e);
+      throw e;
     }
   }
 
@@ -391,7 +391,7 @@ public class RestLockssRepository implements LockssRepository {
       return null;
     } catch (LockssRestException e) {
       log.error("Could not update artifact id: {}", artifactId, e);
-      throw new IOException(e);
+      throw e;
     }
   }
 
@@ -542,7 +542,7 @@ public class RestLockssRepository implements LockssRepository {
 			 new TypeReference<List<String>>(){});
       return IteratorUtils.asIterable(result.iterator());
 
-    } catch (IOException | LockssRestException e) {
+    } catch (LockssRestException e) {
       return (Iterable<String>)new ArrayList<String>();
     }
   }
@@ -586,7 +586,7 @@ public class RestLockssRepository implements LockssRepository {
       return Collections.emptyIterator();
     } catch (LockssRestException e) {
       log.error("Could not fetch artifacts", e);
-      throw new IOException(e);
+      throw e;
     }
 
   }
@@ -828,7 +828,7 @@ public class RestLockssRepository implements LockssRepository {
       return null;
     } catch (LockssRestException e) {
       log.error("Could not fetch artifact", e);
-      throw new IOException(e);
+      throw e;
     }
   }
 
@@ -941,7 +941,7 @@ public class RestLockssRepository implements LockssRepository {
 
       ObjectMapper objectMapper = new ObjectMapper();
       return objectMapper.readValue(response.getBody(), Long.class);
-    } catch (IOException | LockssRestException e) {
+    } catch (IOException e) {
       log.error("Could not determine AU size", e);
       return new Long(0);
     }
