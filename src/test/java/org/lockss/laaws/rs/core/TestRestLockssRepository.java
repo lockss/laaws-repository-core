@@ -41,6 +41,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.util.rest.exception.*;
 import org.lockss.log.L4JLogger;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -110,10 +111,10 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<String> collectionIds = repository.getCollectionIds();
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500",
+		      () -> {repository.getCollectionIds();});
         mockServer.verify();
-
-        assertNull(collectionIds);
     }
 
     @Test
@@ -161,11 +162,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.HEAD))
                 .andRespond(withServerError());
 
-        Boolean artifactExists = repository.artifactExists("collection1", "artifact1");
-        mockServer.verify();
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500",
+			  () -> {repository.artifactExists("collection1", "artifact1");});
 
-        assertNotNull(artifactExists);
-        assertFalse(artifactExists);
+        mockServer.verify();
     }
 
     @Test
@@ -187,9 +188,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.HEAD))
                 .andRespond(withSuccess().headers(new HttpHeaders()));
 
-        Boolean result = repository.isArtifactCommitted("collection1", "artifact1");
+	assertThrowsMatch(LockssRestInvalidResponseException.class,
+			  "did not return X-LockssRepo-Artifact-Committed",
+			  () -> {repository.isArtifactCommitted("collection1",
+								"artifact1");});
         mockServer.verify();
-        assertNull(result);
     }
 
     @Test
@@ -478,6 +481,19 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     }
 
     @Test
+    public void testDeleteArtifact_notFound() throws Exception {
+        mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
+                .andExpect(method(HttpMethod.DELETE))
+	  .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        try {
+	    repository.deleteArtifact("collection1", "artifact1");
+            fail("Should have thrown LockssNoSuchArtifactIdException");
+      } catch (LockssNoSuchArtifactIdException iae) {}
+        mockServer.verify();
+    }
+
+    @Test
     public void testDeleteArtifact_failure() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/artifacts/artifact1", BASEURL)))
                 .andExpect(method(HttpMethod.DELETE))
@@ -486,7 +502,10 @@ public class TestRestLockssRepository extends LockssTestCase5 {
         try {
             repository.deleteArtifact("collection1", "artifact1");
             fail("Should have thrown IOException");
-        } catch (IOException ioe) {}
+        } catch (IOException ioe) {
+	  log.fatal("XXXXXXXXXXXXXXXXX", ioe);
+	}
+        mockServer.verify();
     }
 
     @Test
@@ -526,11 +545,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<String> auIds = repository.getAuIds("collection1");
-        mockServer.verify();
 
-        assertNotNull(auIds);
-        assertFalse(auIds.iterator().hasNext());
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500 Internal Server Error",
+		      () -> {repository.getAuIds("collection1");});
+        mockServer.verify();
     }
 
     @Test
@@ -539,11 +558,10 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "400 Bad Request",
+		      () -> {repository.getArtifacts("collection1", "auid1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -595,11 +613,10 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500 Internal Server Error",
+		      () -> {repository.getArtifacts("collection1", "auid1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -608,11 +625,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "400 Bad Request",
+		      () -> {repository.getArtifactsAllVersions("collection1",
+								"auid1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -664,11 +681,11 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500 Internal Server Error",
+		      () -> {repository.getArtifactsAllVersions("collection1",
+								"auid1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -677,11 +694,12 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "400 Bad Request",
+		      () -> {repository.getArtifactsWithPrefix("collection1",
+							       "auid1",
+							       "url1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -733,11 +751,12 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500 Internal Server Error",
+		      () -> {repository.getArtifactsWithPrefix("collection1",
+							       "auid1",
+							       "url1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -746,11 +765,10 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+	assertThrowsMatch(LockssRestHttpException.class,
+			  "400 Bad Request",
+		      () -> {repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -802,11 +820,12 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
+	assertThrowsMatch(LockssRestHttpException.class,
+		      "500 Internal Server Error",
+		      () -> {repository.getArtifactsWithPrefixAllVersions("collection1",
+									  "auid1",
+									  "url1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -815,11 +834,12 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
+	assertThrowsMatch(LockssRestHttpException.class,
+			  "400 Bad Request",
+			  () -> {repository.getArtifactsAllVersions("collection1",
+								    "auid1",
+								    "url1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test
@@ -871,11 +891,12 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-        Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
+	assertThrowsMatch(LockssRestHttpException.class,
+			  "500 Internal Server Error",
+			  () -> {repository.getArtifactsAllVersions("collection1",
+								    "auid1",
+								    "url1");});
         mockServer.verify();
-
-        assertNotNull(result);
-        assertFalse(result.iterator().hasNext());
     }
 
     @Test

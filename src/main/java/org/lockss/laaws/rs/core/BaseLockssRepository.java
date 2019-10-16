@@ -178,11 +178,11 @@ public class BaseLockssRepository implements LockssRepository,
     if ((collection == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
 
-    // Return null if artifact doesn't exist
+    // Throw if artifact doesn't exist
     if (!artifactExists(collection, artifactId)) {
-      return null;
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						+ artifactId);
     }
-
     return store.getArtifactData(index.getArtifact(artifactId));
   }
 
@@ -205,8 +205,8 @@ public class BaseLockssRepository implements LockssRepository,
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-        log.warn("Artifact not found in index");
-        return null;
+	throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						  + artifactId);
       }
 
       if (!artifact.getCommitted()) {
@@ -262,7 +262,8 @@ public class BaseLockssRepository implements LockssRepository,
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						  + artifactId);
       }
 
       // Remove from index and data store
@@ -303,7 +304,8 @@ public class BaseLockssRepository implements LockssRepository,
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						  + artifactId);
       }
 
       return artifact.getCommitted();

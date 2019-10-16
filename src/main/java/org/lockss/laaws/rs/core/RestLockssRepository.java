@@ -128,6 +128,21 @@ public class RestLockssRepository implements LockssRepository {
     return builder.build().encode().toUri();
   }
 
+  /** Throws LockssNoSuchArtifactIdException if the response status is 404,
+   * otherwise returns
+   * @param e the LockssRestHttpException that was caught
+   * @param artifactId A {@code String} containing the artifact ID.
+   * @param msg used in error log and thrown exception
+   */
+  private void checkArtIdError(LockssRestHttpException e, String artifactId,
+			       String msg)
+      throws LockssNoSuchArtifactIdException {
+    if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
+      log.warn(msg, e);
+      throw new LockssNoSuchArtifactIdException(msg + ": " + artifactId, e);
+    }
+  }
+
   /**
    * Adds an instance of {@code ArtifactData} to the remote REST LOCKSS Repository server.
    *
@@ -258,11 +273,8 @@ public class RestLockssRepository implements LockssRepository {
       return ArtifactDataFactory.fromTransportResponseEntity(response);
 
     } catch (LockssRestHttpException e) {
-      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-	// XXX Some analogous cases throw
-	return null;
-      }
-      log.error("Could not get artifact data", e);
+      log.error("Could not get artifact data: {}", e.toString());
+      checkArtIdError(e, artifactId, "Artifact Id not found");
       throw e;
     } catch (LockssRestException e) {
       log.error("Could not get artifact data", e);
@@ -310,7 +322,12 @@ public class RestLockssRepository implements LockssRepository {
       // the latest
       artCache.put(res);
       return res;
+    } catch (LockssRestHttpException e) {
+      checkArtIdError(e, artifactId, "Could not commit; non-existent artifact id");
+      log.error("Could not commit artifact id: {}", artifactId, e);
+      throw e;
     } catch (LockssRestException e) {
+      log.error("Could not commit artifact id: {}", artifactId, e);
       throw e;
     }
   }
@@ -348,9 +365,7 @@ public class RestLockssRepository implements LockssRepository {
       }
 
     } catch (LockssRestHttpException e) {
-      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-	throw new IllegalArgumentException("Non-existent artifact id: " + artifactId + ": " + e.getHttpStatus().toString());
-      }
+      checkArtIdError(e, artifactId, "Could not remove artifact id");
       log.error("Could not remove artifact id: {}", artifactId, e);
       throw e;
     } catch (LockssRestException e) {
@@ -388,7 +403,8 @@ public class RestLockssRepository implements LockssRepository {
 
     } catch (LockssRestHttpException e) {
       log.error("Could not update artifact id: {}", artifactId, e);
-      return null;
+      checkArtIdError(e, artifactId, "Could not update artifact id");
+      throw e;
     } catch (LockssRestException e) {
       log.error("Could not update artifact id: {}", artifactId, e);
       throw e;
@@ -403,7 +419,8 @@ public class RestLockssRepository implements LockssRepository {
    * @return A boolean indicating whether an artifact exists in this repository.
    */
   @Override
-  public Boolean artifactExists(String collection, String artifactId) {
+  public Boolean artifactExists(String collection, String artifactId)
+      throws IOException {
     if ((collection == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
     if (StringUtils.isEmpty(artifactId)) {
@@ -420,9 +437,15 @@ public class RestLockssRepository implements LockssRepository {
 				 "artifactExists");
       checkStatusOk(response);
       return true;
+    } catch (LockssRestHttpException e) {
+      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
+	return false;
+      }
+      log.error("Could not get artifact data HEAD: {}", artifactId, e);
+      throw e;
     } catch (LockssRestException e) {
-      log.warn("artifactExists failed", e);
-      return false;
+      log.error("Could not get artifact data HEAD: {}", artifactId, e);
+      throw e;
     }
   }
 
@@ -434,7 +457,8 @@ public class RestLockssRepository implements LockssRepository {
    * @return A boolean indicating whether the artifact is committed.
    */
   @Override
-  public Boolean isArtifactCommitted(String collection, String artifactId) {
+  public Boolean isArtifactCommitted(String collection, String artifactId)
+      throws IOException {
     if ((collection == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
     if (StringUtils.isEmpty(artifactId)) {
@@ -456,24 +480,23 @@ public class RestLockssRepository implements LockssRepository {
 	headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
 
       if (committedValue == null) {
-	log.error("Remote repository did not return {} header for artifact (Collection: {}, Artifact: {})",
-		  ArtifactConstants.ARTIFACT_STATE_COMMITTED,
-		  collection,
-		  artifactId);
-	return null;
+	String msg = String.format("Remote repository did not return %s header for artifact (Collection: %s, Artifact: %s)",
+				   ArtifactConstants.ARTIFACT_STATE_COMMITTED,
+				   collection,
+				   artifactId);
+	log.error(msg);
+	throw new LockssRestInvalidResponseException(msg);
       }
 
       return "true".equalsIgnoreCase(committedValue);
 
     } catch (LockssRestHttpException e) {
-      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-	log.warn("isArtifactCommitted", e);
-	throw new IllegalArgumentException("Non-existent artifact id: " + artifactId, e);
-      }
-      return null;
+      checkArtIdError(e, artifactId, "Non-existent artifact id");
+      log.error("Could not determine artifact commit status", e);
+      throw e;
     } catch (LockssRestException e) {
       log.error("Could not determine artifact commit status", e);
-      return null;
+      throw e;
     }
   }
 
@@ -505,7 +528,7 @@ public class RestLockssRepository implements LockssRepository {
       return IteratorUtils.asIterable(result.iterator());
     } catch (LockssRestException e) {
       log.error("Could not get collection IDs", e);
-      return null;
+      throw e;
     }
   }
 
@@ -542,8 +565,15 @@ public class RestLockssRepository implements LockssRepository {
 			 new TypeReference<List<String>>(){});
       return IteratorUtils.asIterable(result.iterator());
 
+    } catch (LockssRestHttpException e) {
+      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
+	return IteratorUtils.asIterable(Collections.emptyIterator());
+      }
+      log.error("Could not get AUIDs", e);
+      throw e;
     } catch (LockssRestException e) {
-      return (Iterable<String>)new ArrayList<String>();
+      log.error("Could not get AUIDs", e);
+      throw e;
     }
   }
 
@@ -582,8 +612,11 @@ public class RestLockssRepository implements LockssRepository {
       return result.iterator();
 
     } catch (LockssRestHttpException e) {
-      log.warn("Could not fetch artifacts", e);
-      return Collections.emptyIterator();
+      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
+	return Collections.emptyIterator();
+      }
+      log.error("Could not fetch artifacts", e);
+      throw e;
     } catch (LockssRestException e) {
       log.error("Could not fetch artifacts", e);
       throw e;

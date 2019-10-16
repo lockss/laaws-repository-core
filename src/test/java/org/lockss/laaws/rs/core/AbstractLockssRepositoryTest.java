@@ -421,7 +421,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Artifact not found
     // XXX should this throw?
-    assertNull(repository.getArtifactData(COLL1, NO_ARTID));
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
+		      "Non-existent artifact",
+		      () -> {repository.getArtifactData(COLL1, NO_ARTID);});
 
     ArtifactSpec cspec = variantState.anyCommittedSpec();
     if (cspec != null) {
@@ -641,7 +643,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Delete non-existent artifact
     // XXXAPI
-    assertThrowsMatch(IllegalArgumentException.class,
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
 		      "Non-existent artifact id: " + NO_ARTID,
 		      () -> {repository.deleteArtifact(NO_COLL, NO_ARTID);});
 
@@ -753,8 +755,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       // Delete it again.
       try {
 	repository.deleteArtifact(coll, id);
-	fail("Should have thrown IllegalArgumentException");
-      } catch (IllegalArgumentException iae) {}
+	fail("Should have thrown LockssNoSuchArtifactIdException");
+      } catch (LockssNoSuchArtifactIdException iae) {}
       assertFalse(repository.artifactExists(coll, id), "spec = " + spec);
     }
 
@@ -1083,10 +1085,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // non-existent collection, artifact id
 
     // XXXAPI
-    assertThrowsMatch(IllegalArgumentException.class,
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
 		      "Non-existent artifact id: " + NO_ARTID,
 		      () -> {repository.isArtifactCommitted(COLL1, NO_ARTID);});
-    assertThrowsMatch(IllegalArgumentException.class,
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
 		      "Non-existent artifact id: " + ARTID1,
 		      () -> {repository.isArtifactCommitted(NO_COLL, ARTID1);});
 
