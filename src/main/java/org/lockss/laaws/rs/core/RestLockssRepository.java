@@ -37,6 +37,8 @@ import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactPageInfo;
+import org.lockss.laaws.rs.model.AuidPageInfo;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -560,9 +562,8 @@ public class RestLockssRepository implements LockssRepository {
       checkStatusOk(response);
 
       ObjectMapper mapper = new ObjectMapper();
-      List<String> result =
-	mapper.readValue((String)response.getBody(),
-			 new TypeReference<List<String>>(){});
+      List<String> result = mapper.readValue((String)response.getBody(),
+	  AuidPageInfo.class).getAuids();
       return IteratorUtils.asIterable(result.iterator());
 
     } catch (LockssRestHttpException e) {
@@ -608,7 +609,7 @@ public class RestLockssRepository implements LockssRepository {
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
 		       false);
       List<Artifact> result = mapper.readValue((String)response.getBody(),
-					       new TypeReference<List<Artifact>>(){});
+	  ArtifactPageInfo.class).getArtifacts();
       return result.iterator();
 
     } catch (LockssRestHttpException e) {
@@ -829,9 +830,8 @@ public class RestLockssRepository implements LockssRepository {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
 		       false);
-      List<Artifact> artifacts =
-	mapper.readValue((String) response.getBody(),
-			 new TypeReference<List<Artifact>>(){});
+      List<Artifact> artifacts = mapper.readValue((String)response.getBody(),
+	  ArtifactPageInfo.class).getArtifacts();
 
       if (!artifacts.isEmpty()) {
 	if (artifacts.size() > 1) {
@@ -915,9 +915,8 @@ public class RestLockssRepository implements LockssRepository {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
 		       false);
-      List<Artifact> artifacts =
-	mapper.readValue((String)response.getBody(),
-			 new TypeReference<List<Artifact>>(){});
+      List<Artifact> artifacts = mapper.readValue((String)response.getBody(),
+	  ArtifactPageInfo.class).getArtifacts();
 
       if (!artifacts.isEmpty()) {
 	// Warn if the server returned more than one artifact
