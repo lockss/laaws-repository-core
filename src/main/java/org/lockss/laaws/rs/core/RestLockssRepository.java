@@ -535,12 +535,11 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   /**
-   * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+   * Returns an iterable over Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
    *
    * @param collection
    *          A {@code String} containing the LOCKSS repository collection ID.
-   * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
-   * @throws IOException
+   * @return A {@code Iterable<String>} iterating over the AUIDs in this LOCKSS repository collection.
    */
   @Override
   public Iterable<String> getAuIds(String collection) throws IOException {
@@ -549,43 +548,18 @@ public class RestLockssRepository implements LockssRepository {
     String endpoint = String.format("%s/collections/%s/aus", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
-
-    try {
-      ResponseEntity<String> response =
-	RestUtil.callRestService(restTemplate,
-				 builder.build().encode().toUri(),
-				 HttpMethod.GET,
-				 null,
-				 String.class,
-				 "getAuIds");
-
-      checkStatusOk(response);
-
-      ObjectMapper mapper = new ObjectMapper();
-      List<String> result = mapper.readValue((String)response.getBody(),
-	  AuidPageInfo.class).getAuids();
-      return IteratorUtils.asIterable(result.iterator());
-
-    } catch (LockssRestHttpException e) {
-      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-	return IteratorUtils.asIterable(Collections.emptyIterator());
-      }
-      log.error("Could not get AUIDs", e);
-      throw e;
-    } catch (LockssRestException e) {
-      log.error("Could not get AUIDs", e);
-      throw e;
-    }
+    return IteratorUtils.asIterable(
+	new RestLockssRepositoryAuidIterator(restTemplate, builder));
   }
 
   /**
-   * Returns an iterable object over artifacts, given a REST endpoint that returns artifacts.
+   * Returns an iterator over artifacts, given a REST endpoint that returns artifacts.
    *
    * @param builder A {@code UriComponentsBuilder} containing a REST endpoint that returns artifacts.
    * @return An {@code Iterator<Artifact>} containing artifacts.
    */
   private Iterator<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
-    return getArtifacts(builder.build().encode().toUri());
+    return new RestLockssRepositoryArtifactIterator(restTemplate, builder);
   }
 
   /**
