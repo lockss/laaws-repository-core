@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import com.google.common.collect.ComparisonChain;
 
 import java.io.Serializable;
+import org.lockss.util.PreOrderComparator;
 
 /**
  * Class that serves as an identifier for artifacts.
@@ -128,7 +129,8 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
         return ComparisonChain.start()
                 .compare(this.getCollection(), other.getCollection())
                 .compare(this.getAuid(), other.getAuid())
-                .compare(this.getUri(), other.getUri())
+                .compare(this.getUri(), other.getUri(),
+			 PreOrderComparator.INSTANCE)
                 .compare(this.getVersion(), other.getVersion())
 //                .compare(this.getId(), this.getId())
                 .result();
