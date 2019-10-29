@@ -41,7 +41,7 @@ import java.util.NoSuchElementException;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactPageInfo;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.LockssUncheckedException;
+import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
@@ -63,8 +63,8 @@ implements Iterator<Artifact> {
   // The REST service template.
   private final RestTemplate restTemplate;
 
-  // The REST service URI base URI.
-  private final URI baseUri;
+  // The REST service URI builder.
+  private final UriComponentsBuilder builder;
 
   // The internal buffer used to store locally the artifacts provided by the
   // REST service.
@@ -75,10 +75,6 @@ implements Iterator<Artifact> {
 
   // Continuation token for the REST service request.
   private String continuationToken = null;
-
-  // Indication of whether the REST service has returned all the requested
-  // results already.
-  boolean isLastBatch = false;
 
   /**
    * Constructor with default batch size.
@@ -121,11 +117,11 @@ implements Iterator<Artifact> {
     // Initialization.
     this.restTemplate = restTemplate;
 
-    if (limit == null) {
-      baseUri = builder.build().encode().toUri();
-    } else {
-      baseUri = builder.queryParam("limit", limit).build().encode().toUri();
+    if (limit != null) {
+      builder = builder.queryParam("limit", limit);
     }
+
+    this.builder = builder;
 
     fillArtifactBuffer();
   }
@@ -140,9 +136,9 @@ implements Iterator<Artifact> {
   @Override
   public boolean hasNext() throws RuntimeException {
     log.debug2("Invoked");
-    log.trace("artifactBatchIterator.hasNext() = {}",
+    log.trace("artifactBufferIterator.hasNext() = {}",
 	artifactBufferIterator.hasNext());
-    log.trace("isLastBatch = {}", isLastBatch);
+    log.trace("isLastBatch() = {}", isLastBatch());
 
     boolean hasNext = false;
 
@@ -151,12 +147,16 @@ implements Iterator<Artifact> {
       // Yes: The answer is {@code true}.
       hasNext = true;
       // No: Check whether the current batch is the last one.
-    } else if (isLastBatch) {
+    } else if (isLastBatch()) {
       // Yes: The answer is {@code false}.
       hasNext = false;
     } else {
-      // No: Fill the internal buffer with another batch from the REST service.
-      fillArtifactBuffer();
+      // No: Keep filling the internal buffer with another batch from the REST
+      // service unless the REST service indicates that the last batch has
+      // already been provided.
+      do {
+	fillArtifactBuffer();
+      } while (!artifactBufferIterator.hasNext() && !isLastBatch());
 
       // The answer is determined by the contents of the internal buffer.
       hasNext = artifactBufferIterator.hasNext();
@@ -188,17 +188,14 @@ implements Iterator<Artifact> {
   private void fillArtifactBuffer() {
     log.debug2("Invoked");
 
-    // Build the URI to make a request to the REST service.
-    URI uri = baseUri;
-
     // Check whether a previous response provided a continuation token.
     if (continuationToken != null) {
       // Yes: Incorporate it to the next request.
-      uri = UriComponentsBuilder.fromUri(baseUri)
-	  .queryParam("continuationToken", continuationToken).build().encode()
-	  .toUri();
+      builder.queryParam("continuationToken", continuationToken);
     }
 
+    // Build the URI to make a request to the REST service.
+    URI uri = builder.build().encode().toUri();
     log.trace("uri = {}", uri);
 
     ResponseEntity<String> response = null;
@@ -212,16 +209,15 @@ implements Iterator<Artifact> {
 	log.trace("Could not fetch artifacts: Exception caught", e);
 	artifactBuffer = new ArrayList<Artifact>();
 	continuationToken = null;
-	isLastBatch = true;
 	artifactBufferIterator = artifactBuffer.iterator();
 	log.debug2("Done");
 	return;
       }
       log.error("Could not fetch artifacts: Exception caught", e);
-      throw new LockssUncheckedException(e);
+      throw new LockssUncheckedIOException(e);
     } catch (LockssRestException e) {
       log.error("Could not fetch artifacts: Exception caught", e);
-      throw new LockssUncheckedException(e);
+      throw new LockssUncheckedIOException(e);
     }
 
     // Determine the response status.
@@ -264,12 +260,18 @@ implements Iterator<Artifact> {
       continuationToken = null;
     }
 
-    // Determine whether there are no more batches after this one.
-    isLastBatch = continuationToken == null;
-    log.trace("isLastBatch = {}", isLastBatch);
-
     // Create the iterator to the list of artifacts to be provided.
     artifactBufferIterator = artifactBuffer.iterator();
     log.debug2("Done");
+  }
+
+  /**
+   * Provide an indication of whether the REST service has returned all the
+   * requested results already.
+   * 
+   * @return a boolean with the indication.
+   */
+  private boolean isLastBatch() {
+    return continuationToken == null;
   }
 }

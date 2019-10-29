@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.lockss.laaws.rs.model.AuidPageInfo;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.LockssUncheckedException;
+import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
@@ -61,8 +61,8 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
   // The REST service template.
   private final RestTemplate restTemplate;
 
-  // The REST service URI base URI.
-  private final URI baseUri;
+  // The REST service URI builder.
+  private final UriComponentsBuilder builder;
 
   // The internal buffer used to store locally the auids provided by the REST
   // service.
@@ -73,10 +73,6 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
 
   // Continuation token for the REST service request.
   private String continuationToken = null;
-
-  // Indication of whether the REST service has returned all the requested
-  // results already.
-  boolean isLastBatch = false;
 
   /**
    * Constructor with default batch size.
@@ -119,11 +115,11 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
     // Initialization.
     this.restTemplate = restTemplate;
 
-    if (limit == null) {
-      baseUri = builder.build().encode().toUri();
-    } else {
-      baseUri = builder.queryParam("limit", limit).build().encode().toUri();
+    if (limit != null) {
+      builder = builder.queryParam("limit", limit);
     }
+
+    this.builder = builder;
 
     fillAuidBuffer();
   }
@@ -140,7 +136,7 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
     log.debug2("Invoked");
     log.trace("auidBufferIterator.hasNext() = {}",
 	auidBufferIterator.hasNext());
-    log.trace("isLastBatch = {}", isLastBatch);
+    log.trace("isLastBatch() = {}", isLastBatch());
 
     boolean hasNext = false;
 
@@ -149,12 +145,16 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
       // Yes: The answer is {@code true}.
       hasNext = true;
       // No: Check whether the current batch is the last one.
-    } else if (isLastBatch) {
+    } else if (isLastBatch()) {
       // Yes: The answer is {@code false}.
       hasNext = false;
     } else {
-      // No: Fill the internal buffer with another batch from the REST service.
-      fillAuidBuffer();
+      // No: Keep filling the internal buffer with another batch from the REST
+      // service while the REST service provides no auids but indicates that the
+      // last batch has not been provided yet.
+      do {
+	fillAuidBuffer();
+      } while (!auidBufferIterator.hasNext() && !isLastBatch());
 
       // The answer is determined by the contents of the internal buffer.
       hasNext = auidBufferIterator.hasNext();
@@ -186,17 +186,14 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
   private void fillAuidBuffer() {
     log.debug2("Invoked");
 
-    // Build the URI to make a request to the REST service.
-    URI uri = baseUri;
-
     // Check whether a previous response provided a continuation token.
     if (continuationToken != null) {
       // Yes: Incorporate it to the next request.
-      uri = UriComponentsBuilder.fromUri(baseUri)
-	  .queryParam("continuationToken", continuationToken).build().encode()
-	  .toUri();
+      builder.queryParam("continuationToken", continuationToken);
     }
 
+    // Build the URI to make a request to the REST service.
+    URI uri = builder.build().encode().toUri();
     log.trace("uri = {}", uri);
 
     ResponseEntity<String> response = null;
@@ -210,16 +207,15 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
 	log.trace("Could not fetch auids: Exception caught", e);
 	auidBuffer = new ArrayList<String>();
 	continuationToken = null;
-	isLastBatch = true;
 	auidBufferIterator = auidBuffer.iterator();
 	log.debug2("Done");
 	return;
       }
       log.error("Could not fetch auids: Exception caught", e);
-      throw new LockssUncheckedException(e);
+      throw new LockssUncheckedIOException(e);
     } catch (LockssRestException e) {
       log.error("Could not fetch auids: Exception caught", e);
-      throw new LockssUncheckedException(e);
+      throw new LockssUncheckedIOException(e);
     }
 
     // Determine the response status.
@@ -262,12 +258,18 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
       continuationToken = null;
     }
 
-    // Determine whether there are no more batches after this one.
-    isLastBatch = continuationToken == null;
-    log.trace("isLastBatch = {}", isLastBatch);
-
     // Create the iterator to the list of auids to be provided.
     auidBufferIterator = auidBuffer.iterator();
     log.debug2("Done");
+  }
+
+  /**
+   * Provide an indication of whether the REST service has returned all the
+   * requested results already.
+   * 
+   * @return a boolean with the indication.
+   */
+  private boolean isLastBatch() {
+    return continuationToken == null;
   }
 }
