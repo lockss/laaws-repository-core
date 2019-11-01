@@ -118,7 +118,7 @@ implements Iterator<Artifact> {
     this.restTemplate = restTemplate;
 
     if (limit != null) {
-      builder = builder.queryParam("limit", limit);
+      builder = builder.replaceQueryParam("limit", limit);
     }
 
     this.builder = builder;
@@ -191,7 +191,7 @@ implements Iterator<Artifact> {
     // Check whether a previous response provided a continuation token.
     if (continuationToken != null) {
       // Yes: Incorporate it to the next request.
-      builder.queryParam("continuationToken", continuationToken);
+      builder.replaceQueryParam("continuationToken", continuationToken);
     }
 
     // Build the URI to make a request to the REST service.
