@@ -53,18 +53,30 @@ import org.lockss.log.L4JLogger;
  * repository service.  No attempt is made to ensure Artifact uniqueness;
  * it's unnecessary as Artifacts are immutable (or soon will be), and
  * LockssRepository doesn't guarantee uniqueness anyway.
+ *
+ * Separately caches recently used ArtifactData, keyed by collection +
+ * artifactId.
  */
 public class ArtifactCache {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  int maxSize;
+  int maxArtSize;
+  int maxArtDataSize;
+
+  // Artifact key -> Artifact
   LRUMap<String,Artifact> artMap;
   LRUMap<String,Artifact> artIterMap;
+
+  // Artifact ID -> ArtifactData
+  LRUMap<String,ArtifactData> artDataMap;
+
   Stats stats = new Stats();
+  private boolean isInstrumented = false;
 
   /** Create and enable the cache */
-  public ArtifactCache(int maxSize) {
-    this.maxSize = maxSize;
+  public ArtifactCache(int maxArtSize, int maxArtDataSize) {
+    this.maxArtSize = maxArtSize;
+    this.maxArtDataSize = maxArtDataSize;
     enable(true);
   }
 
@@ -75,12 +87,15 @@ public class ArtifactCache {
   public synchronized ArtifactCache enable(boolean enable) {
     if (enable) {
       if (artMap == null) {
-	artMap = new LRUMap<>(maxSize);
-	artIterMap = new LRUMap<>(maxSize);
+	artMap = new LRUMap<>(maxArtSize);
+	artIterMap = new LRUMap<>(maxArtSize);
+	artDataMap = new ArtifactDataReleasingLRUMap(maxArtDataSize);
+	stats.setSizes(maxArtSize, maxArtDataSize);
       }
     } else {
       artMap = null;
       artIterMap = null;
+      artDataMap = null;
     }
     return this;
   }
@@ -92,10 +107,23 @@ public class ArtifactCache {
     return artMap != null;
   }
 
+  /** Enable LRUMap usage histograms, which show the recency of cache hit
+   * items but take extra time to compute at each access */
+  public void enableInstrumentation(boolean enable) {
+    isInstrumented = enable;
+  }
+
+  public boolean isInstrumented() {
+    return isInstrumented;
+  }
+
   /** Internal get; return the Artifact stored under the key, or null if
    * none */
   private synchronized Artifact get(String key) {
     if (artMap == null) return null;
+    if (!updateHist(stats.artHist, artMap, key)) {
+      updateHist(stats.artIterHist, artIterMap, key);
+    }
     boolean isIterMap = false;
     Artifact res = artMap.get(key);
     if (res == null) {
@@ -300,37 +328,185 @@ public class ArtifactCache {
     }
   }
 
-  /**
-   * Sets max cache size.
-   * @param newSize the new size
-   */
-  public synchronized void setMaxSize(int newSize) {
-    if (artMap == null) return;
-    if (newSize<=0) {
-      throw new IllegalArgumentException("Negative cache size");
+  /** For now, ArtifactData.release() is called when items exit the
+   * cache */
+  static class ArtifactDataReleasingLRUMap
+    extends LRUMap<String, ArtifactData> {
+
+    ArtifactDataReleasingLRUMap(int maxSize) {
+      super(maxSize);
     }
-    if (artMap.maxSize() != newSize) {
-      LRUMap<String,Artifact> newMap = new LRUMap<>(newSize);
-      newMap.putAll(artMap);
-      artMap = newMap;
-      LRUMap<String,Artifact> newIterMap = new LRUMap<>(newSize);
-      newIterMap.putAll(artIterMap);
-      artIterMap = newIterMap;
-      maxSize = newSize;
+
+    @Override
+    protected boolean removeLRU(LinkEntry<String, ArtifactData> entry) {
+      ArtifactData ad = entry.getValue();
+      ad.release();
+      return true;
     }
   }
 
+  /**
+   * Sets max cache size.
+   * @param newArtSize the new size for the Artifact cache
+   * @param newArtDataSize the new size for the ArtifactData cache
+   */
+  public synchronized void setMaxSize(int newArtSize, int newArtDataSize) {
+    if (newArtSize<=0) {
+      throw new IllegalArgumentException("Negative cache size");
+    }
+    if (artMap != null) {
+      if (artMap.maxSize() != newArtSize) {
+	LRUMap<String,Artifact> newMap = new LRUMap<>(newArtSize);
+	newMap.putAll(artMap);
+	artMap = newMap;
+	stats.setArtSize(newArtSize);
+	LRUMap<String,Artifact> newIterMap = new LRUMap<>(newArtSize);
+	newIterMap.putAll(artIterMap);
+	artIterMap = newIterMap;
+      }
+      if (artDataMap.maxSize() != newArtDataSize) {
+	LRUMap<String,ArtifactData> newDataMap = new LRUMap<>(newArtDataSize);
+	newDataMap.putAll(artDataMap);
+	artDataMap = newDataMap;
+	stats.setArtDataSize(newArtDataSize);
+      }
+    }
+    // Set these even if diabled, so they're right when enabled
+    maxArtSize = newArtSize;
+    maxArtDataSize = newArtDataSize;
+  }
+
+  // ArtifactData cache
+
+  /** Store the ArtifactData in the cache.  If there is already one there,
+   * do not replace it if it has a content InputStream and the new one
+   * doesn't.
+   * @param collection
+   * @param artifactId
+   * @return the ArtifactData that is now in the cache
+   */
+  public synchronized ArtifactData putArtifactData(String collection,
+						   String artifactId,
+						   ArtifactData ad) {
+    if (artDataMap == null) {
+      return ad;
+    }
+    String key = artifactDataKey(collection, artifactId);
+    ArtifactData old = artDataMap.get(key);
+    if (old != null && old.hasContentInputStream()
+	&& !ad.hasContentInputStream()) {
+      log.trace("Not replacing unused ArtifactData with a used one: {}", key);
+      return old;
+    }
+    artDataMap.put(key, ad);
+    ad.setAutoRelease(true);
+    log.trace("putArtifactData({}, {})", key, ad);
+    stats.dataCacheStores++;
+    return ad;
+  }
+
+  /** Return a cached ArtifactData
+   * @param collection
+   * @param artifactId
+   * @param needInputStream if true, a cached item will be returned only if
+   * it has an unused InputStream
+   * @return cached ArtifactDate or null if not found or if an InputStream
+   * is requred and not available.
+   */
+  public synchronized ArtifactData getArtifactData(String collection,
+						   String artifactId,
+						   boolean needInputStream) {
+    if (artDataMap == null) return null;
+    String key = artifactDataKey(collection, artifactId);
+    updateHist(stats.artDataHist, artDataMap, key);
+    ArtifactData res = artDataMap.get(key);
+    if (res != null && needInputStream && !res.hasContentInputStream()) {
+      res = null;
+    }
+    if (res == null) {
+      stats.dataCacheMisses++;
+    } else {
+      stats.dataCacheHits++;
+      log.trace("getArtifactData({}): {}", key, res);
+    }
+    return res;
+  }
+
+  private static String artifactDataKey(String collection, String artifactId) {
+    return collection + "|" + artifactId;
+  }
+
+  /** Update the histogram of positions in the cache where a hit was found.
+   * This must be called *before* the item is looked up, as that operation
+   * moves it to the LRU position.
+   * @param hist the history array to update
+   * @param the LRU map in question
+   * @param the key being looked up in the map
+   * @return true iff the key was found an the historgram updated
+   */
+  private boolean updateHist(int[] hist,
+			     LRUMap<String,? extends Object> map,
+			     String key) {
+    if (isInstrumented()) {
+      if (map.containsKey(key)) {
+	int ix = 0;
+	String mapkey = map.lastKey();
+	do {
+	  if (mapkey.equals(key)) {
+	    updateHist(hist, map.maxSize(), ix);
+	    return true;
+	  }
+	  ix++;
+	} while ((mapkey = map.previousKey(mapkey)) != null);
+      }
+    }
+    return false;
+  }
+
+  private void updateHist(int[] hist, int max, int val) {
+    int ix = val * hist.length / max;
+    log.trace("updateHist({}, {}): {}", max, val, ix);
+    hist[ix]++;
+  }
+
+  /** Return a Stats object describing the hit & miss statistics, and
+   * histograms to guide in sizing the caches */
   public Stats getStats() {
     return stats;
   }
 
   public static class Stats {
+    private int maxArtSize = 0;
     private int cacheHits = 0;
     private int cacheIterHits = 0;
     private int cacheMisses = 0;
     private int cacheStores = 0;
     private int cacheInvalidates = 0;
     private int cacheFlushes = 0;
+    private int[] artHist;
+    private int[] artIterHist;
+
+    private int maxArtDataSize = 0;
+    private int dataCacheHits = 0;
+    private int dataCacheMisses = 0;
+    private int dataCacheStores = 0;
+    private int[] artDataHist;
+
+    public void setSizes(int maxArtSize, int maxArtDataSize) {
+      setArtSize(maxArtSize);
+      setArtDataSize(maxArtDataSize);
+    }
+
+    public void setArtSize(int maxArtSize) {
+      artHist = new int[Math.min(maxArtSize, 20)];
+      artIterHist = new int[Math.min(maxArtSize, 20)];
+      this.maxArtSize = maxArtSize;
+    }
+
+    public void setArtDataSize(int maxArtDataSize) {
+      artDataHist = new int[Math.min(maxArtDataSize, 20)];
+      this.maxArtDataSize = maxArtDataSize;
+    }
 
     public int getCacheHits() {
       return cacheHits;
@@ -354,6 +530,38 @@ public class ArtifactCache {
 
     public int getCacheFlushes() {
       return cacheFlushes;
+    }
+
+    public int getDataCacheHits() {
+      return dataCacheHits;
+    }
+
+    public int getDataCacheMisses() {
+      return dataCacheMisses;
+    }
+
+    public int getDataCacheStores() {
+      return dataCacheStores;
+    }
+
+    public int getMaxArtSize() {
+      return maxArtSize;
+    }
+
+    public int getMaxArtDataSize() {
+      return maxArtDataSize;
+    }
+
+    public int[] getArtHist() {
+      return artHist;
+    }
+
+    public int[] getArtIterHist() {
+      return artIterHist;
+    }
+
+    public int[] getArtDataHist() {
+      return artDataHist;
     }
   }
 

@@ -75,7 +75,8 @@ import javax.jms.*;
 public class RestLockssRepository implements LockssRepository {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  public static final int DEFAULT_MAX_CACHE_SIZE = 500;
+  public static final int DEFAULT_MAX_ART_CACHE_SIZE = 500;
+  public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE = 20;
 
   private RestTemplate restTemplate;
   private URL repositoryUrl;
@@ -224,6 +225,8 @@ public class RestLockssRepository implements LockssRepository {
 		       false);
       Artifact res = mapper.readValue(response.getBody(), Artifact.class);
       artCache.put(res);
+      artCache.putArtifactData(res.getCollection(), res.getIdentifier().getId(),
+			       artifactData);
       return res;
 
     } catch (LockssRestException e) {
@@ -254,9 +257,33 @@ public class RestLockssRepository implements LockssRepository {
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
+  public ArtifactData getArtifactData(String collection, String artifactId)
+      throws IOException {
+    return getArtifactData(collection, artifactId, true);
+  }
+
+  /**
+   * Retrieves an artifact from a remote REST LOCKSS Repository server.
+   *
+   * @param collection
+   *          A {@code String} containing the collection ID.
+   * @param artifactId
+   *          A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
+   * @return The {@code ArtifactData} referenced by the artifact ID.
+   * @throws IOException
+   */
+  @Override
+  public ArtifactData getArtifactData(String collection, String artifactId,
+				      boolean includeInputStream)
+      throws IOException {
     if ((collection == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
+
+    ArtifactData cached = artCache.getArtifactData(collection, artifactId,
+						   includeInputStream);
+    if (cached != null) {
+      return cached;
+    }
 
     try {
       ResponseEntity<Resource> response =
@@ -270,8 +297,12 @@ public class RestLockssRepository implements LockssRepository {
 
       // TODO: Is response.getBody.getInputStream() backed by memory?
       // Or over a threshold, is it backed by disk?
-      return ArtifactDataFactory.fromTransportResponseEntity(response);
-
+      ArtifactData res =
+	ArtifactDataFactory.fromTransportResponseEntity(response);
+      if (res != null) {		// possible?
+	artCache.putArtifactData(collection, artifactId, res);
+      }
+      return res;
     } catch (LockssRestHttpException e) {
       log.error("Could not get artifact data: {}", e.toString());
       checkArtIdError(e, artifactId, "Artifact Id not found");
@@ -331,6 +362,19 @@ public class RestLockssRepository implements LockssRepository {
       throw e;
     }
   }
+
+    /**
+     * Permanently removes an artifact from this LOCKSS repository.
+     *
+     * @param artifact
+     *          The artifact to remove from this LOCKSS repository.
+     * @throws IOException
+     */
+    public void deleteArtifact(Artifact artifact) throws IOException {
+      artCache.invalidate(ArtifactCache.InvalidateOp.Delete,
+			  artifact.makeKey());
+      deleteArtifact(artifact.getCollection(), artifact.getId());
+    }
 
   /**
    * Permanently removes an artifact from this LOCKSS repository.
@@ -1033,7 +1077,9 @@ public class RestLockssRepository implements LockssRepository {
   // Artifact cache.  Disable by default; our client will enable if
   // desired
   private ArtifactCache artCache =
-    new ArtifactCache(DEFAULT_MAX_CACHE_SIZE).enable(false);
+    new ArtifactCache(DEFAULT_MAX_ART_CACHE_SIZE,
+		      DEFAULT_MAX_ART_DATA_CACHE_SIZE)
+    .enable(false);
   private JmsConsumer jmsConsumer;
   private JmsProducer jmsProducer;
   boolean isEnablingCache = false;
