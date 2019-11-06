@@ -84,6 +84,10 @@ public class ArtifactData implements Comparable<ArtifactData> {
     // The collection date.
     private long collectionDate = TimeBase.nowMs();
 
+    private boolean isReleased;
+
+    private String openTrace;
+
     /**
      * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
      *
@@ -148,6 +152,9 @@ public class ArtifactData implements Comparable<ArtifactData> {
         this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
         setCollectionDate(this.artifactMetadata.getDate());
 
+	// Comment in to log creation point of unused InputStreams
+// 	openTrace = stackTraceString(new Exception("Open"));
+
         try {
             // Wrap the stream in a DigestInputStream
             cis = new CountingInputStream(inputStream);
@@ -183,6 +190,15 @@ public class ArtifactData implements Comparable<ArtifactData> {
      */
     public HttpHeaders getMetadata() {
         return artifactMetadata;
+    }
+
+    /**
+     * Returns true if an InputStream is available.
+     *
+     * @return true if this artifact's byte stream is available
+     */
+    public boolean hasContentInputStream() {
+      return artifactStream != null;
     }
 
     /**
@@ -342,13 +358,28 @@ public class ArtifactData implements Comparable<ArtifactData> {
       this.closableInputStream = closableInputStream;
     }
 
+  // Temporary until InputStream refactored
+  private boolean isAutoRelease = false;
+
+  public void setAutoRelease(boolean val) {
+    isAutoRelease = val;
+  }
+
+  public boolean isAutoRelease() {
+    return isAutoRelease;
+  }
+
     /**
      * Releases resources used.
      */
     public void release() {
-      IOUtils.closeQuietly(closableInputStream);
-      artifactStream = null;
-      closableInputStream = null;
+      if (!isReleased) {
+	IOUtils.closeQuietly(closableInputStream);
+	updateStats();
+	artifactStream = null;
+	closableInputStream = null;
+	isReleased = true;
+      }
     }
 
     @Override
@@ -368,4 +399,59 @@ public class ArtifactData implements Comparable<ArtifactData> {
     public MessageDigest getMessageDigest() {
         return dis.getMessageDigest();
     }
+
+  public String stackTraceString(Throwable th) {
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    th.printStackTrace(pw);
+    return sw.toString();
+  }
+
+
+
+  /**
+   * Finalizer.
+   */
+  @Override
+  protected void finalize() throws Throwable {
+    if (!isReleased) {
+      stats.unreleased++;
+      updateStats();
+    }
+    super.finalize();
+  }
+
+  private void updateStats() {
+    if (artifactStream == null) {
+      stats.inputUsed++;
+    } else {
+      stats.inputUnused++;
+      log.debug2("Unused InputStream: {}, opened at {}",
+		 getIdentifier(), openTrace);
+    }
+  }
+
+  public static Stats getStats() {
+    return stats;
+  }
+
+  static Stats stats = new Stats();
+
+  public static class Stats {
+    private int inputUsed;
+    private int inputUnused;
+    private int unreleased;
+
+    public int getInputUsed() {
+      return inputUsed;
+    }
+
+    public int getInputUnused() {
+      return inputUnused;
+    }
+
+    public int getUnreleased() {
+      return unreleased;
+    }
+  }
 }

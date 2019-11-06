@@ -31,8 +31,9 @@ package org.lockss.laaws.rs.core;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.apache.commons.collections4.IteratorUtils;
-import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.*;
 import org.lockss.util.test.LockssTestCase5;
 
 public class TestArtifactCache extends LockssTestCase5 {
@@ -42,6 +43,9 @@ public class TestArtifactCache extends LockssTestCase5 {
   static String COLL2 = "c2";
   static String AUID1 = "AAUU1";
   static String AUID2 = "AAUU2";
+  static String ARTID1 = "1a-2b-3c";
+  static String ARTID2 = "2b-1a-3c";
+  static String ARTID3 = "1a-3c-2b";
 
   static String URL1 = "u1";
   static String URL2 = "u2";
@@ -51,7 +55,8 @@ public class TestArtifactCache extends LockssTestCase5 {
 
   @BeforeEach
   public void setUp() throws Exception {
-    cache = new ArtifactCache(10);
+    cache = new ArtifactCache(10, 10);
+    cache.enableInstrumentation(true);
   }
 
   Artifact makeArt(String coll, String auid, String url, int version) {
@@ -60,7 +65,7 @@ public class TestArtifactCache extends LockssTestCase5 {
   }
 
   @Test
-  public void testCaching() throws Exception {
+  public void testArtCache() throws Exception {
     Artifact u1v1 = makeArt(COLL1, AUID1, URL1, 1);
     Artifact u2v1 = makeArt(COLL1, AUID1, URL2, 1);
     Artifact u2v2 = makeArt(COLL1, AUID1, URL2, 2);
@@ -74,6 +79,8 @@ public class TestArtifactCache extends LockssTestCase5 {
     assertSame(u1v1, cache.get(u1v1));
     assertSame(u1v1, cache.get(makeArt(COLL1, AUID1, URL1, 1)));
 
+    assertArrayEquals(new int[] {2,0,0,0,0,0,0,0,0,0},
+		      cache.getStats().getArtHist());
     assertEquals(2, stats.getCacheHits());
     assertEquals(1, stats.getCacheMisses());
 
@@ -94,6 +101,9 @@ public class TestArtifactCache extends LockssTestCase5 {
     assertSame(u2v2, cache.getLatest(COLL1, AUID1, URL2));
     assertSame(u2v2, cache.get(COLL1, AUID1, URL2, 2));
     assertSame(u2v1, cache.get(COLL1, AUID1, URL2, 1));
+    log.trace("arthist: {}", Arrays.asList(cache.getStats().getArtHist()));
+    assertArrayEquals(new int[] {7,3,1,0,0,0,0,0,0,0},
+		      cache.getStats().getArtHist());
 
     cache.flush();
     assertEquals(1, stats.getCacheFlushes());
@@ -104,7 +114,7 @@ public class TestArtifactCache extends LockssTestCase5 {
   }
 
   @Test
-  public void testFillCache() throws Exception {
+  public void testFillArtCache() throws Exception {
     List<Artifact> arts = new ArrayList<>();
     for (int ii=1; ii<=10; ii++) {
       Artifact art = makeArt(COLL1, AUID1, URL1, ii);
@@ -123,7 +133,7 @@ public class TestArtifactCache extends LockssTestCase5 {
     }
     assertSame(arts.get(9), cache.get(makeArt(COLL1, AUID1, URL1, -1)));
 
-    cache.setMaxSize(5);
+    cache.setMaxSize(5, 5);
     // first 6 should now be gone, leaving 7-10 and latest
     for (int ii=1; ii<7; ii++) {
       assertNull(cache.get(makeArt(COLL1, AUID1, URL1, ii)));
@@ -166,8 +176,8 @@ public class TestArtifactCache extends LockssTestCase5 {
   }
 
   @Test
-  public void testIterator() throws Exception {
-    cache.setMaxSize(5);
+  public void testArtIterator() throws Exception {
+    cache.setMaxSize(5, 5);
     ArtifactCache.Stats stats = cache.getStats();
     List<Artifact> lst = new ArrayList<>();
     for (int ii=1; ii<=10; ii++) {
@@ -220,6 +230,86 @@ public class TestArtifactCache extends LockssTestCase5 {
     // Items in regular cache shouldn't have aged out
     assertSame(s2, cache.getLatest(COLL2, AUID1, URL2));
     assertSame(s3, cache.getLatest(COLL2, AUID1, URL3));
+  }
+
+  ArtifactData makeAD(String url, String id, String content) {
+    return makeAD(url, id, content, null);
+  }
+
+  ArtifactData makeAD(String url, String id, String content, Map headers) {
+    if (headers == null) {
+      headers = MapUtil.map("H1", "v1", "h2", "V2");
+    }
+    ArtifactSpec s1 = ArtifactSpec.forCollAuUrl(COLL1, AUID1, url)
+      .setArtifactId(id)
+      .setContent(content)
+      .setHeaders(headers)
+      .setCollectionDate(0);
+    return s1.getArtifactData();
+  }
+
+  @Test
+  public void testArtDataCache() throws Exception {
+    ArtifactData ad1 = makeAD(URL1, ARTID1, "content");
+    ArtifactData ad2 = makeAD(URL2, ARTID2, "content2");
+    ArtifactData ad3 = makeAD(URL3, ARTID3, "content3");
+    assertNull(cache.getArtifactData(COLL1, ARTID1, false));
+    ArtifactCache.Stats stats = cache.getStats();
+    assertEquals(0, stats.getDataCacheHits());
+    assertEquals(1, stats.getDataCacheMisses());
+
+    assertSame(ad1, cache.putArtifactData(COLL1, ARTID1, ad1));
+    assertSame(ad1, cache.getArtifactData(COLL1, ARTID1, false));
+    assertEquals(1, stats.getDataCacheHits());
+    assertEquals(1, stats.getDataCacheMisses());
+    assertEquals(1, stats.getDataCacheStores());
+    assertNull(cache.getArtifactData(COLL1, ARTID2, false));
+    assertEquals(1, stats.getDataCacheHits());
+    assertEquals(2, stats.getDataCacheMisses());
+    assertEquals(1, stats.getDataCacheStores());
+
+    // Cached item has required InputStream
+    assertSame(ad1, cache.getArtifactData(COLL1, ARTID1, true));
+    // Use InputStream
+    ad1.getInputStream();
+    // Now doesn't have required InputStream
+    assertNull(cache.getArtifactData(COLL1, ARTID1, true));
+    // But is still valid if InputStream not required
+    assertSame(ad1, cache.getArtifactData(COLL1, ARTID1, false));
+
+    assertEquals(3, stats.getDataCacheHits());
+    assertEquals(3, stats.getDataCacheMisses());
+
+    assertSame(ad2, cache.putArtifactData(COLL1, ARTID2, ad2));
+    assertSame(ad3, cache.putArtifactData(COLL1, ARTID3, ad3));
+
+    assertArrayEquals(new int[] {4,0,0,0,0,0,0,0,0,0},
+		      cache.getStats().getArtDataHist());
+    // This is now 3rd
+    assertSame(ad1, cache.getArtifactData(COLL1, ARTID1, false));
+    // now 2nd
+    assertSame(ad3, cache.getArtifactData(COLL1, ARTID3, false));
+    // 3rd
+    assertSame(ad2, cache.getArtifactData(COLL1, ARTID2, false));
+    log.trace("artdatahist: {}",
+	      Arrays.asList(cache.getStats().getArtDataHist()));
+    assertArrayEquals(new int[] {4,1,2,0,0,0,0,0,0,0},
+		      cache.getStats().getArtDataHist());
+
+    // Ensure unused item in cache isn't replaced by used new item
+    ArtifactData ad2a = makeAD(URL2, ARTID2, "content2");
+    ArtifactData ad2b = makeAD(URL2, ARTID2, "content2");
+    ad2a.getInputStream();
+    // ad2a is used, shouldn't replace unused ad2
+    assertSame(ad2, cache.putArtifactData(COLL1, ARTID2, ad2a));
+    assertSame(ad2, cache.getArtifactData(COLL1, ARTID2, true));
+    // ad2b not used, should replace ad2
+    assertSame(ad2b, cache.putArtifactData(COLL1, ARTID2, ad2b));
+    assertSame(ad2b, cache.getArtifactData(COLL1, ARTID2, true));
+    ad2b.getInputStream();
+    // now ad2a should replace used ad2b
+    assertSame(ad2a, cache.putArtifactData(COLL1, ARTID2, ad2a));
+    assertSame(ad2a, cache.getArtifactData(COLL1, ARTID2, false));
   }
 
 }

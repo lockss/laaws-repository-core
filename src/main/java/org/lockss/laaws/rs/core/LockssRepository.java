@@ -82,6 +82,43 @@ public interface LockssRepository extends Ready {
      * <br>(See Reusability and release note in {@link
      * org.lockss.laaws.rs.model.ArtifactData})
      *
+     * @param artifact
+     *          An artifact to retrieve from this repository.
+     * @return The {@code ArtifactData} referenced by this artifact.
+     * @throws IOException
+     */
+    default ArtifactData getArtifactData(Artifact artifact,
+					 boolean includeInputStream)
+	throws IOException {
+      return getArtifactData(artifact.getCollection(), artifact.getId(),
+			     includeInputStream);
+    }
+
+    /**
+     * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
+     *
+     *
+     * @param collection
+     *          The collection ID of the artifact.
+     * @param artifactId
+     *          A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+     * @return The {@code ArtifactData} referenced by this artifact ID.
+     * @throws IOException
+     */
+    default ArtifactData getArtifactData(String collection,
+					 String artifactId,
+					 boolean includeInputStream)
+        throws IOException {
+      return getArtifactData(collection, artifactId);
+    }
+
+    /**
+     * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
+     *
      *
      * @param collection
      *          The collection ID of the artifact.
