@@ -37,6 +37,8 @@ import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactPageInfo;
+import org.lockss.laaws.rs.model.AuidPageInfo;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -580,12 +582,11 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   /**
-   * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+   * Returns an iterable over Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
    *
    * @param collection
    *          A {@code String} containing the LOCKSS repository collection ID.
-   * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
-   * @throws IOException
+   * @return A {@code Iterable<String>} iterating over the AUIDs in this LOCKSS repository collection.
    */
   @Override
   public Iterable<String> getAuIds(String collection) throws IOException {
@@ -594,44 +595,18 @@ public class RestLockssRepository implements LockssRepository {
     String endpoint = String.format("%s/collections/%s/aus", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
-
-    try {
-      ResponseEntity<String> response =
-	RestUtil.callRestService(restTemplate,
-				 builder.build().encode().toUri(),
-				 HttpMethod.GET,
-				 null,
-				 String.class,
-				 "getAuIds");
-
-      checkStatusOk(response);
-
-      ObjectMapper mapper = new ObjectMapper();
-      List<String> result =
-	mapper.readValue((String)response.getBody(),
-			 new TypeReference<List<String>>(){});
-      return IteratorUtils.asIterable(result.iterator());
-
-    } catch (LockssRestHttpException e) {
-      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-	return IteratorUtils.asIterable(Collections.emptyIterator());
-      }
-      log.error("Could not get AUIDs", e);
-      throw e;
-    } catch (LockssRestException e) {
-      log.error("Could not get AUIDs", e);
-      throw e;
-    }
+    return IteratorUtils.asIterable(
+	new RestLockssRepositoryAuidIterator(restTemplate, builder));
   }
 
   /**
-   * Returns an iterable object over artifacts, given a REST endpoint that returns artifacts.
+   * Returns an iterator over artifacts, given a REST endpoint that returns artifacts.
    *
    * @param builder A {@code UriComponentsBuilder} containing a REST endpoint that returns artifacts.
    * @return An {@code Iterator<Artifact>} containing artifacts.
    */
   private Iterator<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
-    return getArtifacts(builder.build().encode().toUri());
+    return new RestLockssRepositoryArtifactIterator(restTemplate, builder);
   }
 
   /**
@@ -655,7 +630,7 @@ public class RestLockssRepository implements LockssRepository {
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
 		       false);
       List<Artifact> result = mapper.readValue((String)response.getBody(),
-					       new TypeReference<List<Artifact>>(){});
+	  ArtifactPageInfo.class).getArtifacts();
       return result.iterator();
 
     } catch (LockssRestHttpException e) {
@@ -876,9 +851,8 @@ public class RestLockssRepository implements LockssRepository {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
 		       false);
-      List<Artifact> artifacts =
-	mapper.readValue((String) response.getBody(),
-			 new TypeReference<List<Artifact>>(){});
+      List<Artifact> artifacts = mapper.readValue((String)response.getBody(),
+	  ArtifactPageInfo.class).getArtifacts();
 
       if (!artifacts.isEmpty()) {
 	if (artifacts.size() > 1) {
@@ -962,9 +936,8 @@ public class RestLockssRepository implements LockssRepository {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
 		       false);
-      List<Artifact> artifacts =
-	mapper.readValue((String)response.getBody(),
-			 new TypeReference<List<Artifact>>(){});
+      List<Artifact> artifacts = mapper.readValue((String)response.getBody(),
+	  ArtifactPageInfo.class).getArtifacts();
 
       if (!artifacts.isEmpty()) {
 	// Warn if the server returned more than one artifact

@@ -41,6 +41,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.util.LockssUncheckedException;
 import org.lockss.util.rest.exception.*;
 import org.lockss.log.L4JLogger;
 import org.springframework.http.HttpHeaders;
@@ -251,7 +252,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetArtifact_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Artifact result = repository.getArtifact("collection1", "auid1", "url1");
         mockServer.verify();
@@ -263,7 +264,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetArtifact_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":2}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Artifact result = repository.getArtifact("collection1", "auid1", "url1");
         mockServer.verify();
@@ -513,7 +514,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
         // Test with empty result
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"auids\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<String> auIds = repository.getAuIds("collection1");
         mockServer.verify();
@@ -527,7 +528,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
         // Test with valid result
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[\"auid1\"]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"auids\":[\"auid1\"], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<String> auIds = repository.getAuIds("collection1");
         mockServer.verify();
@@ -546,7 +547,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andRespond(withServerError());
 
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "500 Internal Server Error",
 		      () -> {repository.getAuIds("collection1");});
         mockServer.verify();
@@ -558,7 +559,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "400 Bad Request",
 		      () -> {repository.getArtifacts("collection1", "auid1");});
         mockServer.verify();
@@ -581,7 +582,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifacts_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
@@ -594,7 +595,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifacts_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=latest", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":2}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifacts("collection1", "auid1");
         mockServer.verify();
@@ -613,7 +614,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "500 Internal Server Error",
 		      () -> {repository.getArtifacts("collection1", "auid1");});
         mockServer.verify();
@@ -625,7 +626,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "400 Bad Request",
 		      () -> {repository.getArtifactsAllVersions("collection1",
 								"auid1");});
@@ -649,7 +650,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifactsAllVersions_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=all", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
@@ -662,7 +663,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifactsAllVersions_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=all", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":2}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1");
         mockServer.verify();
@@ -681,7 +682,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "500 Internal Server Error",
 		      () -> {repository.getArtifactsAllVersions("collection1",
 								"auid1");});
@@ -694,7 +695,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "400 Bad Request",
 		      () -> {repository.getArtifactsWithPrefix("collection1",
 							       "auid1",
@@ -719,7 +720,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifactsWithPrefix_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?urlPrefix=url1", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
@@ -732,7 +733,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifactsWithPrefix_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?urlPrefix=url1", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":2}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsWithPrefix("collection1", "auid1", "url1");
         mockServer.verify();
@@ -751,7 +752,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "500 Internal Server Error",
 		      () -> {repository.getArtifactsWithPrefix("collection1",
 							       "auid1",
@@ -765,7 +766,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 			  "400 Bad Request",
 		      () -> {repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");});
         mockServer.verify();
@@ -788,7 +789,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifactsWithPrefixAllVersions_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=all&urlPrefix=url1", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
@@ -801,7 +802,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetAllArtifactsWithPrefixAllVersions_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?version=all&urlPrefix=url1", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":2}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsWithPrefixAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
@@ -820,7 +821,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 		      "500 Internal Server Error",
 		      () -> {repository.getArtifactsWithPrefixAllVersions("collection1",
 									  "auid1",
@@ -834,7 +835,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST));
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 			  "400 Bad Request",
 			  () -> {repository.getArtifactsAllVersions("collection1",
 								    "auid1",
@@ -859,7 +860,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetArtifactAllVersions_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=all", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
@@ -872,7 +873,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetArtifactAllVersions_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=all", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":2}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":2}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Iterable<Artifact> result = repository.getArtifactsAllVersions("collection1", "auid1", "url1");
         mockServer.verify();
@@ -891,7 +892,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withServerError());
 
-	assertThrowsMatch(LockssRestHttpException.class,
+	assertThrowsMatch(LockssUncheckedException.class,
 			  "500 Internal Server Error",
 			  () -> {repository.getArtifactsAllVersions("collection1",
 								    "auid1",
@@ -927,7 +928,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetArtifactVersion_empty() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Artifact result = repository.getArtifactVersion("collection1", "auid1", "url1", 123);
         mockServer.verify();
@@ -939,7 +940,7 @@ public class TestRestLockssRepository extends LockssTestCase5 {
     public void testGetArtifactVersion_found() throws Exception {
         mockServer.expect(requestTo(String.format("%s/collections/collection1/aus/auid1/artifacts?url=url1&version=123", BASEURL)))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"version\":123}]", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"artifacts\":[{\"id\":\"1\",\"version\":123}], \"pageInfo\":{}}", MediaType.APPLICATION_JSON));
 
         Artifact result = repository.getArtifactVersion("collection1", "auid1", "url1", 123);
         mockServer.verify();
