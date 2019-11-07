@@ -269,6 +269,9 @@ public class RestLockssRepository implements LockssRepository {
    *          A {@code String} containing the collection ID.
    * @param artifactId
    *          A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
+   * @param includeInputStream
+   *          true to request the content be made available, false if the
+   *          content isn't needed
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
