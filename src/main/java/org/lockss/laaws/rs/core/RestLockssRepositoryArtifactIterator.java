@@ -45,6 +45,8 @@ import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -66,6 +68,10 @@ implements Iterator<Artifact> {
   // The REST service URI builder.
   private final UriComponentsBuilder builder;
 
+  // The value of the Authorization header to be used when calling the REST
+  // service.
+  private String authHeaderValue = null;
+
   // The internal buffer used to store locally the artifacts provided by the
   // REST service.
   private List<Artifact> artifactBuffer = null;
@@ -77,7 +83,7 @@ implements Iterator<Artifact> {
   private String continuationToken = null;
 
   /**
-   * Constructor with default batch size.
+   * Constructor with default batch size and no Authorization header.
    * 
    * @param restTemplate A RestTemplate with the REST service template.
    * @param builder      An UriComponentsBuilder with the REST service URI
@@ -85,11 +91,25 @@ implements Iterator<Artifact> {
    */
   public RestLockssRepositoryArtifactIterator(RestTemplate restTemplate,
       UriComponentsBuilder builder) {
-    this(restTemplate, builder, null);
+    this(restTemplate, builder, null, null);
   }
 
   /**
-   * Full constructor.
+   * Constructor with default batch size.
+   * 
+   * @param restTemplate    A RestTemplate with the REST service template.
+   * @param builder         An UriComponentsBuilder with the REST service URI
+   *                        builder.
+   * @param authHeaderValue A String with the Authorization header to be used
+   *                        when calling the REST service.
+   */
+  public RestLockssRepositoryArtifactIterator(RestTemplate restTemplate,
+      UriComponentsBuilder builder, String authHeaderValue) {
+    this(restTemplate, builder, authHeaderValue, null);
+  }
+
+  /**
+   * Constructor with no Authorization header.
    * 
    * @param restTemplate A RestTemplate with the REST service template.
    * @param builder      An UriComponentsBuilder with the REST service URI
@@ -99,6 +119,22 @@ implements Iterator<Artifact> {
    */
   public RestLockssRepositoryArtifactIterator(RestTemplate restTemplate,
       UriComponentsBuilder builder, Integer limit) {
+    this(restTemplate, builder, null, limit);
+  }
+
+  /**
+   * Full constructor.
+   * 
+   * @param restTemplate    A RestTemplate with the REST service template.
+   * @param builder         An UriComponentsBuilder with the REST service URI
+   *                        builder.
+   * @param authHeaderValue A String with the Authorization header to be used
+   *                        when calling the REST service.
+   * @param limit           An Integer with the number of artifacts to request
+   *                        on each REST service request.
+   */
+  public RestLockssRepositoryArtifactIterator(RestTemplate restTemplate,
+      UriComponentsBuilder builder, String authHeaderValue, Integer limit) {
     // Validation.
     if (restTemplate == null) {
       throw new IllegalArgumentException(
@@ -122,6 +158,7 @@ implements Iterator<Artifact> {
     }
 
     this.builder = builder;
+    this.authHeaderValue = authHeaderValue;
 
     fillArtifactBuffer();
   }
@@ -198,12 +235,24 @@ implements Iterator<Artifact> {
     URI uri = builder.build().encode().toUri();
     log.trace("uri = {}", uri);
 
+    // Build the HttpEntity to include in the request to the REST service.
+    HttpEntity<Void> httpEntity = null;
+
+    // Check whether there is an Authorization header to be used when calling
+    // the REST service.
+    if (authHeaderValue != null) {
+      // Yes: Set up the HTTP headers.
+      HttpHeaders httpHeaders = new HttpHeaders();
+      httpHeaders.set("Authorization", authHeaderValue);
+      httpEntity = new HttpEntity<>(null, httpHeaders);
+    }
+
     ResponseEntity<String> response = null;
 
     try {
       // Make the request and get the response.
       response = RestUtil.callRestService(restTemplate, uri, HttpMethod.GET,
-	  null, String.class, "fillArtifactBuffer");
+	  httpEntity, String.class, "fillArtifactBuffer");
     } catch (LockssRestHttpException e) {
       if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
 	log.trace("Could not fetch artifacts: Exception caught", e);

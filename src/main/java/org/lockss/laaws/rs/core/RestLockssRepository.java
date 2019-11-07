@@ -38,7 +38,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.ArtifactPageInfo;
-import org.lockss.laaws.rs.model.AuidPageInfo;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -58,12 +57,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import javax.jms.*;
 
@@ -82,29 +81,53 @@ public class RestLockssRepository implements LockssRepository {
   private RestTemplate restTemplate;
   private URL repositoryUrl;
 
+  // The value of the Authorization header to be used when calling the REST
+  // service.
+  private String authHeaderValue = null;
+
   /**
-   * Constructor that takes a base URL to a remote LOCKSS Repository service, and uses an unmodified Spring REST
-   * template client.
+   * Constructor that takes a base URL to a remote LOCKSS Repository service,
+   * and uses an unmodified Spring REST template client.
    *
-   * @param repositoryUrl
-   *          A {@code URL} containing the base URL of the remote LOCKSS Repository service.
+   * @param repositoryUrl A {@code URL} containing the base URL of the remote
+   *                      LOCKSS Repository service.
+   * @param userName      A String with the name of the user used to access the
+   *                      remote LOCKSS Repository service.
+   * @param password      A String with the password of the user used to access
+   *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl) {
-    this(repositoryUrl, new RestTemplate());
+  public RestLockssRepository(URL repositoryUrl, String userName,
+      String password) {
+    this(repositoryUrl, new RestTemplate(), userName, password);
   }
 
   /**
-   * Constructor that takes a base URL to a remote LOCKSS Repository service, and an instance of Spring's
-   * {@code RestTemplate}. Used for mainly for testing.
+   * Constructor that takes a base URL to a remote LOCKSS Repository service,
+   * and an instance of Spring's {@code RestTemplate}. Used for mainly for
+   * testing.
    *
-   * @param repositoryUrl
-   *          A {@code URL} containing the base URL of the remote LOCKSS Repository service.
-   * @param restTemplate
-   *          Instance of {@code RestTemplate} to use internally for remote REST calls.
+   * @param repositoryUrl A {@code URL} containing the base URL of the remote
+   *                      LOCKSS Repository service.
+   * @param restTemplate  Instance of {@code RestTemplate} to use internally for
+   *                      remote REST calls.
+   * @param userName      A String with the name of the user used to access the
+   *                      remote LOCKSS Repository service.
+   * @param password      A String with the password of the user used to access
+   *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate) {
+  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate,
+      String userName, String password) {
     this.restTemplate = restTemplate;
     this.repositoryUrl = repositoryUrl;
+
+    // Check whether user credentials were passed.
+    if (userName != null && password != null) {	
+      String credentials = userName + ":" + password;
+      authHeaderValue = "Basic " + Base64.getEncoder()
+      .encodeToString(credentials.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    log.trace("authHeaderValue = {}", authHeaderValue);
 
     restTemplate.setErrorHandler(new DefaultResponseErrorHandler(){
 	protected boolean hasError(HttpStatus statusCode) {
@@ -205,7 +228,8 @@ public class RestLockssRepository implements LockssRepository {
 //        parts.add("aspectsParts", new NamedByteArrayResource("aspect3", "metadata bytes3".getBytes()));
 
     // POST body entity
-    HttpEntity<MultiValueMap<String, Object>> multipartEntity = new HttpEntity<>(parts, null);
+    HttpEntity<MultiValueMap<String, Object>> multipartEntity =
+	new HttpEntity<>(parts, getInitializedHttpHeaders());
 
     // Construct REST endpoint to collection
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, artifactId.getCollection());
@@ -265,7 +289,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 artifactEndpoint(collection, artifactId),
 				 HttpMethod.GET,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 Resource.class,
 				 "getArtifactData");
       checkStatusOk(response);
@@ -303,7 +328,7 @@ public class RestLockssRepository implements LockssRepository {
       .queryParam("committed", "true");
 
     // Required by REST API specification
-    HttpHeaders headers = new HttpHeaders();
+    HttpHeaders headers = getInitializedHttpHeaders();
     headers.setContentType(MediaType.valueOf("multipart/form-data"));
 
     try {
@@ -348,7 +373,7 @@ public class RestLockssRepository implements LockssRepository {
     if ((collection == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
 
-    HttpHeaders headers = new HttpHeaders();
+    HttpHeaders headers = getInitializedHttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
 
     try {
@@ -385,7 +410,8 @@ public class RestLockssRepository implements LockssRepository {
    */
   private Artifact updateArtifactProperties(String collection, String artifactId, MultiValueMap<String, Object> parts) throws IOException {
     // Create PUT request entity
-    HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(parts, null);
+    HttpEntity<MultiValueMap<String, Object>> requestEntity =
+	new HttpEntity<>(parts, getInitializedHttpHeaders());
 
     // Submit PUT request and return artifact index data
     try {
@@ -434,7 +460,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 artifactEndpoint(collection, artifactId),
 				 HttpMethod.HEAD,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 Void.class,
 				 "artifactExists");
       checkStatusOk(response);
@@ -472,7 +499,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 artifactEndpoint(collection, artifactId),
 				 HttpMethod.HEAD,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 Void.class,
 				 "isArtifactCommitted");
       checkStatusOk(response);
@@ -519,7 +547,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 builder.build().encode().toUri(),
 				 HttpMethod.GET,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 String.class,
 				 "getCollectionIds");
       checkStatusOk(response);
@@ -549,7 +578,8 @@ public class RestLockssRepository implements LockssRepository {
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
     return IteratorUtils.asIterable(
-	new RestLockssRepositoryAuidIterator(restTemplate, builder));
+	new RestLockssRepositoryAuidIterator(restTemplate, builder,
+	    authHeaderValue));
   }
 
   /**
@@ -559,7 +589,8 @@ public class RestLockssRepository implements LockssRepository {
    * @return An {@code Iterator<Artifact>} containing artifacts.
    */
   private Iterator<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
-    return new RestLockssRepositoryArtifactIterator(restTemplate, builder);
+    return new RestLockssRepositoryArtifactIterator(restTemplate, builder,
+	authHeaderValue);
   }
 
   /**
@@ -574,7 +605,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 endpoint,
 				 HttpMethod.GET,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 String.class,
 				 "getArtifacts");
       checkStatusOk(response);
@@ -795,7 +827,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 builder.build().encode().toUri(),
 				 HttpMethod.GET,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 String.class,
 				 "getArtifact");
 
@@ -881,7 +914,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 builder.build().encode().toUri(),
 				 HttpMethod.GET,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 String.class,
 				 "getArtifactVersion");
       checkStatusOk(response);
@@ -939,7 +973,8 @@ public class RestLockssRepository implements LockssRepository {
 	RestUtil.callRestService(restTemplate,
 				 builder.build().encode().toUri(),
 				 HttpMethod.GET,
-				 null,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
 				 String.class,
 				 "auSize");
 
@@ -1168,5 +1203,22 @@ public class RestLockssRepository implements LockssRepository {
   ArtifactCache.InvalidateOp msgOp(String op) throws IllegalArgumentException {
     return Enum.valueOf(ArtifactCache.InvalidateOp.class, op);
   }
-  
+
+  /**
+   * Provides a new set of HTTP headers including the Autorization header, if
+   * necessary.
+   * 
+   * @return an HttpHeaders with the HTTP headers.
+   */
+  private HttpHeaders getInitializedHttpHeaders() {
+    HttpHeaders result = new HttpHeaders();
+
+    // Check whether the Authorization header needs to be included.
+    if (authHeaderValue != null) {
+      // Yes.
+      result.add("Authorization", authHeaderValue);
+    }
+
+    return result;
+  }
 }

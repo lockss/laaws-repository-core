@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -104,14 +104,22 @@ public class LockssRepositoryFactory {
     }
 
     /**
-     * Instantiates a LOCKSS repository proxy to a remote LOCKSS Repository Service over REST.
+     * Instantiates a LOCKSS repository proxy to a remote LOCKSS Repository
+     * Service over REST.
      *
-     * @param repositoryServiceUrl
-     *          Base {@code URL} of the remote LOCKSS Repository service.
+     * @param repositoryServiceUrl Base {@code URL} of the remote LOCKSS
+     *                             Repository service.
+     * @param userName             A String with the name of the user used to
+     *                             access the remote LOCKSS Repository service.
+     * @param password             A String with the password of the user used
+     *                             to access the remote LOCKSS Repository
+     *                             service.
      * @return A {@code RestLockssRepository}.
      */
-    public static RestLockssRepository createRestLockssRepository(URL repositoryServiceUrl) {
-        return new RestLockssRepository(repositoryServiceUrl);
+    public static RestLockssRepository createRestLockssRepository(
+	URL repositoryServiceUrl, String userName, String password) {
+        return new RestLockssRepository(repositoryServiceUrl, userName,
+            password);
     }
 
 }

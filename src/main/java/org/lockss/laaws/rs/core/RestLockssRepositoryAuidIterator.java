@@ -44,6 +44,8 @@ import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,6 +66,10 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
   // The REST service URI builder.
   private final UriComponentsBuilder builder;
 
+  // The value of the Authorization header to be used when calling the REST
+  // service.
+  private String authHeaderValue = null;
+
   // The internal buffer used to store locally the auids provided by the REST
   // service.
   private List<String> auidBuffer = null;
@@ -75,7 +81,7 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
   private String continuationToken = null;
 
   /**
-   * Constructor with default batch size.
+   * Constructor with default batch size and no Authorization header.
    * 
    * @param restTemplate A RestTemplate with the REST service template.
    * @param builder      An UriComponentsBuilder with the REST service URI
@@ -83,11 +89,25 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
    */
   public RestLockssRepositoryAuidIterator(RestTemplate restTemplate,
       UriComponentsBuilder builder) {
-    this(restTemplate, builder, null);
+    this(restTemplate, builder, null, null);
   }
 
   /**
-   * Full constructor.
+   * Constructor with default batch size.
+   * 
+   * @param restTemplate    A RestTemplate with the REST service template.
+   * @param builder         An UriComponentsBuilder with the REST service URI
+   *                        builder.
+   * @param authHeaderValue A String with the Authorization header to be used
+   *                        when calling the REST service.
+   */
+  public RestLockssRepositoryAuidIterator(RestTemplate restTemplate,
+      UriComponentsBuilder builder, String authHeaderValue) {
+    this(restTemplate, builder, authHeaderValue, null);
+  }
+
+  /**
+   * Constructor with no Authorization header.
    * 
    * @param restTemplate A RestTemplate with the REST service template.
    * @param builder      An UriComponentsBuilder with the REST service URI
@@ -97,6 +117,22 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
    */
   public RestLockssRepositoryAuidIterator(RestTemplate restTemplate,
       UriComponentsBuilder builder, Integer limit) {
+    this(restTemplate, builder, null, limit);
+  }
+
+  /**
+   * Full constructor.
+   * 
+   * @param restTemplate    A RestTemplate with the REST service template.
+   * @param builder         An UriComponentsBuilder with the REST service URI
+   *                        builder.
+   * @param authHeaderValue A String with the Authorization header to be used
+   *                        when calling the REST service.
+   * @param limit           An Integer with the number of auids to request on
+   *                        each REST service request.
+   */
+  public RestLockssRepositoryAuidIterator(RestTemplate restTemplate,
+      UriComponentsBuilder builder, String authHeaderValue, Integer limit) {
     // Validation.
     if (restTemplate == null) {
       throw new IllegalArgumentException(
@@ -120,6 +156,7 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
     }
 
     this.builder = builder;
+    this.authHeaderValue = authHeaderValue;
 
     fillAuidBuffer();
   }
@@ -196,12 +233,24 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
     URI uri = builder.build().encode().toUri();
     log.trace("uri = {}", uri);
 
+    // Build the HttpEntity to include in the request to the REST service.
+    HttpEntity<Void> httpEntity = null;
+
+    // Check whether there is an Authorization header to be used when calling
+    // the REST service.
+    if (authHeaderValue != null) {
+      // Yes: Set up the HTTP headers.
+      HttpHeaders httpHeaders = new HttpHeaders();
+      httpHeaders.set("Authorization", authHeaderValue);
+      httpEntity = new HttpEntity<>(null, httpHeaders);
+    }
+
     ResponseEntity<String> response = null;
 
     try {
       // Make the request and get the response.
       response = RestUtil.callRestService(restTemplate, uri, HttpMethod.GET,
-	  null, String.class, "fillAuidBuffer");
+	  httpEntity, String.class, "fillAuidBuffer");
     } catch (LockssRestHttpException e) {
       if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
 	log.trace("Could not fetch auids: Exception caught", e);
