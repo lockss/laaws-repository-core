@@ -84,6 +84,9 @@ public interface LockssRepository extends Ready {
      *
      * @param artifact
      *          An artifact to retrieve from this repository.
+     * @param includeInputStream
+     *          true to request the content be made available, false if the
+     *          content isn't needed
      * @return The {@code ArtifactData} referenced by this artifact.
      * @throws IOException
      */
@@ -104,6 +107,9 @@ public interface LockssRepository extends Ready {
      *          The collection ID of the artifact.
      * @param artifactId
      *          A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+     * @param includeInputStream
+     *          true to request the content be made available, false if the
+     *          content isn't needed
      * @return The {@code ArtifactData} referenced by this artifact ID.
      * @throws IOException
      */
