@@ -66,6 +66,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private static final String lockssSolrSchemaVersionFieldName =
       "solrSchemaLockssVersion";
 
+  public static final String DEFAULT_SOLRCORE_NAME = "lockss-repo";
+
   private SolrClient solrClient;
   private boolean internalClient;
 
@@ -116,6 +118,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   @Override
   public synchronized void initIndex() {
     if (getState() == ArtifactIndexState.UNINITIALIZED) {
+      /*
       try {
 	// Update the schema, if necessary.
 	updateIfNecessary(targetSchemaVersion);
@@ -125,6 +128,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 	log.error(errorMessage, e);
 	throw new RuntimeException(errorMessage, e);
       }
+      */
 
       setState(ArtifactIndexState.INITIALIZED);
     }
@@ -237,8 +241,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws SolrResponseErrorException if the passed Solr response has a
    *                                    non-zero status.
    */
-  static <T extends SolrResponseBase> T handleSolrResponse(T solrResponse,
-      String errorMessage) throws SolrResponseErrorException {
+  public static <T extends SolrResponseBase> T handleSolrResponse(T solrResponse,
+                                                                  String errorMessage) throws SolrResponseErrorException {
     log.debug2("solrResponse = {}", solrResponse);
 
     NamedList<Object> solrResponseResponse =
