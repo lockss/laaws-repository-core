@@ -30,5 +30,5 @@
 
 # Generates a list of all files under the working tree.
 
-rm .files.txt
-find * -type f > .files.txt
+rm .filelist
+find * -type f > .filelist
