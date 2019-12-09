@@ -30,5 +30,4 @@
 
 # Generates a list of all files under the working tree.
 
-rm .filelist
 find * -type f > .filelist

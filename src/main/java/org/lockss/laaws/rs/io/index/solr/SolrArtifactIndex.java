@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -96,6 +96,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     if (getState() == ArtifactIndexState.UNINITIALIZED) {
 
       // TODO: Check that the core exists?
+//      CoreAdminResponse response = CoreAdminRequest.getStatus(coreName, solrClient);
+//      response.getCoreStatus(coreName).size() > 0;
 
       setState(ArtifactIndexState.INITIALIZED);
     }
