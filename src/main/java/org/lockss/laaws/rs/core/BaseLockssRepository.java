@@ -207,9 +207,8 @@ public class BaseLockssRepository implements LockssRepository,
 
       if (!artifact.getCommitted()) {
         // Commit artifact in data store and index
-        index.commitArtifact(artifactId);
         store.commitArtifactData(artifact);
-        return index.getArtifact(artifactId);
+        return index.commitArtifact(artifactId);
       } else {
         log.debug2("Artifact already committed [artifactId: {}]", artifactId);
       }
