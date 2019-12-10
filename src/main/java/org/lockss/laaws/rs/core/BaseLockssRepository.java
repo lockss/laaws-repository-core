@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,21 +31,17 @@
 package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.*;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
-import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
-import org.lockss.laaws.rs.util.*;
-import org.lockss.util.jms.JmsFactory;
+import org.lockss.laaws.rs.util.JmsFactorySource;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.jms.JmsFactory;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.UUID;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -211,34 +207,11 @@ public class BaseLockssRepository implements LockssRepository,
 
       if (!artifact.getCommitted()) {
         // Commit artifact in data store and index
-        Future<Artifact> future = store.commitArtifactData(artifact);
         index.commitArtifact(artifactId);
-
-        if (future != null) {
-          try {
-            Artifact committedArtifact = future.get();
-            index.updateStorageUrl(artifact.getId(), committedArtifact.getStorageUrl());
-            return committedArtifact;
-          } catch (InterruptedException e) {
-            log.error(
-                "Move of artifact [artifactId: {}] to permanent storage was interrupted: {}",
-                artifactId,
-                e
-            );
-
-            // TODO: Requeue?
-            throw new IOException(e);
-          } catch (ExecutionException e) {
-            log.error(
-                "Caught ExecutionException while moving artifact [artifactId: {}] to permanent storage",
-                artifactId,
-                e
-            );
-
-            // TODO: Need to discuss what to do here - for now wrap and throw
-            throw new IOException(e);
-          }
-        }
+        store.commitArtifactData(artifact);
+        return index.getArtifact(artifactId);
+      } else {
+        log.debug2("Artifact already committed [artifactId: {}]", artifactId);
       }
 
       // TODO: An Artifact could be marked as committed but have no pending move to permanent storage queued
