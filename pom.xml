@@ -343,6 +343,32 @@ POSSIBILITY OF SUCH DAMAGE.
 
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${version.plugin.exec-maven-plugin}</version>
+
+        <executions>
+          <execution>
+            <id>generatePrebakedSolrHomeFilelist</id>
+            <phase>generate-test-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <!-- Working directory set to the source copy of the Solr home base directory used for tests -->
+              <workingDirectory>${project.basedir}/src/test/resources/solr</workingDirectory>
+              <executable>${project.basedir}/scripts/generateFilelist.sh</executable>
+            </configuration>
+          </execution>
+        </executions>
+
+      </plugin>
+    </plugins>
+  </build>
+
   <profiles>
 
     <!--
