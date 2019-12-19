@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,18 +30,20 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import java.nio.file.Path;
+
 public class WarcFile {
-  private String path;
+  private Path path;
   private long length = 0;
   private long nextOffset = 0;
 
-  public WarcFile(String path, long length) {
+  public WarcFile(Path path, long length) {
     this.path = path;
     this.length = length;
     this.nextOffset = length;
   }
 
-  public String getPath() {
+  public Path getPath() {
     return path;
   }
 

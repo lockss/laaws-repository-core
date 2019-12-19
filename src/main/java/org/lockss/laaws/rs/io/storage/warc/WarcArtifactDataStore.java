@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -42,7 +42,9 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.hadoop.yarn.webapp.MimeType;
 import org.apache.http.HttpException;
 import org.archive.format.warc.WARCConstants;
-import org.archive.io.*;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveRecord;
+import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.WARCReader;
 import org.archive.io.warc.WARCReaderFactory;
 import org.archive.io.warc.WARCRecord;
@@ -64,21 +66,24 @@ import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
 import org.lockss.util.io.DeferredTempFileOutputStream;
+import org.lockss.util.jms.JmsConsumer;
+import org.lockss.util.jms.JmsFactory;
+import org.lockss.util.jms.JmsUtil;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
-import org.lockss.util.jms.*;
-
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StreamUtils;
 
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
-import javax.jms.JMSException;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -134,7 +139,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected ArtifactIndex artifactIndex;
   protected LockssRepository lockssRepo;
-  protected String basePath;
   protected WarcFilePool tmpWarcPool;
   protected Map<RepoAuid, String> auActiveWarcMap;
   protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
@@ -194,19 +198,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @return A {@code String} containing the base path for temporary WARCs.
    */
-  protected abstract String getTmpWarcBasePath();
-  protected abstract String makeStorageUrl(String filePath, MultiValueMap<String, String> params);
+  protected abstract String makeStorageUrl(Path filePath, MultiValueMap<String, String> params);
 
-  protected abstract InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException;
-  protected abstract OutputStream getAppendableOutputStream(String filePath) throws IOException;
+  protected abstract InputStream getInputStreamAndSeek(Path filePath, long seek) throws IOException;
 
-  protected abstract void initWarc(String warcPath) throws IOException;
-  protected abstract long getWarcLength(String warcPath) throws IOException;
-  protected abstract Collection<String> findWarcs(String basePath) throws IOException;
-  protected abstract boolean removeWarc(String warcPath) throws IOException;
+  protected abstract OutputStream getAppendableOutputStream(Path filePath) throws IOException;
+
+  protected abstract void initWarc(Path warcPath) throws IOException;
+
+  protected abstract long getWarcLength(Path warcPath) throws IOException;
+
+  protected abstract Collection<Path> findWarcs(Path basePath) throws IOException;
+
+  protected abstract boolean removeWarc(Path warcPath) throws IOException;
 
   protected abstract long getBlockSize();
-  protected abstract String getAbsolutePath(String path);
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS
@@ -232,17 +238,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ));
 
     makeJmsConsumer();
-  }
 
-  /**
-   * Constructor of this WARC artifact data store.
-   *
-   * @param basePath A {@code String} containing the base path of this WARC artifact data store.
-   */
-  public WarcArtifactDataStore(ArtifactIndex index, String basePath) {
-    this(index);
-
-    this.basePath = basePath;
     this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePath());
   }
 
@@ -389,7 +385,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param length A {@code length} containing the length of the WARC record.
    * @return A {@code String} containing the internal storage URL to the WARC record.
    */
-  protected String makeStorageUrl(String filePath, long offset, long length) {
+  protected String makeStorageUrl(Path filePath, long offset, long length) {
     MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("offset", Long.toString(offset));
     params.add("length", Long.toString(length));
@@ -403,7 +399,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return An {@code InputStream} containing the WARC file.
    * @throws IOException
    */
-  protected InputStream getInputStream(String path) throws IOException {
+  protected InputStream getInputStream(Path path) throws IOException {
     return getInputStreamAndSeek(path, 0L);
   }
 
@@ -753,14 +749,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     this.uncommittedArtifactExpiration = milliseconds;
   }
 
-  /**
-   * Returns the base path of this LOCKSS repository.
-   *
-   * @return A {@code String} containing the base path of this LOCKSS repository.
-   */
-  public String getBasePath() {
-    return basePath;
-  }
 
   /**
    * Returns the number of bytes
@@ -858,7 +846,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Get an available WARC from the temporary WARC pool
       WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(recordLength);
-      String tmpWarcFilePath = tmpWarcFile.getPath();
+      Path tmpWarcFilePath = tmpWarcFile.getPath();
 
       if (log.isDebug2Enabled()) {
         log.debug2(
@@ -1045,13 +1033,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Initialize metadata WARC file
     initWarc(auMetadataWarcPath);
 
-    try (
-        OutputStream out = getAppendableOutputStream(auMetadataWarcPath)
-    ) {
+    try (OutputStream output = getAppendableOutputStream(auMetadataWarcPath)) {
       // Append WARC metadata record to the journal
       WARCRecordInfo metadataRecord = createWarcMetadataRecord(artifactId.getId(), artifactMetadata);
-      writeWarcRecord(metadataRecord, out);
-      out.flush();
+      writeWarcRecord(metadataRecord, output);
+      output.flush();
     }
 
     log.debug2("Finished updateArtifactMetadata() for [artifactId: {}]", artifactId.getId());
@@ -1208,7 +1194,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     long recordLength = loc.getLength();
 
     // Get the current active permanent WARC for this AU
-    String dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    Path dst = getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
     initWarc(dst);
 
     // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
@@ -1344,33 +1330,22 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.debug2("Deleted artifact [artifactId: {}]", artifact.getId());
   }
 
-  public String getCollectionPath(String collection) {
-    return getAbsolutePath(SEPARATOR + COLLECTIONS_DIR + SEPARATOR + collection);
-  }
-
-  public String getCollectionPath(ArtifactIdentifier artifactIdent) {
+  public Path getCollectionPath(ArtifactIdentifier artifactIdent) {
     return getCollectionPath(artifactIdent.getCollection());
   }
 
-  public String getCollectionTmpPath(String collection) {
-    return getCollectionPath(collection) + SEPARATOR + TMP_WARCS_DIR;
+  public Path getCollectionTmpPath(String collection) {
+    return getCollectionPath(collection).resolve(TMP_WARCS_DIR);
   }
 
   public DataStoreState getDataStoreState() {
     return dataStoreState;
   }
 
-  public String getAuPath(String collection, String auid) {
-    return getCollectionPath(collection) + SEPARATOR + AU_DIR_PREFIX + DigestUtils.md5Hex(auid);
-  }
 
-  public String getAuPath(ArtifactIdentifier artifactIdent) {
-    return getAuPath(artifactIdent.getCollection(), artifactIdent.getAuid());
-  }
-
-  public String getSealedWarcsPath() {
-    return getAbsolutePath(SEPARATOR + SEALED_WARC_DIR);
-  }
+//  public String getAuPath(ArtifactIdentifier artifactIdent) {
+//    return getAuPath(artifactIdent.getCollection(), artifactIdent.getAuid());
+//  }
 
   public String generateSealedWarcName(String collection, String auid) {
     String auidHash = DigestUtils.md5Hex(auid);
@@ -1483,9 +1458,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       // Stream bytes from InputStream to OutputStream
-      try (InputStream in = markAndGetInputStream(src)) {
-        try (OutputStream out = getAppendableOutputStream(dst)) {
-          IOUtils.copy(in, out);
+      try (InputStream input = markAndGetInputStream(src)) {
+        try (OutputStream output = getAppendableOutputStream(dst)) {
+          IOUtils.copy(input, output);
           log.debug2("Delivered sealed WARC {} to {}", src, dst);
         }
       } catch (IOException e) {
@@ -1598,17 +1573,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   private static class WarcRecordLocation {
-    private String path;
+    private Path path;
     private long offset;
     private long length;
 
-    public WarcRecordLocation(String path, long offset, long length) {
+    public WarcRecordLocation(Path path, long offset, long length) {
       this.path = path;
       this.offset = offset;
       this.length = length;
     }
 
-    public String getPath() {
+    public Path getPath() {
       return this.path;
     }
 
@@ -1625,7 +1600,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         URI storageUri = new URI(storageUrl);
 
         // Get path to WARC file
-        String path = storageUri.getPath();
+        Path path = Paths.get(storageUri.getPath());
 
         // Get WARC record offset and length
         MultiValueMap queryArgs = parseQueryArgs(storageUri.getQuery());
@@ -1666,28 +1641,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
-  /**
-   * Rebuilds the internal index from WARCs within this WARC artifact data store.
-   *
-   * @throws IOException
-   */
-  public void rebuildIndex() throws IOException {
-    if (artifactIndex == null) {
-      throw new IllegalStateException("No artifact index set");
-    }
-
-    rebuildIndex(artifactIndex);
-  }
-
-  /**
-   * Rebuilds the provided index from WARCs within this WARC artifact data store.
-   *
-   * @param index The {@code ArtifactIndex} to rebuild and populate from WARCs within this WARC artifact data store.
-   * @throws IOException
-   */
-  public void rebuildIndex(ArtifactIndex index) throws IOException {
-    rebuildIndex(index, getBasePath());
-  }
 
   /**
    * Rebuilds an artifact index from WARCs within this WARC artifact data store.
@@ -1813,11 +1766,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
-  private InputStream markAndGetInputStream(String warcFile) throws IOException {
+  private InputStream markAndGetInputStream(Path warcFile) throws IOException {
     return markAndGetInputStreamAndSeek(warcFile, 0L);
   }
 
-  private InputStream markAndGetInputStreamAndSeek(String warcFile, long offset) throws IOException {
+  private InputStream markAndGetInputStreamAndSeek(Path warcFile, long offset) throws IOException {
     TempWarcInUseTracker.INSTANCE.markUseStart(warcFile);
 
     InputStream warcStream = new BufferedInputStream(getInputStreamAndSeek(warcFile, offset));
@@ -1839,7 +1792,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param path A {@code String} containing the path to a WARC file.
    * @throws IOException
    */
-  private void dumpWarc(String path) throws IOException {
+  private void dumpWarc(Path path) throws IOException {
     if (log.isDebug2Enabled()) {
       InputStream is = getInputStream(path);
       org.apache.commons.io.output.ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -1850,9 +1803,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
-  private void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<String> artifactWarcFiles) throws IOException {
+  private void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<Path> artifactWarcFiles) throws IOException {
     // Reindex artifacts from temporary and permanent storage
-    for (String warcFile : artifactWarcFiles) {
+    for (Path warcFile : artifactWarcFiles) {
 
       // Debugging
       //dumpWarc(warcFile);
@@ -1958,7 +1911,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return record;
   }
 
-  public void writeWarcInfoRecord(String warcPath) throws IOException {
+  public void writeWarcInfoRecord(OutputStream output) throws IOException {
     // Create a WARC record object
     WARCRecordInfo record = new WARCRecordInfo();
 

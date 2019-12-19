@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,30 +30,39 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import java.io.*;
-import java.util.*;
-import java.util.regex.Pattern;
-
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.*;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+
 /**
  * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
  */
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
-  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
 
-  public final static String DEFAULT_REPO_BASEDIR = "/";
+  public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
+  public final static Path DEFAULT_REPO_BASEDIR = Paths.get("/lockss");
 
   protected FileSystem fs;
+  protected Path basePath;
 
   /**
    * Constructor that takes a Hadoop {@code Configuration}. Uses a default LOCKSS repository base path.
@@ -71,7 +80,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param config   An Apache Hadoop {@code Configuration}.
    * @param basePath A {@code String} containing the base path of the LOCKSS repository under HDFS.
    */
-  public HdfsWarcArtifactDataStore(ArtifactIndex index, Configuration config, String basePath) throws IOException {
+  public HdfsWarcArtifactDataStore(ArtifactIndex index, Configuration config, Path basePath) throws IOException {
     this(index, FileSystem.get(config), basePath);
   }
 
@@ -92,16 +101,20 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @param basePath A {@code String} containing the base path of the LOCKSS repository under HDFS.
    * @throws IOException
    */
-  public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs, String basePath) throws IOException {
-    super(index, basePath);
+  public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs, Path basePath) throws IOException {
+    super(index);
 
     log.info("Instantiating a HDFS artifact data store under {}{}", fs.getUri(), getBasePath());
 
     this.fs = fs;
+    this.basePath = basePath;
 
     mkdirs(getBasePath());
     mkdirs(getTmpWarcBasePath());
-    mkdirs(getSealedWarcsPath());
+  }
+
+  protected Path getBasePath() {
+    return this.basePath;
   }
 
   /**
@@ -138,10 +151,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   @Override
-  public Collection<String> findWarcs(String path) throws IOException {
-    Collection<String> warcFiles = new ArrayList<>();
+  public Collection<Path> findWarcs(Path path) throws IOException {
+    Collection<Path> warcFiles = new ArrayList<>();
 
-    Path basePath = new Path(path);
+    org.apache.hadoop.fs.Path basePath = new org.apache.hadoop.fs.Path(path.toString());
 
     if (fs.exists(basePath) && fs.getFileStatus(basePath).isDirectory()) {
       RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, true);
@@ -153,7 +166,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
         // Add this file to the list of WARC files found
         if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
-          warcFiles.add(status.getPath().toString().substring(fs.getUri().toString().length()));
+          warcFiles.add(Paths.get(status.getPath().toString().substring(fs.getUri().toString().length())));
         }
       }
     }
@@ -168,10 +181,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    *
    * @param dirPath Path to the directory to create, if it doesn't exist yet.
    */
-  public void mkdirs(String dirPath) throws IOException {
-    Path fullPath = new Path(dirPath);
+  public void mkdirs(Path dirPath) throws IOException {
+    org.apache.hadoop.fs.Path fullPath = new org.apache.hadoop.fs.Path(dirPath.toString());
 
-    if (fs.isDirectory(fullPath)) {
+    if (fs.getFileStatus(fullPath).isDirectory()) {
       return;
     }
 
@@ -183,17 +196,16 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public long getWarcLength(String warcPath) throws IOException {
+  public long getWarcLength(Path warcPath) throws IOException {
     try {
-      return fs.getFileStatus(new Path(warcPath)).getLen();
+      return fs.getFileStatus(new org.apache.hadoop.fs.Path(warcPath.toString())).getLen();
     } catch (FileNotFoundException e) {
       return 0L;
     }
   }
 
-  @Override
-  protected String getTmpWarcBasePath() {
-    return getAbsolutePath(DEFAULT_TMPWARCBASEPATH);
+  protected Path getTmpWarcBasePath() {
+    return basePath.resolve(TMP_WARCS_DIR);
   }
 
   @Override
@@ -202,8 +214,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + filePath);
+  public String makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + filePath.toString());
     uriBuilder.queryParams(params);
     return uriBuilder.toUriString();
   }
@@ -223,8 +235,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       throw new IllegalArgumentException("Collection ID is null or empty");
     }
 
-    mkdirs(getCollectionPath(collectionId));
-    mkdirs(getCollectionTmpPath(collectionId));
+    mkdirs(getCollectionPath(basePath, collectionId));
+    mkdirs(getCollectionPath(basePath, collectionId).resolve(TMP_WARCS_DIR));
   }
 
   /**
@@ -244,7 +256,19 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       throw new IllegalArgumentException("AUID is null or empty");
     }
 
-    mkdirs(getAuPath(collectionId, auid));
+    mkdirs(getAuPath(getCollectionPath(basePath, collectionId), auid));
+  }
+
+  public Path getAuPath(Path collectionBase, String auid) {
+    return collectionBase.resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
+  }
+
+  public Path getCollectionPath(Path basePath, String collectionId) {
+    return getCollectionsBase(basePath).resolve(collectionId);
+  }
+
+  public Path getCollectionsBase(Path basePath) {
+    return basePath.resolve(COLLECTIONS_DIR);
   }
 
   /**
@@ -255,41 +279,38 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   @Override
-  public void initWarc(String warcPath) throws IOException {
-    Path fullPath = new Path(warcPath);
+  public void initWarc(Path warcPath) throws IOException {
+    org.apache.hadoop.fs.Path fullPath = new org.apache.hadoop.fs.Path(warcPath.toString());
 
     if (fs.createNewFile(fullPath)) {
       log.debug2("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
 
-    writeWarcInfoRecord(warcPath);
+    try (OutputStream output = getAppendableOutputStream(warcPath)) {
+      writeWarcInfoRecord(output);
+    }
   }
 
   @Override
-  public OutputStream getAppendableOutputStream(String filePath) throws IOException {
+  public OutputStream getAppendableOutputStream(Path filePath) throws IOException {
     log.debug2("Opening appendable OutputStream [filePath: {}]", filePath);
 
-    Path extPath = new Path(filePath);
+    org.apache.hadoop.fs.Path extPath = new org.apache.hadoop.fs.Path(filePath.toString());
     return fs.append(extPath);
   }
 
   @Override
-  public InputStream getInputStreamAndSeek(String filePath, long seek) throws IOException {
+  public InputStream getInputStreamAndSeek(Path filePath, long seek) throws IOException {
     log.debug2("filePath = {}", filePath);
     log.debug2("seek = {}", seek);
 
-    FSDataInputStream fsDataInputStream = fs.open(new Path(filePath));
+    FSDataInputStream fsDataInputStream = fs.open(new org.apache.hadoop.fs.Path(filePath.toString()));
     fsDataInputStream.seek(seek);
     return fsDataInputStream;
   }
 
   @Override
-  public boolean removeWarc(String path) throws IOException {
-    return fs.delete(new Path(path), false);
-  }
-
-  @Override
-  protected String getAbsolutePath(String path) {
-      return Path.mergePaths(new Path(getBasePath()), new Path(path)).toString();
+  public boolean removeWarc(Path path) throws IOException {
+    return fs.delete(new org.apache.hadoop.fs.Path(path.toString()), false);
   }
 }

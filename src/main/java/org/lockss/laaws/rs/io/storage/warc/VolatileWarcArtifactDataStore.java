@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,8 +38,14 @@ import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.*;
-import java.util.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -47,32 +53,26 @@ import java.util.stream.Collectors;
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
-  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
-  private final static String DEFAULT_BASEPATH = "/";
 
-  protected final Map<String, ByteArrayOutputStream> warcs;
+  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+
+  protected final Map<Path, ByteArrayOutputStream> warcs;
 
   /**
    * Constructor.
    */
   public VolatileWarcArtifactDataStore() {
-    this(new VolatileArtifactIndex(), DEFAULT_BASEPATH);
-  }
-
-  public VolatileWarcArtifactDataStore(ArtifactIndex index) {
-    this(index, DEFAULT_BASEPATH);
+    this(new VolatileArtifactIndex());
   }
 
   /**
    * For testing; this kind of data store ignores the base path.
    */
-  private VolatileWarcArtifactDataStore(ArtifactIndex index, String basePath) {
-    super(index, basePath);
+  public VolatileWarcArtifactDataStore(ArtifactIndex index) {
+    super(index);
 
     this.warcs = new HashMap<>();
   }
-
-
 
   @Override
   public void initCollection(String collectionId) {
@@ -85,25 +85,22 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void initWarc(String path) throws IOException {
+  public void initWarc(Path path) throws IOException {
     synchronized (warcs) {
       warcs.putIfAbsent(path, new ByteArrayOutputStream());
     }
 
-    writeWarcInfoRecord(path);
-  }
-
-  @Override
-  public boolean removeWarc(String path) {
-    synchronized (warcs) {
-      warcs.remove(path);
-      return true;
+    try (OutputStream output = getAppendableOutputStream(path)) {
+      writeWarcInfoRecord(output);
     }
   }
 
   @Override
-  protected String getTmpWarcBasePath() {
-    return getAbsolutePath(DEFAULT_TMPWARCBASEPATH);
+  public boolean removeWarc(Path path) {
+    synchronized (warcs) {
+      warcs.remove(path);
+      return true;
+    }
   }
 
   @Override
@@ -112,7 +109,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public long getWarcLength(String warcPath) {
+  public long getWarcLength(Path warcPath) {
     synchronized (warcs) {
       ByteArrayOutputStream warc = warcs.get(warcPath);
       if (warc != null) {
@@ -124,28 +121,28 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + getBasePath() + filePath);
+  public String makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + filePath);
     uriBuilder.queryParams(params);
 
     return uriBuilder.toUriString();
   }
 
   @Override
-  public OutputStream getAppendableOutputStream(String path) {
+  public OutputStream getAppendableOutputStream(Path path) {
     synchronized (warcs) {
       return warcs.get(path);
     }
   }
 
   @Override
-  public InputStream getInputStreamAndSeek(String path, long seek) throws IOException {
+  public InputStream getInputStreamAndSeek(Path path, long seek) throws IOException {
     synchronized (warcs) {
       ByteArrayOutputStream warc = warcs.get(path);
 
       if (warc == null) {
         // Translate to FileNotFound exception if the WARC could not be found in the map
-        throw new FileNotFoundException(path);
+        throw new FileNotFoundException(path.toString());
       } else {
         InputStream is = warc.toInputStream();
         long skipped = is.skip(seek);
@@ -156,7 +153,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public Collection<String> findWarcs(String basePath) {
+  public Collection<Path> findWarcs(Path basePath) {
     synchronized (warcs) {
       log.debug2("basePath = {}", basePath);
       log.debug2("warcs.keySet() = {}", warcs.keySet());
@@ -178,12 +175,5 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean isReady() {
     return dataStoreState == DataStoreState.INITIALIZED;
-  }
-
-  @Override
-  protected String getAbsolutePath(String path) {
-    // File only used here to merge paths
-    File pathDir = new File(getBasePath(), path);
-    return pathDir.toString();
   }
 }
