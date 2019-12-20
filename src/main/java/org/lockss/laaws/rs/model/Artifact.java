@@ -292,7 +292,7 @@ public class Artifact implements Serializable {
                 ", collection='" + collection + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +
-//                 ", sortUri='" + sortUri + '\'' +
+                ", sortUri='" + sortUri + '\'' +
                 ", version='" + version + '\'' +
                 ", committed=" + committed +
                 ", storageUrl='" + storageUrl + '\'' +
