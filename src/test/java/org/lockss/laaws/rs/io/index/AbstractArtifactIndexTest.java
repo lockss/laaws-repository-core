@@ -86,7 +86,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   protected String variant = "no_variant";
 
   public enum TestIndexScenarios {
-    empty, commit1, delete1, double_delete, double_commit, commit_delete_2x2
+    empty, commit1, delete1, double_delete, double_commit, commit_delete_2x2,
+    sort_order,
   }
 
   // Invoked automatically before each test by the @VariantTest mechanism
@@ -137,6 +138,19 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       case "commit_delete_2x2":
         specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete().thenCommit());
         specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit().thenDelete());
+        break;
+
+	// Ensure correct pre-order sort order - i.e., that '/' sorts
+	// before every other character.
+      case "sort_order":
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "dir.png").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "dir.jpg").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "dir/child2").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "dir/").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "dir/child").thenCommit());
+	// Should sort after dir/ but Fails if Solr erroneously escapes
+	// zero byte to "#0;"
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "dir!foo").thenCommit());
         break;
     }
 
@@ -1078,7 +1092,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         .collect(Collectors.toList());
   }
 
-  private static ArtifactSpec createArtifactSpec(String collection, String auid, String uri, long version, boolean commit) {
+  protected static ArtifactSpec createArtifactSpec(String collection, String auid, String uri, long version, boolean commit) {
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl(collection, auid, uri);
 
     spec.setArtifactId(UUID.randomUUID().toString());
