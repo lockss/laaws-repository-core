@@ -38,6 +38,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.LinkedHashMap;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.StorageInfo;
+import org.lockss.util.os.PlatformUtil;
 import org.lockss.log.L4JLogger;
 
 /**
@@ -74,6 +76,27 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         } else {
             log.info("Persistence of index is disabled");
         }
+    }
+
+    /**
+     * Returns information about the device the index is stored on: size,
+     * free space, etc.
+     * @return A {@code StorageInfo}
+     */
+    @Override
+    public StorageInfo getStorageInfo() {
+      if (persistedIndex == null) {
+	return super.getStorageInfo();
+      }
+      try {
+	// Mustn't use persistedIndex filename as it mightn't have been
+	// created yet.  The parent directory is required to already exist.
+	String parentDir = persistedIndex.getParent();
+	return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir));
+      } catch (PlatformUtil.UnsupportedException e) {
+	throw new UnsupportedOperationException("Can't get index StorageInfo",
+						e);
+      }
     }
 
     /**

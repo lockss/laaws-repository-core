@@ -31,14 +31,29 @@
 package org.lockss.laaws.rs.core;
 
 import java.io.IOException;
+import org.junit.jupiter.api.Test;
+import org.lockss.log.L4JLogger;
+import org.lockss.laaws.rs.model.*;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
  */
 public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     @Override
     public LockssRepository makeLockssRepository() throws IOException {
         return new VolatileLockssRepository();
     }
+
+  @Test
+  public void testRepoInfo() throws Exception {
+    RepositoryInfo ri = repository.getRepositoryInfo("coll");
+    log.debug("repoinfo: {}", ri);
+    StorageInfo ind = ri.getIndexInfo();
+    StorageInfo sto = ri.getStoreInfo();
+    assertEquals("memory", ind.getType());
+    assertEquals("memory", sto.getType());
+  }
+
 }

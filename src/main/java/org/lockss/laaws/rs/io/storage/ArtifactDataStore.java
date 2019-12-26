@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage;
 
+import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
@@ -49,7 +50,7 @@ import java.util.concurrent.TimeoutException;
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
-public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
+public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends StorageInfoSource, Ready {
     /**
      *
      * @throws IOException

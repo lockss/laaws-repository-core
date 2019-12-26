@@ -34,6 +34,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.StorageInfo;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.lockss.log.L4JLogger;
@@ -60,6 +61,15 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public void shutdownIndex() {
       setState(ArtifactIndexState.SHUTDOWN);
+    }
+
+    /**
+     * Returns information about the storage size and free space
+     * @return A {@code StorageInfo}
+     */
+    @Override
+    public StorageInfo getStorageInfo() {
+      return new StorageInfo("memory");
     }
 
     /**

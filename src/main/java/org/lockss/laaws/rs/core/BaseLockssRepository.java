@@ -38,6 +38,8 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.RepositoryInfo;
+import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.log.L4JLogger;
@@ -107,6 +109,31 @@ public class BaseLockssRepository implements LockssRepository,
    */
   public JmsFactory getJmsFactory() {
     return jmsFact;
+  }
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @param collection
+   *          A {@code String} containing the collection ID.
+   * @return A {@code RepositoryInfo}
+   */
+  @Override
+  public RepositoryInfo getRepositoryInfo(String collection)
+      throws IOException {
+    StorageInfo ind = null;
+    StorageInfo sto = null;
+    try {
+      ind = index.getStorageInfo();
+    } catch (Exception e) {
+      log.warn("Couldn't get index space", e);
+    }
+    try {
+      sto = store.getStorageInfo();
+    } catch (Exception e) {
+      log.warn("Couldn't get store space", e);
+    }
+    return new RepositoryInfo(sto, ind);
   }
 
   /**

@@ -38,12 +38,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.ArtifactPageInfo;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
-import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
-import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.*;
 import org.lockss.util.rest.*;
@@ -1034,6 +1035,18 @@ public class RestLockssRepository implements LockssRepository {
       return new Long(0);
     }
 
+  }
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @param collection
+   *          A {@code String} containing the collection ID.
+   * @return A {@code RepositoryInfo}
+   */
+  @Override
+  public RepositoryInfo getRepositoryInfo(String collection) throws IOException {
+    throw new UnsupportedOperationException("getRepositoryInfo() NYI for REST repo");
   }
 
   // RestUtil.callRestService() throws on non-2xx response codes; this is a

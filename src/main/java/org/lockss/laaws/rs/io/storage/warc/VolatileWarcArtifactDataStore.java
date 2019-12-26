@@ -34,6 +34,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -186,4 +187,14 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     File pathDir = new File(getBasePath(), path);
     return pathDir.toString();
   }
+
+  /**
+   * Returns information about the storage size and free space
+   * @return A {@code StorageInfo}
+   */
+  @Override
+  public StorageInfo getStorageInfo() {
+    return new StorageInfo("memory");
+  }
+
 }
