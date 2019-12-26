@@ -47,6 +47,7 @@ import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
@@ -101,6 +102,21 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       setState(ArtifactIndexState.INITIALIZED);
     }
+  }
+
+  /**
+   * Returns information about the storage size and free space
+   * @return A {@code StorageInfo}
+   */
+  @Override
+  public StorageInfo getStorageInfo() {
+    throw new UnsupportedOperationException("getStorageInfo() NYI for Solr index");
+    // TODO - the index size is available as details.indexSize in the json
+    // returned from
+    // http://host:8983/solr/lockss-repo/replication?command=details&wt=json
+
+    // The indexPath is also available but is on a remote filesystem so
+    // can't get DF
   }
 
   /**

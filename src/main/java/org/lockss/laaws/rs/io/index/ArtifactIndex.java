@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.index;
 
+import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
@@ -46,7 +47,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * Interface of the artifact index.
  */
-public interface ArtifactIndex extends Ready {
+public interface ArtifactIndex extends StorageInfoSource, Ready {
 
     /**
      * Adds an artifact to the index.

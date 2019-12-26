@@ -57,9 +57,11 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.os.PlatformUtil;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
@@ -394,6 +396,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     params.add("offset", Long.toString(offset));
     params.add("length", Long.toString(length));
     return makeStorageUrl(filePath, params);
+  }
+
+  /**
+   * Returns information about the storage size and free space
+   * @return A {@code StorageInfo}
+   */
+  @Override
+  public StorageInfo getStorageInfo() {
+    try {
+      return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(basePath));
+    } catch (PlatformUtil.UnsupportedException e) {
+      throw new UnsupportedOperationException("Can't get WarcArtifactDataStore info", e);
+    }
   }
 
   /**

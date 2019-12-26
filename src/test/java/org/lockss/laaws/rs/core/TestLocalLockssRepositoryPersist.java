@@ -31,9 +31,11 @@
 package org.lockss.laaws.rs.core;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.FileSystemUtils;
 import java.io.File;
+import org.lockss.laaws.rs.model.*;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
@@ -64,4 +66,17 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
           log.warn("Failed to delete temporary directory " + repoBaseDir);
         }
     }
+
+  @Test
+  public void testRepoInfo() throws Exception {
+    RepositoryInfo ri = repository.getRepositoryInfo("coll");
+    log.debug("repoinfo: {}", ri);
+    StorageInfo ind = ri.getIndexInfo();
+    StorageInfo sto = ri.getStoreInfo();
+    assertEquals("disk", ind.getType());
+    assertTrue(ind.getSize() > 0);
+    assertEquals("disk", sto.getType());
+    assertTrue(sto.getSize() > 0);
+    assertTrue(sto.isSameDevice(ind));
+  }
 }

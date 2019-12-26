@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
@@ -411,6 +412,15 @@ public interface LockssRepository extends Ready {
      * @return A {@code Long} with the total size of the specified AU in bytes.
      */
     Long auSize(String collection, String auid) throws IOException;
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @param collection
+   *          A {@code String} containing the collection ID.
+   * @return A {@code RepositoryInfo}
+   */
+  RepositoryInfo getRepositoryInfo(String collection) throws IOException;
 
   long DEFAULT_WAITREADY = 5000;
 
