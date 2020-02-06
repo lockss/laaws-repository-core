@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
@@ -43,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,6 +57,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+  public static final String DEFAULT_BASEPATH = "/lockss";
 
   protected final Map<Path, ByteArrayOutputStream> warcs;
 
@@ -71,6 +74,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public VolatileWarcArtifactDataStore(ArtifactIndex index) {
     super(index);
 
+    this.basePaths = new Path[]{Paths.get(DEFAULT_BASEPATH)};
+    this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePaths());
     this.warcs = new HashMap<>();
   }
 
@@ -160,7 +165,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
       return warcs.keySet().stream()
           .filter(path -> path.startsWith(basePath))
-          .filter(path -> path.endsWith(WARC_FILE_EXTENSION))
+          .filter(path -> FilenameUtils.getExtension(path.toString()).equalsIgnoreCase(WARC_FILE_EXTENSION))
           .collect(Collectors.toList());
     }
   }

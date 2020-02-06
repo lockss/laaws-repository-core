@@ -30,10 +30,10 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
@@ -58,10 +58,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
-  private static Path[] basePaths;
 
   public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
-    this(index, (Path[]) Arrays.stream(basePath).map(File::toPath).toArray());
+    this(index, castToPathArray(Arrays.stream(basePath).map(File::toPath).toArray()));
+  }
+
+  protected static Path[] castToPathArray(Object[] objects) {
+    return Arrays.copyOf(objects, objects.length, Path[].class);
   }
 
   /**
@@ -73,21 +76,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     log.debug2("Starting LocalWarcArtifactDataStore [basePaths: {}]", basePaths);
 
     this.basePaths = basePaths;
+    this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePaths());
 
     // Initialize LOCKSS repository structure under base paths
     for (Path basePath : basePaths) {
       mkdirs(basePath);
-      mkdirs(getTmpWarcBasePath(basePath));
+      mkdirs(getTmpWarcBasePaths());
     }
-  }
-
-  /**
-   * Returns the base path of this LOCKSS repository.
-   *
-   * @return A {@code String} containing the base path of this LOCKSS repository.
-   */
-  public Path[] getBasePaths() {
-    return basePaths;
   }
 
   /**
@@ -112,12 +107,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   public void rebuildIndex(ArtifactIndex index) throws IOException {
     // TODO - Contents of each base path should not overlap so it might be possible to introduce threading here
     for (Path basePath : getBasePaths()) {
-      rebuildIndex(index, basePath.toString());
+      rebuildIndex(index, basePath);
     }
-  }
-
-  protected Path getTmpWarcBasePath(Path basePath) {
-    return basePath.resolve(TMP_WARCS_DIR);
   }
 
   @Override
@@ -127,31 +118,25 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public void initCollection(String collectionId) throws IOException {
-    for (Path basePath : getBasePaths()) {
-      mkdirs(getCollectionPath(basePath, collectionId));
-      mkdirs(getCollectionPath(basePath, collectionId).resolve(TMP_WARCS_DIR));
-    }
+    mkdirs(getCollectionPaths(collectionId));
+    mkdirs(getCollectionTmpWarcsPaths(collectionId));
   }
 
   @Override
   public void initAu(String collectionId, String auid) throws IOException {
+    // Initialize collection on each filesystem
     initCollection(collectionId);
 
-    for (Path basePath : getBasePaths()) {
-      mkdirs(getAuPath(getCollectionPath(basePath, collectionId), auid));
+    // Iterate over AU's paths on each filesystem and create AU directory structure
+    for (Path auPath : getAuPaths(collectionId, auid)) {
+      initAu(auPath);
     }
   }
 
-  public Path getAuPath(Path collectionBase, String auid) {
-    return collectionBase.resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
-  }
-
-  public Path getCollectionPath(Path basePath, String collectionId) {
-    return getCollectionsBase(basePath).resolve(collectionId);
-  }
-
-  public Path getCollectionsBase(Path basePath) {
-    return basePath.resolve(COLLECTIONS_DIR);
+  public void initAu(Path auBasePath) throws IOException {
+    mkdirs(auBasePath);
+    mkdirs(auBasePath.resolve("artifacts"));
+    mkdirs(auBasePath.resolve("journals"));
   }
 
   /**
@@ -220,6 +205,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
     }
 
+  public void mkdirs(Path[] dirs) throws IOException {
+    for (Path dirPath : dirs) {
+      mkdirs(dirPath);
+    }
+  }
+
     @Override
     public long getWarcLength(Path warcPath) {
       return warcPath.toFile().length();
@@ -245,7 +236,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
       InputStream inputStream = new FileInputStream(filePath.toFile());
         inputStream.skip(seek);
 
-        return inputStream;
+      return inputStream;
     }
 
     @Override

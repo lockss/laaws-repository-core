@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,16 +30,18 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import java.io.*;
-import java.util.UUID;
-
 import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.*;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.*;
-import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.io.FileUtil;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.function.Predicate;
 
 public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<LocalWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -47,29 +49,17 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   private static File testsBasePath;
   private File testRepoBasePath;
 
-  @BeforeAll
-  protected static void makeLocalTestsTempDir() throws IOException {
-    testsBasePath = FileUtil.createTempDir("TestLocalWarcArtifactDataStore", null);
-    testsBasePath.deleteOnExit();
-    testsBasePath.mkdirs();
-  }
-
-  @AfterAll
-  public static void tearDown() {
-    quietlyDeleteDir(testsBasePath);
-  }
-
   @Override
   protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
-    testRepoBasePath = FileUtil.createTempDir(getClass().getSimpleName(), null, testsBasePath);
+    testRepoBasePath = getTempDir();
     testRepoBasePath.mkdirs();
 
-    return new LocalWarcArtifactDataStore(index, testRepoBasePath);
+    return new LocalWarcArtifactDataStore(index, new File[]{testRepoBasePath});
   }
 
   @Override
   protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, LocalWarcArtifactDataStore other) throws IOException {
-    return new LocalWarcArtifactDataStore(index, other.getBasePath());
+    return new LocalWarcArtifactDataStore(index, other.getBasePaths());
   }
 
   protected static void quietlyDeleteDir(File dir) {
@@ -81,26 +71,26 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
   }
 
   @Override
-  protected boolean pathExists(String path) throws IOException {
-    File pathDir = new File(path);
-    return pathDir.exists();
+  protected boolean pathExists(Path path) throws IOException {
+    return path.toFile().exists();
   }
 
   @Override
-  protected boolean isDirectory(String path) throws IOException {
-    File pathDir = new File(path);
-    return pathDir.isDirectory();
+  protected boolean isDirectory(Path path) {
+    return path.toFile().isDirectory();
   }
 
   @Override
-  protected boolean isFile(String path) throws IOException {
-    File pathDir = new File(path);
-    return pathDir.isFile();
+  protected boolean isFile(Path path) {
+    return path.toFile().isFile();
   }
 
   @Override
   public void runTestInitArtifactDataStore() throws Exception {
-    assertTrue(isDirectory(store.getBasePath()));
+    assertTrue(Arrays.stream(store.getBasePaths())
+        .map(this::isDirectory)
+        .allMatch(Predicate.isEqual(true)));
+
     assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
   }
 
@@ -110,7 +100,9 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     store.initCollection("collection");
 
     // Assert directory structures were created
-    assertTrue(isDirectory(store.getCollectionPath("collection")));
+    assertTrue(Arrays.stream(store.getCollectionPaths("collection"))
+        .map(this::isDirectory)
+        .allMatch(Predicate.isEqual(true)));
   }
 
   @Override
@@ -119,25 +111,30 @@ public class TestLocalWarcArtifactStore extends AbstractWarcArtifactDataStoreTes
     store.initAu("collection", "auid");
 
     // Assert directory structures were created
-    assertTrue(isDirectory(store.getCollectionPath("collection")));
-    assertTrue(isDirectory(store.getAuPath("collection", "auid")));
+    assertTrue(Arrays.stream(store.getCollectionPaths("collection"))
+        .map(this::isDirectory)
+        .allMatch(Predicate.isEqual(true)));
+
+    assertTrue(Arrays.stream(store.getAuPaths("collection", "auid"))
+        .map(this::isDirectory)
+        .allMatch(Predicate.isEqual(true)));
   }
 
   @Override
-  protected String expected_getTmpWarcBasePath() {
-    return new File(testRepoBasePath, WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH).toString();
+  protected Path[] expected_getTmpWarcBasePaths() {
+    return new Path[]{testRepoBasePath.toPath().resolve(WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH)};
   }
 
   @Override
-  protected String expected_getBasePath() {
-    return testRepoBasePath.toString();
+  protected Path[] expected_getBasePaths() {
+    return new Path[]{testRepoBasePath.toPath()};
   }
 
 
   protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
     return String.format(
         "file://%s?offset=%d&length=%d",
-        store.getActiveWarcPath(aid.getCollection(), aid.getAuid()),
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
         offset,
         length
     );

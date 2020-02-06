@@ -1,44 +1,34 @@
 /*
-
-Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University,
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its contributors
-may be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-*/
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 package org.lockss.laaws.rs.io.storage.warc;
-
-import java.io.*;
-import java.time.*;
-import java.time.format.*;
-import java.time.temporal.*;
-import java.util.*;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IterableUtils;
@@ -51,10 +41,10 @@ import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.WARCRecord;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.lockss.laaws.rs.core.BaseLockssRepository;
-import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.ArtifactState;
@@ -62,9 +52,23 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
-import org.lockss.util.time.TimeBase;
 import org.lockss.util.test.VariantTest;
+import org.lockss.util.time.TimeBase;
 import org.lockss.util.time.TimeUtil;
+
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
+import java.util.*;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -387,13 +391,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertFalse(storageUrl.isEmpty());
 
     // Get the path within the data store
-    String artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
+    Path artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
     log.debug("storageUrl = {}", storageUrl);
     log.debug("artifactWarcPath = {}", artifactWarcPath);
 
     // Assert storage
     assertTrue(isFile(artifactWarcPath));
-    assertTrue(artifactWarcPath.startsWith(store.getTmpWarcBasePath()));
+    assertTrue(store.isTmpStorage(artifactWarcPath));
 
     // Assert things about the index
     ArtifactIndex index = store.getArtifactIndex();
@@ -412,16 +416,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index, WADS otherStore) throws IOException;
 
   protected abstract String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
-  protected abstract String expected_getBasePath() throws Exception;
-  protected abstract String expected_getTmpWarcBasePath() throws Exception;
+
+  protected abstract Path[] expected_getBasePaths() throws Exception;
+
+  protected abstract Path[] expected_getTmpWarcBasePaths() throws Exception;
 
   public abstract void runTestInitArtifactDataStore() throws Exception;
   public abstract void runTestInitCollection() throws Exception;
   public abstract void runTestInitAu() throws Exception;
 
-  protected abstract boolean pathExists(String path) throws IOException;
-  protected abstract boolean isDirectory(String path) throws IOException;
-  protected abstract boolean isFile(String path) throws IOException;
+  protected abstract boolean pathExists(Path path) throws IOException;
+
+  protected abstract boolean isDirectory(Path path) throws IOException;
+
+  protected abstract boolean isFile(Path path) throws IOException;
 
   // *******************************************************************************************************************
   // * UTILITY METHODS FOR TESTS
@@ -452,14 +460,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   @Test
-  public void testGetBasePath() throws Exception {
-    assertEquals(expected_getBasePath(), store.getBasePath());
+  public void testGetBasePaths() throws Exception {
+    assertArrayEquals(expected_getBasePaths(), store.getBasePaths());
   }
 
   @Test
-  public void testGetTmpWarcBasePath() throws Exception {
-    assertNotNull(store.getTmpWarcBasePath());
-    assertEquals(expected_getTmpWarcBasePath(), store.getTmpWarcBasePath());
+  public void testGetTmpWarcBasePaths() throws Exception {
+    assertNotNull(store.getTmpWarcBasePaths());
+    assertArrayEquals(expected_getTmpWarcBasePaths(), store.getTmpWarcBasePaths());
   }
 
   @Test
@@ -468,7 +476,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     String expectedStorageUrl = expected_makeStorageUrl(aid, 1234L, 5678L);
 
-    String activeWarcPath = store.getActiveWarcPath(aid.getCollection(), aid.getAuid());
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid());
     String actualStorageUrl = store.makeStorageUrl(activeWarcPath, 1234L, 5678L);
 
     assertEquals(expectedStorageUrl, actualStorageUrl);
@@ -492,8 +500,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store = makeWarcArtifactDataStore(null);
 
     // Path to temporary WARC file
-    String warcName = String.format("%s.%s", UUID.randomUUID(), WARCConstants.WARC_FILE_EXTENSION); //FIXME
-    String warcPath = store.getAbsolutePath(store.getTmpWarcBasePath() + "/" + warcName);
+    String warcName = String.format("%s.%s", UUID.randomUUID(), WARCConstants.WARC_FILE_EXTENSION);
+    Path warcPath = store.getTmpWarcBasePaths()[0].resolve(warcName);
 
     // Initialize WARC
     store.initWarc(warcPath);
@@ -568,7 +576,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Create a path to a temporary WARC - this should be safe because the data store is uninitialized and the temporary
     // WARC directory is under a repository base path that is unique for this test
-    String warcPath = String.format("%s/%s.warc", store.getTmpWarcBasePath(), UUID.randomUUID().toString());
+    String warcFileName = String.format("%s.warc", UUID.randomUUID());
+    Path warcPath = store.getTmpWarcBasePaths()[0].resolve(warcFileName);
 
     // Assert file does not exist
     assertFalse(isFile(warcPath));
@@ -640,7 +649,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertSame(index, store.getArtifactIndex());
 
     // Get temporary WARCs directory storage path
-    String tmpWarcBasePath = store.getTmpWarcBasePath();
+    Path tmpWarcBasePath = store.getTmpWarcBasePaths()[0];
 
     // Garbage collector must not be running while reloading temporary WARCs so we do NOT initialize it
     //store.initDataStore();
@@ -686,8 +695,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertTrue(artifact.getCommitted());
 
       // Assert that the storage URL now points to a WARC that is in permanent storage
-      String artifactWarcPath = Artifact.getPathFromStorageUrl(artifact.getStorageUrl());
-      assertTrue(artifactWarcPath.startsWith(store.getAuPath(artifact.getIdentifier())));
+      Path artifactWarcPath = Artifact.getPathFromStorageUrl(artifact.getStorageUrl());
+      assertTrue(!store.isTmpStorage(artifactWarcPath));
       assertTrue(isFile(artifactWarcPath));
     } else {
       // Assert that the storage URL points to a WARC within the temporary WARCs directory
@@ -722,7 +731,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     WADS reloadedStore = makeWarcArtifactDataStore(index, store);
     assertNotNull(reloadedStore);
     assertSame(store.getArtifactIndex(), reloadedStore.getArtifactIndex());
-    assertEquals(store.getBasePath(), reloadedStore.getBasePath());
+    assertEquals(store.getBasePaths(), reloadedStore.getBasePaths());
 
     if (expire) {
       // Set the data store to expire artifacts immediately
@@ -734,7 +743,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     reloadedStore.reloadTemporaryWarcs();
 
     // Scan directories for temporary WARC files and assert its state
-    Collection<String> tmpWarcs = reloadedStore.findWarcs(tmpWarcBasePath);
+    Collection<Path> tmpWarcs = reloadedStore.findWarcs(tmpWarcBasePath);
 
     // Determine artifact state
     ArtifactState artifactState = reloadedStore.getArtifactState(expire, delete, artifact);
@@ -760,8 +769,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         assertEquals(0, tmpWarcs.size());
 
         // Artifact's storage URL should point to a WARC in permanent storage
-        String artifactWarcPath = Artifact.getPathFromStorageUrl(artifact.getStorageUrl());
-        assertTrue(artifactWarcPath.startsWith(store.getAuPath(artifact.getIdentifier())));
+        Path artifactWarcPath = Artifact.getPathFromStorageUrl(artifact.getStorageUrl());
+        assertTrue(!store.isTmpStorage(artifactWarcPath));
         break;
 
       case DELETED:
@@ -911,22 +920,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(spec.getContentDigest(), addedArtifact.getContentDigest());
 
     // Assert temporary WARC directory exists
-    assertTrue(isDirectory(store.getTmpWarcBasePath()));
+    assertTrue(isDirectory(store.getTmpWarcBasePaths()[0]));
 
     // Assert things about the artifact's storage URL
     String storageUrl = addedArtifact.getStorageUrl();
     assertNotNull(storageUrl);
     assertFalse(storageUrl.isEmpty());
 
-    String artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
+    Path artifactWarcPath = Artifact.getPathFromStorageUrl(storageUrl);
     log.debug("storageUrl = {}", storageUrl);
     log.debug("artifactWarcPath = {}", artifactWarcPath);
     assertTrue(isFile(artifactWarcPath));
 
-    assertNotNull(store.getTmpWarcBasePath());
-    assertNotNull(store.getAbsolutePath(store.getTmpWarcBasePath()));
+    assertNotNull(store.getTmpWarcBasePaths());
 
-    assertTrue(artifactWarcPath.startsWith(store.getTmpWarcBasePath()));
+    assertTrue(store.isTmpStorage(artifactWarcPath));
 
     // Get handle to artifact index used by data store
     ArtifactIndex index = store.getArtifactIndex();
@@ -1106,11 +1114,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     if (log.isDebugEnabled()) {
       log.debug("beforeUrl = {}", beforeUrl);
       log.debug("getPathFromStorageUrl(beforeUrl) = {}", Artifact.getPathFromStorageUrl(beforeUrl));
-      log.debug("getTmpWarcBasePath() = {}", store.getTmpWarcBasePath());
-      log.debug("getAbsolutePath(getTmpWarcBasePath()) = {}", store.getAbsolutePath(store.getTmpWarcBasePath()));
+      log.debug("getTmpWarcBasePaths() = {}", store.getTmpWarcBasePaths());
     }
 
-    assertTrue(Artifact.getPathFromStorageUrl(beforeUrl).startsWith(store.getTmpWarcBasePath()));
+    assertTrue(store.isTmpStorage(Artifact.getPathFromStorageUrl(beforeUrl)));
 
     // Move it to permanent storage
     store.moveToPermanentStorage(artifact);
@@ -1118,7 +1125,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Assert the storage URL points to the current active WARC for this AU
     String afterUrl = artifact.getStorageUrl();
     assertEquals(
-        store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid()),
+        store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid()),
         Artifact.getPathFromStorageUrl(afterUrl)
     );
 
@@ -1139,6 +1146,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // TODO: Finish
   }
 
+  public Iterable<Path> findWarcs(Path[] paths) throws IOException {
+    List<Path> warcs = new ArrayList();
+    for (Path path : paths) {
+      warcs.addAll(store.findWarcs(path));
+    }
+    return warcs;
+  }
+
   @Test
   public void testSealActiveWarc() throws Exception {
     // Constants for this test so that we can be consistent
@@ -1148,10 +1163,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Attempt to seal the active WARC of an AU with no active WARC
     store.sealActiveWarc(testCollection, testAuid);
-    assertEmpty(store.findWarcs(store.getAuPath(testCollection, testAuid)));
+    assertEmpty(findWarcs(store.getAuPaths(testCollection, testAuid)));
 
     // Assert the active WARC for this AU does not exist yet
-    String activeWarcPath = store.getActiveWarcPath(testCollection, testAuid);
+    Path activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid);
     assertFalse(pathExists(activeWarcPath));
 
     // Add an artifact
@@ -1169,10 +1184,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Seal the AU's active WARC
     store.sealActiveWarc(artifact.getCollection(), artifact.getAuid());
-    Iterable<String> warcsBefore = store.findWarcs(store.getAuPath(artifact.getCollection(), artifact.getAuid()));
+
+    Iterable<Path> warcsBefore = findWarcs(store.getAuPaths(artifact.getCollection(), artifact.getAuid()));
 
     // Get the interim active WARC path for this AU and assert it does not exist in storage
-    String interimActiveWarcPath = store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    Path interimActiveWarcPath = store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid());
     assertFalse(pathExists(interimActiveWarcPath));
 
     // Attempt to seal the AU's active WARC again
@@ -1182,17 +1198,17 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertFalse(pathExists(interimActiveWarcPath));
 
     // Get set of WARC files in the AU directory after second seal
-    Iterable<String> warcsAfter = store.findWarcs(store.getAuPath(artifact.getCollection(), artifact.getAuid()));
+    Iterable<Path> warcsAfter = findWarcs(store.getAuPaths(artifact.getCollection(), artifact.getAuid()));
 
     // Assert the contents of the AU directory did not change after performing another seal
-    assertIterableEquals(warcsBefore, warcsAfter);
+    assertIterableEquals(getURIsFromPaths(warcsBefore), getURIsFromPaths(warcsAfter));
 
     // Insert sleep for volatile data store (on fast machines there isn't enough resolution in the timestamp used in the
     // active WARC file name which causes the interim and latest active WARC paths to match incorrectly)
     Thread.sleep(10);
 
     // Assert the interim active WARC path DOES NOT match new the active WARC path
-    String latestActiveWarcPath = store.getActiveWarcPath(artifact.getCollection(), artifact.getAuid());
+    Path latestActiveWarcPath = store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid());
     assertNotEquals(interimActiveWarcPath, latestActiveWarcPath);
 
     // Assert the new active WARC for this artifact's AU does not exist
@@ -1200,6 +1216,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert latest active WARC path are not the same as the original
     assertNotEquals(activeWarcPath, latestActiveWarcPath);
+  }
+
+  protected static Iterable<URI> getURIsFromPaths(Iterable<Path> paths) {
+    return StreamSupport.stream(paths.spliterator(), true)
+        .map(Path::toUri)
+        .collect(Collectors.toList());
   }
 
   @VariantTest
@@ -1245,7 +1267,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    *
    * @throws IOException
    */
-  private void assertVariantState() throws IOException {
+  private void assertVariantState() throws IOException, URISyntaxException {
     // Get a handle to the data store's index
     ArtifactIndex index = store.getArtifactIndex();
     assertNotNull(index);
@@ -1278,7 +1300,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
         // Get artifact's storage URL in data store
         String storageUrl = indexedArtifact.getStorageUrl();
-        String tmpWarcBaseStorageUrl = store.makeStorageUrl(store.getTmpWarcBasePath(), null);
+        String tmpWarcBaseStorageUrl = store.makeStorageUrl(store.getTmpWarcBasePaths()[0], null);
 
         // Assert committed status of artifacts
         if (spec.isToCommit()) {
@@ -1290,7 +1312,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
           assertTrue(indexedArtifact.getCommitted());
 
           // Assert artifact does NOT reside in temporary storage
-          assertFalse(storageUrl.startsWith(store.getTmpWarcBasePath()));
+          assertFalse(store.isTmpStorage(Artifact.getPathFromStorageUrl(storageUrl)));
         } else {
           // NO: Assert variant framework DID NOT commit this artifact (sanity check)
           assertFalse(spec.isCommitted());
@@ -1373,23 +1395,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testGetCollectionPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", null, null, 0);
-    assertEquals(store.getAbsolutePath("/collections/coll1"), store.getCollectionPath(ident1));
-    assertEquals(store.getCollectionPath(ident1.getCollection()),
-                 store.getCollectionPath(ident1));
+//    assertEquals(store.getAbsolutePath("/collections/coll1"), store.getCollectionPath(ident1));
+//    assertEquals(store.getCollectionPath(ident1.getCollection()),
+//                 store.getCollectionPath(ident1));
   }
   
   @Test
   public void testGetAuPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, 0);
-    assertEquals(store.getAbsolutePath("/collections/coll1/au-" + DigestUtils.md5Hex("auid1")),
-                 store.getAuPath(ident1));
-    assertEquals(store.getAuPath(ident1.getCollection(), ident1.getAuid()),
-                 store.getAuPath(ident1));
-  }
-  
-  @Test
-  public void testGetSealedWarcPath() throws Exception {
-    assertEquals(store.getAbsolutePath("/sealed"), store.getSealedWarcsPath());
+//    assertEquals(store.getAbsolutePath("/collections/coll1/au-" + DigestUtils.md5Hex("auid1")),
+//                 store.getAuPath(ident1));
+//    assertEquals(store.getAuPath(ident1.getCollection(), ident1.getAuid()),
+//                 store.getAuPath(ident1));
   }
   
   @Test
@@ -1408,10 +1425,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testGetAuArtifactsWarcPath() throws Exception {
     // FIXME assertEquals(getBasePath() + expectedPath, getBasePath() + store.methodCall(...)) should be assertEquals(expectedPath, store.methodCall(...))
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, 0);
-    String expectedAuDirPath = store.getAbsolutePath("/collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
-    String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + store.getActiveWarcName("coll1", "auid1");
-    assertFalse(pathExists(expectedAuDirPath)); // Not created until an artifact data is added
-    assertEquals(expectedAuArtifactsWarcPath, store.getActiveWarcPath(ident1.getCollection(), ident1.getAuid()));
+//    Path expectedAuDirPath = store.getAbsolutePath("/collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
+//    String expectedAuArtifactsWarcPath = expectedAuDirPath + "/" + store.getActiveWarcName("coll1", "auid1");
+//    assertFalse(pathExists(expectedAuDirPath)); // Not created until an artifact data is added
+//    assertEquals(expectedAuArtifactsWarcPath, store.getActiveWarcPath(ident1.getCollection(), ident1.getAuid()));
     // FIXME assert that getActiveWarcPath() returns the same for ident1 and ident1.getCollection()+ident1.getAuid()
     // FIXME assert that the path exists now
   }
@@ -1420,10 +1437,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testGetAuMetadataWarcPath() throws Exception {
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, 0);
     RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
-    String expectedAuBaseDirPath = store.getAbsolutePath("/collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
-    String expectedMetadataWarcPath = expectedAuBaseDirPath + "/lockss-repo.warc";
-    assertFalse(pathExists(expectedAuBaseDirPath)); // Not created until an artifact data is added
-    assertEquals(expectedMetadataWarcPath, store.getAuMetadataWarcPath(ident1, md1));
+//    Path expectedAuBaseDirPath = store.getAbsolutePath("/collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
+//    String expectedMetadataWarcPath = expectedAuBaseDirPath + "/lockss-repo.warc";
+//    assertFalse(pathExists(expectedAuBaseDirPath)); // Not created until an artifact data is added
+//    assertEquals(expectedMetadataWarcPath, store.getAuMetadataWarcPath(ident1, md1));
   }
 
   @VariantTest
@@ -1528,113 +1545,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Compare collections IDs
     List<String> cids1 = IterableUtils.toList(index1.getCollectionIds());
     List<String> cids2 = IterableUtils.toList(index2.getCollectionIds());
-    if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
-      fail(String.format("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs: %s vs %s", cids1, cids2));
-    }
+    assertIterableEquals(cids1, cids2);
 
     // Iterate over the collection IDs
     for (String cid : cids1) {
       // Compare the set of AUIDs
       List<String> auids1 = IteratorUtils.toList(index1.getAuIds(cid).iterator());
       List<String> auids2 = IteratorUtils.toList(index2.getAuIds(cid).iterator());
-      if (!(auids1.containsAll(auids2) && auids2.containsAll(auids1))) {
-        fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
-      }
+      assertIterableEquals(auids1, auids2);
 
       // Iterate over AUIDs
       for (String auid : auids1) {
         List<Artifact> artifacts1 = IteratorUtils.toList(index1.getArtifacts(cid, auid, true).iterator());
         List<Artifact> artifacts2 = IteratorUtils.toList(index2.getArtifacts(cid, auid, true).iterator());
-
-        // Debugging
-        artifacts1.forEach(artifact -> log.debug("Artifact from artifacts1: {}", artifact));
-        artifacts2.forEach(artifact -> log.debug("Artifact from artifacts2: {}", artifact));
-
-        if (!(artifacts1.containsAll(artifacts2) && artifacts2.containsAll(artifacts1))) {
-          fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
-        }
-      }
-    }
-  }
-
-  @Test
-  @Disabled
-  public void testRebuildIndexSealed() throws Exception {
-    // Instances of artifact index to populate and compare
-    ArtifactIndex index3 = new VolatileArtifactIndex();
-    ArtifactIndex index4 = new VolatileArtifactIndex();
-
-    //// Create and populate first index by adding new artifacts to a repository
-    store.setArtifactIndex(index3);
-    LockssRepository repository = new BaseLockssRepository(index3, store);
-
-    // The WARC records for the two artifacts here end up being 586 bytes each.
-    store.setThresholdWarcSize(1024L);
-
-    // HTTP status (200 OK) for use volatile ArtifactData's we'll add to the repository
-    StatusLine status200 = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
-
-    // Create an artifact and add it to the data store
-    ArtifactIdentifier ident1 = new ArtifactIdentifier(UUID.randomUUID().toString(), "coll1", "auid1", "http://example.com/u1", 1);
-    org.apache.commons.io.output.ByteArrayOutputStream baos1 = new org.apache.commons.io.output.ByteArrayOutputStream(150);
-    for (int i = 0 ; i < 150 ; ++i) {
-      baos1.write('a');
-    }
-    ArtifactData dat1 = new ArtifactData(ident1, null, baos1.toInputStream(), status200);
-    Artifact art1 = store.addArtifactData(dat1);
-    baos1.close(); // to satisfy static analyzers
-
-    // Register the artifact in the index
-    index3.indexArtifact(dat1);
-    repository.commitArtifact(art1);
-
-    // Add another artifact to the store - this will add another 586 bytes while should trigger a seal
-    ArtifactIdentifier ident2 = new ArtifactIdentifier(UUID.randomUUID().toString(), "coll1", "auid1", "http://example.com/u2", 1);
-    org.apache.commons.io.output.ByteArrayOutputStream baos2 = new ByteArrayOutputStream(150);
-    for (int i = 0 ; i < 150 ; ++i) {
-      baos2.write('b');
-    }
-    ArtifactData dat2 = new ArtifactData(ident2, null, baos2.toInputStream(), status200);
-    Artifact art2 = store.addArtifactData(dat2);
-    baos2.close(); // to satisfy static analyzers
-
-    // Register the second artifact in the index
-    index3.indexArtifact(dat2);
-    repository.commitArtifact(art2);
-
-    // Populate second index by rebuilding
-    store.rebuildIndex(index4);
-
-    //// Compare indexes
-
-    // Compare collections IDs
-    List<String> cids3 = IteratorUtils.toList(index3.getCollectionIds().iterator());
-    List<String> cids4 = IteratorUtils.toList(index4.getCollectionIds().iterator());
-    if (!(cids3.containsAll(cids4) && cids4.containsAll(cids3))) {
-      fail(String.format("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs: %s vs %s", cids3, cids4));
-    }
-
-    // Iterate over the collection IDs
-    for (String cid : cids3) {
-      // Compare the set of AUIDs
-      List<String> auids3 = IteratorUtils.toList(index3.getAuIds(cid).iterator());
-      List<String> auids4 = IteratorUtils.toList(index4.getAuIds(cid).iterator());
-      if (!(auids3.containsAll(auids4) && auids4.containsAll(auids3))) {
-        fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
-      }
-
-      // Iterate over AUIDs
-      for (String auid : auids3) {
-        List<Artifact> artifacts3 = IteratorUtils.toList(index3.getArtifacts(cid, auid, true).iterator());
-        List<Artifact> artifacts4 = IteratorUtils.toList(index4.getArtifacts(cid, auid, true).iterator());
-
-        // Debugging
-        artifacts3.forEach(artifact -> log.debug("Artifact from artifacts3: {}", artifact));
-        artifacts4.forEach(artifact -> log.debug("Artifact from artifacts4: {}", artifact));
-
-        if (!(artifacts3.containsAll(artifacts4) && artifacts4.containsAll(artifacts3))) {
-          fail("Expected both the original and rebuilt artifact indexes to contain the same set of artifacts");
-        }
+        assertIterableEquals(artifacts1, artifacts2);
       }
     }
   }

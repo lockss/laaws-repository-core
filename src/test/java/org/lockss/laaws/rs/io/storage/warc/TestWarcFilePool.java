@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,6 +34,8 @@ import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,7 +100,7 @@ class TestWarcFilePool {
   @Test
   void findWarcFile() throws Exception {
     for (int i= 0 ; i< 10; i++) {
-      WarcFilePool pool = new WarcFilePool("/tmp");
+      WarcFilePool pool = new WarcFilePool(new Path[]{Paths.get("/tmp")});
       List<Thread> threads = new ArrayList<>();
 
       for (int j = 0; j < 10; j++) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,13 +31,15 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
 
-import java.io.*;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
@@ -58,13 +60,13 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
-  protected String expected_getBasePath() {
-    return "/";
+  protected Path[] expected_getBasePaths() {
+    return new Path[]{Paths.get(VolatileWarcArtifactDataStore.DEFAULT_BASEPATH)};
   }
 
   @Override
-  protected String expected_getTmpWarcBasePath() {
-    return WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH;
+  protected Path[] expected_getTmpWarcBasePaths() {
+    return new Path[]{expected_getBasePaths()[0].resolve(VolatileWarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH)};
   }
 
   @Override
@@ -85,30 +87,26 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   @Override
   @Test
   public void testGetAuMetadataWarcPath() throws Exception {
-//    File tmp1 = makeLocalTempDir();
-//    WarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
     ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
-    String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
+    Path expectedAuDirPath = expected_getBasePaths()[0].resolve("collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
     String expectedFileName = "lockss-repo.warc";
-    String expectedPath = expectedAuDirPath + "/" + expectedFileName;
-    String actualPath = store.getAuMetadataWarcPath(ident1, md1);
+    Path expectedPath = expectedAuDirPath.resolve(expectedFileName);
+    Path actualPath = store.getAuMetadataWarcPath(ident1, RepositoryArtifactMetadata.LOCKSS_METADATA_ID);
     assertEquals(expectedPath, actualPath);
-//    quietlyDeleteDir(tmp1);
   }
 
   @Override
-  protected boolean pathExists(String path) {
+  protected boolean pathExists(Path path) {
     return isFile(path) || isDirectory(path);
   }
 
   @Override
-  protected boolean isDirectory(String path) {
+  protected boolean isDirectory(Path path) {
     return store.warcs.keySet().stream().anyMatch(x -> x.startsWith(path + "/"));
   }
 
   @Override
-  protected boolean isFile(String path) {
+  protected boolean isFile(Path path) {
     return store.warcs.get(path) != null;
   }
 
@@ -116,7 +114,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
     return String.format(
         "volatile://%s?offset=%d&length=%d",
-        store.getActiveWarcPath(aid.getCollection(), aid.getAuid()),
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
         offset,
         length
     );

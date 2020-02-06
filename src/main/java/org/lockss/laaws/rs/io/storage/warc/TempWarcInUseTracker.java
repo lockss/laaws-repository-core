@@ -1,40 +1,39 @@
 /*
-
-Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University,
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its contributors
-may be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-*/
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software without
+ * specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.lockss.log.L4JLogger;
+
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.lockss.log.L4JLogger;
 
 /**
  * Keeps track of which temporary WARC files are currently being accessed.
@@ -48,7 +47,7 @@ public enum TempWarcInUseTracker {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   // The files that are in use.
-  private final Map<String, Integer> inUseMap = new HashMap<>();
+  private final Map<Path, Integer> inUseMap = new HashMap<>();
 
   /**
    * Records that an individual use of a temporary WARC file has started.
@@ -56,7 +55,7 @@ public enum TempWarcInUseTracker {
    * @param path
    *          A String with the storage URL path to the temporary WARC file.
    */
-  public synchronized void markUseStart(String path) {
+  public synchronized void markUseStart(Path path) {
     inUseMap.putIfAbsent(path, 0);
     inUseMap.put(path, inUseMap.get(path) + 1);
     log.debug2("Count for path '{}' increased to {}", path, inUseMap.get(path));
@@ -68,7 +67,7 @@ public enum TempWarcInUseTracker {
    * @param path
    *          A String with the storage URL path to the temporary WARC file.
    */
-  public synchronized void markUseEnd(String path) {
+  public synchronized void markUseEnd(Path path) {
     Integer count = inUseMap.get(path);
 
     if (count == null) {
@@ -92,7 +91,7 @@ public enum TempWarcInUseTracker {
    * @return <code>true</code> if the temporary WARC file is in use,
    *         <code>false</code> otherwise.
    */
-  public synchronized boolean isInUse(String path) {
+  public synchronized boolean isInUse(Path path) {
     return inUseMap.get(path) != null;
   }
 

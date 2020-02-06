@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -36,10 +36,11 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
-import org.lockss.util.jms.*;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Paths;
 
 /**
  * Factory for common LOCKSS Repository configurations.
@@ -99,7 +100,7 @@ public class LockssRepositoryFactory {
                                                                String basePath)
         throws IOException {
       ArtifactIndex index = new SolrArtifactIndex(solrClient);
-      ArtifactDataStore store = new HdfsWarcArtifactDataStore(index, hadoopConf, basePath);
+        ArtifactDataStore store = new HdfsWarcArtifactDataStore(index, hadoopConf, Paths.get(basePath));
       return new BaseLockssRepository(index, store);
     }
 

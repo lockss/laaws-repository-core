@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,13 +30,17 @@
 
 package org.lockss.laaws.rs.model;
 
-import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.regex.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
+
+import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * LOCKSS repository Artifact
@@ -280,9 +284,8 @@ public class Artifact implements Serializable {
     this.collectionDate = collectionDate;
   }
 
-    public static String getPathFromStorageUrl(String storageUrl)
-	throws URISyntaxException {
-      return new URI(storageUrl).getPath();
+  public static Path getPathFromStorageUrl(String storageUrl) throws URISyntaxException {
+    return Paths.get(new URI(storageUrl).getPath());
     }
 
     @Override

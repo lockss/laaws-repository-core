@@ -39,6 +39,7 @@ import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.log.L4JLogger;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -62,7 +63,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public final static Path DEFAULT_REPO_BASEDIR = Paths.get("/lockss");
 
   protected FileSystem fs;
-  protected Path basePath;
+//  protected Path basePath;
 
   /**
    * Constructor that takes a Hadoop {@code Configuration}. Uses a default LOCKSS repository base path.
@@ -104,18 +105,21 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs, Path basePath) throws IOException {
     super(index);
 
-    log.info("Instantiating a HDFS artifact data store under {}{}", fs.getUri(), getBasePath());
+    log.info("Instantiating a HDFS artifact data store under {}{}", fs.getUri(), getBasePaths());
 
     this.fs = fs;
-    this.basePath = basePath;
+//    this.basePath = basePath;
+    this.basePaths = new Path[]{basePath};
+    Path[] tmpWarcBasePaths = getTmpWarcBasePaths();
+    this.tmpWarcPool = new WarcFilePool(tmpWarcBasePaths);
 
-    mkdirs(getBasePath());
-    mkdirs(getTmpWarcBasePath());
+    mkdirs(getBasePaths());
+    mkdirs(getTmpWarcBasePaths());
   }
 
-  protected Path getBasePath() {
-    return this.basePath;
-  }
+//  protected Path getBasePath() {
+//    return this.basePath;
+//  }
 
   /**
    * Checks whether the HDFS cluster is available by getting its status.
@@ -184,14 +188,20 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public void mkdirs(Path dirPath) throws IOException {
     org.apache.hadoop.fs.Path fullPath = new org.apache.hadoop.fs.Path(dirPath.toString());
 
-    if (fs.getFileStatus(fullPath).isDirectory()) {
-      return;
-    }
+//    if (fs.getFileStatus(fullPath).isDirectory()) {
+//      return;
+//    }
 
     if (fs.mkdirs(fullPath)) {
       log.debug2("Created directory [fullPath: {}]", fullPath);
     } else {
       throw new IOException(String.format("Error creating directory: %s", fullPath));
+    }
+  }
+
+  public void mkdirs(Path[] dirs) throws IOException {
+    for (Path dirPath : dirs) {
+      mkdirs(dirPath);
     }
   }
 
@@ -204,9 +214,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     }
   }
 
-  protected Path getTmpWarcBasePath() {
-    return basePath.resolve(TMP_WARCS_DIR);
-  }
+//  protected Path getTmpWarcBasePath() {
+//    return basePath.resolve(TMP_WARCS_DIR);
+//  }
 
   @Override
   protected long getBlockSize() {
@@ -235,8 +245,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       throw new IllegalArgumentException("Collection ID is null or empty");
     }
 
-    mkdirs(getCollectionPath(basePath, collectionId));
-    mkdirs(getCollectionPath(basePath, collectionId).resolve(TMP_WARCS_DIR));
+    mkdirs(getCollectionPath(getBasePaths()[0], collectionId));
+    mkdirs(getCollectionPath(getBasePaths()[0], collectionId).resolve(TMP_WARCS_DIR));
   }
 
   /**
@@ -256,7 +266,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       throw new IllegalArgumentException("AUID is null or empty");
     }
 
-    mkdirs(getAuPath(getCollectionPath(basePath, collectionId), auid));
+    mkdirs(getAuPath(getCollectionPath(getBasePaths()[0], collectionId), auid));
   }
 
   public Path getAuPath(Path collectionBase, String auid) {

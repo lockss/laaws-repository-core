@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,7 +34,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
@@ -43,7 +44,11 @@ import org.lockss.log.L4JLogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<HdfsWarcArtifactDataStore> {
     private final static L4JLogger log = L4JLogger.getLogger();
@@ -90,22 +95,26 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         log.info("Creating HDFS artifact data store [baseDir: {}]", testRepoBasePath);
 
         assertNotNull(hdfsCluster);
-        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), testRepoBasePath);
+      return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), Paths.get(testRepoBasePath));
     }
 
     @Override
     protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, HdfsWarcArtifactDataStore other) throws IOException {
-        return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), other.getBasePath());
+      return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), other.getBasePaths()[0]);
     }
 
     @Override
-    protected String expected_getTmpWarcBasePath() {
-        return store.getAbsolutePath(WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH);
+    protected java.nio.file.Path[] expected_getTmpWarcBasePaths() {
+      List<java.nio.file.Path> paths = Arrays.stream(store.getBasePaths())
+          .map(p -> p.resolve(WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH))
+          .collect(Collectors.toList());
+
+      return Arrays.copyOf(paths.toArray(), paths.toArray().length, java.nio.file.Path[].class);
     }
 
     @Override
     public void runTestInitArtifactDataStore() throws Exception {
-        assertTrue(isDirectory(store.getBasePath()));
+      assertTrue(isDirectory(store.getBasePaths()[0]));
         assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
     }
 
@@ -115,7 +124,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         store.initCollection("collection");
 
         // Assert directory structures were created
-        assertTrue(isDirectory(store.getCollectionPath("collection")));
+      assertTrue(isAllDirectory(store.getCollectionPaths("collection")));
     }
 
     @Override
@@ -124,26 +133,36 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         store.initAu("collection", "auid");
 
         // Assert directory structures were created
-        assertTrue(isDirectory(store.getCollectionPath("collection")));
-        assertTrue(isDirectory(store.getAuPath("collection", "auid")));
+      assertTrue(isAllDirectory(store.getCollectionPaths("collection")));
+      assertTrue(isAllDirectory(store.getAuPaths("collection", "auid")));
+    }
+
+  public boolean isAllDirectory(java.nio.file.Path[] paths) throws IOException {
+    boolean allDirectory = true;
+
+    for (java.nio.file.Path path : paths) {
+      allDirectory &= isDirectory(Paths.get(path.toUri().getPath()));
+    }
+
+    return allDirectory;
     }
 
     @Override
-    protected boolean pathExists(String path) throws IOException {
+    protected boolean pathExists(java.nio.file.Path path) throws IOException {
       log.debug("path = {}", path);
-      return store.fs.exists(new Path(path));
+      return store.fs.exists(new Path(path.toString()));
     }
 
     @Override
-    protected boolean isDirectory(String path) throws IOException {
+    protected boolean isDirectory(java.nio.file.Path path) throws IOException {
         log.debug("path = {}", path);
-        return store.fs.isDirectory(new Path(path));
+      return store.fs.isDirectory(new Path(path.toString()));
     }
 
     @Override
-    protected boolean isFile(String path) throws IOException {
+    protected boolean isFile(java.nio.file.Path path) throws IOException {
 
-        Path file = new Path(path);
+      Path file = new Path(path.toString());
 
         if (!store.fs.exists(file)) {
             String errMsg = String.format("%s does not exist!", file);
@@ -157,14 +176,14 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
         return String.format("%s%s?offset=%d&length=%d",
             store.fs.getUri(),
-            store.getActiveWarcPath(aid.getCollection(), aid.getAuid()),
+            store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
             offset,
             length
         );
     }
 
     @Override
-    protected String expected_getBasePath() throws Exception {
-        return testRepoBasePath;
+    protected java.nio.file.Path[] expected_getBasePaths() throws Exception {
+      return new java.nio.file.Path[]{Paths.get(testRepoBasePath)};
     }
 }
