@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import com.google.common.collect.ComparisonChain;
 
 import java.io.Serializable;
+import org.lockss.util.PreOrderComparator;
 
 /**
  * Class that serves as an identifier for artifacts.
@@ -128,7 +129,8 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
         return ComparisonChain.start()
                 .compare(this.getCollection(), other.getCollection())
                 .compare(this.getAuid(), other.getAuid())
-                .compare(this.getUri(), other.getUri())
+                .compare(this.getUri(), other.getUri(),
+			 PreOrderComparator.INSTANCE)
                 .compare(this.getVersion(), other.getVersion())
 //                .compare(this.getId(), this.getId())
                 .result();
@@ -136,7 +138,8 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
 
     @Override
     public boolean equals(Object o) {
-       return this.compareTo((ArtifactIdentifier)o) == 0;
+       ArtifactIdentifier other = (ArtifactIdentifier)o;
+       return other != null && this.compareTo(other) == 0;
     }
 
     /**

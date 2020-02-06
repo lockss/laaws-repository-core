@@ -294,4 +294,15 @@ public class TestArtifact extends LockssTestCase5 {
       aidata.setStorageUrl("newSurl");
       assertEquals("newSurl", aidata.getStorageUrl());
     }
+
+    @Test
+    public void testMakeKey() {
+      Artifact art =
+	new Artifact("aidid", "coll", "auid", "uri", 123, true, "surl", 0, null);
+      assertEquals("coll:auid:uri:123", art.makeKey());
+      assertEquals("coll:auid:uri:-1", art.makeLatestKey());
+      assertEquals("coll:auid:uri:-1", Artifact.makeLatestKey(art.makeKey()));
+      assertEquals("aa:bb:uuu:123", Artifact.makeKey("aa", "bb", "uuu", 123));
+      assertEquals("aa:bb:uuu:-1", Artifact.makeLatestKey("aa", "bb", "uuu"));
+    }
 }

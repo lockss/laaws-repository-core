@@ -64,10 +64,54 @@ public class VariantState {
 
   public void add(ArtifactSpec spec) {
     addedSpecs.add(spec);
+
+    // Remember the highest version of this URL we've added
+    ArtifactSpec maxVerSpec = getHighestVerSpec(spec.artButVerKey());
+    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
+      setHighestVerSpec(spec.artButVerKey(), spec);
+    }
+
+    // Remember the highest version of this URL we've committed, if committed
+    if (spec.isCommitted) {
+      commit(spec.getArtifactId());
+    }
+  }
+
+  public void commit(String artifactId) {
+    if (artifactExists(artifactId)) {
+      ArtifactSpec spec = getArtifactSpec(artifactId);
+      spec.setCommitted(true);
+
+      ArtifactSpec maxCommittedVerSpec = getHighestCommittedVerSpec(spec.artButVerKey());
+      if (maxCommittedVerSpec == null || maxCommittedVerSpec.getVersion() < spec.getVersion()) {
+        setHighestCommittedVerSpec(spec.artButVerKey(), spec);
+      }
+    } else {
+      // Artifact does not exist: Nothing to commit
+    }
+  }
+
+  private boolean artifactExists(String artifactId) {
+    return getArtifactSpec(artifactId) == null ? false : true;
+  }
+
+  public void addAll(Iterable<? extends ArtifactSpec> specs) {
+    specs.forEach(this::add);
+  }
+
+  public ArtifactSpec getArtifactSpec(String artifactId) {
+    return addedSpecStream()
+        .filter(spec -> spec.getArtifactId().equals(artifactId))
+        .findFirst()
+        .orElse(null);
   }
 
   public Iterable<? extends ArtifactSpec> getArtifactSpecs() {
     return addedSpecs;
+  }
+
+  public Iterable<? extends ArtifactSpec> getDeletedSpecs() {
+    return addedSpecs.stream().filter(ArtifactSpec::isDeleted).collect(Collectors.toList());
   }
 
   // UTILITIES
@@ -79,20 +123,37 @@ public class VariantState {
   }
 
   public long expectedVersions(ArtifactSpec spec) {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .filter(s -> spec.sameArtButVer(s))
         .count();
   }
 
-  public List<String> addedAuids() {
-    return addedSpecs.stream()
+  public List<String> activeAuids(String collectionId) {
+    return addedSpecStream()
+        .filter(spec -> spec.getCollection().equals(collectionId))
+        .map(spec -> spec.getAuid())
+        .distinct()
+        .sorted()
+        .collect(Collectors.toList());
+  }
+
+  public List<String> allAuids() {
+    return addedSpecStream()
+        .map(ArtifactSpec::getAuid)
+        .distinct()
+        .collect(Collectors.toList());
+  }
+
+  public List<String> allAuids(String collection) {
+    return addedSpecStream()
+        .filter(spec -> spec.getCollection().equals(collection))
         .map(ArtifactSpec::getAuid)
         .distinct()
         .collect(Collectors.toList());
   }
 
   public List<String> addedCommittedAuids() {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .filter(spec -> spec.isCommitted())
         .map(ArtifactSpec::getAuid)
         .distinct()
@@ -100,25 +161,27 @@ public class VariantState {
   }
 
   public List<String> addedCommittedUrls() {
-    return addedSpecs.stream()
+    return addedSpecStream()
         .filter(spec -> spec.isCommitted())
         .map(ArtifactSpec::getUrl)
         .distinct()
         .collect(Collectors.toList());
   }
 
-  public List<String> addedCollections() {
-    return addedSpecs.stream()
-        .map(ArtifactSpec::getCollection)
-        .distinct()
+  public List<String> allCollections() {
+    return collectionsOf(addedSpecStream())
         .collect(Collectors.toList());
   }
 
-  public List<String> addedCommittedCollections() {
-    return addedSpecs.stream()
-        .filter(spec -> spec.isCommitted())
-        .map(ArtifactSpec::getCollection)
-        .distinct()
+  public List<String> activeCollections() {
+    return collectionsOf(addedSpecStream()
+        .filter(spec -> !spec.isDeleted()))
+        .collect(Collectors.toList());
+  }
+
+  public List<String> activeCommittedCollections() {
+    return collectionsOf(addedSpecStream()
+        .filter(spec -> !spec.isDeleted() && spec.isCommitted()))
         .collect(Collectors.toList());
   }
 
@@ -140,17 +203,20 @@ public class VariantState {
   }
 
   public Stream<ArtifactSpec> committedSpecStream() {
-    return addedSpecs.stream()
-        .filter(spec -> spec.isCommitted());
+    return addedSpecStream().filter(spec -> spec.isCommitted());
   }
 
   public Stream<ArtifactSpec> deletedSpecStream() {
-    return addedSpecs.stream().filter(ArtifactSpec::isDeleted);
+    return addedSpecStream().filter(ArtifactSpec::isDeleted);
   }
 
   Stream<ArtifactSpec> uncommittedSpecStream() {
-    return addedSpecs.stream()
-        .filter(spec -> !spec.isCommitted());
+    return addedSpecStream().filter(spec -> !spec.isCommitted());
+  }
+
+  public Stream<ArtifactSpec> orderedAll() {
+    return addedSpecStream()
+        .sorted();
   }
 
   public Stream<ArtifactSpec> orderedAllCommitted() {
@@ -161,6 +227,12 @@ public class VariantState {
   public Stream<ArtifactSpec> orderedAllCommittedAllAus() {
     return committedSpecStream()
         .sorted(BY_DATE_BY_AUID_BY_DECREASING_VERSION);
+  }
+
+  public Stream<ArtifactSpec> orderedAllCollIncludeUncommitted(String coll) {
+    return addedSpecStream()
+        .filter(s -> s.getCollection().equals(coll))
+        .sorted();
   }
 
   public Stream<ArtifactSpec> orderedAllColl(String coll) {
@@ -182,6 +254,10 @@ public class VariantState {
         .sorted();
   }
 
+  public long auSize(String collection, String auid) {
+    return orderedAllAu(collection, auid).mapToLong(ArtifactSpec::getContentLength).sum();
+  }
+
   Stream<ArtifactSpec> orderedAllUrl(String coll, String auid, String url) {
     return committedSpecStream()
         .filter(s -> s.getCollection().equals(coll))
@@ -199,7 +275,10 @@ public class VariantState {
   }
 
   public ArtifactSpec anyUncommittedSpec() {
-    return uncommittedSpecStream().findAny().orElse(null);
+    return uncommittedSpecStream()
+        .filter(s->!s.isDeleted())
+        .findAny()
+        .orElse(null);
   }
 
   public ArtifactSpec anyUncommittedSpecButVer() {
@@ -259,5 +338,32 @@ public class VariantState {
 
   public boolean hasHighestCommittedVerSpec(String artButVerKey) {
     return highestCommittedVerSpec.containsKey(artButVerKey);
+  }
+
+  public Stream<ArtifactSpec> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
+    return addedSpecStream()
+        .filter(s -> s.getCollection().equals(collection))
+        .filter(s -> s.getAuid().equals(auid))
+        .filter(s -> includeUncommitted || s.isCommitted())
+        .filter(s -> !s.isDeleted())
+        .sorted();
+  }
+
+  public List<Artifact> getArtifactsFrom(Stream<ArtifactSpec> specStream) {
+    return specStream.map(s -> s.getArtifact()).collect(Collectors.toList());
+  }
+
+  public ArtifactSpec getLatestArtifactSpec(String collection, String auid, String uri, boolean includeUncommitted) {
+    return getArtifactsAllVersions(collection, auid, includeUncommitted)
+        .filter(s -> s.getUrl().equals(uri))
+        .max(Comparator.comparingInt(ArtifactSpec::getVersion)).orElse(null);
+  }
+
+  public Stream<ArtifactSpec> getLatestArtifactSpecs(String collection, String auid, boolean includeUncommitted) {
+    return getHighestVerSpecs().stream()
+        .filter(spec -> spec.getCollection().equals(collection))
+        .filter(spec -> spec.getAuid().equals(auid))
+        .filter(s -> includeUncommitted || s.isCommitted())
+        .sorted();
   }
 }

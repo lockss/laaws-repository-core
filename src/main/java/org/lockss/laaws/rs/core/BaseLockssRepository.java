@@ -38,6 +38,8 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.util.*;
+import org.lockss.util.jms.JmsFactory;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
@@ -48,22 +50,16 @@ import java.util.concurrent.Future;
 /**
  * Base implementation of the LOCKSS Repository service.
  */
-public class BaseLockssRepository implements LockssRepository {
+public class BaseLockssRepository implements LockssRepository,
+					     JmsFactorySource {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
   protected ArtifactIndex index;
+  protected JmsFactory jmsFact;
 
   /**
-   * Constructor. By default, we spin up a volatile in-memory LOCKSS repository.
-   */
-  public BaseLockssRepository() throws IOException {
-    index = new VolatileArtifactIndex();
-    store = new VolatileWarcArtifactDataStore(index);
-  }
-
-  /**
-   * Configures this LOCKSS repository with the provided artifact index and storage layers.
+   * Create a LOCKSS repository with the provided artifact index and storage layers.
    *
    * @param index An instance of {@code ArtifactIndex}.
    * @param store An instance of {@code ArtifactDataStore}.
@@ -75,6 +71,10 @@ public class BaseLockssRepository implements LockssRepository {
 
     this.index = index;
     this.store = store;
+  }
+
+  /** No-arg constructor for subclasses */
+  protected BaseLockssRepository() throws IOException {
   }
 
   @Override
@@ -89,6 +89,24 @@ public class BaseLockssRepository implements LockssRepository {
     log.info("Shutting down repository");
     index.shutdownIndex();
     store.shutdownDataStore();
+  }
+
+  /** JmsFactorySource method to store a JmsFactory for use by (a user of)
+   * this index.
+   * @param fact a JmsFactory for creating JmsProducer and JmsConsumer
+   * instances.
+   */
+  @Override
+  public void setJmsFactory(JmsFactory fact) {
+    this.jmsFact = fact;
+  }
+
+  /** JmsFactorySource method to provide a JmsFactory.
+   * @return a JmsFactory for creating JmsProducer and JmsConsumer
+   * instances.
+   */
+  public JmsFactory getJmsFactory() {
+    return jmsFact;
   }
 
   /**
@@ -138,6 +156,17 @@ public class BaseLockssRepository implements LockssRepository {
   }
 
   /**
+   * Returns the artifact with the specified artifactId
+   *
+   * @param artifactId
+   * @return The {@code Artifact} with the artifactId, or null if none
+   * @throws IOException
+   */
+  public Artifact getArtifactFromId(String artifactId) throws IOException {
+    return index.getArtifact(artifactId);
+  }
+
+  /**
    * Retrieves an artifact from this LOCKSS repository.
    *
    * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
@@ -149,11 +178,11 @@ public class BaseLockssRepository implements LockssRepository {
     if ((collection == null) || (artifactId == null))
       throw new IllegalArgumentException("Null collection id or artifact id");
 
-    // Return null if artifact doesn't exist
+    // Throw if artifact doesn't exist
     if (!artifactExists(collection, artifactId)) {
-      return null;
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						+ artifactId);
     }
-
     return store.getArtifactData(index.getArtifact(artifactId));
   }
 
@@ -176,8 +205,8 @@ public class BaseLockssRepository implements LockssRepository {
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-        log.warn("Artifact not found in index");
-        return null;
+	throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						  + artifactId);
       }
 
       if (!artifact.getCommitted()) {
@@ -233,11 +262,11 @@ public class BaseLockssRepository implements LockssRepository {
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						  + artifactId);
       }
 
       // Remove from index and data store
-      index.deleteArtifact(artifactId);
       store.deleteArtifactData(artifact);
     }
   }
@@ -275,7 +304,8 @@ public class BaseLockssRepository implements LockssRepository {
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-        throw new IllegalArgumentException("Non-existent artifact id: " + artifactId);
+        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+						  + artifactId);
       }
 
       return artifact.getCommitted();
@@ -456,15 +486,19 @@ public class BaseLockssRepository implements LockssRepository {
    * @param auid       A String with the Archival Unit identifier.
    * @param url        A String with the URL to be matched.
    * @param version    A String with the version.
+   * @param includeUncommitted
+   *          A boolean with the indication of whether an uncommitted artifact
+   *          may be returned.
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   @Override
-  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) throws IOException {
+  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
     if (collection == null || auid == null || url == null || version == null) {
       throw new IllegalArgumentException("Null collection id, au id, url or version");
     }
 
-    return index.getArtifactVersion(collection, auid, url, version);
+    return index.getArtifactVersion(collection, auid, url, version,
+	includeUncommitted);
   }
 
   /**

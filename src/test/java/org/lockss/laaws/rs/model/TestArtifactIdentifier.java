@@ -130,4 +130,18 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
 
         assertTrue(id1.compareTo(id2) <= -1);
     }
+
+  
+  ArtifactIdentifier artId(String coll, String auid, String uri, int version) {
+    return new ArtifactIdentifier(coll, auid, uri, version);
+  }
+
+  @Test
+  public void sortOrder() {
+    assertTrue(artId("c", "a", "foo", 1).compareTo(artId("c", "a", "foo/", 1)) <= -1);
+    assertTrue(artId("c", "a", "foo/", 1).compareTo(artId("c", "a", "foo.", 1)) <= -1);
+    assertTrue(artId("c", "a", "foo/", 1).compareTo(artId("c", "a", "foo/a", 1)) <= -1);
+    assertTrue(artId("c", "a", "bar", 1).compareTo(artId("c", "a", "foo", 1)) <= -1);
+  };
+
 }

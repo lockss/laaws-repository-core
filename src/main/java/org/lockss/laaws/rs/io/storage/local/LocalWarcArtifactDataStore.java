@@ -213,7 +213,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     /**
      * Returns a boolean indicating whether an artifact is marked as deleted in the repository storage.
      *
-     * @param indexData The artifact identifier of the aritfact to check.
+     * @param indexData The artifact identifier of the artifact to check.
      * @return A boolean indicating whether the artifact is marked as deleted.
      * @throws IOException
      * @throws URISyntaxException

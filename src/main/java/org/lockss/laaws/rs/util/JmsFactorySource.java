@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2018-2019 Board of Trustees of Leland Stanford Jr. University,
  * all rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,20 +26,11 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.junit.jupiter.api.*;
+import org.lockss.util.jms.*;
 
-import org.lockss.util.test.LockssTestCase5;
+public interface JmsFactorySource {
 
-class TestJmsConsumer extends LockssTestCase5 {
+  public void setJmsFactory(JmsFactory fact);
 
-  @Test
-  public void testIgnore() {
-    /*
-     * JmsConsumer is now almost an exact copy of lockss-core's Consumer,
-     * except it reads the connect URI from a sysprop instead of getting
-     * it from the JMSManager. This should be refactored to lockss-util.
-     * See lockss-core TestConsumer.
-     */
-  }
-
+  public JmsFactory getJmsFactory();
 }

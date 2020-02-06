@@ -40,6 +40,7 @@ import java.util.function.Predicate;
 import java.util.stream.*;
 import org.apache.commons.collections4.*;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.lang3.tuple.*;
 import org.apache.http.*;
 import org.apache.http.message.BasicStatusLine;
@@ -315,7 +316,25 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // up variants, and by testArtifactSizes(), but for the sake of
     // completeness ...
 
-    ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1);
+    ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1).setCollectionDate(0);
+    Artifact newArt = addUncommitted(spec);
+    Artifact commArt = commit(spec, newArt);
+    spec.assertArtifact(repository, commArt);
+  }
+
+  // Test ArtifactSpec from InputStream generator.  (This is really more a
+  // test of ArtifactSpec)
+  @Test
+  public void testArtifactSpecInputStream() throws IOException {
+    ArtifactSpec spec = new ArtifactSpec()
+      .setUrl("https://mr/ed/")
+      .setContentGenerator(() ->
+			   IOUtils.toInputStream("abcd",
+						 Charset.defaultCharset()))
+      .setCollectionDate(0);
+    assertEquals(4, IOUtils.copy(spec.getInputStream(),
+				 new NullOutputStream()));
+
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
     spec.assertArtifact(repository, commArt);
@@ -341,8 +360,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Artifact not found
     for (ArtifactSpec spec : notFoundArtifactSpecs()) {
       log.info("s.b. notfound: " + spec);
-      assertNull(getArtifact(repository, spec),
+      assertNull(getArtifact(repository, spec, false),
 		 "Null or non-existent name shouldn't be found: " + spec);
+
+      if (spec.isCommitted()) {
+	assertNotNull(getArtifact(repository, spec, true),
+		      "Null or non-existent name shouldn't be found: " + spec);
+      } else {
+	assertNull(getArtifact(repository, spec, false),
+		   "Uncommitted shouldn't be found: " + spec);
+      }
     }
 
     // Ensure that a no-version retrieval gets the expected highest version
@@ -352,6 +379,28 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	  highSpec.getCollection(),
 	  highSpec.getAuid(),
 	  highSpec.getUrl()));
+    }
+
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testGetArtifactFromId() throws IOException {
+    // Illegal args
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "Null",
+		      () -> {repository.getArtifactFromId(null);});
+
+    // Artifact not found
+    assertNull(repository.getArtifactFromId("Not a likely artifact id"),
+	       "Non-existent artifactId shouldn't be found");
+
+    for (ArtifactSpec highSpec : variantState.getHighestCommittedVerSpecs()) {
+      log.info("highSpec: " + highSpec);
+      Artifact art = repository.getArtifact(highSpec.getCollection(),
+					    highSpec.getAuid(),
+					    highSpec.getUrl());
+      assertSame(art, repository.getArtifactFromId(art.getId()));
     }
 
   }
@@ -372,7 +421,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Artifact not found
     // XXX should this throw?
-    assertNull(repository.getArtifactData(COLL1, NO_ARTID));
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
+		      "Non-existent artifact",
+		      () -> {repository.getArtifactData(COLL1, NO_ARTID);});
 
     ArtifactSpec cspec = variantState.anyCommittedSpec();
     if (cspec != null) {
@@ -398,19 +449,34 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "collection",
-		      () -> {repository.getArtifactVersion(null, null, null, null);});
+		      () -> {repository.getArtifactVersion(null, null, null, null, false);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "collection",
-		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1);});
+		      () -> {repository.getArtifactVersion(null, null, null, null, true);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1, false);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "collection",
+		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1, true);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "au",
-		      () -> {repository.getArtifactVersion(COLL1, null, URL1, 1);});
+		      () -> {repository.getArtifactVersion(COLL1, null, URL1, 1, false);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "au",
+		      () -> {repository.getArtifactVersion(COLL1, null, URL1, 1, true);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "url",
-		      () -> {repository.getArtifactVersion(COLL1, AUID1, null, 1);});
+		      () -> {repository.getArtifactVersion(COLL1, AUID1, null, 1, false);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "url",
+		      () -> {repository.getArtifactVersion(COLL1, AUID1, null, 1, true);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "version",
-		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, null);});
+		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, null, false);});
+    assertThrowsMatch(IllegalArgumentException.class,
+		      "version",
+		      () -> {repository.getArtifactVersion(COLL1, AUID1, URL1, null, true);});
     // XXXAPI illegal version numbers
 //     assertThrowsMatch(IllegalArgumentException.class,
 // 		      "version",
@@ -426,25 +492,33 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     for (ArtifactSpec spec : neverFoundArtifactSpecs) {
       log.info("s.b. notfound: " + spec);
-      assertNull(getArtifactVersion(repository, spec, 1),
+      assertNull(getArtifactVersion(repository, spec, 1, false),
 		 "Null or non-existent name shouldn't be found: " + spec);
-      assertNull(getArtifactVersion(repository, spec, 2),
+      assertNull(getArtifactVersion(repository, spec, 1, true),
+		 "Null or non-existent name shouldn't be found: " + spec);
+      assertNull(getArtifactVersion(repository, spec, 2, false),
+		 "Null or non-existent name shouldn't be found: " + spec);
+      assertNull(getArtifactVersion(repository, spec, 2, true),
 		 "Null or non-existent name shouldn't be found: " + spec);
     }
 
     // Get all added artifacts, check correctness
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
+      spec.assertArtifact(repository, getArtifact(repository, spec, true));
+
       if (spec.isCommitted()) {
 	log.info("s.b. data: " + spec);
-	spec.assertArtifact(repository, getArtifact(repository, spec));
+	spec.assertArtifact(repository, getArtifact(repository, spec, false));
       } else {
 	log.info("s.b. uncommitted: " + spec);
-	assertNull(getArtifact(repository, spec),
+	assertNull(getArtifact(repository, spec, false),
 		   "Uncommitted shouldn't be found: " + spec);
       }
       // XXXAPI illegal version numbers
-      assertNull(getArtifactVersion(repository, spec, 0));
-      assertNull(getArtifactVersion(repository, spec, -1));
+      assertNull(getArtifactVersion(repository, spec, 0, false));
+      assertNull(getArtifactVersion(repository, spec, 0, true));
+      assertNull(getArtifactVersion(repository, spec, -1, false));
+      assertNull(getArtifactVersion(repository, spec, -1, true));
     }
 
     // Ensure that a non-existent version isn't found
@@ -453,7 +527,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       assertNull(repository.getArtifactVersion(highSpec.getCollection(),
 					       highSpec.getAuid(),
 					       highSpec.getUrl(),
-					       highSpec.getVersion() + 1));
+					       highSpec.getVersion() + 1,
+					       false));
+      assertNull(repository.getArtifactVersion(highSpec.getCollection(),
+					       highSpec.getAuid(),
+					       highSpec.getUrl(),
+					       highSpec.getVersion() + 1,
+					       true));
     }
   }
 
@@ -503,8 +583,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Calculate the expected size of each AU in each collection, compare
     // with auSize()
-    for (String coll : variantState.addedCollections()) {
-      for (String auid : variantState.addedAuids()) {
+    for (String coll : variantState.activeCollections()) {
+      for (String auid : variantState.allAuids()) {
 	long expSize = variantState.getHighestCommittedVerSpecs().stream()
 	  .filter(s -> s.getAuid().equals(auid))
 	  .filter(s -> s.getCollection().equals(coll))
@@ -531,7 +611,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     ArtifactSpec commSpec = variantState.anyCommittedSpec();
     if (commSpec != null) {
       // Get the existing artifact
-      Artifact commArt = getArtifact(repository, commSpec);
+      Artifact commArt = getArtifact(repository, commSpec, false);
       // XXXAPI should this throw?
 //       assertThrows(NullPointerException.class,
 // 		   () -> {repository.commitArtifact(commSpec.getCollection(),
@@ -540,6 +620,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 						  commSpec.getArtifactId());
       assertEquals(commArt, dupArt);
       commSpec.assertArtifact(repository, dupArt);
+
+      // Get the same artifact when uncommitted may be included.
+      commArt = getArtifact(repository, commSpec, true);
+      assertEquals(commArt, dupArt);
     }
   }
 
@@ -559,7 +643,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Delete non-existent artifact
     // XXXAPI
-    assertThrowsMatch(IllegalArgumentException.class,
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
 		      "Non-existent artifact id: " + NO_ARTID,
 		      () -> {repository.deleteArtifact(NO_COLL, NO_ARTID);});
 
@@ -573,12 +657,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	long totsize = repository.auSize(spec.getCollection(), spec.getAuid());
 	assertTrue(repository.artifactExists(spec.getCollection(),
 					     spec.getArtifactId()));
-	assertNotNull(getArtifact(repository, spec));
+	assertNotNull(getArtifact(repository, spec, false));
+	assertNotNull(getArtifact(repository, spec, true));
 	log.info("Deleting not highest: " + spec);
 	repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
 	assertFalse(repository.artifactExists(spec.getCollection(),
 					      spec.getArtifactId()));
-	assertNull(getArtifact(repository, spec));
+	assertNull(getArtifact(repository, spec, false));
+	assertNull(getArtifact(repository, spec, true));
 	variantState.delFromAll(spec);
 	assertEquals(totsize,
 		     (long)repository.auSize(spec.getCollection(),
@@ -596,12 +682,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	long artsize = spec.getContentLength();
 	assertTrue(repository.artifactExists(spec.getCollection(),
 					     spec.getArtifactId()));
-	assertNotNull(getArtifact(repository, spec));
+	assertNotNull(getArtifact(repository, spec, false));
+	assertNotNull(getArtifact(repository, spec, true));
 	log.info("Deleting highest: " + spec);
 	repository.deleteArtifact(spec.getCollection(), spec.getArtifactId());
 	assertFalse(repository.artifactExists(spec.getCollection(),
 					      spec.getArtifactId()));
-	assertNull(getArtifact(repository, spec));
+	assertNull(getArtifact(repository, spec, false));
+	assertNull(getArtifact(repository, spec, true));
 	variantState.delFromAll(spec);
 	ArtifactSpec newHigh = variantState.getHighestCommittedVerSpec(spec.artButVerKey());
 	long exp = totsize - artsize;
@@ -626,12 +714,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 	  repository.auSize(uspec.getCollection(), uspec.getAuid());
 	assertTrue(repository.artifactExists(uspec.getCollection(),
 					     uspec.getArtifactId()));
-	assertNull(getArtifact(repository, uspec));
+	assertNull(getArtifact(repository, uspec, false));
+	assertNotNull(getArtifact(repository, uspec, true));
 	log.info("Deleting uncommitted: " + uspec);
 	repository.deleteArtifact(uspec.getCollection(), uspec.getArtifactId());
 	assertFalse(repository.artifactExists(uspec.getCollection(),
 					      uspec.getArtifactId()));
-	assertNull(getArtifact(repository, uspec));
+	assertNull(getArtifact(repository, uspec, false));
+	assertNull(getArtifact(repository, uspec, true));
 	variantState.delFromAll(uspec);
 	assertEquals(totsize,
 		     (long)repository.auSize(uspec.getCollection(),
@@ -639,10 +729,44 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 		     "AU size changed after deleting uncommitted");
       }
     }
+  }
+
+  @VariantTest
+  @EnumSource(StdVariants.class)
+  public void testDeleteAllArtifacts() throws IOException {
     // TK Delete committed & uncommitted arts & check results each time
     // delete twice
     // check getAuIds() & getCollectionIds() as they run out
+    Iterator<String> collIter = repository.getCollectionIds().iterator();
 
+    // Loop through all the artifacts.
+    Iterator<ArtifactSpec> iter =
+	(Iterator<ArtifactSpec>)variantState.getArtifactSpecs().iterator();
+
+    while (iter.hasNext()) {
+      // Get the next artifact.
+      ArtifactSpec spec = iter.next();
+      String coll = spec.getCollection();
+      String id = spec.getArtifactId();
+      assertTrue(repository.artifactExists(coll, id), "spec = " + spec);
+      // Delete the artifact.
+      repository.deleteArtifact(coll, id);
+      assertFalse(repository.artifactExists(coll, id), "spec = " + spec);
+      // Delete it again.
+      try {
+	repository.deleteArtifact(coll, id);
+	fail("Should have thrown LockssNoSuchArtifactIdException");
+      } catch (LockssNoSuchArtifactIdException iae) {}
+      assertFalse(repository.artifactExists(coll, id), "spec = " + spec);
+    }
+
+    // There are no collections now.
+    assertFalse(repository.getCollectionIds().iterator().hasNext());
+
+    // There are no AUIds in any of the previously existing collections.
+    while (collIter.hasNext()) {
+      assertFalse(repository.getAuIds(collIter.next()).iterator().hasNext());
+    }
   }
 
   @VariantTest
@@ -666,9 +790,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     String anyAuid = null;
 
     // Compare with all URLs in each AU
-    for (String coll : variantState.addedCollections()) {
+    for (String coll : variantState.activeCollections()) {
       anyColl = coll;
-      for (String auid : variantState.addedAuids()) {
+      for (String auid : variantState.allAuids()) {
 	anyAuid = auid;
 	ArtifactSpec.assertArtList(repository, (variantState.orderedAllAu(coll, auid)
 		       .filter(distinctByKey(ArtifactSpec::artButVerKey))),
@@ -713,8 +837,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Non-existent collection & auid
     assertEmpty(repository.getArtifactsWithPrefix(NO_COLL, NO_AUID, PREFIX1));
     // Compare with all URLs matching prefix in each AU
-    for (String coll : variantState.addedCollections()) {
-      for (String auid : variantState.addedAuids()) {
+    for (String coll : variantState.activeCollections()) {
+      for (String auid : variantState.allAuids()) {
 	ArtifactSpec.assertArtList(repository, (variantState.orderedAllAu(coll, auid)
 		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))
 		       .filter(distinctByKey(ArtifactSpec::artButVerKey))),
@@ -754,9 +878,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     String anyColl = null;
     String anyAuid = null;
     // Compare with all URLs all version in each AU
-    for (String coll : variantState.addedCollections()) {
+    for (String coll : variantState.activeCollections()) {
       anyColl = coll;
-      for (String auid : variantState.addedAuids()) {
+      for (String auid : variantState.allAuids()) {
 	anyAuid = auid;
 	ArtifactSpec.assertArtList(repository, variantState.orderedAllAu(coll, auid),
 		      repository.getArtifactsAllVersions(coll, auid));
@@ -798,8 +922,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Non-existent collection & auid
     assertEmpty(repository.getArtifactsWithPrefixAllVersions(NO_COLL, NO_AUID, PREFIX1));
     // Compare with all URLs matching prefix in each AU
-    for (String coll : variantState.addedCollections()) {
-      for (String auid : variantState.addedAuids()) {
+    for (String coll : variantState.activeCollections()) {
+      for (String auid : variantState.allAuids()) {
 	ArtifactSpec.assertArtList(repository, (variantState.orderedAllAu(coll, auid)
 		       .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
 		       repository.getArtifactsWithPrefixAllVersions(coll, auid, PREFIX1));
@@ -835,7 +959,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Non-existent collection
     assertEmpty(repository.getArtifactsWithPrefixAllVersionsAllAus(NO_COLL, PREFIX1));
     // Compare with all URLs matching prefix
-    for (String coll : variantState.addedCollections()) {
+    for (String coll : variantState.activeCollections()) {
       ArtifactSpec.assertArtList(repository, (variantState.orderedAllCollAllAus(coll)
 		  .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
 		  repository.getArtifactsWithPrefixAllVersionsAllAus(coll, PREFIX1));
@@ -921,20 +1045,14 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertEmpty(repository.getAuIds(NO_COLL));
 
     // Compare with expected auid list for each collection
-    for (String coll : variantState.addedCollections()) {
+    for (String coll : variantState.activeCollections()) {
       Iterator<String> expAuids =
-	variantState.orderedAllColl(coll)
+	variantState.orderedAllCollIncludeUncommitted(coll)
 	.map(ArtifactSpec::getAuid)
 	.distinct()
 	.iterator();
       assertEquals(IteratorUtils.toList(expAuids),
 		   IteratorUtils.toList(repository.getAuIds(coll).iterator()));
-    }
-
-    // Try getAuIds() on collections that have no committed artifacts
-    for (String coll : CollectionUtils.subtract(variantState.addedCollections(),
-						variantState.addedCommittedCollections())) {
-      assertEmpty(repository.getAuIds(coll));
     }
   }
 
@@ -942,7 +1060,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   @EnumSource(StdVariants.class)
   public void testGetCollectionIds() throws IOException {
     Iterator<String> expColl =
-      variantState.orderedAllCommitted()
+      variantState.orderedAll()
       .map(ArtifactSpec::getCollection)
       .distinct()
       .iterator();
@@ -967,10 +1085,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // non-existent collection, artifact id
 
     // XXXAPI
-    assertThrowsMatch(IllegalArgumentException.class,
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
 		      "Non-existent artifact id: " + NO_ARTID,
 		      () -> {repository.isArtifactCommitted(COLL1, NO_ARTID);});
-    assertThrowsMatch(IllegalArgumentException.class,
+    assertThrowsMatch(LockssNoSuchArtifactIdException.class,
 		      "Non-existent artifact id: " + ARTID1,
 		      () -> {repository.isArtifactCommitted(NO_COLL, ARTID1);});
 
@@ -1000,7 +1118,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   // any artifacts in common
   Pair<String,String> collAuMismatch() {
     Set<Pair<String,String>> set = new HashSet<Pair<String,String>>();
-    for (String coll : variantState.addedCommittedCollections()) {
+    for (String coll : variantState.activeCommittedCollections()) {
       for (String auid : variantState.addedCommittedAuids()) {
 	set.add(new ImmutablePair<String, String>(coll, auid));
       }
@@ -1020,17 +1138,19 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     }
   }
 
-  Artifact getArtifact(LockssRepository repository, ArtifactSpec spec)
-      throws IOException {
-    log.info(String.format("getArtifact(%s, %s, %s)",
+  Artifact getArtifact(LockssRepository repository, ArtifactSpec spec,
+      boolean includeUncommitted) throws IOException {
+    log.info(String.format("getArtifact(%s, %s, %s, %s)",
 			   spec.getCollection(),
 			   spec.getAuid(),
-			   spec.getUrl()));
+			   spec.getUrl(),
+			   includeUncommitted));
     if (spec.hasVersion()) {
       return repository.getArtifactVersion(spec.getCollection(),
 					   spec.getAuid(),
 					   spec.getUrl(),
-					   spec.getVersion());
+					   spec.getVersion(),
+					   includeUncommitted);
     } else {
       return repository.getArtifact(spec.getCollection(),
 				    spec.getAuid(),
@@ -1039,17 +1159,18 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   }
 
   Artifact getArtifactVersion(LockssRepository repository, ArtifactSpec spec,
-			      int ver)
+			      int ver, boolean includeUncommitted)
       throws IOException {
-    log.info(String.format("getArtifactVersion(%s, %s, %s, %d)",
+    log.info(String.format("getArtifactVersion(%s, %s, %s, %d, %s)",
 			   spec.getCollection(),
 			   spec.getAuid(),
 			   spec.getUrl(),
-			   ver));
+			   ver,
+			   includeUncommitted));
     return repository.getArtifactVersion(spec.getCollection(),
 					 spec.getAuid(),
 					 spec.getUrl(),
-					 ver);
+					 ver, includeUncommitted);
   }
 
   Artifact addUncommitted(ArtifactSpec spec) throws IOException {
@@ -1085,29 +1206,37 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertFalse(newArt.getCommitted());
     assertTrue(repository.artifactExists(spec.getCollection(), newArtId));
 
-    Artifact oldArt = getArtifact(repository, spec);
+    Artifact oldArt = getArtifact(repository, spec, false);
     if (expVers == 0) {
       // this test valid only when no other versions exist ArtifactSpec
       assertNull(oldArt);
     }
+
+    if (spec.hasVersion()) {
+      assertEquals(newArt, getArtifact(repository, spec, true));
+    }
+
     spec.setVersion(newArt.getVersion());
     spec.setArtifactId(newArtId);
 
     variantState.add(spec);
-    // Remember the highest version of this URL we've added
-    ArtifactSpec maxVerSpec = variantState.getHighestVerSpec(spec.artButVerKey());
-    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      variantState.setHighestVerSpec(spec.artButVerKey(), spec);
-    }
+
     return newArt;
   }
 
   Artifact commit(ArtifactSpec spec, Artifact art) throws IOException {
+    Artifact uncommittedArt = getArtifact(repository, spec, true);
+    assertNotNull(uncommittedArt);
+    assertFalse(repository.isArtifactCommitted(spec.getCollection(),
+					       uncommittedArt.getId()));
+    assertFalse(uncommittedArt.getCommitted());
+
     String artId = art.getId();
     log.info("committing: " + art);
     Artifact commArt = null;
     try {
       commArt = repository.commitArtifact(spec.getCollection(), artId);
+      variantState.commit(spec.getArtifactId());
     } catch (Exception e) {
       log.error("Caught exception committing artifact: {}", e);
       log.error("spec = {}", spec);
@@ -1119,24 +1248,24 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     if (spec.getExpVer() > 0) {
       assertEquals(spec.getExpVer(), (int)commArt.getVersion());
     }
+
     spec.setCommitted(true);
-    // Remember the highest version of this URL we've committed
-    ArtifactSpec maxVerSpec = variantState.getHighestCommittedVerSpec(spec.artButVerKey());
-    if (maxVerSpec == null || maxVerSpec.getVersion() < spec.getVersion()) {
-      variantState.setHighestCommittedVerSpec(spec.artButVerKey(), spec);
-    }
+
     assertTrue(repository.isArtifactCommitted(spec.getCollection(),
 					      commArt.getId()));
     assertTrue(commArt.getCommitted());
 
     spec.assertArtifact(repository, commArt);
 
-    Artifact newArt = getArtifact(repository, spec);
+    Artifact newArt = getArtifact(repository, spec, false);
     assertNotNull(newArt);
     assertTrue(repository.isArtifactCommitted(spec.getCollection(),
 					      newArt.getId()));
     assertTrue(newArt.getCommitted());
     assertTrue(repository.artifactExists(spec.getCollection(), newArt.getId()));
+    // Get the same artifact when uncommitted may be included.
+    newArt = getArtifact(repository, spec, true);
+    assertNotNull(newArt);
     return newArt;
   }
 
@@ -1189,7 +1318,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       for (ArtifactSpec auUrl : variantState.committedSpecStream()
 	     .filter(distinctByKey(s -> s.getUrl() + "|" + s.getAuid()))
 	     .collect(Collectors.toList())) {
-	for (String coll : variantState.addedCommittedCollections()) {
+	for (String coll : variantState.activeCommittedCollections()) {
 	  ArtifactSpec a = auUrl.copy().setCollection(coll);
 	  if (!variantState.hasHighestCommittedVerSpec(a.artButVerKey())) {
 	    res.add(a);

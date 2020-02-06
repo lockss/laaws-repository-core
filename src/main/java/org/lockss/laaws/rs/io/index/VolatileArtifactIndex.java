@@ -46,11 +46,21 @@ import java.util.stream.Stream;
 /**
  * ArtifactData index implemented in memory, not persisted.
  */
-public class VolatileArtifactIndex implements ArtifactIndex {
+public class VolatileArtifactIndex extends AbstractArtifactIndex {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    // Map from artifact ID to Artifact
+    // Internal map from artifact ID to Artifact
     protected Map<String, Artifact> index = new LinkedHashMap<>();
+
+    @Override
+    public void initIndex() {
+      setState(ArtifactIndexState.READY);
+    }
+
+    @Override
+    public void shutdownIndex() {
+      setState(ArtifactIndexState.SHUTDOWN);
+    }
 
     /**
      * Adds an artifact to the index.
@@ -61,10 +71,10 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public Artifact indexArtifact(ArtifactData artifactData) {
-      log.debug("Adding artifact to index: {}", artifactData);
+      log.debug2("Adding artifact to index: {}", artifactData);
 
         if (artifactData == null) {
-          throw new IllegalArgumentException("Null artifact");
+          throw new IllegalArgumentException("Null artifact data");
         }
 
         ArtifactIdentifier artifactId = artifactData.getIdentifier();
@@ -95,7 +105,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         // Add Artifact to the index
         addToIndex(id, artifact);
 
-        log.debug("Added artifact to index: {}", artifactData);
+        log.debug("Added artifact to index: {}", artifact);
 
         return artifact;
     }
@@ -111,7 +121,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     @Override
     public Artifact getArtifact(String artifactId) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
       synchronized (index) {
@@ -146,18 +156,19 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     @Override
     public Artifact commitArtifact(String artifactId) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
       synchronized (index) {
-        Artifact indexedData = index.get(artifactId);
+        Artifact artifact = index.get(artifactId);
 
-        if (indexedData != null) {
-          indexedData.setCommitted(true);
-          addToIndex(artifactId, indexedData);
+        if (artifact != null) {
+          artifact.setCommitted(true);
+          removeFromIndex(artifactId);
+          addToIndex(artifactId, artifact);
         }
 
-        return indexedData;
+        return artifact;
       }
     }
 
@@ -231,7 +242,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     @Override
     public boolean artifactExists(String artifactId) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+        throw new IllegalArgumentException("Null or empty artifact ID");
       }
 
       synchronized (index) {
@@ -241,15 +252,28 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) {
+      if (StringUtils.isEmpty(artifactId)) {
+        throw new IllegalArgumentException("Cannot update storage URL: Null or empty artifact ID");
+      }
+
+      if (StringUtils.isEmpty(storageUrl)) {
+        throw new IllegalArgumentException("Cannot update storage URL: Null or empty storage URL");
+      }
+
       synchronized (index) {
+        // Retrieve the Artifact from the internal artifacts map
         Artifact artifact = index.get(artifactId);
 
+        // Return null if the artifact could not be found
         if (artifact == null) {
-          throw new IllegalArgumentException("Cannot update storage URL: unknown artifact " + artifactId);
+          log.warn("Could not update storage URL: Artifact not found [artifactId: " + artifactId + "]");
+          return null;
         }
 
+        // Update the storage URL of this Artifact in the internal artifacts map
         artifact.setStorageUrl(storageUrl);
 
+        // Return the artifact
         return artifact;
       }
     }
@@ -264,8 +288,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     public Iterable<String> getCollectionIds() {
       synchronized (index) {
         Stream<Artifact> artifactStream = index.values().stream();
-        Stream<Artifact> committedArtifacts = artifactStream.filter(x -> x.getCommitted());
-        Map<String, List<Artifact>> collections = committedArtifacts.collect(Collectors.groupingBy(Artifact::getCollection));
+        Map<String, List<Artifact>> collections = artifactStream.collect(Collectors.groupingBy(Artifact::getCollection));
 
         // Sort the collection IDs for return
         List<String> collectionIds = new ArrayList<String>(collections.keySet());
@@ -288,7 +311,6 @@ public class VolatileArtifactIndex implements ArtifactIndex {
     public Iterable<String> getAuIds(String collection) throws IOException {
       synchronized (index) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
         return IteratorUtils.asIterable(
@@ -438,7 +460,12 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
-        query.filterByURIPrefix(prefix);
+
+        // Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter, we
+        //    return all the committed artifacts in a collection. Is that useful?
+        if (prefix != null) {
+          query.filterByURIPrefix(prefix);
+        }
 
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
@@ -493,7 +520,7 @@ public class VolatileArtifactIndex implements ArtifactIndex {
         synchronized (index) {
           // Apply filter then sort the resulting Artifacts by date, AUID and descending version
           return IteratorUtils.asIterable(index.values().stream().filter(query.build())
-              .sorted(ArtifactComparators.BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+              .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
         }
     }
 
@@ -544,38 +571,39 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
+     * @param includeUncommitted
+     *          A boolean with the indication of whether an uncommitted artifact
+     *          may be returned.
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version) {
-        ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
-        q.filterByCollection(collection);
-        q.filterByAuid(auid);
-        q.filterByURIMatch(url);
-        q.filterByVersion(version);
+    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) {
+      ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
 
-        synchronized (index) {
-          // Apply filter
-          Iterator<Artifact> result = index.values().stream().filter(q.build()).iterator();
+      // Only filter by commit status when no uncommitted artifact is to be returned.
+      if (!includeUncommitted) {
+	q.filterByCommitStatus(true);
+      }
 
-        if (!result.hasNext()) {
-          return null;
-        }
-        Artifact ret = result.next();
-        
-        // There should be only one matching artifact
-        if (result.hasNext()) { // awful hack
-          int i = 1;
-          while (result.hasNext()) { ++i; result.next(); }
-            log.error(
-                String.format("Found %d artifacts having the same (Collection, AUID, URL, Version)", i)
-            );
-            // TODO: Should we throw IllegalStateException?
-        }
+      q.filterByCollection(collection);
+      q.filterByAuid(auid);
+      q.filterByURIMatch(url);
+      q.filterByVersion(version);
 
-        return ret;
+      synchronized (index) {
+        List<Artifact> artifacts = index.values().stream().filter(q.build()).collect(Collectors.toList());
+
+        switch (artifacts.size()) {
+          case 0:
+            return null;
+          case 1:
+            return artifacts.get(0);
+          default:
+            String errMsg = "Found more than one artifact having the same version!";
+            log.error(errMsg);
+            throw new IllegalStateException(errMsg);
         }
+      }
     }
 
     /**
@@ -653,6 +681,6 @@ public class VolatileArtifactIndex implements ArtifactIndex {
      */
     @Override
     public boolean isReady() {
-        return true;
+        return getState() == ArtifactIndexState.READY;
     }
 }

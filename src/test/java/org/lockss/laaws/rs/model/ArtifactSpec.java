@@ -1,9 +1,41 @@
+/*
+
+Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
 package org.lockss.laaws.rs.model;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
+import org.apache.commons.io.output.NullOutputStream;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
@@ -12,7 +44,9 @@ import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.core.RepoUtil;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.PreOrderComparator;
 import org.lockss.util.test.LockssTestCase5;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
@@ -20,8 +54,10 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.DigestInputStream;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 // NOTE: this class is used by TestRestLockssRepository in the
@@ -60,6 +96,13 @@ public class ArtifactSpec implements Comparable<Object> {
     HEADERS1.set("key2", "val2");
   }
 
+  static final Comparator<ArtifactSpec> artSpecComparator =
+      Comparator.comparing(ArtifactSpec::getCollection)
+      .thenComparing(ArtifactSpec::getAuid)
+      .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+      .thenComparing(
+	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
+
   // Identifying fields used in lookups
   String coll = COLL1;
   String auid = AUID1;
@@ -72,7 +115,7 @@ public class ArtifactSpec implements Comparable<Object> {
   StatusLine statLine = STATUS_LINE_OK;
   Map<String, String> headers = RepoUtil.mapFromHttpHeaders(HEADERS1);
   String content;
-  InputStream iStream;
+  Supplier<InputStream> contentGenerator;
 
   // expected values
   long len = -1;
@@ -139,6 +182,14 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public ArtifactSpec setContent(String content) {
     this.content = content;
+    return this;
+  }
+
+  /** Specify a Supplier to generate an InputStream to provide content.
+   * The Supplier will be called multiple times and must return a new
+   * InputStream each time, with the same content. */
+  public ArtifactSpec setContentGenerator(Supplier<InputStream> func) {
+    this.contentGenerator = func;
     return this;
   }
 
@@ -254,7 +305,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public boolean hasContent() {
-    return content != null || iStream != null;
+    return content != null || contentGenerator != null;
   }
 
   public ArtifactSpec generateContent() {
@@ -267,6 +318,10 @@ public class ArtifactSpec implements Comparable<Object> {
     } else {
       setContent(RandomStringUtils.randomAlphabetic(0, MAX_RANDOM_FILE));
     }
+
+    // Set an artificial collection date
+    setCollectionDate(TimeBase.nowMs());
+
     log.debug("Generated content");
     return this;
   }
@@ -280,39 +335,66 @@ public class ArtifactSpec implements Comparable<Object> {
       return len;
     } else if (content != null) {
       return content.length();
+    } else if (contentGenerator != null) {
+      CountingInputStream cis = new CountingInputStream(getInputStream());
+      try {
+	IOUtils.copy(cis, new NullOutputStream());
+      } catch (IOException e) {
+	throw new RuntimeException("Couldn't read InputStream", e);
+      }
+      len = cis.getByteCount();
+      return len;
     } else {
       throw new IllegalStateException("getContentLen() called when length unknown");
     }
   }
 
   public String getContentDigest() {
-    log.trace("content = " + content);
-    // Check whether content has been defined.
-    if (content != null) {
-      // Yes: Check whether the content digest needs to be computed.
-      if (contentDigest == null) {
+    if (log.isTraceEnabled() && content != null) {
+      log.trace("content(0,40) = " +
+		content.substring(0, content.length() > 40 ? 40
+				  : content.length()));
+    }
+    // Check whether the content digest needs to be computed.
+    if (contentDigest == null) {
+      // Yes, Check whether content has been defined.
+      if (content != null) {
         // Yes: Compute it.
-        String algorithmName = ArtifactData.DEFAULT_DIGEST_ALGORITHM;
+	MessageDigest digest = makeDigest();
+	contentDigest =
+	  String.format("%s:%s", digest.getAlgorithm(),
+			new String(Hex.encodeHex(digest.digest(content.getBytes(StandardCharsets.UTF_8)))));
+      } else if (contentGenerator != null) {
+	MessageDigest digest = makeDigest();
+	DigestInputStream dis = new DigestInputStream(getInputStream(), digest);
+	try {
+	  IOUtils.copy(dis, new NullOutputStream());
+	} catch (IOException e) {
+	  throw new RuntimeException("Couldn't read InputStream", e);
+	}
 
-        try {
-          MessageDigest digest = MessageDigest.getInstance(algorithmName);
-          contentDigest = String.format("%s:%s", digest.getAlgorithm(),
-              new String(Hex.encodeHex(
-                  digest.digest(content.getBytes(StandardCharsets.UTF_8)))));
-        } catch (NoSuchAlgorithmException nsae) {
-          String errMsg = String.format("Unknown digest algorithm: %s; "
-              + "could not instantiate a MessageDigest", algorithmName);
-          log.error(errMsg);
-          throw new RuntimeException(errMsg);
-        }
+	contentDigest =
+	  String.format("%s:%s", dis.getMessageDigest().getAlgorithm(),
+			new String(Hex.encodeHex(dis.getMessageDigest().digest())));
+      } else {
+	// No: Report the problem.
+	throw new IllegalStateException("getContentDigest() called when content unknown");
       }
+    }
+    log.trace("contentDigest = " + contentDigest);
+    return contentDigest;
+  }
 
-      log.trace("contentDigest = " + contentDigest);
-      return contentDigest;
-    } else {
-      // No: Report the problem.
-      throw new IllegalStateException(
-          "getContentDigest() called when content unknown");
+  private MessageDigest makeDigest() {
+    String algorithmName = ArtifactData.DEFAULT_DIGEST_ALGORITHM;
+    try {
+      return MessageDigest.getInstance(algorithmName);
+    } catch (NoSuchAlgorithmException nsae) {
+      String errMsg = String.format("Unknown digest algorithm: %s; "
+				    + "could not instantiate a MessageDigest",
+				    algorithmName);
+      log.error(errMsg);
+      throw new RuntimeException(errMsg);
     }
   }
 
@@ -342,23 +424,26 @@ public class ArtifactSpec implements Comparable<Object> {
   public long getCollectionDate() {
     if (collectionDate >= 0) {
       return collectionDate;
-    } else if (getArtifactData() != null) {
-      return getArtifactData().getCollectionDate();
     } else {
       throw new IllegalStateException("getCollectionDate() called when collection date unknown");
     }
   }
 
-  public HttpHeaders getMetdata() {
+  public ArtifactSpec setCollectionDate(long ms) {
+    collectionDate = ms;
+    return this;
+  }
+
+  public HttpHeaders getMetadata() {
     return RepoUtil.httpHeadersFromMap(headers);
   }
 
   public ArtifactIdentifier getArtifactIdentifier() {
-    return new ArtifactIdentifier(artId, coll, auid, url, -1);
+    return new ArtifactIdentifier(artId, coll, auid, url, getVersion());
   }
 
   public Artifact getArtifact() {
-    return new Artifact(
+    Artifact artifact = new Artifact(
         getArtifactId(),
         getCollection(),
         getAuid(),
@@ -369,16 +454,38 @@ public class ArtifactSpec implements Comparable<Object> {
         getContentLength(),
         getContentDigest()
     );
+
+    artifact.setCollectionDate(getCollectionDate());
+
+    return artifact;
   }
 
   public ArtifactData getArtifactData() {
-    return new ArtifactData(getArtifactIdentifier(), getMetdata(),
-        getInputStream(), getStatusLine());
+    ArtifactData ad = new ArtifactData(
+        getArtifactIdentifier(),
+        getMetadata(),
+        getInputStream(),
+        getStatusLine(),
+        getStorageUrl(),
+        null
+    );
+
+    if (this.hasContent()) {
+      ad.setContentLength(this.getContentLength());
+      ad.setContentDigest(this.getContentDigest());
+    }
+
+    ad.setCollectionDate(getCollectionDate());
+
+    return ad;
   }
 
   public InputStream getInputStream() {
     if (content != null) {
       return IOUtils.toInputStream(content, Charset.defaultCharset());
+    }
+    if (contentGenerator != null) {
+      return contentGenerator.get();
     }
     return null;
   }
@@ -389,12 +496,8 @@ public class ArtifactSpec implements Comparable<Object> {
    */
   public int compareTo(Object o) {
     ArtifactSpec s = (ArtifactSpec) o;
-    return new CompareToBuilder()
-        .append(this.getCollection(), s.getCollection())
-        .append(this.getAuid(), s.getAuid())
-        .append(this.getUrl(), s.getUrl())
-        .append(s.getVersion(), this.getVersion())
-        .toComparison();
+
+    return artSpecComparator.compare(this, s);
   }
 
   /**
@@ -469,9 +572,12 @@ public class ArtifactSpec implements Comparable<Object> {
   public void assertArtifactCommon(Artifact art) {
     Assertions.assertNotNull(art, "Comparing with " + this);
 
-    Assertions.assertEquals(getCollection(), art.getCollection());
-    Assertions.assertEquals(getAuid(), art.getAuid());
-    Assertions.assertEquals(getUrl(), art.getUri());
+//    Assertions.assertEquals(getArtifactId(), art.getId());
+    Assertions.assertEquals(getCollection(), art.getCollection(), "Collection");
+    Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
+    Assertions.assertEquals(getUrl(), art.getUri(), "URL");
+    Assertions.assertEquals(isCommitted(), art.getCommitted(),
+			    "Committed state");
 
     if (getExpVer() >= 0) {
       Assertions.assertEquals(getExpVer(), (int) art.getVersion());
@@ -479,6 +585,7 @@ public class ArtifactSpec implements Comparable<Object> {
 
     Assertions.assertEquals(getContentLength(), art.getContentLength());
     Assertions.assertEquals(getContentDigest(), art.getContentDigest());
+    Assertions.assertEquals(getCollectionDate(), art.getCollectionDate());
 
     if (getStorageUrl() != null) {
       Assertions.assertEquals(getStorageUrl(), art.getStorageUrl());
@@ -529,9 +636,11 @@ public class ArtifactSpec implements Comparable<Object> {
       sb.append("C");
     }
     if (hasContent()) {
-      sb.append(String.format(", len: %s", getContentLength()));
+      if (len >= 0 || content != null) {
+	sb.append(String.format(", len: %s", getContentLength()));
 // 	sb.append(String.format(", len: %s, content: %.30s",
 // 				getContentLength(), getContent()));
+      }
     }
     sb.append("]");
     return sb.toString();

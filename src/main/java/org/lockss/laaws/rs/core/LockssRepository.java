@@ -82,6 +82,49 @@ public interface LockssRepository extends Ready {
      * <br>(See Reusability and release note in {@link
      * org.lockss.laaws.rs.model.ArtifactData})
      *
+     * @param artifact
+     *          An artifact to retrieve from this repository.
+     * @param includeInputStream
+     *          true to request the content be made available, false if the
+     *          content isn't needed
+     * @return The {@code ArtifactData} referenced by this artifact.
+     * @throws IOException
+     */
+    default ArtifactData getArtifactData(Artifact artifact,
+					 boolean includeInputStream)
+	throws IOException {
+      return getArtifactData(artifact.getCollection(), artifact.getId(),
+			     includeInputStream);
+    }
+
+    /**
+     * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
+     *
+     *
+     * @param collection
+     *          The collection ID of the artifact.
+     * @param artifactId
+     *          A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+     * @param includeInputStream
+     *          true to request the content be made available, false if the
+     *          content isn't needed
+     * @return The {@code ArtifactData} referenced by this artifact ID.
+     * @throws IOException
+     */
+    default ArtifactData getArtifactData(String collection,
+					 String artifactId,
+					 boolean includeInputStream)
+        throws IOException {
+      return getArtifactData(collection, artifactId);
+    }
+
+    /**
+     * Retrieves an artifact from this LOCKSS repository.
+     * <br>(See Reusability and release note in {@link
+     * org.lockss.laaws.rs.model.ArtifactData})
+     *
      *
      * @param collection
      *          The collection ID of the artifact.
@@ -303,7 +346,18 @@ public interface LockssRepository extends Ready {
         throws IOException;
 
     /**
-     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     * Returns the artifact with the specified artifactId
+     *
+     * @param artifactId
+     * @return The {@code Artifact} representing that artifactId, or null
+     * if none
+     * @throws IOException
+     */
+    Artifact getArtifactFromId(String artifactId)
+        throws IOException;
+
+    /**
+     * Returns the committed artifact of a given version of a URL, from a specified Archival Unit and collection.
      *
      * @param collection
      *          A String with the collection identifier.
@@ -315,10 +369,35 @@ public interface LockssRepository extends Ready {
      *          A String with the version.
      * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
      */
+    default Artifact getArtifactVersion(String collection,
+                                        String auid,
+                                        String url,
+                                        Integer version)
+        throws IOException {
+      return getArtifactVersion(collection, auid, url, version, false);
+    }
+
+    /**
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     *
+     * @param collection
+     *          A String with the collection identifier.
+     * @param auid
+     *          A String with the Archival Unit identifier.
+     * @param url
+     *          A String with the URL to be matched.
+     * @param version
+     *          A String with the version.
+     * @param includeUncommitted
+     *          A boolean with the indication of whether an uncommitted artifact
+     *          may be returned.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+     */
     Artifact getArtifactVersion(String collection,
                                 String auid,
                                 String url,
-                                Integer version)
+                                Integer version,
+                                boolean includeUncommitted)
         throws IOException;
 
 

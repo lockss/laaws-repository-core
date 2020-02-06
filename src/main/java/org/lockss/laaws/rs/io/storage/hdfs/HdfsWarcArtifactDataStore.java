@@ -131,26 +131,30 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   /**
-   * Recursively finds artifact WARC files under a given base path.
+   * Recursively finds WARC files under a given base path.
    *
-   * @param basePath The base path to scan recursively for WARC files.
-   * @return A collection of paths to WARC files under the given base path.
+   * @param path A {@code String} containing the base path to scan recursively for WARC files.
+   * @return A {@code Collection<String>} containing paths to WARC files under the base path.
    * @throws IOException
    */
   @Override
-  public Collection<String> findWarcs(String basePath) throws IOException {
+  public Collection<String> findWarcs(String path) throws IOException {
     Collection<String> warcFiles = new ArrayList<>();
 
-    RemoteIterator<LocatedFileStatus> files = fs.listFiles(new Path(basePath), true);
+    Path basePath = new Path(path);
 
-    while (files.hasNext()) {
-      // Get located file status and name
-      LocatedFileStatus status = files.next();
-      String fileName = status.getPath().getName();
+    if (fs.exists(basePath) && fs.getFileStatus(basePath).isDirectory()) {
+      RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, true);
 
-      // Add this file to the list of WARC files found
-      if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
-        warcFiles.add(status.getPath().toString().substring(fs.getUri().toString().length()));
+      while (files.hasNext()) {
+        // Get located file status and name
+        LocatedFileStatus status = files.next();
+        String fileName = status.getPath().getName();
+
+        // Add this file to the list of WARC files found
+        if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
+          warcFiles.add(status.getPath().toString().substring(fs.getUri().toString().length()));
+        }
       }
     }
 
@@ -172,7 +176,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     if (fs.mkdirs(fullPath)) {
-      log.debug("Created directory [fullPath: {}]", fullPath);
+      log.debug2("Created directory [fullPath: {}]", fullPath);
     } else {
       throw new IOException(String.format("Error creating directory: %s", fullPath));
     }
@@ -255,7 +259,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     Path fullPath = new Path(warcPath);
 
     if (fs.createNewFile(fullPath)) {
-      log.debug("Created new WARC file under HDFS [fullPath: {}]", fullPath);
+      log.debug2("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
 
     writeWarcInfoRecord(warcPath);
@@ -263,7 +267,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public OutputStream getAppendableOutputStream(String filePath) throws IOException {
-    log.debug("Opening appendable OutputStream [filePath: {}]", filePath);
+    log.debug2("Opening appendable OutputStream [filePath: {}]", filePath);
 
     Path extPath = new Path(filePath);
     return fs.append(extPath);
