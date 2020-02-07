@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,12 +30,12 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.util.ArtifactComparators;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.Artifact;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
@@ -92,11 +92,11 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
         // Create and populate an Artifact bean for this ArtifactData
         Artifact artifact = new Artifact(
-                artifactId,
-                false,
-                artifactData.getStorageUrl(),
-                artifactData.getContentLength(),
-                artifactData.getContentDigest()
+            artifactId,
+            false,
+            artifactData.getStorageUrl().toString(),
+            artifactData.getContentLength(),
+            artifactData.getContentDigest()
         );
 
         // Save the artifact collection date.

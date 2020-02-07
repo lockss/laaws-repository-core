@@ -43,6 +43,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
@@ -124,11 +125,10 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public String makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
+  public URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
     UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + filePath);
     uriBuilder.queryParams(params);
-
-    return uriBuilder.toUriString();
+    return uriBuilder.build().toUri();
   }
 
   @Override

@@ -204,7 +204,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     Artifact artifact = new Artifact(
         artifactId,
         false,
-        artifactData.getStorageUrl(),
+        artifactData.getStorageUrl().toString(),
         artifactData.getContentLength(),
         artifactData.getContentDigest()
     );

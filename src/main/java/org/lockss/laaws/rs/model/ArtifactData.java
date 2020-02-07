@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,7 +38,10 @@ import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
-import java.io.*;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.URI;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -77,9 +80,9 @@ public class ArtifactData implements Comparable<ArtifactData> {
     private long contentLength;
     private String contentDigest;
 
-    // Internal repository metadata
-    private RepositoryArtifactMetadata repositoryMetadata;
-    private String storageUrl;
+  // Internal repository metadata
+  private RepositoryArtifactMetadata repositoryMetadata;
+  private URI storageUrl;
 
     // The collection date.
     private long collectionDate = TimeBase.nowMs();
@@ -142,7 +145,7 @@ public class ArtifactData implements Comparable<ArtifactData> {
                         HttpHeaders artifactMetadata,
                         InputStream inputStream,
                         StatusLine httpStatus,
-                        String storageUrl,
+                        URI storageUrl,
                         RepositoryArtifactMetadata repoMetadata) {
         this.identifier = identifier;
         this.httpStatus = httpStatus;
@@ -266,25 +269,25 @@ public class ArtifactData implements Comparable<ArtifactData> {
         return this;
     }
 
-    /**
-     * Returns the location where the byte stream for this artifact data can be found.
-     *
-     * @return A {@code String} containing the storage of this artifact data.
-     */
-    public String getStorageUrl() {
-      return storageUrl;
-    }
+  /**
+   * Returns the location where the byte stream for this artifact data can be found.
+   *
+   * @return A {@code String} containing the storage of this artifact data.
+   */
+  public URI getStorageUrl() {
+    return storageUrl;
+  }
 
     /**
      * Sets the location where the byte stream for this artifact data can be found.
      * @param storageUrl
      *          A {@code String} containing the location of this artifact data.
      */
-    public void setStorageUrl(String storageUrl) {
+    public void setStorageUrl(URI storageUrl) {
       this.storageUrl = storageUrl;
     }
 
-    /**
+  /**
      * Implements {@code Comparable<ArtifactData>} so that sets of {@code ArtifactData} can be ordered.
      *
      * There may be a better canonical order but for now, this defers to implementations of ArtifactIdentifier.

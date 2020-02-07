@@ -336,7 +336,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Update artifact specification
     spec.setCommitted(true);
-    spec.setStorageUrl(committedArtifact.getStorageUrl());
+    spec.setStorageUrl(URI.create(committedArtifact.getStorageUrl()));
     spec.assertArtifact(store, committedArtifact);
   }
 
@@ -375,7 +375,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Update the artifact specification from resulting artifact
     spec.setArtifactId(artifact.getId());
     spec.setVersion(artifact.getVersion());
-    spec.setStorageUrl(artifact.getStorageUrl());
+    spec.setStorageUrl(URI.create(artifact.getStorageUrl()));
 
 //    assertEquals(ai.getId(), artifact.getId());
 //    assertEquals(ai, artifact.getIdentifier());
@@ -415,7 +415,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index) throws IOException;
   protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index, WADS otherStore) throws IOException;
 
-  protected abstract String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
+  protected abstract URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
 
   protected abstract Path[] expected_getBasePaths() throws Exception;
 
@@ -474,10 +474,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testMakeStorageUrl() throws Exception {
     ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
 
-    String expectedStorageUrl = expected_makeStorageUrl(aid, 1234L, 5678L);
+    URI expectedStorageUrl = expected_makeStorageUrl(aid, 1234L, 5678L);
 
     Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid());
-    String actualStorageUrl = store.makeStorageUrl(activeWarcPath, 1234L, 5678L);
+    URI actualStorageUrl = store.makeStorageUrl(activeWarcPath, 1234L, 5678L);
 
     assertEquals(expectedStorageUrl, actualStorageUrl);
   }
@@ -796,7 +796,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact addedArtifact = store.addArtifactData(ad);
 
     // Update artifact specification
-    spec.setStorageUrl(addedArtifact.getStorageUrl());
+    spec.setStorageUrl(URI.create(addedArtifact.getStorageUrl()));
 
     // Run garbage collector
     store.garbageCollectTempWarcs();
@@ -908,7 +908,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(addedArtifact);
 
     // Update the spec from the addArtifactData() operation
-    spec.setStorageUrl(addedArtifact.getStorageUrl());
+    spec.setStorageUrl(URI.create(addedArtifact.getStorageUrl()));
 
     // Assert things about the artifact we got back
     spec.assertArtifact(store, addedArtifact);
@@ -997,7 +997,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       }
 
       spec.generateContent();
-      spec.setStorageUrl("bad url");
+      spec.setStorageUrl(URI.create("bad"));
 
       log.debug("Generated content for bogus artifact [artifactId: {}]", spec.getArtifactId());
 
@@ -1016,7 +1016,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         log.debug("spec = {}", spec);
         log.debug("artifactExists = {}", index.artifactExists(spec.getArtifactId()));
         index.updateStorageUrl(spec.getArtifactId(), "bad url");
-        spec.setStorageUrl("bad url");
+        spec.setStorageUrl(URI.create("bad"));
         assertThrows(IllegalArgumentException.class, () -> store.getArtifactData(spec.getArtifact()));
       }
     }
@@ -1234,7 +1234,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     for (ArtifactSpec spec : neverFoundArtifactSpecs) { // FIXME
       spec.setArtifactId(UUID.randomUUID().toString());
       spec.generateContent();
-      spec.setStorageUrl("bad url");
+      spec.setStorageUrl(URI.create("bad"));
 
       store.deleteArtifactData(spec.getArtifact());
     }
@@ -1300,7 +1300,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
         // Get artifact's storage URL in data store
         String storageUrl = indexedArtifact.getStorageUrl();
-        String tmpWarcBaseStorageUrl = store.makeStorageUrl(store.getTmpWarcBasePaths()[0], null);
+        URI tmpWarcBaseStorageUrl = store.makeStorageUrl(store.getTmpWarcBasePaths()[0], null);
 
         // Assert committed status of artifacts
         if (spec.isToCommit()) {
@@ -1322,7 +1322,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
           assertFalse(indexedArtifact.getCommitted());
 
           // Assert artifact does resides in temporary storage
-          assertTrue(storageUrl.startsWith(tmpWarcBaseStorageUrl));
+          assertTrue(storageUrl.startsWith(tmpWarcBaseStorageUrl.toString()));
         }
       }
     }

@@ -44,6 +44,7 @@ import org.lockss.log.L4JLogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
@@ -172,15 +173,15 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         return store.fs.isFile(file);
     }
 
-    @Override
-    protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
-        return String.format("%s%s?offset=%d&length=%d",
-            store.fs.getUri(),
-            store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
-            offset,
-            length
-        );
-    }
+  @Override
+  protected URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
+    return URI.create(String.format("%s%s?offset=%d&length=%d",
+        store.fs.getUri(),
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
+        offset,
+        length
+    ));
+  }
 
     @Override
     protected java.nio.file.Path[] expected_getBasePaths() throws Exception {

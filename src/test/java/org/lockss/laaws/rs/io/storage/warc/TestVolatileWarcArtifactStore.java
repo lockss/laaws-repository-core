@@ -38,6 +38,7 @@ import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 
 /**
@@ -110,12 +111,12 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
-  protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
-    return String.format(
+  protected URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
+    return URI.create(String.format(
         "volatile://%s?offset=%d&length=%d",
         store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
         offset,
         length
-    );
+    ));
   }
 }

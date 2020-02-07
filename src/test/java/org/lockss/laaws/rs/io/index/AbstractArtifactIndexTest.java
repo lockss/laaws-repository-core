@@ -34,10 +34,12 @@ import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.ArtifactSpec;
+import org.lockss.laaws.rs.model.VariantState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
@@ -45,7 +47,11 @@ import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
-import java.util.*;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -165,7 +171,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Generate content if needed (Artifact objects must represent)
     if (!spec.hasContent()) {
       spec.generateContent();
-      spec.setStorageUrl(spec.getArtifactId());
+      spec.setStorageUrl(URI.create(spec.getArtifactId()));
     }
 
     // Set version if one was not provided
@@ -260,7 +266,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactSpec spec1 = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
     spec1.setArtifactId(UUID.randomUUID().toString());
     spec1.generateContent();
-    spec1.setStorageUrl("file:///tmp/a");
+    spec1.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Index the artifact and assert the Artifact the operation returns matches the spec
     Artifact indexed1 = index.indexArtifact(spec1.getArtifactData());
@@ -299,7 +305,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
     spec.setArtifactId(UUID.randomUUID().toString());
     spec.generateContent();
-    spec.setStorageUrl("file:///tmp/a");
+    spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Assert conditions expected if the artifact is not in the index
     assertFalse(index.artifactExists(spec.getArtifactId()));
@@ -647,7 +653,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       // Update the storage URL
       String nsURL = UUID.randomUUID().toString();
       Artifact updated = index.updateStorageUrl(spec.getArtifactId(), nsURL);
-      spec.setStorageUrl(nsURL);
+      spec.setStorageUrl(URI.create(nsURL));
 
       // Assert the artifact returned by updateStorageUrl() reflects the new storage URL
       assertEquals(spec.getArtifact(), updated);
@@ -803,7 +809,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
     spec.setArtifactId(UUID.randomUUID().toString());
     spec.generateContent();
-    spec.setStorageUrl("file:///tmp/a");
+    spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Assert conditions expected if the artifact is not in the index
     assertFalse(index.artifactExists(spec.getArtifactId()));
@@ -853,7 +859,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
     spec.setArtifactId(UUID.randomUUID().toString());
     spec.generateContent();
-    spec.setStorageUrl("file:///tmp/a");
+    spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Assert that an artifact by the spec's artifact ID does not exist yet
     assertFalse(index.artifactExists(spec.getArtifactId()));
@@ -883,7 +889,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactSpec spec1 = ArtifactSpec.forCollAuUrl("xyzzy", "foo", "bar");
     spec1.setArtifactId(UUID.randomUUID().toString());
     spec1.generateContent();
-    spec1.setStorageUrl("file:///tmp/a");
+    spec1.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Sanity check
     assertFalse(spec1.isToCommit());
@@ -923,7 +929,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl("xyzzy", "foo", "bar");
     spec.setArtifactId(UUID.randomUUID().toString());
     spec.generateContent();
-    spec.setStorageUrl("file:///tmp/a");
+    spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Index the artifact
     Artifact indexed = index.indexArtifact(spec.getArtifactData());

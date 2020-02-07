@@ -43,6 +43,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -213,10 +214,10 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public String makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
+  public URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
     UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
     uriBuilder.queryParams(params);
-    return uriBuilder.toUriString();
+    return uriBuilder.build().toUri();
   }
 
   @Override

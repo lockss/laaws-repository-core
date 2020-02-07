@@ -198,7 +198,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @return A {@code String} containing the base path for temporary WARCs.
    */
-  protected abstract String makeStorageUrl(Path filePath, MultiValueMap<String, String> params);
+  protected abstract URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params);
 
   protected abstract InputStream getInputStreamAndSeek(Path filePath, long seek) throws IOException;
 
@@ -545,7 +545,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param length   A {@code length} containing the length of the WARC record.
    * @return A {@code String} containing the internal storage URL to the WARC record.
    */
-  protected String makeStorageUrl(Path filePath, long offset, long length) {
+  protected URI makeStorageUrl(Path filePath, long offset, long length) {
     MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("offset", Long.toString(offset));
     params.add("length", Long.toString(length));
@@ -1072,7 +1072,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Artifact artifact = new Artifact(
         artifactId,
         false,
-        artifactData.getStorageUrl(),
+        artifactData.getStorageUrl().toString(),
         artifactData.getContentLength(),
         artifactData.getContentDigest()
     );
@@ -1156,7 +1156,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Set ArtifactData properties
     artifactData.setIdentifier(artifact.getIdentifier());
-    artifactData.setStorageUrl(artifact.getStorageUrl());
+    artifactData.setStorageUrl(URI.create(artifact.getStorageUrl()));
     artifactData.setContentLength(artifact.getContentLength());
     artifactData.setContentDigest(artifact.getContentDigest());
     artifactData.setRepositoryMetadata(getRepositoryMetadata(artifact.getIdentifier()));
@@ -1416,7 +1416,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Set the artifact's new storage URL and update the index
-    artifact.setStorageUrl(makeStorageUrl(dst, warcLength, recordLength));
+    artifact.setStorageUrl(makeStorageUrl(dst, warcLength, recordLength).toString());
     artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
     return artifact;

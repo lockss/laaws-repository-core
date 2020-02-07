@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -35,11 +35,9 @@ import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
-import org.apache.http.impl.io.DefaultHttpResponseParser;
-import org.apache.http.impl.io.HttpTransportMetricsImpl;
-import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.archive.io.warc.WARCRecord;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
@@ -51,6 +49,7 @@ import org.springframework.http.MediaType;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 
 /**
  * Test class for the ArtifactData factory {@code org.lockss.laaws.rs.util.ArtifactDataFactory}.
@@ -156,7 +155,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             assertEquals(200, artifact.getHttpStatus().getStatusCode());
             assertEquals("OK", artifact.getHttpStatus().getReasonPhrase());
 
-            String storageUrl = artifact.getStorageUrl();
+            URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
             RepositoryArtifactMetadata repositoryState = artifact.getRepositoryMetadata();
@@ -212,7 +211,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             assertEquals(200, artifact.getHttpStatus().getStatusCode());
             assertEquals("OK", artifact.getHttpStatus().getReasonPhrase());
 
-            String storageUrl = artifact.getStorageUrl();
+            URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
             RepositoryArtifactMetadata repositoryState = artifact.getRepositoryMetadata();
