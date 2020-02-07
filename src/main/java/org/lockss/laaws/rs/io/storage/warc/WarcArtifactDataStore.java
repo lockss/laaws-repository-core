@@ -438,7 +438,35 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
 
   /**
+   * Truncates a journal by rewriting it with only its most recent entry per artifact ID.
    *
+   * @param journalPath A {@link Path} containing the path to the data store journal to truncate.
+   * @throws IOException
+   */
+  protected void truncateMetadataJournal(Path journalPath) throws IOException {
+    for (JSONObject json : readMetadataJournal(journalPath).values()) {
+
+      // TODO: Move existing journal out of the way instead of removing it
+      removeWarc(journalPath);
+
+      // Parse the JSON into a RepositoryArtifactMetadata object
+      RepositoryArtifactMetadata metadata = new RepositoryArtifactMetadata(json);
+
+      // Initialize metadata WARC file
+      initWarc(journalPath);
+
+      try (OutputStream output = getAppendableOutputStream(journalPath)) {
+        // Append WARC metadata record to the new journal
+        WARCRecordInfo metadataRecord = createWarcMetadataRecord(metadata.getArtifactId(), metadata);
+        writeWarcRecord(metadataRecord, output);
+        output.flush();
+      }
+
+    }
+  }
+
+  /**
+   * Removes temporary WARCs in this data store that are no longer needed by the data store.
    *
    * @throws IOException
    */
