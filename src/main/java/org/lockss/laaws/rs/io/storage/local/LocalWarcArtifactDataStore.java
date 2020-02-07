@@ -56,8 +56,8 @@ import java.util.stream.Collectors;
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
-  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
+  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
   public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
     this(index, castToPathArray(Arrays.stream(basePath).map(File::toPath).toArray()));

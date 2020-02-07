@@ -124,6 +124,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected static final String CRLF = "\r\n";
   protected static byte[] CRLF_BYTES;
 
+  public static final Path DEFAULT_BASEPATH = Paths.get("/lockss");
   public final static String DEFAULT_TMPWARCBASEPATH = TMP_WARCS_DIR;
 
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
@@ -449,11 +450,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Arrays.stream(tmpWarcBasePaths).forEach(this::garbageCollectTempWarcs);
   }
 
-  protected void garbageCollectTempWarcs(Path tmpWarcBasePaths) {
+  /**
+   * Removes temporary WARCs under the given temporary WARCs directory that are no longer needed by the data store.
+   *
+   * @param tmpWarcBasePath
+   */
+  protected void garbageCollectTempWarcs(Path tmpWarcBasePath) {
     try {
-      Collection<Path> tmpWarcs = findWarcs(tmpWarcBasePaths);
+      Collection<Path> tmpWarcs = findWarcs(tmpWarcBasePath);
 
-      log.debug("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePaths, tmpWarcs);
+      log.debug("Found {} temporary WARCs under {}: {}", tmpWarcs.size(), tmpWarcBasePath, tmpWarcs);
 
       for (Path tmpWarcPath : tmpWarcs) {
         WarcFile warcFile = null;
@@ -506,12 +512,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     } catch (IOException e) {
       log.error(
           "Caught IOException while trying to find temporary WARC files [tmpWarcBasePath: {}]: {}",
-          tmpWarcBasePaths,
+          tmpWarcBasePath,
           e
       );
     }
 
-    log.debug("Finished GC of temporary WARC files [tmpWarcBasePath: {}]", tmpWarcBasePaths);
+    log.debug("Finished GC of temporary WARC files [tmpWarcBasePath: {}]", tmpWarcBasePath);
   }
 
   /**
@@ -553,12 +559,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalStateException("Cannot reload data store state from temporary WARCs without an artifact index");
     }
 
-    Path[] tmpWarcBasePath = getTmpWarcBasePaths();
+    Path[] tmpWarcBasePaths = getTmpWarcBasePaths();
 
-    log.info("Reloading temporary WARCs from {}", tmpWarcBasePath);
-
-    for (Path path : tmpWarcBasePath) {
-      reloadTemporaryWarcs(path);
+    for (Path tmpWarcBasePath : tmpWarcBasePaths) {
+      log.info("Reloading temporary WARCs from {}", tmpWarcBasePath);
+      reloadTemporaryWarcs(tmpWarcBasePath);
     }
   }
 
@@ -879,7 +884,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public void setUncommittedArtifactExpiration(long milliseconds) {
     this.uncommittedArtifactExpiration = milliseconds;
   }
-
 
   /**
    * Returns the number of bytes
@@ -1692,6 +1696,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
+  /**
+   * Rebuilds the provided index from WARCs within this WARC artifact data store.
+   *
+   * @param index The {@code ArtifactIndex} to rebuild and populate from WARCs within this WARC artifact data store.
+   * @throws IOException
+   */
   public void rebuildIndex(ArtifactIndex index) throws IOException {
     for (Path basePath : getBasePaths()) {
       rebuildIndex(index, basePath);

@@ -60,7 +60,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
-  public final static Path DEFAULT_REPO_BASEDIR = Paths.get("/lockss");
 
   protected FileSystem fs;
 //  protected Path basePath;
@@ -72,7 +71,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   public HdfsWarcArtifactDataStore(ArtifactIndex index, Configuration config) throws IOException {
-    this(index, config, DEFAULT_REPO_BASEDIR);
+    this(index, config, DEFAULT_BASEPATH);
   }
 
   /**
@@ -92,7 +91,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   public HdfsWarcArtifactDataStore(ArtifactIndex index, FileSystem fs) throws IOException {
-    this(index, fs, DEFAULT_REPO_BASEDIR);
+    this(index, fs, DEFAULT_BASEPATH);
   }
 
   /**
