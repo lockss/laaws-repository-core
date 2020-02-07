@@ -39,7 +39,6 @@ import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
@@ -61,7 +60,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
   @Override
   protected Path[] expected_getBasePaths() {
-    return new Path[]{Paths.get(VolatileWarcArtifactDataStore.DEFAULT_BASEPATH)};
+    return new Path[]{VolatileWarcArtifactDataStore.DEFAULT_BASEPATH};
   }
 
   @Override

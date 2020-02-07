@@ -243,37 +243,27 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalStateException("No base paths");
     }
 
-    List<Path> paths = Arrays.stream(basePaths)
+    return Arrays.stream(basePaths)
         .map(base -> base.resolve(TMP_WARCS_DIR))
-        .collect(Collectors.toList());
-
-    log.trace("paths = {}", paths);
-
-    return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+        .toArray(Path[]::new);
   }
 
   public Path[] getCollectionTmpWarcsPaths(String collectionId) {
-    List<Path> paths = Arrays.stream(getCollectionPaths(collectionId))
+    return Arrays.stream(getCollectionPaths(collectionId))
         .map(path -> path.resolve(TMP_WARCS_DIR))
-        .collect(Collectors.toList());
-
-    return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+        .toArray(Path[]::new);
   }
 
   public Path[] getCollectionPaths(String collectionId) {
-    List<Path> paths = Arrays.stream(getCollectionsBase())
+    return Arrays.stream(getCollectionsBase())
         .map(path -> path.resolve(collectionId))
-        .collect(Collectors.toList());
-
-    return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+        .toArray(Path[]::new);
   }
 
   public Path[] getCollectionsBase() {
-    List<Path> paths = Arrays.stream(getBasePaths())
+    return Arrays.stream(getBasePaths())
         .map(path -> path.resolve(COLLECTIONS_DIR))
-        .collect(Collectors.toList());
-
-    return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+        .toArray(Path[]::new);
   }
 
   public Path getAuActiveWarcPath(String collectionId, String auId) throws IOException {
@@ -298,7 +288,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Path warcFile = auPaths[0].resolve(generateActiveWarcName(collection, auid));
 //    initWarc(warcFile);
 
-
     RepoAuid aukey = new RepoAuid(collection, auid);
 
     synchronized (auActiveWarcMap) {
@@ -321,8 +310,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         return new Path[]{};
       }
 
-      return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+      return castArray(paths.toArray(), Path[].class);
     }
+  }
+
+  protected static <T> T[] castArray(Object[] array, Class<? extends T[]> newType) {
+    return Arrays.copyOf(array, array.length, newType);
   }
 
   protected Path getAuMetadataWarcPath(ArtifactIdentifier aid, String journalName) {
@@ -330,19 +323,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   protected Path[] getAuMetadataWarcPaths(ArtifactIdentifier aid, String journalName) {
-    List<Path> paths = Arrays.stream(getAuPaths(aid.getCollection(), aid.getAuid()))
+    return Arrays.stream(getAuPaths(aid.getCollection(), aid.getAuid()))
         .map(path -> path.resolve(journalName + "." + WARC_FILE_EXTENSION))
-        .collect(Collectors.toList());
-
-    return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+        .toArray(Path[]::new);
   }
 
   public Path[] getAuPaths(String collectionId, String auid) {
-    List<Path> paths = Arrays.stream(getCollectionPaths(collectionId))
+    return Arrays.stream(getCollectionPaths(collectionId))
         .map(path -> path.resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid)))
-        .collect(Collectors.toList());
-
-    return Arrays.copyOf(paths.toArray(), paths.toArray().length, Path[].class);
+        .toArray(Path[]::new);
   }
 
   /**

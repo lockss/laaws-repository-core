@@ -60,11 +60,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
   public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
-    this(index, castToPathArray(Arrays.stream(basePath).map(File::toPath).toArray()));
-  }
-
-  protected static Path[] castToPathArray(Object[] objects) {
-    return Arrays.copyOf(objects, objects.length, Path[].class);
+    this(index, Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
   }
 
   /**
