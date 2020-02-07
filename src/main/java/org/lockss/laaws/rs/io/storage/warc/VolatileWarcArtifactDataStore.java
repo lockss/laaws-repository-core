@@ -149,7 +149,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
       } else {
         InputStream is = warc.toInputStream();
         long skipped = is.skip(seek);
-        assert(skipped == seek);
+        assert (skipped == seek);
         return is;
       }
     }
@@ -170,7 +170,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.
-   *
+   * <p>
    * Always true in volatile implementation.
    *
    * @return {@code true}

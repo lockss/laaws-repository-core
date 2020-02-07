@@ -362,7 +362,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Constructor for a WARC artifact data store.
-   *
    */
   public WarcArtifactDataStore(ArtifactIndex index) {
     this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -552,9 +551,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Convenience method that encodes the location and length of a WARC record into an internal URL.
    *
    * @param filePath A {@code String} containing the path to the WARC file containing the WARC record.
-   * @param offset A {@code long} containing the byte offset from the beginning of this WARC file to the beginning of
-   *               the WARC record.
-   * @param length A {@code length} containing the length of the WARC record.
+   * @param offset   A {@code long} containing the byte offset from the beginning of this WARC file to the beginning of
+   *                 the WARC record.
+   * @param length   A {@code length} containing the length of the WARC record.
    * @return A {@code String} containing the internal storage URL to the WARC record.
    */
   protected String makeStorageUrl(Path filePath, long offset, long length) {
@@ -578,7 +577,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Reads and reloads state from temporary WARCs, including the requeuing of copy tasks of committed artifacts from
    * temporary to permanent storage. Removes temporary WARCs if eligible:
-   *
+   * <p>
    * A temporary WARC may be removed if the records contained within it are the serializations of artifacts that are
    * either uncommitted-but-expired or committed-and-moved-to-permanent-storage.
    */
@@ -704,12 +703,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Provides the state of an Artifact in its life cycle.
-   * 
-   * @param expired
-   *          A boolean with the indication of whether the artifact record has
-   *          expired.
-   * @param artifact
-   *          An Artifact with the Artifact.
+   *
+   * @param expired  A boolean with the indication of whether the artifact record has
+   *                 expired.
+   * @param artifact An Artifact with the Artifact.
    * @return an ArtifactState with the state of the Artifact.
    */
   protected ArtifactState getArtifactState(boolean expired, boolean deleted, Artifact artifact) throws URISyntaxException {
@@ -757,7 +754,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Determines whether a temporary WARC file is removable.
-   *
+   * <p>
    * The WARC file is removable if all of the WARC records contained within it may be removed.
    *
    * @param tmpWarc
@@ -797,7 +794,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Determines whether an artifact has been deleted from this data store by examining the repository metadata journal.
-   *
+   * <p>
    * If an entry for the artifact could not be found, it is assumed deleted.
    *
    * @param aid An {@code ArtifactIdentifier}
@@ -841,7 +838,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Determines whether a single WARC record is removable.
-   *
+   * <p>
    * It is removable if it is expired and not committed, or expired and committed but not pending a copy to permanent
    * storage. If unexpired, it is removable if committed and not pending a copy to permanent storage.
    *
@@ -861,7 +858,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // WARC records not of type "response" or "resource" are okay to remove
     if (!recordType.equalsIgnoreCase(WARCRecordType.response.toString()) &&
         !recordType.equalsIgnoreCase(WARCRecordType.resource.toString())) {
-        return true;
+      return true;
     }
 
     try {
@@ -942,7 +939,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Configures the artifact index associated with this WARC artifact data store.
-   *
+   * <p>
    * Should only be used in testing.
    *
    * @param artifactIndex The {@code ArtifactIndex} instance to associate with this WARC artifact data store.
@@ -973,15 +970,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * temporary WARCs. This strategy was chosen to allow multiple threads to add to this artifact data store
    * simultaneously.
    *
-   * @param artifactData
-   *          An instance of {@code ArtifactData} to store to this artifact data store.
+   * @param artifactData An instance of {@code ArtifactData} to store to this artifact data store.
    * @return
    * @throws IOException
    */
   @Override
   public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
     if (artifactData == null) {
-     throw new IllegalArgumentException("Null artifact data");
+      throw new IllegalArgumentException("Null artifact data");
     }
 
     // Get the artifact identifier
@@ -991,7 +987,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact data has null identifier");
     }
 
-    log.debug( "Adding artifact ({}, {}, {}, {}, {})",
+    log.debug("Adding artifact ({}, {}, {}, {}, {})",
         artifactId.getId(),
         artifactId.getCollection(),
         artifactId.getAuid(),
@@ -1000,7 +996,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     );
 
     // Create a DFOS to contain our serialized artifact (we do this to get the number of bytes in the serialization)
-    DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int)DEFAULT_DFOS_THRESHOLD, "addArtifactData");
+    DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "addArtifactData");
 
     try {
       // Serialize artifact to WARC record; write out to DFOS
@@ -1115,7 +1111,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
       return null;
     }
-    
+
     // Open an InputStream from the WARC file and get the WARC record representing this artifact data
     InputStream warcStream = null;
 
@@ -1210,8 +1206,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Commits an artifact from temporary to permanent storage.
    *
-   * @param artifact
-   *          The {@code Artifact} to commit to permanent storage.
+   * @param artifact The {@code Artifact} to commit to permanent storage.
    * @return An {@code Future<Artifact>} reflecting the new committed state and storage URL.
    * @throws IOException
    */
@@ -1296,7 +1291,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Implementation of {@code Callable} that commits an artifact from temporary to permanent storage.
-   *
+   * <p>
    * This is implemented as a {@code StripedCallable} because we maintain one active WARC file per AU in which to commit
    * artifacts permanently.
    */
@@ -1512,7 +1507,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Seals the active WARC of an AU in permanent storage from further writes.
    *
    * @param collection A {@code String} containing the collection ID of the AU.
-   * @param auid A {@code String} containing the AUID of the AU.
+   * @param auid       A {@code String} containing the AUID of the AU.
    * @throws IOException
    */
   public void sealActiveWarc(String collection, String auid) throws IOException {
@@ -1812,11 +1807,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @param metadataFile A {@code String} containing the path to the WARC file containing artifact metadata.
    * @return A {@code Map<String, JSONObject>} mapping artifact ID to its latest metadata.
-   * @throws IOException
-   *
-   * TODO: This is slow and inefficient as the number of stale entries in the journal grows. Some external process
-   *       should periodically prune the journal. Additionally, some sort of caching could be beneficial since this is
-   *       called often.
+   * @throws IOException TODO: This is slow and inefficient as the number of stale entries in the journal grows. Some external process
+   *                     should periodically prune the journal. Additionally, some sort of caching could be beneficial since this is
+   *                     called often.
    */
   private Map<String, JSONObject> readMetadataJournal(Path metadataFile) throws IOException {
     Map<String, JSONObject> metadata = new HashMap<>();
@@ -1848,7 +1841,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Reads and replays repository metadata to a given artifact index.
    *
-   * @param index An {@code ArtifactIndex} to replay repository metadata to.
+   * @param index        An {@code ArtifactIndex} to replay repository metadata to.
    * @param metadataFile A {@code String} containing the path to a repository metadata journal WARC file.
    * @throws IOException
    */
@@ -1993,7 +1986,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     @Override
     protected WARCRecord createArchiveRecord(InputStream is, long offset) throws IOException {
-      return (WARCRecord)currentRecord(new WARCRecord(new SimpleRepositionableStream(is), getReaderIdentifier(), offset, isDigest(), isStrict()));
+      return (WARCRecord) currentRecord(new WARCRecord(new SimpleRepositionableStream(is), getReaderIdentifier(), offset, isDigest(), isStrict()));
     }
   }
 
@@ -2182,27 +2175,27 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   private void makeJmsConsumer() {
     new Thread(new Runnable() {
-	@Override
-	public void run() {
-	  log.info("Creating JMS consumer");
-	  while (jmsConsumer == null) {
-	    // In Spring env, lockssRepo doesn't get set until some time
-	    // after this starts running
-	    if (lockssRepo != null && lockssRepo instanceof JmsFactorySource) {
-	      JmsFactory fact = ((JmsFactorySource)lockssRepo).getJmsFactory();
-	      try {
-		log.trace("Attempting to create JMS consumer");
-		jmsConsumer = fact.createTopicConsumer(CLIENT_ID, JMS_TOPIC, new DataStoreCrawlListener("AuEvent Listener"));
-		log.info("Successfully created JMS consumer");
-		break;
-	      } catch (JMSException | NullPointerException exc) {
-		log.trace("Could not establish JMS connection; sleeping and retrying");
-	      }
-	    }
-	    TimerUtil.guaranteedSleep(retryDelay);
-	  }
-	}
-      }).start();
+      @Override
+      public void run() {
+        log.info("Creating JMS consumer");
+        while (jmsConsumer == null) {
+          // In Spring env, lockssRepo doesn't get set until some time
+          // after this starts running
+          if (lockssRepo != null && lockssRepo instanceof JmsFactorySource) {
+            JmsFactory fact = ((JmsFactorySource) lockssRepo).getJmsFactory();
+            try {
+              log.trace("Attempting to create JMS consumer");
+              jmsConsumer = fact.createTopicConsumer(CLIENT_ID, JMS_TOPIC, new DataStoreCrawlListener("AuEvent Listener"));
+              log.info("Successfully created JMS consumer");
+              break;
+            } catch (JMSException | NullPointerException exc) {
+              log.trace("Could not establish JMS connection; sleeping and retrying");
+            }
+          }
+          TimerUtil.guaranteedSleep(retryDelay);
+        }
+      }
+    }).start();
   }
 
   public static final String KEY_AUID = "auid";

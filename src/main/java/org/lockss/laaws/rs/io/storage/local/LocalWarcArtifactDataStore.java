@@ -145,65 +145,65 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    * @return
    */
   @Override
-    public boolean isReady() {
-        return dataStoreState == DataStoreState.INITIALIZED;
-    }
+  public boolean isReady() {
+    return dataStoreState == DataStoreState.INITIALIZED;
+  }
 
-    /**
-     * Recursively finds artifact WARC files under a given base path.
-     *
-     * @param basePath The base path to scan recursively for WARC files.
-     * @return A collection of paths to WARC files under the given base path.
-     */
-    @Override
-    public Collection<Path> findWarcs(Path basePath) throws IOException {
-      log.trace("basePath = {}", basePath);
+  /**
+   * Recursively finds artifact WARC files under a given base path.
+   *
+   * @param basePath The base path to scan recursively for WARC files.
+   * @return A collection of paths to WARC files under the given base path.
+   */
+  @Override
+  public Collection<Path> findWarcs(Path basePath) throws IOException {
+    log.trace("basePath = {}", basePath);
 
-      File basePathFile = basePath.toFile();
+    File basePathFile = basePath.toFile();
 
-        if (basePathFile.exists() && basePathFile.isDirectory()) {
+    if (basePathFile.exists() && basePathFile.isDirectory()) {
 
-          File[] dirObjs = basePathFile.listFiles();
+      File[] dirObjs = basePathFile.listFiles();
 
-          if (dirObjs == null) {
-            // File#listFiles() can return null if the path doesn't exist or if there was an I/O error; we checked that
-            // the path exists and is a directory earlier so it must be the former
-            throw new IOException(String.format("Unable to list directory contents [basePath = %s]", basePath));
+      if (dirObjs == null) {
+        // File#listFiles() can return null if the path doesn't exist or if there was an I/O error; we checked that
+        // the path exists and is a directory earlier so it must be the former
+        throw new IOException(String.format("Unable to list directory contents [basePath = %s]", basePath));
 //            log.warn("Unable to list directory contents [basePath = {}]", basePath);
 //            return null;
-          }
+      }
 
-          Collection<Path> warcFiles = new ArrayList<>();
+      Collection<Path> warcFiles = new ArrayList<>();
 
-          // DFS recursion through directories
-          //Arrays.stream(dirObjs).map(x -> findWarcs(x.getPath())).forEach(warcFiles::addAll);
-          for (File dir : Arrays.stream(dirObjs).filter(File::isDirectory).toArray(File[]::new)) {
-            warcFiles.addAll(findWarcs(dir.toPath()));
-          }
+      // DFS recursion through directories
+      //Arrays.stream(dirObjs).map(x -> findWarcs(x.getPath())).forEach(warcFiles::addAll);
+      for (File dir : Arrays.stream(dirObjs).filter(File::isDirectory).toArray(File[]::new)) {
+        warcFiles.addAll(findWarcs(dir.toPath()));
+      }
 
-          // Add WARC files from this directory
-          warcFiles.addAll(
-              Arrays.stream(dirObjs)
-                .filter(x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
-                  .map(x -> x.toPath())
-                .collect(Collectors.toSet())
-          );
+      // Add WARC files from this directory
+      warcFiles.addAll(
+          Arrays.stream(dirObjs)
+              .filter(x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+              .map(x -> x.toPath())
+              .collect(Collectors.toSet())
+      );
 
-          // Return WARC files at this level
-          return warcFiles;
-        }
-
-        log.warn("Path doesn't exist or was not a directory [basePath = {}]", basePath);
-
-        return Collections.EMPTY_SET;
+      // Return WARC files at this level
+      return warcFiles;
     }
+
+    log.warn("Path doesn't exist or was not a directory [basePath = {}]", basePath);
+
+    return Collections.EMPTY_SET;
+  }
 
   public void mkdirs(Path dirPath) throws IOException {
     log.trace("dirPath = {}", dirPath);
     if (!FileUtil.ensureDirExists(dirPath.toFile())) {
       throw new IOException(String.format("Could not create directory [dirPath: %s]", dirPath));
     }
-    }
+  }
 
   public void mkdirs(Path[] dirs) throws IOException {
     for (Path dirPath : dirs) {
@@ -211,81 +211,81 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
   }
 
-    @Override
-    public long getWarcLength(Path warcPath) {
-      return warcPath.toFile().length();
+  @Override
+  public long getWarcLength(Path warcPath) {
+    return warcPath.toFile().length();
+  }
+
+  @Override
+  public String makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
+    uriBuilder.queryParams(params);
+    return uriBuilder.toUriString();
+  }
+
+  @Override
+  public OutputStream getAppendableOutputStream(Path filePath) throws IOException {
+    return new FileOutputStream(filePath.toFile(), true);
+  }
+
+  @Override
+  public InputStream getInputStreamAndSeek(Path filePath, long seek) throws IOException {
+    log.trace("filePath = {}", filePath);
+    log.trace("seek = {}", seek);
+
+    InputStream inputStream = new FileInputStream(filePath.toFile());
+    inputStream.skip(seek);
+
+    return inputStream;
+  }
+
+  @Override
+  public void initWarc(Path warcPath) throws IOException {
+    File warcFile = warcPath.toFile();
+
+    if (!warcFile.exists()) {
+      mkdirs(warcPath.getParent());
+      FileUtils.touch(warcFile);
     }
 
-    @Override
-    public String makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
-        uriBuilder.queryParams(params);
-        return uriBuilder.toUriString();
+    try (OutputStream output = getAppendableOutputStream(warcPath)) {
+      writeWarcInfoRecord(output);
     }
+  }
 
-    @Override
-    public OutputStream getAppendableOutputStream(Path filePath) throws IOException {
-      return new FileOutputStream(filePath.toFile(), true);
-    }
+  @Override
+  public boolean removeWarc(Path filePath) {
+    return filePath.toFile().delete();
+  }
 
-    @Override
-    public InputStream getInputStreamAndSeek(Path filePath, long seek) throws IOException {
-      log.trace("filePath = {}", filePath);
-      log.trace("seek = {}", seek);
+  /**
+   * Returns a boolean indicating whether an artifact is marked as deleted in the journal.
+   *
+   * @param indexData The artifact identifier of the artifact to check.
+   * @return A boolean indicating whether the artifact is marked as deleted.
+   * @throws IOException
+   * @throws URISyntaxException
+   */
+  public boolean isDeleted(Artifact indexData)
+      throws IOException, URISyntaxException {
+    ArtifactData artifact = getArtifactData(indexData);
+    RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
+    return metadata.isDeleted();
+  }
 
-      InputStream inputStream = new FileInputStream(filePath.toFile());
-        inputStream.skip(seek);
-
-      return inputStream;
-    }
-
-    @Override
-    public void initWarc(Path warcPath) throws IOException {
-      File warcFile = warcPath.toFile();
-
-      if (!warcFile.exists()) {
-        mkdirs(warcPath.getParent());
-        FileUtils.touch(warcFile);
-        }
-
-      try (OutputStream output = getAppendableOutputStream(warcPath)) {
-        writeWarcInfoRecord(output);
-      }
-    }
-
-    @Override
-    public boolean removeWarc(Path filePath) {
-      return filePath.toFile().delete();
-    }
-
-    /**
-     * Returns a boolean indicating whether an artifact is marked as deleted in the journal.
-     *
-     * @param indexData The artifact identifier of the artifact to check.
-     * @return A boolean indicating whether the artifact is marked as deleted.
-     * @throws IOException
-     * @throws URISyntaxException
-     */
-    public boolean isDeleted(Artifact indexData)
-            throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifactData(indexData);
-        RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
-        return metadata.isDeleted();
-    }
-
-    /**
-     * Returns a boolean indicating whether an artifact is marked as committed in the journal.
-     *
-     * @param indexData The artifact identifier of the artifact to check.
-     * @return A boolean indicating whether the artifact is marked as committed.
-     * @throws IOException
-     * @throws URISyntaxException
-     */
-    // TODO this isn't used by anything?
-    public boolean isCommitted(Artifact indexData)
-            throws IOException, URISyntaxException {
-        ArtifactData artifact = getArtifactData(indexData);
-        RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
-        return metadata.isCommitted();
-    }
+  /**
+   * Returns a boolean indicating whether an artifact is marked as committed in the journal.
+   *
+   * @param indexData The artifact identifier of the artifact to check.
+   * @return A boolean indicating whether the artifact is marked as committed.
+   * @throws IOException
+   * @throws URISyntaxException
+   */
+  // TODO this isn't used by anything?
+  public boolean isCommitted(Artifact indexData)
+      throws IOException, URISyntaxException {
+    ArtifactData artifact = getArtifactData(indexData);
+    RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
+    return metadata.isCommitted();
+  }
 }

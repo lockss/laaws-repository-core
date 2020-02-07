@@ -230,12 +230,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
 
-
   /**
    * Initializes a new AU collection under this LOCKSS repository.
    *
-   * @param collectionId
-   *          A {@code String} containing the collection ID.
+   * @param collectionId A {@code String} containing the collection ID.
    * @throws IOException
    */
   @Override
@@ -251,10 +249,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   /**
    * Initializes an AU in the specified AU collection.
    *
-   * @param collectionId
-   *          A {@code String} containing the collection ID of this AU.
-   * @param auid
-   *          A {@code String} containing the AUID of this AU.
+   * @param collectionId A {@code String} containing the collection ID of this AU.
+   * @param auid         A {@code String} containing the AUID of this AU.
    * @throws IOException
    */
   @Override
@@ -283,8 +279,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   /**
    * Initializes a new WARC file at the provided path.
    *
-   * @param warcPath
-   *          A {@code String} containing the path of the WARC file to be initialized.
+   * @param warcPath A {@code String} containing the path of the WARC file to be initialized.
    * @throws IOException
    */
   @Override
