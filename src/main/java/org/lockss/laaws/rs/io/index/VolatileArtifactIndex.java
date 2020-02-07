@@ -321,10 +321,6 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 	  .sorted()
 	  .collect(Collectors.toList());
 	return res;
-
-//         return IteratorUtils.asIterable(
-//             index.values().stream().filter(query.build()).map(x -> x.getAuid()).distinct().sorted().iterator()
-//         );
       }
     }
 
