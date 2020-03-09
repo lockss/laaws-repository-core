@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -53,6 +53,7 @@ import org.lockss.util.time.TimerUtil;
 import org.lockss.util.time.Deadline;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.DefaultResponseErrorHandler;
@@ -99,7 +100,7 @@ public class RestLockssRepository implements LockssRepository {
    */
   public RestLockssRepository(URL repositoryUrl, String userName,
       String password) {
-    this(repositoryUrl, new RestTemplate(), userName, password);
+    this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
   /**
@@ -129,16 +130,6 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     log.trace("authHeaderValue = {}", authHeaderValue);
-
-    restTemplate.setErrorHandler(new DefaultResponseErrorHandler(){
-	protected boolean hasError(HttpStatus statusCode) {
-	  return false;
-	}
-      });
-
-    // Set the buffer to false for streaming - still needed?
-    //SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
-    //factory.setBufferRequestBody(false);
   }
 
   /**
