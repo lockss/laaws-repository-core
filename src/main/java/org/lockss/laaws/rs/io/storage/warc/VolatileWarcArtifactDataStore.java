@@ -79,7 +79,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     super(index);
 
     this.basePaths = new Path[]{DEFAULT_BASEPATH};
-    this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePaths());
+    this.tmpWarcPool = new WarcFilePool(this);
     this.warcs = new HashMap<>();
   }
 
@@ -119,6 +119,28 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   protected long getBlockSize() {
     return DEFAULT_BLOCKSIZE;
+  }
+
+  @Override
+  protected long getFreeSpace(Path fsPath) {
+    return getFreeSpace(Runtime.getRuntime(), fsPath);
+//    return Runtime.getRuntime().freeMemory();
+  }
+
+  /**
+   * Only used for testing.
+   */
+  // FIXME: This is ugly.
+  protected long getFreeSpace(Runtime runtime, Path fsPath) {
+    return runtime.freeMemory();
+  }
+
+  @Override
+  public Path getAuActiveWarcPath(String collectionId, String auid) throws IOException {
+    Path[] warcPaths = getAuActiveWarcPaths(collectionId, auid);
+
+    return warcPaths.length > 0 ?
+        warcPaths[new Random().nextInt(warcPaths.length)] : initAuActiveWarc(collectionId, auid);
   }
 
   @Override

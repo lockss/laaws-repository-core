@@ -33,14 +33,12 @@ package org.lockss.laaws.rs.io.storage.warc;
 import java.nio.file.Path;
 
 public class WarcFile {
-  private Path path;
+  private final Path path;
   private long length = 0;
-  private long nextOffset = 0;
 
   public WarcFile(Path path, long length) {
     this.path = path;
     this.length = length;
-    this.nextOffset = length;
   }
 
   public Path getPath() {
@@ -53,5 +51,13 @@ public class WarcFile {
 
   public void setLength(long length) {
     this.length = length;
+  }
+
+  @Override
+  public String toString() {
+    return "WarcFile{" +
+        "path=" + path +
+        ", length=" + length +
+        '}';
   }
 }

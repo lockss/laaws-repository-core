@@ -34,9 +34,6 @@ import org.apache.commons.io.FileUtils;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
 import org.springframework.util.MultiValueMap;
@@ -44,7 +41,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -78,7 +74,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     // Set local base paths
     this.basePaths = basePaths;
-    this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePaths());
+
+    // Start temporary WARC file pool
+    this.tmpWarcPool = new WarcFilePool(this);
 
     // Initialize LOCKSS repository structure under base paths
     for (Path basePath : basePaths) {
@@ -114,6 +112,11 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
+  protected long getFreeSpace(Path fsPath) {
+    return fsPath.toFile().getFreeSpace();
+  }
+
+  @Override
   public void initCollection(String collectionId) throws IOException {
     mkdirs(getCollectionPaths(collectionId));
     mkdirs(getCollectionTmpWarcsPaths(collectionId));
@@ -125,15 +128,11 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     initCollection(collectionId);
 
     // Iterate over AU's paths on each filesystem and create AU directory structure
-    for (Path auPath : getAuPaths(collectionId, auid)) {
-      initAu(auPath);
+    for (Path auBasePath : getAuPaths(collectionId, auid)) {
+      mkdirs(auBasePath);
+      mkdirs(auBasePath.resolve("artifacts"));
+      mkdirs(auBasePath.resolve("journals"));
     }
-  }
-
-  public void initAu(Path auBasePath) throws IOException {
-    mkdirs(auBasePath);
-    mkdirs(auBasePath.resolve("artifacts"));
-    mkdirs(auBasePath.resolve("journals"));
   }
 
   /**

@@ -30,7 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -111,10 +110,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     log.info("Instantiating a HDFS artifact data store under {}{}", fs.getUri(), getBasePaths());
 
     this.fs = fs;
-//    this.basePath = basePath;
     this.basePaths = new Path[]{basePath};
-    Path[] tmpWarcBasePaths = getTmpWarcBasePaths();
-    this.tmpWarcPool = new WarcFilePool(tmpWarcBasePaths);
+    this.tmpWarcPool = new WarcFilePool(this);
 
     mkdirs(getBasePaths());
     mkdirs(getTmpWarcBasePaths());
@@ -224,6 +221,16 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
+  protected long getFreeSpace(Path fsPath) {
+    try {
+      return fs.getStatus(new org.apache.hadoop.fs.Path(fsPath.toString())).getRemaining();
+    } catch (IOException e) {
+      // XXX Should we rethrow IOException?
+      return 0L;
+    }
+  }
+
+  @Override
   public URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
     UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + filePath.toString());
     uriBuilder.queryParams(params);
@@ -242,8 +249,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       throw new IllegalArgumentException("Collection ID is null or empty");
     }
 
-    mkdirs(getCollectionPath(getBasePaths()[0], collectionId));
-    mkdirs(getCollectionPath(getBasePaths()[0], collectionId).resolve(TMP_WARCS_DIR));
+    mkdirs(getCollectionPaths(collectionId));
+    mkdirs(getCollectionTmpWarcsPaths(collectionId));
   }
 
   /**
@@ -257,23 +264,19 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public void initAu(String collectionId, String auid) throws IOException {
     initCollection(collectionId);
 
-    if (auid == null || auid.isEmpty()) {
-      throw new IllegalArgumentException("AUID is null or empty");
+    // Initialize collection on each filesystem
+    initCollection(collectionId);
+
+    // Iterate over AU's paths on each filesystem and create AU directory structure
+    for (Path auPath : getAuPaths(collectionId, auid)) {
+      initAu(auPath);
     }
-
-    mkdirs(getAuPath(getCollectionPath(getBasePaths()[0], collectionId), auid));
   }
 
-  public Path getAuPath(Path collectionBase, String auid) {
-    return collectionBase.resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
-  }
-
-  public Path getCollectionPath(Path basePath, String collectionId) {
-    return getCollectionsBase(basePath).resolve(collectionId);
-  }
-
-  public Path getCollectionsBase(Path basePath) {
-    return basePath.resolve(COLLECTIONS_DIR);
+  public void initAu(Path auBasePath) throws IOException {
+    mkdirs(auBasePath);
+    mkdirs(auBasePath.resolve("artifacts"));
+    mkdirs(auBasePath.resolve("journals"));
   }
 
   /**
