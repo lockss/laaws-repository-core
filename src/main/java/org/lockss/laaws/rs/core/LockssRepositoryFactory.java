@@ -70,17 +70,41 @@ public class LockssRepositoryFactory {
     }
 
     /**
+     * Instantiates a LOCKSS repository backed by a local data store with one or more base paths, and a locally
+     * persisting artifact index.
+     *
+     * @param basePaths          A {@link File[]} containing the base paths of the local data store.
+     * @param persistedIndexName A {@link String} containing the locally persisted artifact index name.
+     * @return A {@link LocalLockssRepository} backed by a local data store and locally persisted artifact index.
+     * @throws IOException
+     */
+    public static LockssRepository createLocalRepository(File[] basePaths, String persistedIndexName) throws IOException {
+        return new LocalLockssRepository(basePaths, persistedIndexName);
+    }
+
+    /**
      * Instantiates a local filesystem based LOCKSS repository with a provided ArtifactIndex implementation for artifact
      * indexing. It does not invoke rebuilding the index, so it is only appropriate for implementations that persist.
      *
-     * @param basePath
-     *          A {@code File} containing the base path of this LOCKSS Repository.
-     * @param index
-     *          An {@code ArtifactIndex} to use as this repository's artifact index.
+     * @param basePath A {@code File} containing the base path of this LOCKSS Repository.
+     * @param index    An {@code ArtifactIndex} to use as this repository's artifact index.
      * @return A {@code LocalLockssRepository} instance.
      */
     public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) throws IOException {
         return new LocalLockssRepository(index, basePath);
+    }
+
+    /**
+     * Instantiates a LOCKSS repository backed by a local data store with one or more base paths, and the provided
+     * artifact index.
+     *
+     * @param basePaths A {@link File[]} containing the base paths of the local data store.
+     * @param index     An {@link ArtifactIndex} to use as this repository's artifact index.
+     * @return A {@link LocalLockssRepository} backed by a local data store and locally persisted artifact index.
+     * @throws IOException
+     */
+    public static LockssRepository createLocalRepository(File[] basePaths, ArtifactIndex index) throws IOException {
+        return new LocalLockssRepository(index, basePaths);
     }
 
     /**
@@ -99,9 +123,9 @@ public class LockssRepositoryFactory {
                                                                Configuration hadoopConf,
                                                                String basePath)
         throws IOException {
-      ArtifactIndex index = new SolrArtifactIndex(solrClient);
+        ArtifactIndex index = new SolrArtifactIndex(solrClient);
         ArtifactDataStore store = new HdfsWarcArtifactDataStore(index, hadoopConf, Paths.get(basePath));
-      return new BaseLockssRepository(index, store);
+        return new BaseLockssRepository(index, store);
     }
 
     /**
