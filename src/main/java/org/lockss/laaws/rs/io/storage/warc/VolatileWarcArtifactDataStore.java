@@ -48,10 +48,11 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 /**
- * A volatile ("in-memory") implementation of WarcArtifactDataStore.
+ * A volatile (i.e., "in-memory") implementation of WarcArtifactDataStore.
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -59,6 +60,10 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
 
   protected final Map<Path, ByteArrayOutputStream> warcs;
+
+  // *******************************************************************************************************************
+  // * CONSTRUCTORS
+  // *******************************************************************************************************************
 
   /**
    * Constructor.
@@ -77,6 +82,10 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePaths());
     this.warcs = new HashMap<>();
   }
+
+  // *******************************************************************************************************************
+  // * ABSTRACT METHOD IMPLEMENTATION
+  // *******************************************************************************************************************
 
   @Override
   public void initCollection(String collectionId) {

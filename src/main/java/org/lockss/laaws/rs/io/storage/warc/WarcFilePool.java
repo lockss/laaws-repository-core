@@ -135,10 +135,10 @@ public class WarcFilePool {
   }
 
   /**
-   * Borrows a {@code WarcFile} from this pool by marking it as in-use before returning it.
+   * Borrows a {@link WarcFile} from this pool by marking it as in-use before returning it.
    *
-   * @param warcFile The {@code WarcFile} to borrow.
-   * @return A {@code boolean} indicating whether the borrow was successful or not.
+   * @param warcFile The {@link WarcFile} to borrow.
+   * @return The borrowed {@link WarcFile} or {@code null} if it is not a member of this pool or already borrowed.
    */
   public boolean borrowWarcFile(WarcFile warcFile) {
     synchronized (usedWarcs) {
@@ -155,10 +155,10 @@ public class WarcFilePool {
   }
 
   /**
-   * Borrows the {@code WarcFile} referenced by a WARC file path from this pool.
+   * Borrows the {@link WarcFile} referenced by its WARC file path from this pool.
    *
-   * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to borrow.
-   * @return A {@code boolean} indicating whether the borrow was successful or not.
+   * @param warcFilePath A {@link Path} containing the WARC file path of the {@link WarcFile} to borrow.
+   * @return The borrowed {@link WarcFile} or {@code null} if the WARC is not a member of this pool or already borrowed.
    */
   public boolean borrowWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
@@ -183,10 +183,9 @@ public class WarcFilePool {
   }
 
   /**
-   * Makes an existing WarcFile available to this pool.
+   * Makes an existing {@link WarcFile} available to this pool.
    *
-   * @param warcFile
-   *          The {@code WarcFile} to add back to this pool.
+   * @param warcFile The {@link WarcFile} to add back to this pool.
    */
   public void returnWarcFile(WarcFile warcFile) {
     synchronized (allWarcs) {
@@ -275,7 +274,7 @@ public class WarcFilePool {
 
   /**
    * Removes the {@code WarcFile} matching the given path from this pool and returns it.
-   *
+   * <p>
    * May return {@code null} if none in the pool match.
    *
    * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to remove.
@@ -296,10 +295,9 @@ public class WarcFilePool {
   }
 
   /**
-   * Removes an existing WarcFile from this pool.
+   * Removes an existing {@link WarcFile} from this pool.
    *
-   * @param warcFile
-   *          The instance of {@code WarcFile} to remove from this pool.
+   * @param warcFile The instance of {@link WarcFile} to remove from this pool.
    */
   protected void removeWarcFile(WarcFile warcFile) {
     synchronized (allWarcs) {
