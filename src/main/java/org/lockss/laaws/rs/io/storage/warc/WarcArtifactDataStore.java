@@ -1288,7 +1288,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         case COPIED:
           // This artifact is already marked committed and is in permanent storage. Wrap in Future and return it.
-          return new CompletedFuture<Artifact>(artifact);
+          return new CompletedFuture<>(artifact);
 
         case DELETED:
           log.warn("Cannot commit deleted artifact [artifactId: {}]", artifact.getId());
@@ -1303,45 +1303,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Implements {@code Future} that is already completed upon instantiation.
-   *
-   * @param <T> Type of the return object.
-   */
-  private class CompletedFuture<T> implements Future<T> {
-    private T v;
-
-    public CompletedFuture(T v) {
-      this.v = v;
-    }
-
-    @Override
-    public boolean cancel(boolean mayInterruptIfRunning) {
-      return false;
-    }
-
-    @Override
-    public boolean isCancelled() {
-      return false;
-    }
-
-    @Override
-    public boolean isDone() {
-      return true;
-    }
-
-    @Override
-    public T get() throws InterruptedException, ExecutionException {
-      return v;
-    }
-
-    @Override
-    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-      return v;
-    }
-  }
-
-  /**
-   * Implementation of {@code Callable} that commits an artifact from temporary to permanent storage.
+   * Implementation of {@link Callable} that commits an artifact from temporary to permanent storage.
    * <p>
    * This is implemented as a {@link StripedCallable} because we maintain one active WARC file per AU in which to commit
    * artifacts permanently.
