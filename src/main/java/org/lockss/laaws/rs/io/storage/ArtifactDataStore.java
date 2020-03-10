@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,7 +30,10 @@
 
 package org.lockss.laaws.rs.io.storage;
 
-import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
@@ -104,20 +107,6 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      *          if the given {@link Artifact} instance is null
      */
     AD getArtifactData(Artifact artifact) throws IOException;
-
-    /**
-     * Updates an artifact's associated metadata in this artifact store.
-     *
-     * @param artifactId
-     *          An {@code Artifact} containing a reference to the artifact to update in storage.
-     * @param metadata
-     *          An updated {@code ArtifactMetadata} write to this artifact store, for the referenced artifact.
-     * @return ArtifactData metadata as it is now recorded in this artifact store.
-     * @throws IOException
-     * @throws NullPointerException
-     *          if the given artifact ID or metadata is null
-     */
-    MD updateArtifactMetadata(ID artifactId, MD metadata) throws IOException;
 
     /**
      * Commits an artifact to this artifact store.
