@@ -55,7 +55,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * Apache Hadoop Distributed File System (HDFS) implementation of WarcArtifactDataStore.
+ * Apache Hadoop Distributed File System (HDFS) implementation of {@link WarcArtifactDataStore}.
  */
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -63,7 +63,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
 
   protected FileSystem fs;
-//  protected Path basePath;
+
+  // *******************************************************************************************************************
+  // * CONSTRUCTORS
+  // *******************************************************************************************************************
 
   /**
    * Constructor that takes a Hadoop {@code Configuration}. Uses a default LOCKSS repository base path.
@@ -117,9 +120,32 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     mkdirs(getTmpWarcBasePaths());
   }
 
-//  protected Path getBasePath() {
-//    return this.basePath;
-//  }
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION UTILITY METHODS
+  // *******************************************************************************************************************
+
+  /**
+   * Ensures a directory exists at the given path by creating one if nothing exists there. Throws RunTimeExceptionError
+   * if something exists at the path but is not a directory (there is no way to safely handle this situation).
+   *
+   * @param dirPath Path to the directory to create, if it doesn't exist yet.
+   */
+  public void mkdirs(Path dirPath) throws IOException {
+    org.apache.hadoop.fs.Path fullPath = new org.apache.hadoop.fs.Path(dirPath.toString());
+
+    if (fs.mkdirs(fullPath)) {
+      log.debug2("Created directory [fullPath: {}]", fullPath);
+      return;
+    }
+
+    throw new IOException(String.format("Error creating directory: %s", fullPath));
+  }
+
+  public void mkdirs(Path[] dirs) throws IOException {
+    for (Path dirPath : dirs) {
+      mkdirs(dirPath);
+    }
+  }
 
   /**
    * Checks whether the HDFS cluster is available by getting its status.
@@ -136,6 +162,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
     return false;
   }
+
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION UTILITY METHODS
+  // *******************************************************************************************************************
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.
@@ -179,32 +209,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     return warcFiles;
   }
 
-  /**
-   * Ensures a directory exists at the given path by creating one if nothing exists there. Throws RunTimeExceptionError
-   * if something exists at the path but is not a directory (there is no way to safely handle this situation).
-   *
-   * @param dirPath Path to the directory to create, if it doesn't exist yet.
-   */
-  public void mkdirs(Path dirPath) throws IOException {
-    org.apache.hadoop.fs.Path fullPath = new org.apache.hadoop.fs.Path(dirPath.toString());
-
-//    if (fs.getFileStatus(fullPath).isDirectory()) {
-//      return;
-//    }
-
-    if (fs.mkdirs(fullPath)) {
-      log.debug2("Created directory [fullPath: {}]", fullPath);
-    } else {
-      throw new IOException(String.format("Error creating directory: %s", fullPath));
-    }
-  }
-
-  public void mkdirs(Path[] dirs) throws IOException {
-    for (Path dirPath : dirs) {
-      mkdirs(dirPath);
-    }
-  }
-
   @Override
   public long getWarcLength(Path warcPath) throws IOException {
     try {
@@ -213,10 +217,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       return 0L;
     }
   }
-
-//  protected Path getTmpWarcBasePath() {
-//    return basePath.resolve(TMP_WARCS_DIR);
-//  }
 
   @Override
   protected long getBlockSize() {
@@ -229,7 +229,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     uriBuilder.queryParams(params);
     return uriBuilder.build().toUri();
   }
-
 
   /**
    * Initializes a new AU collection under this LOCKSS repository.
@@ -300,8 +299,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public OutputStream getAppendableOutputStream(Path filePath) throws IOException {
     log.debug2("Opening appendable OutputStream [filePath: {}]", filePath);
 
-    org.apache.hadoop.fs.Path extPath = new org.apache.hadoop.fs.Path(filePath.toString());
-    return fs.append(extPath);
+    org.apache.hadoop.fs.Path fsPath = new org.apache.hadoop.fs.Path(filePath.toString());
+    return fs.append(fsPath);
   }
 
   @Override
