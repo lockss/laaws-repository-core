@@ -61,19 +61,12 @@ import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.concurrent.stripedexecutor.StripedRunnable;
 import org.lockss.util.io.DeferredTempFileOutputStream;
-import org.lockss.util.jms.JmsConsumer;
-import org.lockss.util.jms.JmsFactory;
-import org.lockss.util.jms.JmsUtil;
 import org.lockss.util.time.TimeUtil;
-import org.lockss.util.time.TimerUtil;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StreamUtils;
 
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageListener;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -90,8 +83,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
