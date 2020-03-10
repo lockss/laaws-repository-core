@@ -51,14 +51,9 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
 import org.json.JSONObject;
-import org.lockss.laaws.rs.core.LockssRepository;
-import org.lockss.laaws.rs.io.RepoAuid;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
@@ -140,7 +135,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected ArtifactIndex artifactIndex;
   protected LockssRepository lockssRepo;
   protected WarcFilePool tmpWarcPool;
-  protected Map<RepoAuid, List<Path>> auActiveWarcMap;
+  protected Map<AuIdentifier, List<Path>> auActiveWarcsMap = new HashMap<>();
   protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
 
   protected ScheduledExecutorService scheduledExecutor;
@@ -301,16 +296,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   public Path[] getAuActiveWarcPaths(String collectionId, String auId) {
     // Key into the active WARC map
-    RepoAuid au = new RepoAuid(collectionId, auId);
+    AuIdentifier aukey = new AuIdentifier(collectionId, auid);
 
-    synchronized (auActiveWarcMap) {
-      List<Path> paths = auActiveWarcMap.get(au);
-
-      if (paths == null) {
-        return new Path[]{};
-      }
-
-      return castArray(paths.toArray(), Path[].class);
+    synchronized (auActiveWarcsMap) {
+      List<Path> paths = auActiveWarcsMap.get(aukey);
+      return paths == null ? new Path[]{} : paths.toArray(new Path[0]);
     }
   }
 
@@ -360,14 +350,44 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     this.artifactIndex = index;
 
-    setThresholdWarcSize(NumberUtils.toLong(System.getenv(ENV_THRESHOLD_WARC_SIZE), DEFAULT_THRESHOLD_WARC_SIZE));
+    synchronized (auActiveWarcsMap) {
+      AuIdentifier aukey = new AuIdentifier(collectionId, auid);
+      List<Path> paths = auActiveWarcsMap.getOrDefault(aukey, new ArrayList<>());
+      paths.add(warcFile);
+      auActiveWarcsMap.put(aukey, paths);
+    }
 
     setUncommittedArtifactExpiration(NumberUtils.toLong(
         System.getenv(ENV_UNCOMMITTED_ARTIFACT_EXPIRATION),
         DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION
     ));
 
-    makeJmsConsumer();
+  /**
+   * "Seals" the active WARC of an AU in permanent storage from further writes.
+   *
+   * @param collectionId A {@link String} containing the collection ID of the AU.
+   * @param auid         A {@link String} containing the AUID of the AU.
+   */
+  public void sealActiveWarc(String collectionId, String auid, Path warcPath) {
+    log.trace("collection = {}", collectionId);
+    log.trace("auid = {}", auid);
+    log.trace("warcPath = {}", warcPath);
+
+    synchronized (auActiveWarcsMap) {
+      AuIdentifier au = new AuIdentifier(collectionId, auid);
+
+      if (auActiveWarcsMap.containsKey(au)) {
+        List<Path> activeWarcs = auActiveWarcsMap.get(au);
+
+        if (!activeWarcs.remove(warcPath)) {
+          log.debug2("Attempted to seal an active WARC of an AU that is not active!");
+        }
+
+        auActiveWarcsMap.put(au, activeWarcs);
+      } else {
+        log.debug2("Attempted to seal an active WARC of an AU having no active WARCs!");
+      }
+    }
   }
 
   // *******************************************************************************************************************
@@ -1304,7 +1324,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      */
     @Override
     public Object getStripe() {
-      return artifact.getAuid();
+      return new AuIdentifier(artifact.getCollection(), artifact.getAuid());
     }
 
     /**
