@@ -60,6 +60,10 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
+  // *******************************************************************************************************************
+  // * CONSTRUCTORS
+  // *******************************************************************************************************************
+
   public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
     this(index, Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
   }
@@ -70,8 +74,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   public LocalWarcArtifactDataStore(ArtifactIndex index, Path[] basePaths) throws IOException {
     super(index);
 
-    log.debug2("Starting LocalWarcArtifactDataStore [basePaths: {}]", basePaths);
+    log.debug2("Starting local WARC artifact data store [basePaths: {}]", basePaths);
 
+    // Set local base paths
     this.basePaths = basePaths;
     this.tmpWarcPool = new WarcFilePool(getTmpWarcBasePaths());
 
@@ -82,31 +87,26 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
   }
 
-  /**
-   * Rebuilds the internal index from WARCs within this WARC artifact data store.
-   *
-   * @throws IOException
-   */
-  public void rebuildIndex() throws IOException {
-    if (artifactIndex == null) {
-      throw new IllegalStateException("No artifact index set");
-    }
+  // *******************************************************************************************************************
+  // * UTILITY METHODS
+  // *******************************************************************************************************************
 
-    rebuildIndex(artifactIndex);
-  }
-
-  /**
-   * Rebuilds the provided index from WARCs within this WARC artifact data store.
-   *
-   * @param index The {@code ArtifactIndex} to rebuild and populate from WARCs within this WARC artifact data store.
-   * @throws IOException
-   */
-  public void rebuildIndex(ArtifactIndex index) throws IOException {
-    // TODO - Contents of each base path should not overlap so it might be possible to introduce threading here
-    for (Path basePath : getBasePaths()) {
-      rebuildIndex(index, basePath);
+  public void mkdirs(Path dirPath) throws IOException {
+    log.trace("dirPath = {}", dirPath);
+    if (!FileUtil.ensureDirExists(dirPath.toFile())) {
+      throw new IOException(String.format("Could not create directory [dirPath: %s]", dirPath));
     }
   }
+
+  public void mkdirs(Path[] dirs) throws IOException {
+    for (Path dirPath : dirs) {
+      mkdirs(dirPath);
+    }
+  }
+
+  // *******************************************************************************************************************
+  // * ABSTRACT METHOD IMPLEMENTATION
+  // *******************************************************************************************************************
 
   @Override
   protected long getBlockSize() {
@@ -165,15 +165,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
       if (dirObjs == null) {
         // File#listFiles() can return null if the path doesn't exist or if there was an I/O error; we checked that
         // the path exists and is a directory earlier so it must be the former
+        log.error("Unable to list directory contents [basePath = {}]", basePath);
         throw new IOException(String.format("Unable to list directory contents [basePath = %s]", basePath));
-//            log.warn("Unable to list directory contents [basePath = {}]", basePath);
-//            return null;
       }
 
       Collection<Path> warcFiles = new ArrayList<>();
 
-      // DFS recursion through directories
-      //Arrays.stream(dirObjs).map(x -> findWarcs(x.getPath())).forEach(warcFiles::addAll);
+      // Recursively look for WARCs
+      // FIXME: Potential stack overflow here with sufficiently deep tree
+      // Arrays.stream(dirObjs).map(x -> findWarcs(x.toPath())).forEach(warcFiles::addAll);
       for (File dir : Arrays.stream(dirObjs).filter(File::isDirectory).toArray(File[]::new)) {
         warcFiles.addAll(findWarcs(dir.toPath()));
       }
@@ -193,19 +193,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     log.warn("Path doesn't exist or was not a directory [basePath = {}]", basePath);
 
     return Collections.EMPTY_SET;
-  }
-
-  public void mkdirs(Path dirPath) throws IOException {
-    log.trace("dirPath = {}", dirPath);
-    if (!FileUtil.ensureDirExists(dirPath.toFile())) {
-      throw new IOException(String.format("Could not create directory [dirPath: %s]", dirPath));
-    }
-  }
-
-  public void mkdirs(Path[] dirs) throws IOException {
-    for (Path dirPath : dirs) {
-      mkdirs(dirPath);
-    }
   }
 
   @Override
@@ -253,36 +240,5 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean removeWarc(Path filePath) {
     return filePath.toFile().delete();
-  }
-
-  /**
-   * Returns a boolean indicating whether an artifact is marked as deleted in the journal.
-   *
-   * @param indexData The artifact identifier of the artifact to check.
-   * @return A boolean indicating whether the artifact is marked as deleted.
-   * @throws IOException
-   * @throws URISyntaxException
-   */
-  public boolean isDeleted(Artifact indexData)
-      throws IOException, URISyntaxException {
-    ArtifactData artifact = getArtifactData(indexData);
-    RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
-    return metadata.isDeleted();
-  }
-
-  /**
-   * Returns a boolean indicating whether an artifact is marked as committed in the journal.
-   *
-   * @param indexData The artifact identifier of the artifact to check.
-   * @return A boolean indicating whether the artifact is marked as committed.
-   * @throws IOException
-   * @throws URISyntaxException
-   */
-  // TODO this isn't used by anything?
-  public boolean isCommitted(Artifact indexData)
-      throws IOException, URISyntaxException {
-    ArtifactData artifact = getArtifactData(indexData);
-    RepositoryArtifactMetadata metadata = artifact.getRepositoryMetadata();
-    return metadata.isCommitted();
   }
 }
