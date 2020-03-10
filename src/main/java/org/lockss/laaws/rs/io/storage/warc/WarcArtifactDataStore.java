@@ -333,7 +333,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return basePaths;
   }
 
-  public static Path[] basePaths;
+  /**
+   * Returns the path component of a storage URL.
+   *
+   * @param storageUrl A {@link URI} containing the storage URL.
+   * @return A {@link Path} containing the path component of the storage URL.
+   */
+  @Deprecated
+  public static Path getPathFromStorageUrl(URI storageUrl) {
+    return Paths.get(storageUrl.getPath());
+  }
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS

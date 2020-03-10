@@ -35,10 +35,6 @@ import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
 
 import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -283,10 +279,6 @@ public class Artifact implements Serializable {
   public void setCollectionDate(long collectionDate) {
     this.collectionDate = collectionDate;
   }
-
-  public static Path getPathFromStorageUrl(String storageUrl) throws URISyntaxException {
-    return Paths.get(new URI(storageUrl).getPath());
-    }
 
     @Override
     public String toString() {
