@@ -123,7 +123,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected ArtifactIndex artifactIndex;
   public static Path[] basePaths;
   protected WarcFilePool tmpWarcPool;
-  protected Map<AuIdentifier, List<Path>> auActiveWarcsMap = new HashMap<>();
+  protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap = new HashMap<>();
   protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
 
   protected ScheduledExecutorService scheduledExecutor;
@@ -462,7 +462,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   public Path[] getAuActiveWarcPaths(String collectionId, String auid) {
     // Key into the active WARC map
-    AuIdentifier aukey = new AuIdentifier(collectionId, auid);
+    CollectionAuidPair aukey = new CollectionAuidPair(collectionId, auid);
 
     synchronized (auActiveWarcsMap) {
       List<Path> paths = auActiveWarcsMap.get(aukey);
@@ -622,7 +622,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 //    initWarc(warcFile);
 
     synchronized (auActiveWarcsMap) {
-      AuIdentifier aukey = new AuIdentifier(collectionId, auid);
+      CollectionAuidPair aukey = new CollectionAuidPair(collectionId, auid);
       List<Path> paths = auActiveWarcsMap.getOrDefault(aukey, new ArrayList<>());
       paths.add(warcFile);
       auActiveWarcsMap.put(aukey, paths);
@@ -643,7 +643,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.trace("warcPath = {}", warcPath);
 
     synchronized (auActiveWarcsMap) {
-      AuIdentifier au = new AuIdentifier(collectionId, auid);
+      CollectionAuidPair au = new CollectionAuidPair(collectionId, auid);
 
       if (auActiveWarcsMap.containsKey(au)) {
         List<Path> activeWarcs = auActiveWarcsMap.get(au);
@@ -1519,7 +1519,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      */
     @Override
     public Object getStripe() {
-      return new AuIdentifier(artifact.getCollection(), artifact.getAuid());
+      return new CollectionAuidPair(artifact.getCollection(), artifact.getAuid());
     }
 
     /**

@@ -30,30 +30,26 @@
 
 package org.lockss.laaws.rs.model;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.MutablePair;
 
-public class AuIdentifier extends Pair<String, String> {
-  private String collection;
-  private String auid;
-
-  public AuIdentifier(String collection, String auid) {
-    this.collection = collection;
-    this.auid = auid;
+public class CollectionAuidPair extends MutablePair<String, String> {
+  public CollectionAuidPair(String collection, String auid) {
+    super(collection, auid);
   }
 
-  @Override
-  public String getLeft() {
-    return collection;
+  public String getCollection() {
+    return getLeft();
   }
 
-  @Override
-  public String getRight() {
-    return auid;
+  public String getAuid() {
+    return getRight();
   }
 
-  @Override
-  public String setValue(String auid) {
-    this.auid = auid;
-    return auid;
+  public void setCollection(String collection) {
+    setLeft(collection);
+  }
+
+  public void setAuid(String auid) {
+    setRight(auid);
   }
 }
