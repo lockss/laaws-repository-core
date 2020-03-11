@@ -66,7 +66,7 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
    */
   @Before
   public void makeRepoIterator() {
-    restTemplate = RestUtil.getRestTemplate();
+    restTemplate = RestUtil.getSimpleFactoryRestTemplate(true);
     mockServer = MockRestServiceServer.createServer(restTemplate);
     endpoint = String.format("%s/collections/%s/aus/%s/artifacts", BASEURL,
 	collectionId, auId);
