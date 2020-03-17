@@ -99,8 +99,7 @@ public class RestLockssRepository implements LockssRepository {
    */
   public RestLockssRepository(URL repositoryUrl, String userName,
       String password) {
-    this(repositoryUrl, RestUtil.getSimpleFactoryRestTemplate(true), userName,
-	password);
+    this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
   /**

@@ -64,7 +64,7 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
    */
   @Before
   public void makeRepoIterator() {
-    restTemplate = RestUtil.getSimpleFactoryRestTemplate(true);
+    restTemplate = RestUtil.getRestTemplate();
     mockServer = MockRestServiceServer.createServer(restTemplate);
     endpoint = String.format("%s/collections/%s/aus", BASEURL, collectionId);
     builder = UriComponentsBuilder.fromHttpUrl(endpoint);
