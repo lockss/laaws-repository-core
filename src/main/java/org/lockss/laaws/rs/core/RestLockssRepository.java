@@ -1040,13 +1040,11 @@ public class RestLockssRepository implements LockssRepository {
   /**
    * Returns information about the repository's storage areas
    *
-   * @param collection
-   *          A {@code String} containing the collection ID.
    * @return A {@code RepositoryInfo}
+   * @throws IOException if there are problems getting the repository data.
    */
   @Override
-  public RepositoryInfo getRepositoryInfo(String collection)
-      throws IOException {
+  public RepositoryInfo getRepositoryInfo() throws IOException {
     log.debug2("Invoked");
     String endpoint = String.format("%s/repoinfo", repositoryUrl);
     log.trace("endpoint = {}", endpoint);
