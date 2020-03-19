@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -416,11 +416,10 @@ public interface LockssRepository extends Ready {
   /**
    * Returns information about the repository's storage areas
    *
-   * @param collection
-   *          A {@code String} containing the collection ID.
    * @return A {@code RepositoryInfo}
+   * @throws IOException
    */
-  RepositoryInfo getRepositoryInfo(String collection) throws IOException;
+  RepositoryInfo getRepositoryInfo() throws IOException;
 
   long DEFAULT_WAITREADY = 5000;
 
