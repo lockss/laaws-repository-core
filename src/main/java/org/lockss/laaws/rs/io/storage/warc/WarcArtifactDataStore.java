@@ -304,7 +304,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return
    * @throws URISyntaxException
    */
-  private Path getBasePathFromStorageUrl(URI storageUrl) throws URISyntaxException {
+  protected Path getBasePathFromStorageUrl(URI storageUrl) throws URISyntaxException {
     Path warcPath = Paths.get(storageUrl.getPath());
 
     return Arrays.stream(getBasePaths())
@@ -509,7 +509,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param length   A {@code long} containing the length of the WARC record.
    * @return A {@link URI} internal storage URL encoding the location, offset, and length of the WARC record.
    */
-  protected URI makeWarcRecordStorageUrl(Path filePath, long offset, long length) {
+  public URI makeWarcRecordStorageUrl(Path filePath, long offset, long length) {
     MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("offset", Long.toString(offset));
     params.add("length", Long.toString(length));
@@ -672,7 +672,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     scheduledExecutor.submit(new GarbageCollectTempWarcsTask());
   }
 
-  private class GarbageCollectTempWarcsTask implements Runnable {
+  protected class GarbageCollectTempWarcsTask implements Runnable {
     @Override
     public void run() {
       garbageCollectTempWarcs();
@@ -917,7 +917,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@code boolean} indicating whether the temporary WARC may be removed.
    * @throws IOException
    */
-  private boolean isTempWarcRemovable(Path tmpWarc) throws IOException {
+  protected boolean isTempWarcRemovable(Path tmpWarc) throws IOException {
     try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
       // Get a WARCReader to the temporary WARC
       ArchiveReader archiveReader = WARCReaderFactory.get(tmpWarc.toString(), warcStream, true);
@@ -944,7 +944,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param record An {@path ArchiveRecord} representing a WARC record in a temporary WARC file.
    * @return A {@code boolean} indicating whether this WARC record is removable.
    */
-  private boolean isTempWarcRecordRemovable(ArchiveRecord record) {
+  protected boolean isTempWarcRecordRemovable(ArchiveRecord record) {
     // Get WARC record headers
     ArchiveRecordHeader headers = record.getHeader();
 
@@ -1050,7 +1050,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param record The {@link ArchiveRecord} instance of the artifact.
    * @return A {@code boolean} indicating whether the artifact is expired.
    */
-  private boolean isArtifactExpired(ArchiveRecord record) {
+  protected boolean isArtifactExpired(ArchiveRecord record) {
     // Get WARC record headers
     ArchiveRecordHeader headers = record.getHeader();
 
@@ -1728,7 +1728,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
 
   // TODO - Pull this out and along WarcFile?
-  private static class WarcRecordLocation {
+  protected static class WarcRecordLocation {
     private Path path;
     private long offset;
     private long length;
