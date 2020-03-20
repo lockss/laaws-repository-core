@@ -139,6 +139,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public Path getAuActiveWarcPath(String collectionId, String auid) throws IOException {
     Path[] warcPaths = getAuActiveWarcPaths(collectionId, auid);
 
+    // Return a random active WARC for the AU since memory is one resource
     return warcPaths.length > 0 ?
         warcPaths[new Random().nextInt(warcPaths.length)] : initAuActiveWarc(collectionId, auid);
   }
