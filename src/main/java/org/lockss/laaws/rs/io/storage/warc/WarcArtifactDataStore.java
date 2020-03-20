@@ -654,12 +654,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         List<Path> activeWarcs = auActiveWarcsMap.get(key);
 
         if (!activeWarcs.remove(warcPath)) {
-          log.debug2("Attempted to seal an active WARC of an AU that is not active!");
+          log.warn("Attempted to seal an active WARC of an AU that is not active!");
         }
 
         auActiveWarcsMap.put(key, activeWarcs);
       } else {
-        log.debug2("Attempted to seal an active WARC of an AU having no active WARCs!");
+        log.warn("Attempted to seal an active WARC of an AU having no active WARCs!");
       }
     }
   }

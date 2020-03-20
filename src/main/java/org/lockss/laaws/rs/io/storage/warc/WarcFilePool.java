@@ -282,7 +282,9 @@ public class WarcFilePool {
       synchronized (usedWarcs) {
         if (isInUse(warcFile)) {
           // Pay attention to this log message - it may indicate a problem with the code
-          log.debug2("Forceful removal of WARC file from pool [warcFile: {}]", warcFile);
+          log.warn("Forceful removal of WARC file from pool [warcFile: {}]", warcFile);
+
+          // Q: What should we do if it's currently in use?
         }
 
         usedWarcs.remove(warcFile);
