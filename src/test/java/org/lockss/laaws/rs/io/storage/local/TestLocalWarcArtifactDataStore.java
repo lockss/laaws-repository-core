@@ -31,7 +31,6 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import org.apache.commons.io.FilenameUtils;
-import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
@@ -306,7 +305,7 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
 
     // Initialize a collection
     doCallRealMethod().when(ds).initCollection(collectionId);
-    store.initCollection(collectionId);
+    ds.initCollection(collectionId);
 
     // Assert directory structures were created
     verify(ds).mkdirs(collectionPaths);
