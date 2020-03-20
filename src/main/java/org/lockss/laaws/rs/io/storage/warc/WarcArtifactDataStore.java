@@ -590,8 +590,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link String} containing the generated active WARC file name.
    */
-  protected String generateActiveWarcName(String collectionId, String auid) {
-    String timestamp = ZonedDateTime.now(ZoneId.of("UTC")).format(FMT_TIMESTAMP);
+  protected static String generateActiveWarcName(String collectionId, String auid) {
+    ZonedDateTime zdt = ZonedDateTime.now(ZoneId.of("UTC"));
+    return generateActiveWarcName(collectionId, auid, zdt);
+  }
+
+  protected static String generateActiveWarcName(String collectionId, String auid, ZonedDateTime zdt) {
+    String timestamp = zdt.format(FMT_TIMESTAMP);
     String auidHash = DigestUtils.md5Hex(auid);
     return String.format("artifacts_%s-%s_%s.warc", collectionId, auidHash, timestamp);
   }
