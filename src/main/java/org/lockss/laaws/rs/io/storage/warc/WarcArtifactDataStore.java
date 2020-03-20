@@ -309,9 +309,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     return Arrays.stream(getBasePaths())
         .filter(basePath -> warcPath.startsWith(basePath.toString()))
-        .sorted(Path::compareTo)
+        .sorted(Comparator.reverseOrder())
         .findFirst()
-        .get();
+        .orElse(null);
   }
 
   /**
@@ -491,8 +491,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path[]} containing the paths to the journal on across all the configured data store base paths.
    */
   protected Path[] getAuMetadataWarcPaths(ArtifactIdentifier aid, String journalName) {
-    return Arrays.stream(getAuPaths(aid.getCollection(), aid.getAuid()))
-        .map(path -> path.resolve(journalName + "." + WARC_FILE_EXTENSION))
+    return Arrays.stream(getBasePaths())
+        .map(basePath -> getAuMetadataWarcPath(basePath, aid, journalName))
         .toArray(Path[]::new);
   }
 
