@@ -114,29 +114,29 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     }
 
     @Override
-    public void runTestInitArtifactDataStore() throws Exception {
+    public void testInitDataStoreImpl() throws Exception {
       assertTrue(isDirectory(store.getBasePaths()[0]));
-        assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+      assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
     }
 
-    @Override
-    public void runTestInitCollection() throws Exception {
-        // Initialize a collection
-        store.initCollection("collection");
+  @Override
+  public void testInitCollectionImpl() throws Exception {
+    // Initialize a collection
+    store.initCollection("collection");
 
-        // Assert directory structures were created
-      assertTrue(isAllDirectory(store.getCollectionPaths("collection")));
-    }
+    // Assert directory structures were created
+    assertTrue(isAllDirectory(store.getCollectionPaths("collection")));
+  }
 
-    @Override
-    public void runTestInitAu() throws Exception {
-        // Initialize an AU
-        store.initAu("collection", "auid");
+  @Override
+  public void testInitAuImpl() throws Exception {
+    // Initialize an AU
+    store.initAu("collection", "auid");
 
-        // Assert directory structures were created
-      assertTrue(isAllDirectory(store.getCollectionPaths("collection")));
-      assertTrue(isAllDirectory(store.getAuPaths("collection", "auid")));
-    }
+    // Assert directory structures were created
+    assertTrue(isAllDirectory(store.getCollectionPaths("collection")));
+    assertTrue(isAllDirectory(store.getAuPaths("collection", "auid")));
+  }
 
   public boolean isAllDirectory(java.nio.file.Path[] paths) throws IOException {
     boolean allDirectory = true;
@@ -173,7 +173,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
         return store.fs.isFile(file);
     }
 
-  @Override
   protected URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
     return URI.create(String.format("%s%s?offset=%d&length=%d",
         store.fs.getUri(),
@@ -183,8 +182,64 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     ));
   }
 
-    @Override
-    protected java.nio.file.Path[] expected_getBasePaths() throws Exception {
-      return new java.nio.file.Path[]{Paths.get(testRepoBasePath)};
-    }
+  @Override
+  protected java.nio.file.Path[] expected_getBasePaths() throws Exception {
+    return new java.nio.file.Path[]{Paths.get(testRepoBasePath)};
+  }
+
+
+  // *******************************************************************************************************************
+  // * AbstractWarcArtifactDataStoreTest IMPLEMENTATION
+  // *******************************************************************************************************************
+
+  @Override
+  public void testMakeStorageUrlImpl() throws Exception {
+    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+
+    URI expectedStorageUrl = expected_makeStorageUrl(aid, 1234L, 5678L);
+
+    java.nio.file.Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid());
+    URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
+
+    assertEquals(expectedStorageUrl, actualStorageUrl);
+  }
+
+//  @Override
+//  public void testGetInputStreamAndSeekImpl() throws Exception {
+//  }
+
+//  @Override
+//  public void testGetAppendableOutputStreamImpl() throws Exception {
+//  }
+
+  @Override
+  public void testInitWarcImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testGetWarcLengthImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testFindWarcsImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testRemoveWarcImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testGetBlockSizeImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testGetFreeSpaceImpl() throws Exception {
+
+  }
+
 }

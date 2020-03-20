@@ -30,22 +30,32 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.SetUtil;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 /**
- * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
+ * Test class for {@link VolatileWarcArtifactDataStore}.
  */
 public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<VolatileWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  // *******************************************************************************************************************
+  // * JUNIT
+  // *******************************************************************************************************************
 
   @Override
   protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
@@ -59,6 +69,19 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     return n_store;
   }
 
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION SPECIFIC TEST UTILITY METHODS
+  // *******************************************************************************************************************
+
+  protected URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
+    return URI.create(String.format(
+        "volatile://%s?offset=%d&length=%d",
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
+        offset,
+        length
+    ));
+  }
+
   @Override
   protected Path[] expected_getBasePaths() {
     return new Path[]{VolatileWarcArtifactDataStore.DEFAULT_BASEPATH};
@@ -70,29 +93,18 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   @Override
-  public void runTestInitArtifactDataStore() {
+  public void testInitDataStoreImpl() {
     assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
   }
 
   @Override
-  public void runTestInitCollection() throws Exception {
+  public void testInitCollectionImpl() throws Exception {
     // NOP
   }
 
   @Override
-  public void runTestInitAu() throws Exception {
+  public void testInitAuImpl() throws Exception {
     // NOP
-  }
-
-  @Override
-  @Test
-  public void testGetAuMetadataWarcPath() throws Exception {
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    Path expectedAuDirPath = expected_getBasePaths()[0].resolve("collections/coll1/au-" + DigestUtils.md5Hex("auid1"));
-    String expectedFileName = "lockss-repo.warc";
-    Path expectedPath = expectedAuDirPath.resolve(expectedFileName);
-    Path actualPath = store.getAuMetadataWarcPath(ident1, RepositoryArtifactMetadata.LOCKSS_METADATA_ID);
-    assertEquals(expectedPath, actualPath);
   }
 
   @Override
@@ -110,13 +122,98 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     return store.warcs.get(path) != null;
   }
 
+  // *******************************************************************************************************************
+  // * AbstractWarcArtifactDataStoreTest IMPLEMENTATION
+  // *******************************************************************************************************************
+
   @Override
-  protected URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
-    return URI.create(String.format(
-        "volatile://%s?offset=%d&length=%d",
-        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
-        offset,
-        length
-    ));
+  public void testMakeStorageUrlImpl() throws Exception {
+    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+
+    URI expectedStorageUrl = expected_makeStorageUrl(aid, 1234L, 5678L);
+
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid());
+    URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
+
+    assertEquals(expectedStorageUrl, actualStorageUrl);
+  }
+
+//  @Override
+//  public void testGetInputStreamAndSeekImpl() throws Exception {
+//  }
+
+//  @Override
+//  public void testGetAppendableOutputStreamImpl() throws Exception {
+//  }
+
+  @Override
+  public void testInitWarcImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testGetWarcLengthImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testFindWarcsImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testRemoveWarcImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testGetBlockSizeImpl() throws Exception {
+
+  }
+
+  @Override
+  public void testGetFreeSpaceImpl() throws Exception {
+
+  }
+
+  @Test
+  public void testGetFreeSpace() throws Exception {
+    Path randomPath = Paths.get(UUID.randomUUID().toString());
+
+    // Setup spy of Runtime object
+    Runtime s_runtime = spy(Runtime.getRuntime());
+    when(s_runtime.freeMemory()).thenReturn(1234L);
+
+    // Assert freeMemory() is called by getFreeSpace()
+    assertEquals(s_runtime.freeMemory(), store.getFreeSpace(s_runtime, randomPath));
+
+    // Assert valid freeMemory() output
+    assertTrue(store.getFreeSpace(randomPath) > 0 && store.getFreeSpace(randomPath) <= s_runtime.maxMemory());
+  }
+
+  @Test
+  public void testGetAuActiveWarcPath() throws Exception {
+    VolatileWarcArtifactDataStore ds = spy(store);
+
+    Path[] paths = new Path[]{
+        Paths.get("/a"),
+        Paths.get("/b"),
+        Paths.get("/c"),
+    };
+
+    when(ds.getAuActiveWarcPaths("collection", "auid")).thenReturn(paths);
+
+    // Holds sample of getAuActiveWarcPath() returns
+    List<Path> sample = new ArrayList<>();
+
+    // Build sample
+    for (int i = 0; i < 1000; i++) {
+      Path activeWarcPath = ds.getAuActiveWarcPath("collection", "auid");
+      assertNotNull(activeWarcPath);
+      sample.add(activeWarcPath);
+    }
+
+    // Q: What kind of tests make sense here?
+    assertTrue(SetUtil.set(paths).containsAll(sample));
   }
 }
