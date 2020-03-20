@@ -440,10 +440,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     synchronized (auActiveWarcsMap) {
       Path[] activeWarcs = getAuActiveWarcPaths(collectionId, auid);
 
-      // TODO: Prioritize starting an active WARC on a base path that does not have an active WARC
-      if (activeWarcs.length < getBasePaths().length) {
-        return initAuActiveWarc(collectionId, auid);
-      }
+      // TODO: Implement policy for starting multiple active WARCs for an AU here
+
+      // Q: Should we prioritize starting an active WARC on a base path that does not have an active WARC?
+//      if (activeWarcs.length < getBasePaths().length) {
+//      }
 
       Path activeWarc = Arrays.stream(activeWarcs)
           .sorted((a, b) -> (int) (getFreeSpace(b.getParent()) - getFreeSpace(a.getParent())))
