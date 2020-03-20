@@ -34,14 +34,11 @@ import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.SetUtil;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.spy;
@@ -189,31 +186,5 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Assert valid freeMemory() output
     assertTrue(store.getFreeSpace(randomPath) > 0 && store.getFreeSpace(randomPath) <= s_runtime.maxMemory());
-  }
-
-  @Test
-  public void testGetAuActiveWarcPath() throws Exception {
-    VolatileWarcArtifactDataStore ds = spy(store);
-
-    Path[] paths = new Path[]{
-        Paths.get("/a"),
-        Paths.get("/b"),
-        Paths.get("/c"),
-    };
-
-    when(ds.getAuActiveWarcPaths("collection", "auid")).thenReturn(paths);
-
-    // Holds sample of getAuActiveWarcPath() returns
-    List<Path> sample = new ArrayList<>();
-
-    // Build sample
-    for (int i = 0; i < 1000; i++) {
-      Path activeWarcPath = ds.getAuActiveWarcPath("collection", "auid");
-      assertNotNull(activeWarcPath);
-      sample.add(activeWarcPath);
-    }
-
-    // Q: What kind of tests make sense here?
-    assertTrue(SetUtil.set(paths).containsAll(sample));
   }
 }
