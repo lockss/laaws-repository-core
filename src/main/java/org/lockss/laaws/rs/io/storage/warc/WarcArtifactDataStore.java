@@ -278,6 +278,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         reloadTemporaryWarcs();
 
         // TODO: Reload active WARCs
+        // reloadActiveWarcs();
 
         // Schedule temporary WARC garbage collection
         // TODO: Parameterize interval
@@ -293,7 +294,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   // *******************************************************************************************************************
-  // * ABSTRACT PATH METHODS
+  // * INTERNAL PATH METHODS
   // *******************************************************************************************************************
 
   /**
@@ -496,42 +497,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   // *******************************************************************************************************************
-  // * METHODS
+  // * INTERNAL STORAGE URL
   // *******************************************************************************************************************
-
-  /**
-   * Marks the file as in-use and returns an {@link InputStream} to the beginning of the file.
-   *
-   * @param filePath A {@link Path} containing the path to the file.
-   * @return An {@link InputStream} to the file.
-   * @throws IOException
-   */
-  protected InputStream markAndGetInputStream(Path filePath) throws IOException {
-    return markAndGetInputStreamAndSeek(filePath, 0L);
-  }
-
-  /**
-   * Marks the file as in-use and returns an {@link InputStream} to the file, after seeking by {@code offset} bytes.
-   *
-   * @param filePath A {@link Path} containing the path to the file.
-   * @param offset   A {@code long} containing the number of bytes to seek.
-   * @return An {@link InputStream} to the file.
-   * @throws IOException
-   */
-  protected InputStream markAndGetInputStreamAndSeek(Path filePath, long offset) throws IOException {
-    TempWarcInUseTracker.INSTANCE.markUseStart(filePath);
-
-    InputStream warcStream = new BufferedInputStream(getInputStreamAndSeek(filePath, offset));
-
-    return new CloseCallbackInputStream(
-        warcStream,
-        closingWarcFile -> {
-          // Decrement the counter of times that the file is in use.
-          TempWarcInUseTracker.INSTANCE.markUseEnd((Path) closingWarcFile);
-        },
-        filePath
-    );
-  }
 
   /**
    * Convenience method that encodes the location, offset, and length of a WARC record into an internal storage URL.
@@ -572,6 +539,44 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Deprecated
   public static Path getPathFromStorageUrl(URI storageUrl) {
     return Paths.get(storageUrl.getPath());
+  }
+
+  // *******************************************************************************************************************
+  // * METHODS
+  // *******************************************************************************************************************
+
+  /**
+   * Marks the file as in-use and returns an {@link InputStream} to the beginning of the file.
+   *
+   * @param filePath A {@link Path} containing the path to the file.
+   * @return An {@link InputStream} to the file.
+   * @throws IOException
+   */
+  protected InputStream markAndGetInputStream(Path filePath) throws IOException {
+    return markAndGetInputStreamAndSeek(filePath, 0L);
+  }
+
+  /**
+   * Marks the file as in-use and returns an {@link InputStream} to the file, after seeking by {@code offset} bytes.
+   *
+   * @param filePath A {@link Path} containing the path to the file.
+   * @param offset   A {@code long} containing the number of bytes to seek.
+   * @return An {@link InputStream} to the file.
+   * @throws IOException
+   */
+  protected InputStream markAndGetInputStreamAndSeek(Path filePath, long offset) throws IOException {
+    TempWarcInUseTracker.INSTANCE.markUseStart(filePath);
+
+    InputStream warcStream = new BufferedInputStream(getInputStreamAndSeek(filePath, offset));
+
+    return new CloseCallbackInputStream(
+        warcStream,
+        closingWarcFile -> {
+          // Decrement the counter of times that the file is in use.
+          TempWarcInUseTracker.INSTANCE.markUseEnd((Path) closingWarcFile);
+        },
+        filePath
+    );
   }
 
   // *******************************************************************************************************************
@@ -643,16 +648,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.trace("warcPath = {}", warcPath);
 
     synchronized (auActiveWarcsMap) {
-      CollectionAuidPair au = new CollectionAuidPair(collectionId, auid);
+      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
 
-      if (auActiveWarcsMap.containsKey(au)) {
-        List<Path> activeWarcs = auActiveWarcsMap.get(au);
+      if (auActiveWarcsMap.containsKey(key)) {
+        List<Path> activeWarcs = auActiveWarcsMap.get(key);
 
         if (!activeWarcs.remove(warcPath)) {
           log.debug2("Attempted to seal an active WARC of an AU that is not active!");
         }
 
-        auActiveWarcsMap.put(au, activeWarcs);
+        auActiveWarcsMap.put(key, activeWarcs);
       } else {
         log.debug2("Attempted to seal an active WARC of an AU having no active WARCs!");
       }
