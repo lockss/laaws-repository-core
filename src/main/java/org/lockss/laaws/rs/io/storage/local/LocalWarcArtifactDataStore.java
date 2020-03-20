@@ -91,6 +91,12 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   public void mkdirs(Path dirPath) throws IOException {
     log.trace("dirPath = {}", dirPath);
+
+    if (dirPath == null) {
+      log.debug2("dirPath is null!");
+      return;
+    }
+
     if (!FileUtil.ensureDirExists(dirPath.toFile())) {
       throw new IOException(String.format("Could not create directory [dirPath: %s]", dirPath));
     }
@@ -228,12 +234,17 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     if (!warcFile.exists()) {
       mkdirs(warcPath.getParent());
-      FileUtils.touch(warcFile);
-    }
 
-    try (OutputStream output = getAppendableOutputStream(warcPath)) {
-      writeWarcInfoRecord(output);
+      initFile(warcFile);
+
+      try (OutputStream output = getAppendableOutputStream(warcPath)) {
+        writeWarcInfoRecord(output);
+      }
     }
+  }
+
+  protected void initFile(File file) throws IOException {
+    FileUtils.touch(file);
   }
 
   @Override
