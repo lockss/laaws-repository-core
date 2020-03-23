@@ -1941,24 +1941,24 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected void truncateMetadataJournal(Path journalPath) throws IOException {
-    for (JSONObject json : readMetadataJournal(journalPath).values()) {
+    // Get latest entry per artifact ID
+    Map<String, JSONObject> journal = readMetadataJournal(journalPath);
 
-      // TODO: Move existing journal out of the way instead of removing it
-      removeWarc(journalPath);
+    // Replace the journal with a new file
+    removeWarc(journalPath); // FIXME
+    initWarc(journalPath);
 
-      // Parse the JSON into a RepositoryArtifactMetadata object
-      RepositoryArtifactMetadata metadata = new RepositoryArtifactMetadata(json);
+    // Write journal with only latest entries
+    try (OutputStream output = getAppendableOutputStream(journalPath)) {
+      for (JSONObject json : journal.values()) {
+        // Parse the JSON into a RepositoryArtifactMetadata object
+        RepositoryArtifactMetadata metadata = new RepositoryArtifactMetadata(json);
 
-      // Initialize metadata WARC file
-      initWarc(journalPath);
-
-      try (OutputStream output = getAppendableOutputStream(journalPath)) {
         // Append WARC metadata record to the new journal
         WARCRecordInfo metadataRecord = createWarcMetadataRecord(metadata.getArtifactId(), metadata);
         writeWarcRecord(metadataRecord, output);
         output.flush();
       }
-
     }
   }
 
