@@ -1969,20 +1969,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return The {@link RepositoryArtifactMetadata} of the artifact.
    * @throws IOException
    */
+  // FIXME: This should be okay but it would be more robust if it compared timestamps instead of returning first found
+  //        in order of base paths processed.
   protected RepositoryArtifactMetadata getRepositoryMetadata(ArtifactIdentifier aid) throws IOException {
-    // FIXME: This should be okay but it would be more robust if it compared timestamps instead of returning first found
-    //        in order of base paths processed.
 
-    for (Path basePath : getBasePaths()) {
-      Path journalPath = getAuMetadataWarcPath(basePath, aid, RepositoryArtifactMetadata.LOCKSS_METADATA_ID);
-
+    for (Path journalPath : getAuMetadataWarcPaths(aid, RepositoryArtifactMetadata.LOCKSS_METADATA_ID)) {
+      // Read journal for latest entry per artifact ID
       Map<String, JSONObject> journal = readMetadataJournal(journalPath);
 
+      log.trace("journal = {}", journal);
+
+      // Get entry for this artifact ID
       JSONObject metadata = journal.get(aid.getId());
 
       if (metadata != null) {
+        // Found a latest entry for this artifact - return it
         log.trace("metadata = {}", metadata.toString());
         return new RepositoryArtifactMetadata(metadata);
+      } else {
+        log.trace("Journal entry for artifact not found [artifactId: {}, journalPath: {}]", aid.getId(), journalPath);
       }
     }
 
