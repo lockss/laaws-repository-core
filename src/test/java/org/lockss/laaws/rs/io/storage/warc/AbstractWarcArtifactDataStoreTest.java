@@ -145,7 +145,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected static String URL2 = "http://host2.com/file1";
 
   // Identifiers expected not to exist in the repository
-  protected static String NO_COLL= "no_coll";
+  protected static String NO_COLL = "no_coll";
   protected static String NO_AUID = "no_auid";
   protected static String NO_URL = "no_url";
   protected static String NO_ARTID = "not an artifact ID";
@@ -428,24 +428,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index) throws IOException;
-
   protected abstract WADS makeWarcArtifactDataStore(ArtifactIndex index, WADS otherStore) throws IOException;
 
   //  protected abstract URI expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception;
   protected abstract Path[] expected_getBasePaths() throws Exception;
-
   protected abstract Path[] expected_getTmpWarcBasePaths() throws Exception;
 
   public abstract void testInitDataStoreImpl() throws Exception;
-
   public abstract void testInitCollectionImpl() throws Exception;
-
   public abstract void testInitAuImpl() throws Exception;
 
   protected abstract boolean pathExists(Path path) throws IOException;
-
   protected abstract boolean isDirectory(Path path) throws IOException;
-
   protected abstract boolean isFile(Path path) throws IOException;
 
   // *******************************************************************************************************************
@@ -454,7 +448,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   private ArtifactData generateTestArtifactData(String collection, String auid, String uri, int version, long length) throws IOException {
     // HTTP status (200 OK) for use volatile ArtifactData's we'll add to the repository
-    StatusLine statusOK = new BasicStatusLine(new ProtocolVersion("HTTP", 1,1), 200, "OK");
+    StatusLine statusOK = new BasicStatusLine(new ProtocolVersion("HTTP", 1, 1), 200, "OK");
 
     // Create an artifact and add it to the data store
     ArtifactIdentifier id = new ArtifactIdentifier(UUID.randomUUID().toString(), collection, auid, uri, version);
@@ -639,6 +633,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * TESTS: INTERNAL PATH METHODS
   // *******************************************************************************************************************
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getBasePathFromStorageUrl(URI)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetBasePathFromStorageUrl() throws Exception {
     final URI storageUrl = new URI("fake:///lockss/test/foo");
@@ -659,6 +658,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expectedPath, ds.getBasePathFromStorageUrl(storageUrl));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#isTmpStorage(Path)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testIsTmpStorage() throws Exception {
     // Mock
@@ -677,17 +681,32 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(ds.isTmpStorage(Paths.get("/b/tmp/bar/foo")));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getBasePaths()}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetBasePaths() throws Exception {
     assertArrayEquals(expected_getBasePaths(), store.getBasePaths());
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getTmpWarcBasePaths()}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetTmpWarcBasePaths() throws Exception {
     assertNotNull(store.getTmpWarcBasePaths());
     assertArrayEquals(expected_getTmpWarcBasePaths(), store.getTmpWarcBasePaths());
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getCollectionsBasePath(Path)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetCollectionsBasePath() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -697,6 +716,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(basePath.resolve(WarcArtifactDataStore.COLLECTIONS_DIR), ds.getCollectionsBasePath(basePath));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getCollectionPath(Path, String)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetCollectionPath() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -711,6 +735,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expectedPath, ds.getCollectionPath(basePath, collectionId));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getAuPath(Path, String, String)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetAuPath() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -737,6 +766,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expectedAuPath, ds.getAuPath(basePath, collectionId, auid));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getAuActiveWarcPath(String, String)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetAuActiveWarcPath() throws Exception {
     String collectionId = "collection";
@@ -775,6 +809,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(activeWarcB, ds.getAuActiveWarcPath(collectionId, auid));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getAuActiveWarcPaths(String, String)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetAuActiveWarcPaths() throws Exception {
     // Mocks
@@ -803,6 +842,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertArrayEquals(activeWarcs.toArray(new Path[0]), ds.getAuActiveWarcPaths(collectionId, auid));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getAuMetadataWarcPath(Path, ArtifactIdentifier, String)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetAuMetadataWarcPath() throws Exception {
     // Mocks
@@ -837,6 +881,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * INTERNAL STORAGE URL
   // *******************************************************************************************************************
 
+  /**
+   * Test for {@link WarcArtifactDataStore#makeWarcRecordStorageUrl(Path, long, long)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testMakeWarcRecordStorageUrl() throws Exception {
     // Mock
@@ -866,6 +915,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verify(ds).makeStorageUrl(filePath, params);
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#makeWarcRecordStorageUrl(WarcArtifactDataStore.WarcRecordLocation)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testMakeWarcRecordStorageUrl_WarcRecordLocation() throws Exception {
     // Mocks
@@ -886,6 +940,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     );
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getPathFromStorageUrl(URI)}.
+   *
+   * @throws Exception
+   */
   @Deprecated
   @Test
   public void testGetPathFromStorageUrl() throws Exception {
@@ -897,6 +956,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * METHODS
   // *******************************************************************************************************************
 
+  /**
+   * Test for {@link WarcArtifactDataStore#markAndGetInputStream(Path)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testMarkAndGetInputStream() throws Exception {
     // Mocks
@@ -911,6 +975,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verify(ds).markAndGetInputStreamAndSeek(filePath, 0L);
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#markAndGetInputStreamAndSeek(Path, long)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testMarkAndGetInputStreamAndSeek() throws Exception {
     // Mocks
@@ -937,6 +1006,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * AU ACTIVE WARCS LIFECYCLE
   // *******************************************************************************************************************
 
+  /**
+   * Test for {@link WarcArtifactDataStore#generateActiveWarcName(String, String, ZonedDateTime)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGenerateActiveWarcName() throws Exception {
     String collectionId = "collection";
@@ -952,8 +1026,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(expectedName, WarcArtifactDataStore.generateActiveWarcName(collectionId, auid, zdt));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#initAuActiveWarc(String, String)}.
+   *
+   * @throws Exception
+   */
   @Test
-  public void testInitActiveWarc() throws Exception {
+  public void testInitAuActiveWarc() throws Exception {
     String collectionId = "collection";
     String auid = "auid";
 
@@ -995,6 +1074,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(activeWarcs.contains(activeWarc));
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#sealActiveWarc(String, String, Path)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testSealActiveWarc() throws Exception {
     String collectionId = "collection";
@@ -1034,6 +1118,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * TEMPORARY WARCS LIFECYCLE
   // *******************************************************************************************************************
 
+  /**
+   * Test for {@link WarcArtifactDataStore#runGarbageCollector()}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testRunGarbageCollector() throws Exception {
     // Mocks
@@ -1051,6 +1140,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verifyNoMoreInteractions(ds.scheduledExecutor);
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#garbageCollectTempWarcs()}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGarbageCollectTempWarcs() throws Exception {
     // Add an artifact from a new artifact specification
@@ -1087,7 +1181,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Tests for the temporary WARC reloading mechanism in {@code WarcArtifactDataStore}.
+   * Test for {@link WarcArtifactDataStore#reloadTemporaryWarcs()}.
    *
    * @throws Exception
    */
@@ -1268,11 +1362,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#isTempWarcRemovable(Path)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testIsTempWarcRemovable() throws Exception {
     // TODO
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#isTempWarcRecordRemovable(ArchiveRecord)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testIsWarcRecordRemovable() throws Exception {
     // Mocks
@@ -1342,7 +1446,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // ******************************************************************************************************************
 
   /**
-   * Tests for the determination of the life cycle state of an Artifact.
+   * Test for {@link WarcArtifactDataStore#getArtifactState(boolean, boolean, Artifact)}.
    *
    * @throws Exception
    */
@@ -1429,6 +1533,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     index.shutdownIndex();
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#isArtifactExpired(ArchiveRecord)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testIsArtifactExpired() throws Exception {
     ArchiveRecord record = mock(ArchiveRecord.class);
@@ -1439,12 +1548,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   }
 
-  // *******************************************************************************************************************
-  // * TESTS (I/O)
-  // *******************************************************************************************************************
-
   /**
-   * Tests for getInputStreamAndSeek() and getAppendableOutputStream().
+   * Test for {@link WarcArtifactDataStore#isArtifactDeleted(ArtifactIdentifier)}.
    *
    * @throws Exception
    */
@@ -1488,6 +1593,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertSameBytes(is_expected, is_actual);
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#isArtifactCommitted(ArtifactIdentifier)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetSetUncommittedArtifactExpiration() {
     // Assert value of default constant
@@ -1511,7 +1621,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(TimeUtil.DAY, store.getUncommittedArtifactExpiration());
   }
 
+  // *******************************************************************************************************************
+  // * GETTERS AND SETTERS
+  // *******************************************************************************************************************
 
+  /**
+   * Test for {@link WarcArtifactDataStore#setThresholdWarcSize(long)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testGetSetThresholdWarcSize() throws Exception {
     // Test default
@@ -1555,6 +1673,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    assertThrows(IllegalStateException.class, () -> store.setArtifactIndex(index2));
 //  }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#addArtifactData(ArtifactData)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testAddArtifactData_null() throws Exception {
     try {
@@ -1576,6 +1699,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#addArtifactData(ArtifactData)}.
+   *
+   * @throws Exception
+   */
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
   public void testAddArtifactData_success() throws Exception {
@@ -1631,13 +1759,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(indexedArtifact);
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getArtifactData(Artifact)}.
+   *
+   * @throws Exception
+   */
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
   public void testGetArtifactData_withVariants() throws Exception {
     // Get artifact from index
     ArtifactIndex index = store.getArtifactIndex();
 
-    for (ArtifactSpec spec: variantState.getArtifactSpecs()) {
+    for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       String artifactId = spec.getArtifactId();
 
       log.debug("artifactId: {}, spec.isDeleted(): {}", artifactId, spec.isDeleted());
@@ -1668,6 +1801,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getArtifactData(Artifact)}.
+   *
+   * @throws Exception
+   */
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
   public void testGetArtifactData_badInput() throws Exception {
@@ -1920,7 +2058,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
-  public void testDeleteArtifact() throws Exception {
+  public void testDeleteArtifactData() throws Exception {
     // Attempt to delete with a null artifact; assert we get back an IllegalArgumentException
     assertThrows(IllegalArgumentException.class, () -> store.deleteArtifactData(null));
 
@@ -1957,9 +2095,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Asserts that data store
+   * Test for {@link WarcArtifactDataStore#getInputStreamFromStorageUrl(URI)}.
    *
-   * @throws IOException
+   * @throws Exception
    */
   private void assertVariantState() throws IOException, URISyntaxException {
     // Get a handle to the data store's index
@@ -2062,15 +2200,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    assertEquals(WarcArtifactDataStore.createRecordHeader());
 
     assertEquals(WARCConstants.WARCRecordType.response,
-        WARCConstants.WARCRecordType.valueOf((String)headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE)));
+        WARCConstants.WARCRecordType.valueOf((String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE)));
 
     // Assert LOCKSS headers
     assertEquals(ai.getId(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY));
     assertEquals(ai.getCollection(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY));
     assertEquals(ai.getAuid(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY));
     assertEquals(ai.getUri(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY));
-    assertEquals(ai.getVersion(), Integer.valueOf((String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY)));
-    assertEquals(ad.getContentLength(), Long.valueOf((String)headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY)).longValue());
+    assertEquals(ai.getVersion(), Integer.valueOf((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY)));
+    assertEquals(ad.getContentLength(), Long.valueOf((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY)).longValue());
 
     // TODO: Assert content
   }
@@ -2163,6 +2301,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(metadata.getDeleted(), storedMetadata.getDeleted());
   }
 
+  // *******************************************************************************************************************
+  // *
+  // *******************************************************************************************************************
+
+  /**
+   * Test for {@link WarcArtifactDataStore#getInputStreamAndSeek(Path, long)} and
+   * {@link WarcArtifactDataStore#getAppendableOutputStream(Path)}.
+   *
+   * @throws Exception
+   */
   @Test
   public void testRebuildIndex() throws Exception {
     // Don't use provided data store, which provides an volatile index set
@@ -2244,5 +2392,4 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       }
     }
   }
-
 }
