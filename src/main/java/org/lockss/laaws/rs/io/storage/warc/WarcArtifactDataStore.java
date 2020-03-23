@@ -2040,7 +2040,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param metadataFile A {@code String} containing the path to a repository metadata journal WARC file.
    * @throws IOException
    */
-  private void replayRepositoryMetadata(ArtifactIndex index, Path metadataFile) throws IOException {
+  protected void replayRepositoryMetadata(ArtifactIndex index, Path metadataFile) throws IOException {
     for (JSONObject json : readMetadataJournal(metadataFile).values()) {
       // Parse the JSON into a RepositoryArtifactMetadata object
       RepositoryArtifactMetadata repoState = new RepositoryArtifactMetadata(json);
@@ -2048,7 +2048,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Get the artifact ID of this repository metadata
       String artifactId = repoState.getArtifactId();
 
-      log.debug2("Replaying repository metadata for artifact {} from repository metadata file {}",
+      log.trace("artifactState = {}", repoState.toJson());
+
+      log.debug("Replaying repository metadata for artifact {} from repository metadata file {}",
           artifactId,
           metadataFile
       );
@@ -2067,7 +2069,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       } else {
         if (!repoState.isDeleted()) {
-          log.error("Artifact {} referenced in journal and not deleted but artifact doesn't exist!", artifactId);
+          log.warn("Artifact referenced by journal is not deleted but doesn't exist in index! [artifactId: {}]", artifactId);
         }
       }
     }
