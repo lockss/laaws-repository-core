@@ -1059,7 +1059,7 @@ public class RestLockssRepository implements LockssRepository {
 				 new HttpEntity<>(null,
 				     getInitializedHttpHeaders()),
 				 String.class,
-				 "auSize");
+				 "repoInfo");
 
       checkStatusOk(response);
 

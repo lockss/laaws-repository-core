@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2019 Board of Trustees of Leland Stanford Jr. University,
+ Copyright (c) 2019-2020 Board of Trustees of Leland Stanford Jr. University,
  all rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -40,11 +40,11 @@ public class TestStorageInfo extends LockssTestCase5 {
     String tmpdir = getTempDir().toString();
     PlatformUtil.DF df = PlatformUtil.getInstance().getDF(tmpdir);
     StorageInfo si = StorageInfo.fromDF(df);
-    assertEquals(df.getSize(), si.getSize());
+    assertEquals(df.getSize(), si.getSize() / 1024); // From DF in KB.
     assertEquals("disk", si.getType());
     assertEquals(df.getMnt(), si.getName());
-    assertEquals(df.getUsed(), si.getUsed());
-    assertEquals(df.getAvail(), si.getAvail());
+    assertEquals(df.getUsed(), si.getUsed() / 1024); // From DF in KB.
+    assertEquals(df.getAvail(), si.getAvail() / 1024); // From DF in KB.
     assertEquals(df.getPercentString(), si.getPercentUsedString());
 
     StorageInfo si2 = StorageInfo.fromDF("notdisk", df);

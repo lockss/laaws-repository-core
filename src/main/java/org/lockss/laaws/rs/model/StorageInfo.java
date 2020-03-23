@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2019 Board of Trustees of Leland Stanford Jr. University,
+ Copyright (c) 2019-2020 Board of Trustees of Leland Stanford Jr. University,
  all rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,9 +38,9 @@ public class StorageInfo implements Serializable {
 
   private String type;   // Currently just informative: "disk", "memory", etc.
   private String name;   // Indentifying name such as mount point
-  private long size = -1;
-  private long used = -1;
-  private long avail = -1;
+  private long size = -1; // Size in bytes of the storage area.
+  private long used = -1; // Size in bytes of the used storage area.
+  private long avail = -1; // Size in bytes of the available storage area
   private String percentUsedString;
   private double percentUsed = -1.0;
 
@@ -63,9 +63,9 @@ public class StorageInfo implements Serializable {
     StorageInfo res = new StorageInfo(type);
     if (df != null) {
       res.name = df.getMnt();
-      res.size = df.getSize();
-      res.used = df.getUsed();
-      res.avail = df.getAvail();
+      res.size = df.getSize() * 1024; // From DF in KB, here in bytes.
+      res.used = df.getUsed() * 1024; // From DF in KB, here in bytes.
+      res.avail = df.getAvail() * 1024; // From DF in KB, here in bytes.
       res.percentUsedString = df.getPercentString();
       res.percentUsed = df.getPercent();
     }
@@ -90,17 +90,17 @@ public class StorageInfo implements Serializable {
     return name;
   }
 
-  /** Return total size in K */
+  /** Return total size in bytes */
   public long getSize() {
     return size;
   }
 
-  /** Return used size in K */
+  /** Return used size in bytes */
   public long getUsed() {
     return used;
   }
 
-  /** Return available size in K */
+  /** Return available size in bytes */
   public long getAvail() {
     return avail;
   }
