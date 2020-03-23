@@ -1864,64 +1864,69 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param artifactWarcFiles A {@link Collection<Path>} containing the paths to the WARC files.
    * @throws IOException
    */
-  private void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<Path> artifactWarcFiles) throws IOException {
+  protected void reindexArtifactsFromWarcs(ArtifactIndex index, Collection<Path> artifactWarcFiles) throws IOException {
     // Reindex artifacts from temporary and permanent storage
     for (Path warcFile : artifactWarcFiles) {
+      reindexArtifactsFromWarc(index, warcFile);
+    }
+  }
 
-      try (InputStream warcStream = markAndGetInputStream(warcFile)) {
-        for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", warcStream)) {
-          log.trace(
-              "Re-indexing artifact from WARC {} record {} from {}",
-              record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
+  protected void reindexArtifactsFromWarc(ArtifactIndex index, Path warcFile) throws IOException {
+    boolean isWarcInTemp = isTmpStorage(warcFile);
+
+    try (InputStream warcStream = markAndGetInputStream(warcFile)) {
+      for (ArchiveRecord record : new UncompressedWARCReader("WarcArtifactDataStore", warcStream)) {
+        log.trace(
+            "Re-indexing artifact from WARC {} record {} from {}",
+            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
+            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+            warcFile
+        );
+
+        try {
+          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
+
+          if (artifactData != null) {
+            // Skip if already indexed
+            if (index.artifactExists(artifactData.getIdentifier().getId())) {
+              log.warn("Artifact {} is already indexed!", artifactData.getIdentifier().getId());
+              continue;
+            }
+
+            // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
+            // we add four bytes to the length
+            long recordLength = record.getHeader().getLength() + 4L;
+
+            // Set ArtifactData storage URL
+            artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(), recordLength));
+
+            // Default repository metadata for all ArtifactData objects to be indexed
+            artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
+                artifactData.getIdentifier(),
+                !isWarcInTemp,
+                false
+            ));
+
+            log.trace("artifactData({}).getStorageUrl() = {}",
+                artifactData.getIdentifier().getId(),
+                artifactData.getStorageUrl()
+            );
+
+            // Add artifact to the index
+            index.indexArtifact(artifactData);
+          }
+        } catch (IOException e) {
+          log.error("IOException caught while attempting to re-index WARC record {} from {}",
               record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
               warcFile
           );
 
-          try {
-            ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
-
-            if (artifactData != null) {
-              // Skip if already indexed
-              if (index.artifactExists(artifactData.getIdentifier().getId())) {
-                log.warn("Artifact {} is already indexed", artifactData.getIdentifier().getId());
-                continue;
-              }
-
-              // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
-              // we add four bytes to the length
-              long recordLength = record.getHeader().getLength() + 4L;
-
-              // Set ArtifactData storage URL
-              artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(), recordLength));
-
-              // Default repository metadata for all ArtifactData objects to be indexed
-              artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(
-                  artifactData.getIdentifier(),
-                  false,
-                  false
-              ));
-
-              log.trace("artifactData({}).getStorageUrl() = {}",
-                  artifactData.getIdentifier().getId(),
-                  artifactData.getStorageUrl()
-              );
-
-              // Add artifact to the index
-              index.indexArtifact(artifactData);
-            }
-          } catch (IOException e) {
-            log.error("IOException caught while attempting to re-index WARC record {} from {}",
-                record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
-                warcFile
-            );
-
-            throw e;
-          }
+          throw e;
         }
-      } catch (IOException e) {
-        log.error("IOException caught while attempting to re-index WARC file {}: {}", warcFile, e.getStackTrace());
-        throw e;
       }
+    } catch (IOException e) {
+      log.error("IOException caught while attempting to re-index WARC file {}: {}", warcFile, e.getStackTrace());
+      throw e;
     }
   }
 
