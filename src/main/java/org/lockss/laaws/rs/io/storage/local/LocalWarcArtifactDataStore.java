@@ -193,6 +193,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
       // Return WARC files at this level
       return warcFiles;
+    } else if (basePathFile.exists() && !basePathFile.isDirectory()) {
+      log.error("Base path is not a directory! [basePath: {}]", basePath);
+      throw new IllegalStateException("Base path is not a directory!");
     }
 
     log.warn("Path doesn't exist or was not a directory [basePath = {}]", basePath);

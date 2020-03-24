@@ -195,7 +195,7 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     // Assert findWarcs() returns empty set if path exists but is not a directory
     when(mockedFile.exists()).thenReturn(true);
     when(mockedFile.isDirectory()).thenReturn(false);
-    assertEmpty(store.findWarcs(mockedPath));
+    assertThrows(IllegalStateException.class, () -> store.findWarcs(mockedPath));
 
     // Trigger an IOException because of an IOException in listFiles()
     when(mockedFile.exists()).thenReturn(true);
