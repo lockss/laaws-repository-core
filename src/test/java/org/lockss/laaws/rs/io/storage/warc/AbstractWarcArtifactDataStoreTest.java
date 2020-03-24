@@ -54,6 +54,7 @@ import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.ArtifactState;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.TimeBase;
@@ -704,6 +705,27 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(store.stripedExecutor.isTerminated());
 
     assertEquals(WarcArtifactDataStore.DataStoreState.SHUTDOWN, store.getDataStoreState());
+  }
+
+  /**
+   * Test for {@link WarcArtifactDataStore#reloadDataStoreState()}.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testReloadDataStoreState() throws Exception {
+    // Mocks
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+    ds.stripedExecutor = mock(StripedExecutorService.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).reloadDataStoreState();
+
+    // Call method
+    ds.reloadDataStoreState();
+
+    // Verify an instance of ReloadDataStoreStateTask is submitted to the StripedExecutor
+    verify(ds.stripedExecutor).submit(ArgumentMatchers.any(WarcArtifactDataStore.ReloadDataStoreStateTask.class));
   }
 
   // *******************************************************************************************************************
