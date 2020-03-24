@@ -1892,51 +1892,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#updateArtifactMetadata(Path, ArtifactIdentifier, RepositoryArtifactMetadata)}.
-   *
-   * @throws Exception
-   */
-  @VariantTest
-  @EnumSource(TestRepoScenarios.class)
-  public void testUpdateArtifactMetadata() throws Exception {
-    // Assert variant state
-    for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
-      RepositoryArtifactMetadata metadata = store.getRepositoryMetadata(spec.getArtifactIdentifier());
-      assertEquals(spec.isCommitted(), metadata.isCommitted());
-      assertEquals(spec.isDeleted(), metadata.isDeleted());
-    }
-
-    ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "cx", "ax", "ux", 1);
-
-//    assertFalse(isFile(store.getAuMetadataWarcPath(identifier, RepositoryArtifactMetadata.getMetadataId())));
-
-    runTestUpdateArtifactMetadata(false, false);
-    runTestUpdateArtifactMetadata(false, true);
-    runTestUpdateArtifactMetadata(true, false);
-    runTestUpdateArtifactMetadata(true, true);
-  }
-
-  private void runTestUpdateArtifactMetadata(boolean committed, boolean deleted) throws Exception {
-    // Create an ArtifactIdentifier to test with
-    ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "c", "a", "u", 1);
-    RepositoryArtifactMetadata metadata = new RepositoryArtifactMetadata(identifier, committed, deleted);
-
-    Path basePath = store.getBasePaths()[0];
-
-    // Write metadata
-    store.updateArtifactMetadata(basePath, identifier, metadata);
-
-    // Assert metadata file exists
-    assertTrue(isFile(store.getAuMetadataWarcPath(basePath, identifier, RepositoryArtifactMetadata.getMetadataId())));
-
-    // Read and assert metadata
-    RepositoryArtifactMetadata storedMetadata = store.getRepositoryMetadata(identifier);
-    assertEquals(metadata.getArtifactId(), storedMetadata.getArtifactId());
-    assertEquals(metadata.getCommitted(), storedMetadata.getCommitted());
-    assertEquals(metadata.getDeleted(), storedMetadata.getDeleted());
-  }
-
-  /**
    * Test for {@link WarcArtifactDataStore#commitArtifactData(Artifact)}.
    *
    * @throws Exception
@@ -2140,6 +2095,51 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
   // * JOURNAL OPERATIONS
   // *******************************************************************************************************************
+
+  /**
+   * Test for {@link WarcArtifactDataStore#updateArtifactMetadata(Path, ArtifactIdentifier, RepositoryArtifactMetadata)}.
+   *
+   * @throws Exception
+   */
+  @VariantTest
+  @EnumSource(TestRepoScenarios.class)
+  public void testUpdateArtifactMetadata() throws Exception {
+    // Assert variant state
+    for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
+      RepositoryArtifactMetadata metadata = store.getRepositoryMetadata(spec.getArtifactIdentifier());
+      assertEquals(spec.isCommitted(), metadata.isCommitted());
+      assertEquals(spec.isDeleted(), metadata.isDeleted());
+    }
+
+    ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "cx", "ax", "ux", 1);
+
+//    assertFalse(isFile(store.getAuMetadataWarcPath(identifier, RepositoryArtifactMetadata.getMetadataId())));
+
+    runTestUpdateArtifactMetadata(false, false);
+    runTestUpdateArtifactMetadata(false, true);
+    runTestUpdateArtifactMetadata(true, false);
+    runTestUpdateArtifactMetadata(true, true);
+  }
+
+  private void runTestUpdateArtifactMetadata(boolean committed, boolean deleted) throws Exception {
+    // Create an ArtifactIdentifier to test with
+    ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "c", "a", "u", 1);
+    RepositoryArtifactMetadata metadata = new RepositoryArtifactMetadata(identifier, committed, deleted);
+
+    Path basePath = store.getBasePaths()[0];
+
+    // Write metadata
+    store.updateArtifactMetadata(basePath, identifier, metadata);
+
+    // Assert metadata file exists
+    assertTrue(isFile(store.getAuMetadataWarcPath(basePath, identifier, RepositoryArtifactMetadata.getMetadataId())));
+
+    // Read and assert metadata
+    RepositoryArtifactMetadata storedMetadata = store.getRepositoryMetadata(identifier);
+    assertEquals(metadata.getArtifactId(), storedMetadata.getArtifactId());
+    assertEquals(metadata.getCommitted(), storedMetadata.getCommitted());
+    assertEquals(metadata.getDeleted(), storedMetadata.getDeleted());
+  }
 
   /**
    * Test for {@link WarcArtifactDataStore#truncateMetadataJournal(Path)}.

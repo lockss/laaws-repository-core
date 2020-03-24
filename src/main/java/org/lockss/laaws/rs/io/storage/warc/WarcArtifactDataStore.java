@@ -1407,47 +1407,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Updates the repository metadata of artifact by appending an entry to the repository metadata journal in the
-   * artifact's AU.
-   *
-   * @param basePath         A {@link Path} containing the base path of the artifact.
-   * @param artifactId       The {@link ArtifactIdentifier} of the artifact to update.
-   * @param artifactMetadata The new {@link RepositoryArtifactMetadata}.
-   * @return The {@link RepositoryArtifactMetadata} that was recorded.
-   * @throws IOException
-   */
-  // TODO: Generalize this to arbitrary metadata
-  public synchronized RepositoryArtifactMetadata updateArtifactMetadata(
-      Path basePath,
-      ArtifactIdentifier artifactId,
-      RepositoryArtifactMetadata artifactMetadata
-  ) throws IOException {
-
-    Objects.requireNonNull(artifactId, "Artifact identifier is null");
-    Objects.requireNonNull(artifactMetadata, "Repository artifact metadata is null");
-
-    Path auMetadataWarcPath = getAuMetadataWarcPath(basePath, artifactId, RepositoryArtifactMetadata.LOCKSS_METADATA_ID);
-
-    log.trace("artifactId = {}", artifactId);
-    log.trace("auMetadataWarcPath = {}", auMetadataWarcPath);
-    log.trace("artifactMetadata = {}", artifactMetadata.toJson());
-
-    // Initialize metadata WARC file
-    initWarc(auMetadataWarcPath);
-
-    try (OutputStream output = getAppendableOutputStream(auMetadataWarcPath)) {
-      // Append WARC metadata record to the journal
-      WARCRecordInfo metadataRecord = createWarcMetadataRecord(artifactId.getId(), artifactMetadata);
-      writeWarcRecord(metadataRecord, output);
-      output.flush();
-    }
-
-    log.debug2("Finished updateArtifactMetadata() for [artifactId: {}]", artifactId.getId());
-
-    return artifactMetadata;
-  }
-
-  /**
    * Commits an artifact from temporary to permanent storage.
    *
    * @param artifact The {@link Artifact} to commit to permanent storage.
@@ -1933,6 +1892,47 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
   // * JOURNAL OPERATIONS
   // *******************************************************************************************************************
+
+  /**
+   * Updates the repository metadata of artifact by appending an entry to the repository metadata journal in the
+   * artifact's AU.
+   *
+   * @param basePath         A {@link Path} containing the base path of the artifact.
+   * @param artifactId       The {@link ArtifactIdentifier} of the artifact to update.
+   * @param artifactMetadata The new {@link RepositoryArtifactMetadata}.
+   * @return The {@link RepositoryArtifactMetadata} that was recorded.
+   * @throws IOException
+   */
+  // TODO: Generalize this to arbitrary metadata
+  public synchronized RepositoryArtifactMetadata updateArtifactMetadata(
+      Path basePath,
+      ArtifactIdentifier artifactId,
+      RepositoryArtifactMetadata artifactMetadata
+  ) throws IOException {
+
+    Objects.requireNonNull(artifactId, "Artifact identifier is null");
+    Objects.requireNonNull(artifactMetadata, "Repository artifact metadata is null");
+
+    Path auMetadataWarcPath = getAuMetadataWarcPath(basePath, artifactId, RepositoryArtifactMetadata.LOCKSS_METADATA_ID);
+
+    log.trace("artifactId = {}", artifactId);
+    log.trace("auMetadataWarcPath = {}", auMetadataWarcPath);
+    log.trace("artifactMetadata = {}", artifactMetadata.toJson());
+
+    // Initialize metadata WARC file
+    initWarc(auMetadataWarcPath);
+
+    try (OutputStream output = getAppendableOutputStream(auMetadataWarcPath)) {
+      // Append WARC metadata record to the journal
+      WARCRecordInfo metadataRecord = createWarcMetadataRecord(artifactId.getId(), artifactMetadata);
+      writeWarcRecord(metadataRecord, output);
+      output.flush();
+    }
+
+    log.debug2("Finished updateArtifactMetadata() for [artifactId: {}]", artifactId.getId());
+
+    return artifactMetadata;
+  }
 
   /**
    * Truncates a journal by rewriting it with only its most recent entry per artifact ID.
