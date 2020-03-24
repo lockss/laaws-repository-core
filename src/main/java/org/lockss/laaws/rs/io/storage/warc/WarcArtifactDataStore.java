@@ -269,7 +269,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     stripedExecutor.submit(new ReloadDataStoreStateTask());
   }
 
-  private class ReloadDataStoreStateTask implements Runnable {
+  protected class ReloadDataStoreStateTask implements Runnable {
     @Override
     public void run() {
 
