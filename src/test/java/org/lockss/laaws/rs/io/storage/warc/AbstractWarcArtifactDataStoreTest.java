@@ -860,11 +860,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(ds.getBasePaths()).thenReturn(basePaths);
     doCallRealMethod().when(ds).getAuActiveWarcPath(collectionId, auid);
 
-    // Assert getAuActiveWarcPath calls initAuActiveWarc() if there are no active WARCs for this AU
+    // Assert getAuActiveWarcPath() calls initAuActiveWarc() if there are no active WARCs for this AU
     when(ds.getAuActiveWarcPaths(collectionId, auid)).thenReturn(new Path[]{});
     ds.getAuActiveWarcPath(collectionId, auid);
     verify(ds).initAuActiveWarc(collectionId, auid);
-//    verifyNoMoreInteractions(ds);
 
     Path activeWarcA = mock(Path.class);
     Path activeWarcB = mock(Path.class);
