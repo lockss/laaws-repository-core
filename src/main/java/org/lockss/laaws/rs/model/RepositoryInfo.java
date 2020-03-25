@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2019 Board of Trustees of Leland Stanford Jr. University,
+ Copyright (c) 2019-2020 Board of Trustees of Leland Stanford Jr. University,
  all rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,6 +37,12 @@ public class RepositoryInfo implements Serializable {
   private StorageInfo storeInfo;
   private StorageInfo indexInfo;
 
+  /**
+   * Default constructor.
+   */
+  public RepositoryInfo() {
+  }
+
   public RepositoryInfo(StorageInfo storeInfo, StorageInfo indexInfo) {
     this.storeInfo = storeInfo;
     this.indexInfo = indexInfo;
@@ -46,8 +52,16 @@ public class RepositoryInfo implements Serializable {
     return storeInfo;
   }
 
+  public void setStoreInfo(StorageInfo storeInfo) {
+    this.storeInfo = storeInfo;
+  }
+
   public StorageInfo getIndexInfo() {
     return indexInfo;
+  }
+
+  public void setIndexInfo(StorageInfo indexInfo) {
+    this.indexInfo = indexInfo;
   }
 
   @Override

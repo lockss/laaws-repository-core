@@ -44,6 +44,12 @@ public class StorageInfo implements Serializable {
   private String percentUsedString;
   private double percentUsed = -1.0;
 
+  /**
+   * Default constructor.
+   */
+  public StorageInfo() {
+  }
+
   /** Create a StorageInfo representing the disk usage information in the
    * DF structure
    * @param df disk usage info from PlatformUtil
@@ -85,9 +91,17 @@ public class StorageInfo implements Serializable {
     return type;
   }
 
+  public void setType(String type) {
+    this.type = type;
+  }
+
   /** Return storage name, e.g., mount point */
   public String getName() {
     return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
   }
 
   /** Return total size in bytes */
@@ -95,9 +109,17 @@ public class StorageInfo implements Serializable {
     return size;
   }
 
+  public void setSize(long size) {
+    this.size = size;
+  }
+
   /** Return used size in bytes */
   public long getUsed() {
     return used;
+  }
+
+  public void setUsed(long used) {
+    this.used = used;
   }
 
   /** Return available size in bytes */
@@ -105,14 +127,26 @@ public class StorageInfo implements Serializable {
     return avail;
   }
 
+  public void setAvail(long avail) {
+    this.avail = avail;
+  }
+
   /** Return percent used as a string: <code><i>nn<i>%</code> */
   public String getPercentUsedString() {
     return percentUsedString;
   }
 
+  public void setPercentUsedString(String percentUsedString) {
+    this.percentUsedString = percentUsedString;
+  }
+
   /** Return percent used as a double between 0.0 and 1.0 */
   public double getPercentUsed() {
     return percentUsed;
+  }
+
+  public void setPercentUsed(double percentUsed) {
+    this.percentUsed = percentUsed;
   }
 
   /** Return true if on the same device as <i>other<i>.  I.e., if the name
