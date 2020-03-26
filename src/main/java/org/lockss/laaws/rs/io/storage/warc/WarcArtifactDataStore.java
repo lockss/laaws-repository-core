@@ -715,57 +715,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       log.trace("tmpWarcs = {}", tmpWarcs);
 
       for (Path tmpWarc : tmpWarcs) {
-        WarcFile warcFile = null;
-
-        log.trace("Processing [tmpWarc = {}]", tmpWarc);
-
-        // Remove the temporary WARC from the pool if it is active there
-        synchronized (tmpWarcPool) {
-
-          if (tmpWarcPool.isInUse(tmpWarc)) {
-            // Temporary WARC is in use - skip it
-            log.debug2("Temporary WARC file is in use; will attempt a GC again later");
-            continue;
-
-          } else if (tmpWarcPool.isInPool(tmpWarc)) {
-            // Temporary WARC is a member of the pool but not currently in use - process it
-            warcFile = tmpWarcPool.borrowWarcFile(tmpWarc);
-
-            if (warcFile == null) {
-              // This message is worth paying attention to if logged - it may indicate a problem with synchronization
-              log.debug2("Could not borrow temporary WARC file [tmpWarc: {}]", tmpWarc);
-              continue;
-            }
-
-          } else {
-            // Temporary WARC is not a member of the pool - process it anyway
-          }
-
-        }
-
-        // Determine whether this temporary WARC should be removed
-        try {
-          if (isTempWarcRemovable(tmpWarc)) {
-            // Yes: Remove the temporary WARC from storage
-            log.debug2("Removing temporary WARC file [tmpWarc: {}]", tmpWarc);
-            tmpWarcPool.removeWarcFile(warcFile);
-            removeWarc(tmpWarc);
-          } else {
-            // NO - Return the temporary WARC to the pool if we borrowed it from the pool earlier
-            if (warcFile != null) {
-              synchronized (tmpWarcPool) {
-                log.debug2("Returning {} to temporary WARC pool", warcFile.getPath());
-                tmpWarcPool.returnWarcFile(warcFile);
-              }
-            }
-          }
-        } catch (IOException e) {
-          log.error(
-              "Caught IOException while trying to GC temporary WARC file [tmpWarcPath: {}]",
-              tmpWarc,
-              e
-          );
-        }
+        garbageCollectTempWarc(tmpWarc);
       }
 
     } catch (IOException e) {
@@ -777,6 +727,67 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     log.debug("Finished GC of temporary WARC files [tmpWarcBasePath: {}]", tmpWarcBasePath);
+  }
+
+  /**
+   * Removes a temporary WARC if it is not in use and eligible to be deleted (as determined by
+   * {@link WarcArtifactDataStore#isTempWarcRemovable(Path)}.
+   *
+   * @param tmpWarcPath A {@link Path} containing the path to the temporary WARC under consideration.
+   */
+  protected void garbageCollectTempWarc(Path tmpWarcPath) {
+    WarcFile tmpWarcFile = null;
+
+    log.trace("Processing [tmpWarc = {}]", tmpWarcPath);
+
+    // Remove the temporary WARC from the pool if it is active there
+    synchronized (tmpWarcPool) {
+
+      if (tmpWarcPool.isInUse(tmpWarcPath)) {
+        // Temporary WARC is in use - skip it
+        log.debug2("Temporary WARC file is in use; will attempt a GC again later");
+        return;
+
+      } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
+        // Temporary WARC is a member of the pool but not currently in use - process it
+        tmpWarcFile = tmpWarcPool.borrowWarcFile(tmpWarcPath);
+
+        if (tmpWarcFile == null) {
+          // This message is worth paying attention to if logged - it may indicate a problem with synchronization
+          log.warn("Could not borrow temporary WARC file [tmpWarc: {}]", tmpWarcPath);
+          return;
+        }
+
+      } else {
+        // Q: Temporary WARC is neither in use nor a member of the temp WARCs pool - process it anyway?
+        log.warn("Temporary WARC is not a member of the pool of temporary WARcs [tmpWarc: {}]", tmpWarcPath);
+      }
+
+    }
+
+    // Determine whether this temporary WARC should be removed
+    try {
+      if (isTempWarcRemovable(tmpWarcPath)) {
+        // Yes: Remove the temporary WARC from storage
+        log.debug2("Removing temporary WARC file [tmpWarc: {}]", tmpWarcPath);
+        tmpWarcPool.removeWarcFile(tmpWarcFile);
+        removeWarc(tmpWarcPath);
+      } else {
+        // NO - Return the temporary WARC to the pool if we borrowed it from the pool earlier
+        if (tmpWarcFile != null) {
+          synchronized (tmpWarcPool) {
+            log.debug2("Returning {} to temporary WARC pool", tmpWarcFile.getPath());
+            tmpWarcPool.returnWarcFile(tmpWarcFile);
+          }
+        }
+      }
+    } catch (IOException e) {
+      log.error(
+          "Caught IOException while trying to GC temporary WARC file [tmpWarcPath: {}]",
+          tmpWarcPath,
+          e
+      );
+    }
   }
 
   /**
