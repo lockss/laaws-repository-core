@@ -752,6 +752,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNull(ds.getBasePathFromStorageUrl(storageUrl));
 
     // Match
+    // TODO revisit
     Path expectedPath = Paths.get("/lockss/test");
     when(ds.getBasePaths()).thenReturn(new Path[]{Paths.get("/lockss"), expectedPath});
     assertEquals(expectedPath, ds.getBasePathFromStorageUrl(storageUrl));
@@ -1239,28 +1240,53 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#garbageCollectTempWarcs()}.
+   * Test for {@link WarcArtifactDataStore#garbageCollectTempWarc(Path)}.
    *
    * @throws Exception
    */
   @Test
   public void testGarbageCollectTempWarcs() throws Exception {
-    // Add an artifact from a new artifact specification
-    ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
-    spec.setArtifactId(UUID.randomUUID().toString());
-    spec.generateContent();
+    // Mocks
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+    Path tmpWarcPath = mock(Path.class);
+    ds.tmpWarcPool = mock(WarcFilePool.class);
+    WarcFile tmpWarcFile = mock(WarcFile.class);
 
-    // Add an uncommitted artifact
-    ArtifactData ad = spec.getArtifactData();
-    Artifact addedArtifact = store.addArtifactData(ad);
+    // Mock behavior
+    doCallRealMethod().when(ds).garbageCollectTempWarc(tmpWarcPath);
+    when(ds.tmpWarcPool.borrowWarcFile(tmpWarcPath)).thenReturn(tmpWarcFile);
 
-    // Update artifact specification
-    spec.setStorageUrl(URI.create(addedArtifact.getStorageUrl()));
+    // Assert no processing if temporary WARC is in use
+    when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(true);
+    ds.garbageCollectTempWarc(tmpWarcPath);
+    verify(ds, never()).isTempWarcRemovable(tmpWarcPath);
 
-    // Run garbage collector
-    store.garbageCollectTempWarcs();
+    // Assert temporary WARC *is* processed if it is neither in use nor a member of the pool
+    // Q: Is this the behavior we want?
+    when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(false);
+    when(ds.tmpWarcPool.isInPool(tmpWarcPath)).thenReturn(false);
+    ds.garbageCollectTempWarc(tmpWarcPath);
+    verify(ds).isTempWarcRemovable(tmpWarcPath);
+    clearInvocations(ds);
 
-    // TODO: WIP. Finish.
+    // Assert temporary WARC is processed if found in pool and not in use
+    when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(false);
+    when(ds.tmpWarcPool.isInPool(tmpWarcPath)).thenReturn(true);
+    ds.garbageCollectTempWarc(tmpWarcPath);
+    verify(ds).isTempWarcRemovable(tmpWarcPath);
+    clearInvocations(ds);
+
+    // Assert temporary WARC is not removed if the temporary WARC is not removable
+    when(ds.isTempWarcRemovable(tmpWarcPath)).thenReturn(false);
+    ds.garbageCollectTempWarc(tmpWarcPath);
+    verify(ds, never()).removeWarc(tmpWarcPath);
+    clearInvocations(ds);
+
+    // Assert temporary WARC is not removed if the temporary WARC is not removable
+    when(ds.isTempWarcRemovable(tmpWarcPath)).thenReturn(true);
+    ds.garbageCollectTempWarc(tmpWarcPath);
+    verify(ds).removeWarc(tmpWarcPath);
+    clearInvocations(ds);
   }
 
   /**
@@ -1467,7 +1493,42 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testIsTempWarcRemovable() throws Exception {
-    // TODO
+    // Mocks
+    Path tmpWarc = mock(Path.class);
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+
+    // Needs only to contain a single valid WARC record for our purposes
+    String warcFileContents = "WARC/1.0\n" +
+        "WARC-Record-ID: <urn:uuid:7f708184-ab78-43c0-9dfb-2edda9a8a840>\n" +
+        "Content-Length: 42\n" +
+        "WARC-Date: 2020-03-25T23:17:13.552Z\n" +
+        "WARC-Type: resource\n" +
+        "WARC-Target-URI: test\n" +
+        "Content-Type: text/plain" +
+        "\r\n" +
+        "some say you're the reason i feel this way";
+
+    // Mock behavior
+    doCallRealMethod().when(ds).isTempWarcRemovable(tmpWarc);
+    when(ds.markAndGetInputStream(tmpWarc)).thenReturn(
+        new ByteArrayInputStream(warcFileContents.getBytes())
+    );
+
+    // Assert if a record in the temporary WARC is *not* removable then the temporary WARC is not removable:
+    when(ds.isTempWarcRecordRemovable(ArgumentMatchers.any(ArchiveRecord.class))).thenReturn(false);
+    assertFalse(ds.isTempWarcRemovable(tmpWarc));
+
+    // Assert if all the records in the temporary WARC are removable (or it contained no records) then whether the WARC
+    // is removable is determined by whether the file is in use:
+    when(ds.isTempWarcRecordRemovable(ArgumentMatchers.any(ArchiveRecord.class))).thenReturn(true);
+
+    // Not used -> removable
+    assertTrue(ds.isTempWarcRemovable(tmpWarc));
+
+    // Used -> not removable
+    TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarc);
+    assertFalse(ds.isTempWarcRemovable(tmpWarc));
+    TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarc);
   }
 
   /**
@@ -2001,13 +2062,36 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   /**
    * Test for {@link WarcArtifactDataStore#getInputStreamFromStorageUrl(URI)}.
+   * <p>
+   * Q: What do we want to demonstrate here? This method calls and returns the return from getInputStreamAndSeek() with
+   * arguments from parsing the storage URL with {@link WarcArtifactDataStore.WarcRecordLocation#fromStorageUrl(URI)}.
+   * Is there anything to test?
    *
    * @throws Exception
    */
+  @Deprecated
   @Test
   public void testGetInputStreamFromStorageUrl() throws Exception {
-    // TODO
+    // Not a mock because URI is final
+    URI storageUrl = new URI("fake:///lockss/test?offset=1234&length=5678");
+
+    // Mocks
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+    InputStream input = mock(InputStream.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).getInputStreamFromStorageUrl(storageUrl);
+    when(ds.getInputStreamAndSeek(Paths.get("/lockss/test"), 1234L)).thenReturn(input);
+
+    // Assert we get back the mocked InputStream if getInputStreamAndSeek() is called
+    assertEquals(input, ds.getInputStreamFromStorageUrl(storageUrl));
   }
+
+  // *******************************************************************************************************************
+  // * INNER CLASSES
+  // *******************************************************************************************************************
+
+  // TODO
 
   // *******************************************************************************************************************
   // * INDEX REBUILD FROM DATA STORE
@@ -2102,16 +2186,37 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   /**
    * Test for {@link WarcArtifactDataStore#reindexArtifactsFromWarcs(ArtifactIndex, Collection)}.
-   * <p>
-   * Q: What do we want to demonstrate here? It is parsing the storage URL using the static method
-   * {@link WarcArtifactDataStore.WarcRecordLocation#fromStorageUrl(URI)} then calling
-   * {@link WarcArtifactDataStore#getInputStreamAndSeek(Path, long)}.
    *
    * @throws Exception
    */
   @Test
   public void testReindexArtifactsFromWarcs() throws Exception {
-    // TODO
+    // Generate an artifact then serialize into a WARC record
+    ArtifactData artifactData = generateTestArtifactData("collection", "auid", "uri", 1, 1024L);
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    WarcArtifactDataStore.writeArtifactData(artifactData, output);
+
+    // Mocks
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+    ArtifactIndex index = mock(ArtifactIndex.class);
+    Path warcFile = mock(Path.class);
+
+    // Call real method under test
+    doCallRealMethod().when(ds).reindexArtifactsFromWarc(index, warcFile);
+
+    // Assert the artifact is *not* indexed if it is already indexed
+    when(ds.markAndGetInputStream(warcFile)).thenReturn(new ByteArrayInputStream(output.toByteArray())); // FIXME
+    when(index.artifactExists(artifactData.getIdentifier().getId())).thenReturn(true);
+    ds.reindexArtifactsFromWarc(index, warcFile);
+    verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+    clearInvocations(index);
+
+    // Assert the artifact *is* indexed if it is not indexed
+    when(ds.markAndGetInputStream(warcFile)).thenReturn(new ByteArrayInputStream(output.toByteArray())); // FIXME
+    when(index.artifactExists(artifactData.getIdentifier().getId())).thenReturn(false);
+    ds.reindexArtifactsFromWarc(index, warcFile);
+    verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+    clearInvocations(index);
   }
 
   // *******************************************************************************************************************
@@ -2166,13 +2271,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   /**
    * Test for {@link WarcArtifactDataStore#truncateMetadataJournal(Path)}.
    * <p>
-   * Q: What do we want to demonstrate here? This method should replace the journal file with a new file containing only
-   * the most recent journal entry per artifact ID. It relies on {@link WarcArtifactDataStore#readMetadataJournal(Path)}
-   * to read the journal and compile a {@link Map<String, JSONObject>} from artifact ID to most recent journal entry
-   * i.e., a {@link JSONObject} object.
-   * <p>
-   * Each entry is deserialized into a {@link RepositoryArtifactMetadata} object then immediately serialized to the
-   * journal.
+   * Q: What do we want to demonstrate here? It seems to me any test of this method is really testing
+   *    {@link WarcArtifactDataStore#readMetadataJournal(Path)}.
+   *
+   * Discussion:
+   *
+   * {@link WarcArtifactDataStore#truncateMetadataJournal(Path)} should replace the journal file with a new file
+   * containing only the most recent entry per artifact ID. It relies on
+   * {@link WarcArtifactDataStore#readMetadataJournal(Path)} to read the journal and compile a
+   * {@link Map<String, JSONObject>} from artifact ID to most recent journal entry (i.e., a {@link JSONObject} object).
+   *
+   * Each entry is then deserialized into a {@link RepositoryArtifactMetadata} object then immediately serialized to the
+   * journal file again.
    *
    * @throws Exception
    */
@@ -2193,7 +2303,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Call method
     ds.truncateMetadataJournal(journalPath);
 
-    // TODO
+    // TODO: See above
   }
 
   /**
@@ -2246,25 +2356,34 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testReadMetadataJournal() throws Exception {
+    // Mocks
     WarcArtifactDataStore ds = spy(store);
-    Path mockedJournalPath = mock(Path.class);
+    Path journalPath = mock(Path.class);
 
-    try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-      ArtifactIdentifier aid = new ArtifactIdentifier("artifact", "collection", "auid", "url", 1);
-      RepositoryArtifactMetadata artifactMetadata = new RepositoryArtifactMetadata(aid);
+    // Generate two repository metadata records for the same artifact
+    ArtifactIdentifier aid = new ArtifactIdentifier("artifact", "collection", "auid", "url", 1);
+    RepositoryArtifactMetadata am1 = new RepositoryArtifactMetadata(aid);
+    RepositoryArtifactMetadata am2 = new RepositoryArtifactMetadata(aid);
+    am2.setCommitted(true);
+    WARCRecordInfo r1 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am1);
+    WARCRecordInfo r2 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am2);
 
-      // Append WARC metadata record to the journal
-      WARCRecordInfo metadataRecord = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), artifactMetadata);
-      WarcArtifactDataStore.writeWarcRecord(metadataRecord, output);
-      output.flush();
+    // Append both WARC metadata records to the journal (note order)
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    WarcArtifactDataStore.writeWarcRecord(r1, output);
+    WarcArtifactDataStore.writeWarcRecord(r2, output);
+    output.flush();
+    output.close();
 
-      doReturn(output.toInputStream()).when(ds).markAndGetInputStream(mockedJournalPath);
+    // Mock behavior
+    doReturn(new ByteArrayInputStream(output.toByteArray())).when(ds).markAndGetInputStream(journalPath);
 
-      Map<String, JSONObject> journal = ds.readMetadataJournal(mockedJournalPath);
-      log.trace("journal = {}", journal);
+    // Assert that we the JSON serialization of the repository metadata for this artifact matches the latest
+    // (i.e., last) entry written to the journal
+    Map<String, JSONObject> journal = ds.readMetadataJournal(journalPath);
+    assertEquals(am2.toJson().toString(), journal.get(aid.getId()).toString());
 
-      // TODO
-    }
+    // FIXME: This is fragile
   }
 
   /**
@@ -2477,112 +2596,31 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(10L * FileUtils.ONE_KB, store.getThresholdWarcSize());
   }
 
-//  @Test
-//  public void testGetSetArtifactIndex() throws Exception {
-//    // Don't use provided data store, which comes with an volatile index set
-//    teardownDataStore();
-//
-//    // Create a new data store with null index
-//    store = makeWarcArtifactDataStore(null);
-//    assertNull(store.getArtifactIndex());
-//
-//    // Attempting to set the data store's artifact index to null should fail
-//    assertThrows(IllegalArgumentException.class, () -> store.setArtifactIndex(null));
-//
-//    ArtifactIndex index1 = new VolatileArtifactIndex();
-//    ArtifactIndex index2 = new VolatileArtifactIndex();
-//
-//    // Set the artifact index and check we get it back
-//    store.setArtifactIndex(index1);
-//    assertSame(index1, store.getArtifactIndex());
-//
-//    // Setting data store's index to the same index should be okay
-//    store.setArtifactIndex(index1);
-//    assertSame(index1, store.getArtifactIndex());
-//
-//    // Attempt to set to another index should fail
-//    assertThrows(IllegalStateException.class, () -> store.setArtifactIndex(index2));
-//  }
-
-//  @Test
-//  public void testMoveToPermanentStorage_null() throws Exception {
-//    // Assert moving a null artifact results in an IllegalArgumentException
-//    assertThrows(IllegalArgumentException.class, () -> store.moveToPermanentStorage(null));
-//
-//    // Assert bad storage URL results in an IllegalArgumentException
-//    Artifact badArtifact = new Artifact();
-//    badArtifact.setStorageUrl("fake");
-//    assertThrows(IllegalArgumentException.class, () -> store.moveToPermanentStorage(badArtifact));
-//  }
-//
-//  @Test
-//  public void testMoveToPermanentStorage_badStorageUrls() throws Exception {
-//    // Assert moving an artifact with a valid storage URL missing WARC results in a FileNotFound exception
-//    Artifact badArtifact = new Artifact();
-//    badArtifact.setCollection("fakeCollection");
-//    badArtifact.setAuid("fakeAuid");
-//    badArtifact.setStorageUrl("fakeStorageUrl?offset=1234&length=1234");
-//    assertThrows(FileNotFoundException.class, () -> store.moveToPermanentStorage(badArtifact));
-//
-//    // TODO: Assert moving an artifact with a valid storage URL but bad offset results in XXX
-//    // TODO: Assert moving an artifact with a valid storage URL but bad length results in XXX
-//  }
-
-//  @Test
-//  public void testMoveToPermanentStorage_generic() throws Exception {
-//    // Shutdown data store (a running GC will interfere with this test)
-//    store.shutdownDataStore();
-//    //store = makeWarcArtifactDataStore(new VolatileArtifactIndex());
-//
-//    ArtifactIndex index = store.getArtifactIndex();
-//    assertNotNull(index);
-//
-//    // Add an artifact to the data store and index
-//    ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
-//    ArtifactData ad = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
-//    Artifact artifact = store.addArtifactData(ad);
-//
-//    // Add an artifact to the data store and index
-////    ArtifactData ad2 = generateTestArtifactData("coll1", "auid1", "uri1", 1, 426);
-////    Artifact artifact2 = store.addArtifactData(ad2);
-////    index.indexArtifact(ad2);
-//
-//    // Assert the storage URL points to a WARC in temporary storage
-//    String beforeUrl = artifact.getStorageUrl();
-//
-//    if (log.isDebugEnabled()) {
-//      log.debug("beforeUrl = {}", beforeUrl);
-//      log.debug("getPathFromStorageUrl(beforeUrl) = {}", Artifact.getPathFromStorageUrl(beforeUrl));
-//      log.debug("getTmpWarcBasePaths() = {}", store.getTmpWarcBasePaths());
-//    }
-//
-//    assertTrue(store.isTmpStorage(Artifact.getPathFromStorageUrl(beforeUrl)));
-//
-//    // Move it to permanent storage
-//    store.moveToPermanentStorage(artifact);
-//
-//    // Assert the storage URL points to the current active WARC for this AU
-//    String afterUrl = artifact.getStorageUrl();
-//    assertEquals(
-//        store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid()),
-//        Artifact.getPathFromStorageUrl(afterUrl)
-//    );
-//
-//    // Assert successful copy of record
-//    InputStream before_stream = store.getInputStreamFromStorageUrl(beforeUrl);
-//    InputStream after_stream = store.getInputStreamFromStorageUrl(afterUrl);
-//    assertSameBytes(before_stream, after_stream);
-//  }
-
   @Test
-  public void testMoveToPermanentStorage_sealFirst() throws Exception {
-    assertNotNull(store.getArtifactIndex());
+  public void testGetSetArtifactIndex() throws Exception {
+    // Don't use provided data store, which comes with an volatile index set
+    teardownDataStore();
 
-    // Set WARC file size threshold to 4KB
-    store.setThresholdWarcSize(FileUtils.ONE_KB * 4L);
-    store.getBlockSize();
+    // Create a new data store with null index
+    store = makeWarcArtifactDataStore(null);
+    assertNull(store.getArtifactIndex());
 
-    // TODO: Finish
+    // Attempting to set the data store's artifact index to null should fail
+    assertThrows(IllegalArgumentException.class, () -> store.setArtifactIndex(null));
+
+    ArtifactIndex index1 = new VolatileArtifactIndex();
+    ArtifactIndex index2 = new VolatileArtifactIndex();
+
+    // Set the artifact index and check we get it back
+    store.setArtifactIndex(index1);
+    assertSame(index1, store.getArtifactIndex());
+
+    // Setting data store's index to the same index should be okay
+    store.setArtifactIndex(index1);
+    assertSame(index1, store.getArtifactIndex());
+
+    // Attempt to set to another index should fail
+    assertThrows(IllegalStateException.class, () -> store.setArtifactIndex(index2));
   }
 
   @Deprecated
