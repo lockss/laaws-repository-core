@@ -309,7 +309,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     return Arrays.stream(getBasePaths())
         .filter(basePath -> warcPath.startsWith(basePath.toString()))
-        .sorted(Comparator.reverseOrder())
+        .sorted(Comparator.reverseOrder()) // Q: Is this right?
         .findFirst()
         .orElse(null);
   }
@@ -674,6 +674,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // * TEMPORARY WARCS LIFECYCLE
   // *******************************************************************************************************************
 
+  /**
+   * Submits a {@link GarbageCollectTempWarcsTask} for execution by the {@link ScheduledExecutorService}.
+   */
   protected void runGarbageCollector() {
     scheduledExecutor.submit(new GarbageCollectTempWarcsTask());
   }
@@ -1683,6 +1686,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return An {@link InputStream} of the WARC record pointed to by a storage URL.
    * @throws IOException
    */
+  @Deprecated
   protected InputStream getInputStreamFromStorageUrl(URI storageUrl) throws IOException {
     WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(storageUrl);
     return getInputStreamAndSeek(loc.getPath(), loc.getOffset());
