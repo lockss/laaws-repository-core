@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2018-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,8 +38,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.LinkedHashMap;
 import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.util.os.PlatformUtil;
+import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
 
 /**

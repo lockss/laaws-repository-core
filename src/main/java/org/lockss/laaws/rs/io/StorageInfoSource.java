@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2019 Board of Trustees of Leland Stanford Jr. University,
+ Copyright (c) 2019-2020 Board of Trustees of Leland Stanford Jr. University,
  all rights reserved.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,7 +27,7 @@
  */
 
 package org.lockss.laaws.rs.io;
-import org.lockss.laaws.rs.model.StorageInfo;
+import org.lockss.util.storage.StorageInfo;
 
 /** Any object that can report storage usage and availability info
  */

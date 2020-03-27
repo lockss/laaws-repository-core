@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -47,8 +47,8 @@ import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.storage.StorageInfo;
 
 import java.io.IOException;
 import java.util.*;

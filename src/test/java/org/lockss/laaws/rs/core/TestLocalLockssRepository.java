@@ -36,6 +36,7 @@ import org.lockss.log.L4JLogger;
 import org.springframework.util.FileSystemUtils;
 import java.io.File;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.util.storage.StorageInfo;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
