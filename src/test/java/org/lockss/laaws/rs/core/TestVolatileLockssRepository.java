@@ -34,6 +34,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.util.storage.StorageInfo;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}

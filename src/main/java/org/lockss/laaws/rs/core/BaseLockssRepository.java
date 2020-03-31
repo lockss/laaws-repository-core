@@ -39,9 +39,9 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.laaws.rs.model.RepositoryInfo;
-import org.lockss.laaws.rs.model.StorageInfo;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
+import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;

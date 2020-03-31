@@ -29,6 +29,7 @@
 package org.lockss.laaws.rs.model;
 
 import java.io.Serializable;
+import org.lockss.util.storage.StorageInfo;
 
 /**
  * Information about a repository and its storage areas
