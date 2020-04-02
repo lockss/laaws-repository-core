@@ -769,14 +769,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       if (isTempWarcRemovable(tmpWarcPath)) {
         // Yes: Remove the temporary WARC from storage
-        log.debug2("Removing temporary WARC file [tmpWarc: {}]", tmpWarcPath);
+        log.debug("Removing temporary WARC file [tmpWarc: {}]", tmpWarcPath);
         tmpWarcPool.removeWarcFile(tmpWarcFile);
         removeWarc(tmpWarcPath);
       } else {
         // NO - Return the temporary WARC to the pool if we borrowed it from the pool earlier
         if (tmpWarcFile != null) {
           synchronized (tmpWarcPool) {
-            log.debug2("Returning {} to temporary WARC pool", tmpWarcFile.getPath());
+            log.debug("Returning {} to temporary WARC pool", tmpWarcFile.getPath());
             tmpWarcPool.returnWarcFile(tmpWarcFile);
           }
         }
@@ -950,9 +950,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     }
 
-    // Reached here because none of the records in the temporary WARC file are needed
-    // Check whether the temporary WARC file is in use elsewhere.
-    return !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
+    // Reached this point because none of the records in the temporary WARC file are needed. Check whether the temporary
+    // WARC file is in use elsewhere before declaring the file is removable.
+    boolean tmpWarcInUse = TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
+
+    if (tmpWarcInUse) {
+      log.warn("Temporary WARC is still in use! [tmpWarc: {}]", tmpWarc);
+    }
+
+    return !tmpWarcInUse;
   }
 
   /**
@@ -971,7 +977,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Get artifact ID from WARC header
     String artifactId = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY);
 
-    // Get the WARC record ID and type
+    // Get the WARC type
     String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
 
     // WARC records not of type "response" or "resource" are okay to remove
