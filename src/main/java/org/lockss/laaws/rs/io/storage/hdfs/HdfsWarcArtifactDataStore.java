@@ -201,9 +201,12 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
         // Add file to set of WARC files if it is a WARC file
         if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
-          warcFiles.add(Paths.get(status.getPath().toString().substring(fs.getUri().toString().length())));
+          warcFiles.add(Paths.get(status.getPath().toUri().getPath()));
         }
       }
+    } else if (fsBasePathExists && !fsBasePathIsDir) {
+      log.error("Base path is not a directory! [basePath: {}]", basePath);
+      throw new IllegalStateException("Base path is not a directory!");
     }
 
     // Return WARC files
@@ -266,8 +269,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public void initAu(String collectionId, String auid) throws IOException {
-    initCollection(collectionId);
-
     // Initialize collection on each filesystem
     initCollection(collectionId);
 
