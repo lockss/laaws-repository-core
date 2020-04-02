@@ -57,9 +57,9 @@ import java.util.stream.Collectors;
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+  public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
 
-  protected final Map<Path, ByteArrayOutputStream> warcs;
+  protected Map<Path, ByteArrayOutputStream> warcs;
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS
