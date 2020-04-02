@@ -46,6 +46,7 @@ import org.archive.io.warc.WARCRecordInfo;
 import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -2601,6 +2602,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(10L * FileUtils.ONE_KB, store.getThresholdWarcSize());
   }
 
+  @Disabled
   @Test
   public void testGetSetArtifactIndex() throws Exception {
     // Don't use provided data store, which comes with an volatile index set
