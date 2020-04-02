@@ -60,8 +60,16 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   // * CONSTRUCTORS
   // *******************************************************************************************************************
 
+  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
+    this(index, new File[]{basePath});
+  }
+
   public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
     this(index, Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
+  }
+
+  public LocalWarcArtifactDataStore(ArtifactIndex index, Path basePaths) throws IOException {
+    this(index, new Path[]{basePaths});
   }
 
   /**
