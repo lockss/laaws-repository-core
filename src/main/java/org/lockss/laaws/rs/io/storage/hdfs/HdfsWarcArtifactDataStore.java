@@ -177,25 +177,29 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   /**
    * Recursively finds WARC files under a given base path.
    *
-   * @param path A {@code String} containing the base path to scan recursively for WARC files.
-   * @return A {@code Collection<String>} containing paths to WARC files under the base path.
+   * @param basePath A {@link String} containing the base path to scan recursively for WARC files.
+   * @return A {@link Collection<String>} containing paths to WARC files under the base path.
    * @throws IOException
    */
   @Override
-  public Collection<Path> findWarcs(Path path) throws IOException {
+  public Collection<Path> findWarcs(Path basePath) throws IOException {
     Collection<Path> warcFiles = new ArrayList<>();
 
-    org.apache.hadoop.fs.Path basePath = new org.apache.hadoop.fs.Path(path.toString());
+    org.apache.hadoop.fs.Path fsBasePath = new org.apache.hadoop.fs.Path(basePath.toString());
 
-    if (fs.exists(basePath) && fs.getFileStatus(basePath).isDirectory()) {
-      RemoteIterator<LocatedFileStatus> files = fs.listFiles(basePath, true);
+    boolean fsBasePathExists = fs.exists(fsBasePath);
+    boolean fsBasePathIsDir = fs.getFileStatus(fsBasePath).isDirectory();
+
+    if (fsBasePathExists && fsBasePathIsDir) {
+      // Recursively build a list of all files under this path
+      RemoteIterator<LocatedFileStatus> files = fs.listFiles(fsBasePath, true);
 
       while (files.hasNext()) {
         // Get located file status and name
         LocatedFileStatus status = files.next();
         String fileName = status.getPath().getName();
 
-        // Add this file to the list of WARC files found
+        // Add file to set of WARC files if it is a WARC file
         if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
           warcFiles.add(Paths.get(status.getPath().toString().substring(fs.getUri().toString().length())));
         }
@@ -268,15 +272,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     initCollection(collectionId);
 
     // Iterate over AU's paths on each filesystem and create AU directory structure
-    for (Path auPath : getAuPaths(collectionId, auid)) {
-      initAu(auPath);
+    for (Path auBasePath : getAuPaths(collectionId, auid)) {
+      mkdirs(auBasePath);
+      mkdirs(auBasePath.resolve("artifacts"));
+      mkdirs(auBasePath.resolve("journals"));
     }
-  }
-
-  public void initAu(Path auBasePath) throws IOException {
-    mkdirs(auBasePath);
-    mkdirs(auBasePath.resolve("artifacts"));
-    mkdirs(auBasePath.resolve("journals"));
   }
 
   /**
