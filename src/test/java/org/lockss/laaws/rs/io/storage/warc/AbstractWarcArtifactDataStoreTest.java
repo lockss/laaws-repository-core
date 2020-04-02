@@ -2411,8 +2411,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ds.replayRepositoryMetadata(index, journalPath);
 
     // Nothing to do
+    clearInvocations(ds, index);
     when(index.artifactExists("test")).thenReturn(true);
     ds.replayRepositoryMetadata(index, journalPath);
+    verify(index).artifactExists("test");
+    verifyNoMoreInteractions(index);
 
     // Trigger a commit replay
     journal.put("test", new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"false\"}"));
