@@ -63,10 +63,7 @@ import org.mockito.ArgumentMatchers;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -2205,14 +2202,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     doCallRealMethod().when(ds).reindexArtifactsFromWarc(index, warcFile);
 
     // Assert the artifact is *not* indexed if it is already indexed
-    when(ds.markAndGetInputStream(warcFile)).thenReturn(new ByteArrayInputStream(output.toByteArray())); // FIXME
+    when(ds.markAndGetInputStream(warcFile)).thenReturn(new BufferedInputStream(output.toInputStream()));
     when(index.artifactExists(artifactData.getIdentifier().getId())).thenReturn(true);
     ds.reindexArtifactsFromWarc(index, warcFile);
     verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
     // Assert the artifact *is* indexed if it is not indexed
-    when(ds.markAndGetInputStream(warcFile)).thenReturn(new ByteArrayInputStream(output.toByteArray())); // FIXME
+    when(ds.markAndGetInputStream(warcFile)).thenReturn(new BufferedInputStream(output.toInputStream()));
     when(index.artifactExists(artifactData.getIdentifier().getId())).thenReturn(false);
     ds.reindexArtifactsFromWarc(index, warcFile);
     verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
@@ -2376,7 +2373,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     output.close();
 
     // Mock behavior
-    doReturn(new ByteArrayInputStream(output.toByteArray())).when(ds).markAndGetInputStream(journalPath);
+    doReturn(new BufferedInputStream(output.toInputStream())).when(ds).markAndGetInputStream(journalPath);
 
     // Assert that we the JSON serialization of the repository metadata for this artifact matches the latest
     // (i.e., last) entry written to the journal
@@ -2448,7 +2445,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
 
     // Transform WARC record byte stream to WARCRecord object
-    WARCRecord record = new WARCRecord(new ByteArrayInputStream(baos.toByteArray()), getClass().getSimpleName(), 0);
+    WARCRecord record = new WARCRecord(new BufferedInputStream(baos.toInputStream()), getClass().getSimpleName(), 0);
 
     // Assert things about the WARC record
     assertNotNull(record);
