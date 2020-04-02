@@ -2630,6 +2630,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertThrows(IllegalStateException.class, () -> store.setArtifactIndex(index2));
   }
 
+  @Disabled
   @Deprecated
   @Test
   public void testSealActiveWarc_deprecated() throws Exception {
