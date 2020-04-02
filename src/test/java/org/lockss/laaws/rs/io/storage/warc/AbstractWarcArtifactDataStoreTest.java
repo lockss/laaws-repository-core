@@ -82,6 +82,11 @@ import java.util.stream.StreamSupport;
 
 import static org.mockito.Mockito.*;
 
+/**
+ * Abstract test class for tests of implementations of {@link WarcArtifactDataStore}.
+ *
+ * @param <WADS>
+ */
 public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifactDataStore> extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
@@ -2187,7 +2192,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * @throws Exception
    */
   @Test
-  public void testReindexArtifactsFromWarcs() throws Exception {
+  public void testReindexArtifactsFromWarc() throws Exception {
     // Generate an artifact then serialize into a WARC record
     ArtifactData artifactData = generateTestArtifactData("collection", "auid", "uri", 1, 1024L);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
