@@ -36,16 +36,15 @@ import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
+import org.lockss.util.os.PlatformUtil;
+import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -261,5 +260,42 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean removeWarc(Path filePath) {
     return filePath.toFile().delete();
+  }
+
+  /**
+   * Returns information about the storage size and free space
+   *
+   * @return A {@code StorageInfo}
+   */
+  @Override
+  public StorageInfo getStorageInfo() {
+    try {
+      // Build a StorageInfo
+      StorageInfo sum = new StorageInfo("local");
+      List<String> mnts = new ArrayList<>();
+
+      // Compute sum of DFs
+      for (Path basePath : getBasePaths()) {
+        PlatformUtil.DF df = PlatformUtil.getInstance().getDF(basePath.toString());
+
+        if (df != null) {
+          mnts.add(df.getMnt());
+          sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
+          sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
+          sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
+        }
+      }
+
+      // Set one-time StorageInfo fields
+      sum.setName(String.join(",", mnts));
+      sum.setPercentUsed(sum.getUsed() / sum.getSize());
+      sum.setPercentUsedString(String.valueOf(Math.round(sum.getPercentUsed())) + "%");
+
+      // Return the sum
+      return sum;
+
+    } catch (PlatformUtil.UnsupportedException e) {
+      throw new UnsupportedOperationException("Can't get WarcArtifactDataStore info", e);
+    }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -56,7 +56,6 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
-import org.lockss.util.os.PlatformUtil;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.io.DeferredTempFileOutputStream;
@@ -181,6 +180,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected abstract long getBlockSize();
 
   protected abstract long getFreeSpace(Path fsPath);
+
+  /**
+   * Returns information about the storage size and free space
+   *
+   * @return A {@code StorageInfo}
+   */
+  public abstract StorageInfo getStorageInfo();
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS
@@ -789,19 +795,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           tmpWarcPath,
           e
       );
-    }
-  }
-
-  /**
-   * Returns information about the storage size and free space
-   * @return A {@code StorageInfo}
-   */
-  @Override
-  public StorageInfo getStorageInfo() {
-    try {
-      return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(basePath));
-    } catch (PlatformUtil.UnsupportedException e) {
-      throw new UnsupportedOperationException("Can't get WarcArtifactDataStore info", e);
     }
   }
 

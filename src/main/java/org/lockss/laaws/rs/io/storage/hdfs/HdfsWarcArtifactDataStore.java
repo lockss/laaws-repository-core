@@ -32,14 +32,12 @@ package org.lockss.laaws.rs.io.storage.hdfs;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.*;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -52,6 +50,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Apache Hadoop Distributed File System (HDFS) implementation of {@link WarcArtifactDataStore}.
@@ -320,5 +319,36 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean removeWarc(Path path) throws IOException {
     return fs.delete(new org.apache.hadoop.fs.Path(path.toString()), false);
+  }
+
+  @Override
+  public StorageInfo getStorageInfo() {
+    try {
+      // Build a StorageInfo
+      StorageInfo sum = new StorageInfo("hdfs");
+      List<URI> uris = new ArrayList<>();
+
+      // Compute sum of DFs
+      for (Path basePath : getBasePaths()) {
+        FsStatus status = fs.getStatus(new org.apache.hadoop.fs.Path(basePath.toString()));
+
+        uris.add(fs.getUri().resolve(basePath.toUri()));
+        sum.setSize(sum.getSize() + status.getCapacity());
+        sum.setUsed(sum.getUsed() + status.getUsed());
+        sum.setAvail(sum.getAvail() + status.getRemaining());
+      }
+
+      // Set one-time StorageInfo fields
+      sum.setName(fs.getUri().toString());
+//      sum.setName(String.join(",", uris));
+      sum.setPercentUsed(sum.getUsed() / sum.getSize());
+      sum.setPercentUsedString(String.valueOf(Math.round(sum.getPercentUsed())) + "%");
+
+      // Return the sum
+      return sum;
+
+    } catch (IOException e) {
+      throw new UnsupportedOperationException("Can't get WarcArtifactDataStore info", e);
+    }
   }
 }
