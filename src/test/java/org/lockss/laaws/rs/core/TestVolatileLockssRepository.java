@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,14 +31,30 @@
 package org.lockss.laaws.rs.core;
 
 import java.io.IOException;
+import org.junit.jupiter.api.Test;
+import org.lockss.log.L4JLogger;
+import org.lockss.laaws.rs.model.*;
+import org.lockss.util.storage.StorageInfo;
 
 /**
  * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
  */
 public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
+    private final static L4JLogger log = L4JLogger.getLogger();
 
     @Override
     public LockssRepository makeLockssRepository() throws IOException {
         return new VolatileLockssRepository();
     }
+
+  @Test
+  public void testRepoInfo() throws Exception {
+    RepositoryInfo ri = repository.getRepositoryInfo();
+    log.debug("repoinfo: {}", ri);
+    StorageInfo ind = ri.getIndexInfo();
+    StorageInfo sto = ri.getStoreInfo();
+    assertEquals("memory", ind.getType());
+    assertEquals("memory", sto.getType());
+  }
+
 }

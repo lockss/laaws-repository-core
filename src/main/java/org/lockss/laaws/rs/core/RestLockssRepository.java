@@ -36,14 +36,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.ArtifactPageInfo;
+import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
-import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
-import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.*;
 import org.lockss.util.rest.*;
@@ -1034,6 +1035,42 @@ public class RestLockssRepository implements LockssRepository {
       return new Long(0);
     }
 
+  }
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @return A {@code RepositoryInfo}
+   * @throws IOException if there are problems getting the repository data.
+   */
+  @Override
+  public RepositoryInfo getRepositoryInfo() throws IOException {
+    log.debug2("Invoked");
+    String endpoint = String.format("%s/repoinfo", repositoryUrl);
+    log.trace("endpoint = {}", endpoint);
+
+    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+
+    try {
+      ResponseEntity<String> response =
+	RestUtil.callRestService(restTemplate,
+				 builder.build().encode().toUri(),
+				 HttpMethod.GET,
+				 new HttpEntity<>(null,
+				     getInitializedHttpHeaders()),
+				 String.class,
+				 "repoInfo");
+
+      checkStatusOk(response);
+
+      RepositoryInfo result = new ObjectMapper().readValue(response.getBody(),
+	  RepositoryInfo.class);
+      log.debug2("result = {}", result);
+      return result;
+    } catch (LockssRestException e) {
+      log.error("Could not fetch repository information", e);
+      throw e;
+    }
   }
 
   // RestUtil.callRestService() throws on non-2xx response codes; this is a

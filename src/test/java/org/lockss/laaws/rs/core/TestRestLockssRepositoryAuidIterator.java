@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2019 Board of Trustees of Leland Stanford Jr. University,
+Copyright (c) 2019-2020 Board of Trustees of Leland Stanford Jr. University,
 all rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -37,6 +37,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.util.NoSuchElementException;
 import org.junit.Before;
 import org.junit.Test;
+import org.lockss.util.rest.RestUtil;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -63,7 +64,7 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
    */
   @Before
   public void makeRepoIterator() {
-    restTemplate = new RestTemplate();
+    restTemplate = RestUtil.getRestTemplate();
     mockServer = MockRestServiceServer.createServer(restTemplate);
     endpoint = String.format("%s/collections/%s/aus", BASEURL, collectionId);
     builder = UriComponentsBuilder.fromHttpUrl(endpoint);

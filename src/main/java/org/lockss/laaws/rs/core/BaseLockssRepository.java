@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,8 +38,10 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
+import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
 
 import java.io.IOException;
@@ -107,6 +109,29 @@ public class BaseLockssRepository implements LockssRepository,
    */
   public JmsFactory getJmsFactory() {
     return jmsFact;
+  }
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @return A {@code RepositoryInfo}
+   * @throws IOException if there are problems getting the repository data.
+   */
+  @Override
+  public RepositoryInfo getRepositoryInfo() throws IOException {
+    StorageInfo ind = null;
+    StorageInfo sto = null;
+    try {
+      ind = index.getStorageInfo();
+    } catch (Exception e) {
+      log.warn("Couldn't get index space", e);
+    }
+    try {
+      sto = store.getStorageInfo();
+    } catch (Exception e) {
+      log.warn("Couldn't get store space", e);
+    }
+    return new RepositoryInfo(sto, ind);
   }
 
   /**

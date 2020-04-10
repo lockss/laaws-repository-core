@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
@@ -411,6 +412,14 @@ public interface LockssRepository extends Ready {
      * @return A {@code Long} with the total size of the specified AU in bytes.
      */
     Long auSize(String collection, String auid) throws IOException;
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @return A {@code RepositoryInfo}
+   * @throws IOException
+   */
+  RepositoryInfo getRepositoryInfo() throws IOException;
 
   long DEFAULT_WAITREADY = 5000;
 

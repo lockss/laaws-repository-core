@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage;
 
+import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -52,7 +53,7 @@ import java.util.concurrent.TimeoutException;
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
-public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends Ready {
+public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends RepositoryArtifactMetadata> extends StorageInfoSource, Ready {
     /**
      *
      * @throws IOException
