@@ -213,6 +213,7 @@ class TestWarcFilePool extends LockssTestCase5 {
 
     // Add a mock WarcFile to the pool and borrow it
     WarcFile warcFile = mock(WarcFile.class);
+    when(warcFile.getPath()).thenReturn(mock(Path.class));
     pool.addWarcFile(warcFile);
     pool.borrowWarcFile(warcFile);
 

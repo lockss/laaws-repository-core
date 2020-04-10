@@ -30,6 +30,7 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.junit.jupiter.api.Test;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 
 import java.nio.file.Path;
@@ -40,13 +41,19 @@ import java.nio.file.Paths;
  * <code>org.lockss.laaws.rs.io.storage.warc.TempWarcInUseTracker</code>.
  */
 public class TestTempWarcInUseTracker extends LockssTestCase5 {
+  private final static L4JLogger log = L4JLogger.getLogger();
+
   static final Path ONE = Paths.get("one");
   static final Path TWO = Paths.get("two");
 
   @Test
   public void test() {
+    // Assert NullPointerException is thrown if null path is passed
+    assertThrows(IllegalArgumentException.class, () -> TempWarcInUseTracker.INSTANCE.isInUse(null));
+    assertThrows(IllegalArgumentException.class, () -> TempWarcInUseTracker.INSTANCE.markUseStart(null));
+    assertThrows(IllegalArgumentException.class, () -> TempWarcInUseTracker.INSTANCE.markUseEnd(null));
+
     // Nothing is in use to begin with.
-    assertFalse(TempWarcInUseTracker.INSTANCE.isInUse(null));
     assertFalse(TempWarcInUseTracker.INSTANCE.isInUse(ONE));
 
     // Not possible to end a use that did not start.

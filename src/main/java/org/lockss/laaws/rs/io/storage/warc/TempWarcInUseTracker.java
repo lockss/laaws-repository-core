@@ -56,6 +56,10 @@ public enum TempWarcInUseTracker {
    *          A String with the storage URL path to the temporary WARC file.
    */
   public synchronized void markUseStart(Path path) {
+    if (path == null) {
+      throw new IllegalArgumentException("Path is null!");
+    }
+
     inUseMap.putIfAbsent(path, 0);
     inUseMap.put(path, inUseMap.get(path) + 1);
     log.debug2("Count for path '{}' increased to {}", path, inUseMap.get(path));
@@ -68,11 +72,15 @@ public enum TempWarcInUseTracker {
    *          A String with the storage URL path to the temporary WARC file.
    */
   public synchronized void markUseEnd(Path path) {
+    if (path == null) {
+      throw new IllegalArgumentException("Path is null!");
+    }
+
     Integer count = inUseMap.get(path);
 
     if (count == null) {
       throw new IllegalStateException(
-	  "Attempt to decrement past zero for WARC file '" + path + "'");
+          "Attempt to decrement past zero for WARC file '" + path + "'");
     } else if (count.intValue() == 1) {
       inUseMap.remove(path);
       log.debug2("Count for path '{}' decreased to 0", path);
@@ -92,6 +100,10 @@ public enum TempWarcInUseTracker {
    *         <code>false</code> otherwise.
    */
   public synchronized boolean isInUse(Path path) {
+    if (path == null) {
+      throw new IllegalArgumentException("Path is null!");
+    }
+
     return inUseMap.get(path) != null;
   }
 
