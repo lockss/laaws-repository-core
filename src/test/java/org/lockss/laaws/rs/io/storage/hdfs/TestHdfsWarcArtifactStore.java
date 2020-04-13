@@ -260,8 +260,8 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     // Verify correct directory structures were created
     for (java.nio.file.Path auPath : auPaths) {
       verify(ds).mkdirs(auPath);
-      verify(ds).mkdirs(auPath.resolve("artifacts"));
-      verify(ds).mkdirs(auPath.resolve("journals"));
+//      verify(ds).mkdirs(auPath.resolve("artifacts"));
+//      verify(ds).mkdirs(auPath.resolve("journals"));
     }
   }
 

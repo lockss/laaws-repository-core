@@ -333,8 +333,8 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     // Verify correct directory structures were created
     for (Path auPath : auPaths) {
       verify(ds).mkdirs(auPath);
-      verify(ds).mkdirs(auPath.resolve("artifacts"));
-      verify(ds).mkdirs(auPath.resolve("journals"));
+//      verify(ds).mkdirs(auPath.resolve("artifacts"));
+//      verify(ds).mkdirs(auPath.resolve("journals"));
     }
   }
 }

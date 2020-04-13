@@ -274,8 +274,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     // Iterate over AU's paths on each filesystem and create AU directory structure
     for (Path auBasePath : getAuPaths(collectionId, auid)) {
       mkdirs(auBasePath);
-      mkdirs(auBasePath.resolve("artifacts"));
-      mkdirs(auBasePath.resolve("journals"));
+//      mkdirs(auBasePath.resolve("artifacts"));
+//      mkdirs(auBasePath.resolve("journals"));
     }
   }
 

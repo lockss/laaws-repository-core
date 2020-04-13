@@ -635,8 +635,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalStateException("Data store is not initialized correctly");
     }
 
-    // FIXME
-    Path warcFile = auPath.resolve("artifacts").resolve(generateActiveWarcName(collectionId, auid));
+    Path warcFile = auPath.resolve(generateActiveWarcName(collectionId, auid));
+//    Path warcFile = auPath.resolve("artifacts").resolve(generateActiveWarcName(collectionId, auid));
 
 //    initWarc(warcFile);
 
