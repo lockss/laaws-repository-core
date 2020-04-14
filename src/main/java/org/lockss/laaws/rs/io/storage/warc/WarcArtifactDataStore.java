@@ -1350,8 +1350,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     } catch (Exception e) {
 
-      log.fatal("Could not add artifact data", e);
-      throw new IOException("Could not add artifact data", e);
+      log.error("Could not add artifact data!", e);
+      throw e;
 
     }
   }
