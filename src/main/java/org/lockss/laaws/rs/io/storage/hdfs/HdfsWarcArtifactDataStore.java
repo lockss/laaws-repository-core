@@ -238,7 +238,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(fs.getUri() + filePath.toString());
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUri(fs.getUri().resolve(filePath.toString()).normalize());
     uriBuilder.queryParams(params);
     return uriBuilder.build().toUri();
   }

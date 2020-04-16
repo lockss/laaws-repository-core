@@ -217,7 +217,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath);
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("file://" + filePath.toAbsolutePath().normalize());
     uriBuilder.queryParams(params);
     return uriBuilder.build().toUri();
   }
