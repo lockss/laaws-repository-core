@@ -1257,12 +1257,19 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Mock behavior
     doCallRealMethod().when(ds).garbageCollectTempWarc(tmpWarcPath);
-    when(ds.tmpWarcPool.borrowWarcFile(tmpWarcPath)).thenReturn(tmpWarcFile);
+    when(ds.tmpWarcPool.removeWarcFile(tmpWarcPath)).thenReturn(tmpWarcFile);
 
-    // Assert no processing if temporary WARC is in use
+    // Assert no processing if temporary WARC is in use in the pool
     when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(true);
     ds.garbageCollectTempWarc(tmpWarcPath);
     verify(ds, never()).isTempWarcRemovable(tmpWarcPath);
+
+    // Assert WARC marked in use -> not removable
+    TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcPath);
+    ds.garbageCollectTempWarc(tmpWarcPath);
+    verify(ds, never()).removeWarc(tmpWarcPath);
+    TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarcPath);
+    clearInvocations(ds);
 
     // Assert temporary WARC *is* processed if it is neither in use nor a member of the pool
     // Q: Is this the behavior we want?
@@ -1285,7 +1292,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verify(ds, never()).removeWarc(tmpWarcPath);
     clearInvocations(ds);
 
-    // Assert temporary WARC is not removed if the temporary WARC is not removable
+    // Assert temporary WARC is removed if the temporary WARC is removable
     when(ds.isTempWarcRemovable(tmpWarcPath)).thenReturn(true);
     ds.garbageCollectTempWarc(tmpWarcPath);
     verify(ds).removeWarc(tmpWarcPath);
@@ -1527,11 +1534,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Not used -> removable
     assertTrue(ds.isTempWarcRemovable(tmpWarc));
-
-    // Used -> not removable
-    TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarc);
-    assertFalse(ds.isTempWarcRemovable(tmpWarc));
-    TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarc);
   }
 
   /**
