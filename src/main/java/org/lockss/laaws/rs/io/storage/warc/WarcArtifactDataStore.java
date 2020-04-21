@@ -750,15 +750,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Remove the temporary WARC from the pool if it is active there
     synchronized (tmpWarcPool) {
-
-      if (tmpWarcPool.isInUse(tmpWarcPath)) {
+      if (tmpWarcPool.isInUse(tmpWarcPath) || TempWarcInUseTracker.INSTANCE.isInUse(tmpWarcPath)) {
         // Temporary WARC is in use - skip it
         log.debug2("Temporary WARC file is in use; will attempt a GC again later");
         return;
 
       } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
         // Temporary WARC is a member of the pool but not currently in use - process it
-        tmpWarcFile = tmpWarcPool.borrowWarcFile(tmpWarcPath);
+        tmpWarcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
 
         if (tmpWarcFile == null) {
           // This message is worth paying attention to if logged - it may indicate a problem with synchronization
@@ -770,18 +769,36 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Q: Temporary WARC is neither in use nor a member of the temp WARCs pool - process it anyway?
         log.warn("Temporary WARC is not a member of the pool of temporary WARcs [tmpWarc: {}]", tmpWarcPath);
       }
-
     }
 
     // Determine whether this temporary WARC should be removed
     try {
+      // Mark the WARC as in-use by this GC thread
+      TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcPath);
+
       if (isTempWarcRemovable(tmpWarcPath)) {
         // Yes: Remove the temporary WARC from storage
         log.debug("Removing temporary WARC file [tmpWarc: {}]", tmpWarcPath);
-        tmpWarcPool.removeWarcFile(tmpWarcFile);
-        removeWarc(tmpWarcPath);
+
+        // Synchronized because result from getUseCount(Path) is not thread-safe
+        synchronized (TempWarcInUseTracker.INSTANCE) {
+          // Get temporary WARC use count
+          long useCount = TempWarcInUseTracker.INSTANCE.getUseCount(tmpWarcPath);
+
+          if (useCount == 1) {
+            // Remove temporary WARC
+            removeWarc(tmpWarcPath);
+          } else if (useCount > 1) {
+            // Temporary WARC still in use elsewhere
+            log.debug("Temporary WARC still in use; not removing [tmpWarcPath: {}]", tmpWarcPath);
+          } else {
+            // This should never happen
+            log.error("Unexpected use count! [useCount: {}]", useCount);
+            throw new IllegalStateException("Unexpected use count!");
+          }
+        }
       } else {
-        // NO - Return the temporary WARC to the pool if we borrowed it from the pool earlier
+        // No: Return the temporary WARC to the pool if we removed it from the pool earlier
         if (tmpWarcFile != null) {
           synchronized (tmpWarcPool) {
             log.debug("Returning {} to temporary WARC pool", tmpWarcFile.getPath());
@@ -795,6 +812,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           tmpWarcPath,
           e
       );
+    } finally {
+      // Mark WARC use ended by GC
+      TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarcPath);
     }
   }
 
@@ -938,8 +958,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * <p>
    * A temporary WARC file is removable if all of the WARC records contained within it may be removed.
    * <p>
-   * FIXME: This is in service of the temporary WARC garbage collector. This is slightly different from reloading
-   * temporary WARCs, which may resume the artifact's lifecycle depending on its state.
+   * Note: This is in service of the temporary WARC garbage collector. This is slightly different from reloading
+   * temporary WARCs, which may resume the artifact's lifecycle depending on its state (e.g., re-queuing a copy).
    *
    * @param tmpWarc A {@link Path} containing the path to a temporary WARC file.
    * @return A {@code boolean} indicating whether the temporary WARC may be removed.
@@ -956,17 +976,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           return false;
         }
       }
+
+      // All records in this temporary WARC file are removable so the file is removable
+      return true;
     }
-
-    // Reached this point because none of the records in the temporary WARC file are needed. Check whether the temporary
-    // WARC file is in use elsewhere before declaring the file is removable.
-    boolean tmpWarcInUse = TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
-
-    if (tmpWarcInUse) {
-      log.warn("Temporary WARC is still in use! [tmpWarc: {}]", tmpWarc);
-    }
-
-    return !tmpWarcInUse;
   }
 
   /**
