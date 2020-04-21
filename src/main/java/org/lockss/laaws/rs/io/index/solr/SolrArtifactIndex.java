@@ -110,13 +110,29 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public StorageInfo getStorageInfo() {
-    throw new UnsupportedOperationException("getStorageInfo() NYI for Solr index");
-    // TODO - the index size is available as details.indexSize in the json
-    // returned from
-    // http://host:8983/solr/lockss-repo/replication?command=details&wt=json
+    try {
+      // Create new StorageInfo object
+      StorageInfo info = new StorageInfo();
 
-    // The indexPath is also available but is on a remote filesystem so
-    // can't get DF
+      // Retrieve Solr node metrics
+      MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();
+      MetricsResponse.CoreMetricsResponse metrics = req.process(solrClient);
+
+      // Populate StorageInfo from Solr core metrics
+      info.setName(metrics.getIndexDir());
+      info.setSize(metrics.getTotalSpace());
+      info.setUsed(metrics.getIndexSizeInBytes());
+      info.setAvail(metrics.getUsableSpace());
+      info.setPercentUsed(info.getUsed() / info.getSize());
+      info.setPercentUsedString(Math.round(info.getPercentUsed()) + "%");
+
+      // Return populated StorageInfo
+      return info;
+    } catch (SolrServerException | IOException e) {
+      // Q: Do we really want to return null?
+      log.error("Could not retrieve metrics from Solr", e);
+      return null;
+    }
   }
 
   /**
