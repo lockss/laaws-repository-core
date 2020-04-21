@@ -50,6 +50,18 @@ public enum TempWarcInUseTracker {
   private final Map<Path, Integer> inUseMap = new HashMap<>();
 
   /**
+   * Returns the use count of the path.
+   * <p>
+   * The result is *not* thread safe!
+   *
+   * @param path A {@link Path} to the WARC file.
+   * @return A {@code long} containing the current use count of the WARC at the given path.
+   */
+  public synchronized long getUseCount(Path path) {
+    return inUseMap.getOrDefault(path, 0);
+  }
+
+  /**
    * Records that an individual use of a temporary WARC file has started.
    * 
    * @param path
