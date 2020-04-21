@@ -38,9 +38,9 @@ import java.util.*;
 public class WarcFilePool {
   private static final L4JLogger log = L4JLogger.getLogger();
 
-  protected final WarcArtifactDataStore store;
-  protected final Set<WarcFile> allWarcs = new HashSet<>();
-  protected final Set<WarcFile> usedWarcs = new HashSet<>(); // TODO: Map from WarcFile to WarcFile's state (enum)
+  protected WarcArtifactDataStore store;
+  protected Set<WarcFile> allWarcs = new HashSet<>();
+  protected Set<WarcFile> usedWarcs = new HashSet<>(); // TODO: Map from WarcFile to WarcFile's state (enum)
 
   public WarcFilePool(WarcArtifactDataStore store) {
     this.store = store;

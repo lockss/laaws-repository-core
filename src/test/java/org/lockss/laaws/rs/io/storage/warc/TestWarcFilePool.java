@@ -33,11 +33,14 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Set;
 
 import static org.mockito.Mockito.*;
 
@@ -157,26 +160,6 @@ class TestWarcFilePool extends LockssTestCase5 {
   }
 
   @Test
-  public void testBorrowWarcFile() throws Exception {
-    WarcFilePool pool = spy(new WarcFilePool(null));
-
-    WarcFile warcFile = mock(WarcFile.class);
-    when(warcFile.getPath()).thenReturn(Paths.get("/tmp/foo.warc"));
-
-    pool.addWarcFile(warcFile);
-
-    // Assert borrowing the file succeeds
-    assertNotNull(pool.borrowWarcFile(warcFile));
-
-    // Assert borrowing the file again fails
-    assertNull(pool.borrowWarcFile(warcFile));
-
-    InOrder inOrder = Mockito.inOrder(pool);
-    inOrder.verify(pool).borrowWarcFile(warcFile);
-    inOrder.verify(pool).isInUse(warcFile);
-  }
-
-  @Test
   public void testReturnWarcFile() throws Exception {
     WarcFilePool pool = spy(new WarcFilePool(null));
 
@@ -194,12 +177,10 @@ class TestWarcFilePool extends LockssTestCase5 {
     assertTrue(pool.isInPool(warcFile));
     assertFalse(pool.isInUse(warcFile));
 
-    // Borrow the file
-    pool.borrowWarcFile(warcFile);
-
-    // Assert WarcFile is now in use
-    assertTrue(pool.isInPool(warcFile));
-    assertTrue(pool.isInUse(warcFile));
+    // Remove the file
+    pool.removeWarcFile(warcFile);
+    assertFalse(pool.isInPool(warcFile));
+    assertFalse(pool.isInUse(warcFile));
 
     // Return the WarcFile
     pool.returnWarcFile(warcFile);
@@ -209,23 +190,31 @@ class TestWarcFilePool extends LockssTestCase5 {
 
   @Test
   public void testRemoveWarcFile() throws Exception {
-    WarcFilePool pool = spy(new WarcFilePool(null));
-
-    // Add a mock WarcFile to the pool and borrow it
+    // Mocks
+    WarcFilePool pool = mock(WarcFilePool.class);
     WarcFile warcFile = mock(WarcFile.class);
-    when(warcFile.getPath()).thenReturn(mock(Path.class));
-    pool.addWarcFile(warcFile);
-    pool.borrowWarcFile(warcFile);
+    Path warcPath = mock(Path.class);
 
-    // Assert WarcFile is part of the pool and in use
-    assertTrue(pool.isInPool(warcFile));
-    assertTrue(pool.isInUse(warcFile));
+    // Inject mocks
+    pool.usedWarcs = mock(Set.class);
+    pool.allWarcs = mock(Set.class);
 
-    // Remove WarcFile from pool
-    pool.removeWarcFile(warcFile);
+    // Mock behavior
+    doCallRealMethod().when(pool).removeWarcFile(warcPath);
+    doCallRealMethod().when(pool).removeWarcFile(warcFile);
 
-    // Assert WarcFile is removed
-    assertFalse(pool.isInPool(warcFile));
-    assertFalse(pool.isInUse(warcFile));
+    // Assert nothing is removed if not part of pool
+    when(pool.lookupWarcFile(warcPath)).thenReturn(null);
+    assertNull(pool.removeWarcFile(warcPath));
+    verify(pool, never()).removeWarcFile(ArgumentMatchers.any(WarcFile.class));
+    clearInvocations(pool);
+
+    // Assert WARC removed if in pool
+    when(pool.lookupWarcFile(warcPath)).thenReturn(warcFile);
+    assertEquals(warcFile, pool.removeWarcFile(warcPath));
+    verify(pool).removeWarcFile(warcFile);
+    verify(pool.usedWarcs).remove(warcFile);
+    verify(pool.allWarcs).remove(warcFile);
+    clearInvocations(pool);
   }
 }
