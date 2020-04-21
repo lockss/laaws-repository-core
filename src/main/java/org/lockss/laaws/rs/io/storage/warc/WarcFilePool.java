@@ -117,40 +117,6 @@ public class WarcFilePool {
   }
 
   /**
-   * Borrows a {@link WarcFile} from this pool by marking it as in-use before returning it.
-   *
-   * @param warcFile The {@link WarcFile} to borrow.
-   * @return The borrowed {@link WarcFile} or {@code null} if it is not a member of this pool or already borrowed.
-   */
-  public WarcFile borrowWarcFile(WarcFile warcFile) {
-
-    synchronized (usedWarcs) {
-      if (isInPool(warcFile) && !isInUse(warcFile)) {
-        TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
-        usedWarcs.add(warcFile);
-        return warcFile;
-      } else if (isInUse(warcFile)) {
-        log.debug2("Attempted to borrow an already borrowed WARC file! [warcFile: {}]", warcFile.getPath());
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Borrows the {@link WarcFile} referenced by its WARC file path from this pool.
-   *
-   * @param warcFilePath A {@link Path} containing the WARC file path of the {@link WarcFile} to borrow.
-   * @return The borrowed {@link WarcFile} or {@code null} if the WARC is not a member of this pool or already borrowed.
-   */
-  public WarcFile borrowWarcFile(Path warcFilePath) {
-    synchronized (allWarcs) {
-      WarcFile warcFile = lookupWarcFile(warcFilePath);
-      return borrowWarcFile(warcFile);
-    }
-  }
-
-  /**
    * Computes the bytes used in the last block, assuming all previous blocks are maximally filled.
    *
    * @param size
