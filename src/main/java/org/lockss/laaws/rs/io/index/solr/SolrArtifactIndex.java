@@ -137,8 +137,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns information about the storage size and free space
-   * @return A {@code StorageInfo}
+   * Returns information about the storage size and free space.
+   *
+   * @return A {@link StorageInfo}
    */
   @Override
   public StorageInfo getStorageInfo() {
@@ -146,9 +147,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Create new StorageInfo object
       StorageInfo info = new StorageInfo();
 
-      // Retrieve Solr node metrics
+      // Retrieve Solr core metrics
       MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();
-      MetricsResponse.CoreMetricsResponse metrics = req.process(solrClient);
+      MetricsResponse.CoreMetricsResponse res = req.process(solrClient);
+
+      ((HttpSolrClient)solrClient).getBaseURL();
+      MetricsResponse.CoreMetrics metrics = res.getCoreMetrics(getCoreName());
 
       // Populate StorageInfo from Solr core metrics
       info.setName(metrics.getIndexDir());
@@ -161,7 +165,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Return populated StorageInfo
       return info;
     } catch (SolrServerException | IOException e) {
-      // Q: Do we really want to return null?
+      // Q: Throw or return null?
       log.error("Could not retrieve metrics from Solr", e);
       return null;
     }
