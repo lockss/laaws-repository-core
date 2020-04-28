@@ -761,12 +761,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         if (tmpWarcFile == null) {
           // This message is worth paying attention to if logged - it may indicate a problem with synchronization
-          log.warn("Could not borrow temporary WARC file [tmpWarc: {}]", tmpWarcPath);
+          log.error("Could not remove temporary WARC file [tmpWarc: {}]", tmpWarcPath);
           return;
         }
 
       } else {
-        // Q: Temporary WARC is neither in use nor a member of the temp WARCs pool - process it anyway?
         log.warn("Temporary WARC is not a member of the pool of temporary WARcs [tmpWarc: {}]", tmpWarcPath);
       }
     }
