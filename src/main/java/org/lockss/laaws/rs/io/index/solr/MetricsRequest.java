@@ -36,11 +36,16 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.lockss.log.L4JLogger;
 
+/**
+ * Solr Metrics API request class.
+ *
+ * @param <T> extends {@link MetricsResponse}
+ */
 public abstract class MetricsRequest<T extends MetricsResponse> extends SolrRequest<T> {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   /**
-   * Metrics API query parameter keys
+   * Metrics API query parameter keys.
    */
   public static final String METRICS_PARAM_GROUP = "group";
   public static final String METRICS_PARAM_TYPE = "type";
@@ -49,6 +54,9 @@ public abstract class MetricsRequest<T extends MetricsResponse> extends SolrRequ
   public static final String METRICS_PARAM_PROPERTY = "property";
   public static final String METRICS_PARAM_KEY = "key";
 
+  /**
+   * Metrics groups available through the Metrics API. Default is all.
+   */
   public enum MetricsGroups {
     all,
     jvm,
@@ -57,6 +65,9 @@ public abstract class MetricsRequest<T extends MetricsResponse> extends SolrRequ
     core
   }
 
+  /**
+   * Metrics types available through the Metrics API. Default is all.
+   */
   public enum MetricsTypes {
     all,
     counter,
@@ -84,8 +95,9 @@ public abstract class MetricsRequest<T extends MetricsResponse> extends SolrRequ
   }
 
   /**
+   * Returns the parameters of this Metrics API request.
    *
-   * @return
+   * @return A {@link SolrParams} containing the parameters of this Metrics API request.
    */
   @Override
   public SolrParams getParams() {
@@ -101,25 +113,51 @@ public abstract class MetricsRequest<T extends MetricsResponse> extends SolrRequ
     return params;
   }
 
-  public static class NodeMetricsRequest extends MetricsRequest<MetricsResponse.NodeMetricsResponse> {
-    public NodeMetricsRequest() {
-      this.group = MetricsGroups.node;
-    }
-
-    @Override
-    protected MetricsResponse.NodeMetricsResponse createResponse(SolrClient client) {
-      return new MetricsResponse.NodeMetricsResponse();
-    }
-  }
-
+  /**
+   * A subclass of {@link MetricsRequest} for "core" group metrics requests.
+   */
   public static class CoreMetricsRequest extends MetricsRequest<MetricsResponse.CoreMetricsResponse> {
+    /**
+     * Constructor.
+     */
     public CoreMetricsRequest() {
       this.group = MetricsGroups.core;
     }
 
+    /**
+     * Creates a new {@link MetricsResponse.CoreMetricsResponse} to contain the "core" group metrics from this Metrics
+     * API request.
+     *
+     * @param client A {@link SolrClient} to a Solr node.
+     * @return A new {@link MetricsResponse.CoreMetricsResponse} instance.
+     */
     @Override
     protected MetricsResponse.CoreMetricsResponse createResponse(SolrClient client) {
       return new MetricsResponse.CoreMetricsResponse();
+    }
+  }
+
+  /**
+   * A subclass of {@link MetricsRequest} for "node" group metrics requests.
+   */
+  public static class NodeMetricsRequest extends MetricsRequest<MetricsResponse.NodeMetricsResponse> {
+    /**
+     * Constructor.
+     */
+    public NodeMetricsRequest() {
+      this.group = MetricsGroups.node;
+    }
+
+    /**
+     * Creates a new {@link MetricsResponse.NodeMetricsResponse} to contain the "node" group metrics from this Metrics
+     * API request.
+     *
+     * @param client A {@link SolrClient} to a Solr node.
+     * @return A new {@link MetricsResponse.NodeMetricsResponse} instance.
+     */
+    @Override
+    protected MetricsResponse.NodeMetricsResponse createResponse(SolrClient client) {
+      return new MetricsResponse.NodeMetricsResponse();
     }
   }
 }
