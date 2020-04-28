@@ -78,24 +78,47 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
    *
-   * @param solrCollectionUrl A {@code String} containing the URL to a Solr collection or core.
+   * @param solrBaseUrl A {@link String} containing the URL to a Solr collection or core.
    */
-  public SolrArtifactIndex(String solrCollectionUrl) {
-    this(new HttpSolrClient.Builder(solrCollectionUrl).build(), true);
+  public SolrArtifactIndex(String solrBaseUrl) {
+    // Determine Solr collection/core name from base URL
+    URI baseUrl = URI.create(solrBaseUrl);
+    String endpoint = baseUrl.normalize().getPath();
+    Matcher m = CORENAME_PATTERN.matcher(endpoint);
+
+    if (m.find()) {
+      // Yes: Get the name of the core from the match results
+      String core = m.group("core");
+
+      // Core name must not be null
+      if (core == null) {
+        log.error("Solr collection or core not specified in Solr base URL");
+        throw new IllegalArgumentException("Solr collection or core not specified in Solr base URL");
+      }
+
+      // Set core name
+      setCoreName(core);
+    } else {
+      // No: Did not match expected pattern
+      log.error("Unexpected Solr base URL [solrBaseUrl: {}]", solrBaseUrl);
+      throw new IllegalArgumentException("Unexpected Solr base URL");
+    }
+
+    // Build a HttpSolrClient instance using the base URL
+    this.solrClient = new HttpSolrClient.Builder(solrBaseUrl).build();
+    this.isInternalClient = true;
   }
 
   /**
-   * Constructor that uses a given SolrClient.
+   * Constructor taking the name of the Solr core to use and an  {@link SolrClient}.
    *
-   * @param client A {@code SolrClient} to use to artifactIndex artifacts.
+   * @param coreName A {@link String} containing name of the Solr core to use.
+   * @param solrClient The {@link SolrClient} to perform operations to the Solr core through.
    */
-  public SolrArtifactIndex(SolrClient client) {
-    this(client, false);
-  }
-
-  private SolrArtifactIndex(SolrClient client, boolean internalClient) {
-    this.solrClient = client;
-    this.isInternalClient = internalClient;
+  public SolrArtifactIndex(String coreName, SolrClient solrClient) {
+    this.coreName = coreName;
+    this.solrClient = solrClient;
+    this.isInternalClient = false;
   }
 
   /**
