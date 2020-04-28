@@ -51,7 +51,10 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * An Apache Solr implementation of ArtifactIndex.
@@ -59,12 +62,18 @@ import java.util.*;
 public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  private SolrClient solrClient;
-  private boolean isInternalClient;
+  private final static String DEFAULT_CORE_NAME = "lockss-repo";
 
   private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
   private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
+
+  // TODO: Currently only used for getStorageInfo()
+  private static final Pattern CORENAME_PATTERN = Pattern.compile("/solr(/(?<core>[^/]+)?)?$");
+  private String coreName = DEFAULT_CORE_NAME;
+
+  private SolrClient solrClient;
+  private boolean isInternalClient;
 
   /**
    * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
@@ -133,6 +142,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       log.error("Could not retrieve metrics from Solr", e);
       return null;
     }
+  }
+
+  public String getCoreName() {
+    return coreName;
+  }
+
+  public void setCoreName(String coreName) {
+    this.coreName = coreName;
   }
 
   /**
