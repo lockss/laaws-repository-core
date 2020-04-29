@@ -36,6 +36,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -227,7 +228,8 @@ public class TestMetricsResponse extends LockssTestCase5 {
   /**
    * Tests for {@link MetricsResponse.CoreMetricsResponse}
    */
-  public static class TestCoreMetricsResponse extends LockssTestCase5 {
+  @Nested
+  public class TestCoreMetricsResponse {
 
     /**
      * Test for {@link MetricsResponse.CoreMetricsResponse#getSolrCoreKey(String)}.
@@ -237,7 +239,7 @@ public class TestMetricsResponse extends LockssTestCase5 {
     @Test
     public void testSolrCoreKey() throws Exception {
       final String testCoreName = "test";
-      assertEquals("solr.repo." + testCoreName, MetricsResponse.CoreMetricsResponse.getSolrCoreKey(testCoreName));
+      assertEquals("solr.core." + testCoreName, MetricsResponse.CoreMetricsResponse.getSolrCoreKey(testCoreName));
     }
 
     /**
@@ -295,7 +297,8 @@ public class TestMetricsResponse extends LockssTestCase5 {
   /**
    * Tests for {@link MetricsResponse.CoreMetricsResponse}
    */
-  public static class TestCoreMetrics extends LockssTestCase5 {
+  @Nested
+  public class TestCoreMetrics {
     /**
      * Test for {@link MetricsResponse.CoreMetrics#getIndexDir()}
      *
@@ -352,7 +355,8 @@ public class TestMetricsResponse extends LockssTestCase5 {
   /**
    * Test for {@link MetricsResponse.NodeMetricsResponse}
    */
-  public static class TestNodeMetricsResponse extends LockssTestCase5 {
+  @Nested
+  public class TestNodeMetricsResponse {
 
     /**
      * Test for {@link MetricsResponse.NodeMetricsResponse#getNodeMetrics()}
@@ -397,7 +401,8 @@ public class TestMetricsResponse extends LockssTestCase5 {
   /**
    * Test for {@link MetricsResponse.NodeMetrics}
    */
-  public static class TestNodeMetrics extends LockssTestCase5 {
+  @Nested
+  public class TestNodeMetrics {
     @Test
     public void testNodeMetricsConstructor() {
       // Assert IllegalArgumentException thrown if construction attempted with null node metrics
