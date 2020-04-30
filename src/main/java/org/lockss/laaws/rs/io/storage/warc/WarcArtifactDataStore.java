@@ -2048,7 +2048,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
            should periodically prune the journal. Additionally, some sort of caching could be beneficial since this is
            called often.
    */
-  protected Map<String, JSONObject> readMetadataJournal(Path journalPath) throws IOException {
+  protected synchronized Map<String, JSONObject> readMetadataJournal(Path journalPath) throws IOException {
     Map<String, JSONObject> metadata = new HashMap<>();
 
     log.trace("journalPath = {}", journalPath);
