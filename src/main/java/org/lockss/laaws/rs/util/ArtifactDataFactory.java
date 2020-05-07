@@ -73,8 +73,9 @@ public class ArtifactDataFactory {
    * @throws IOException
    */
   public static ArtifactData fromHttpResponseStream(InputStream responseStream) throws IOException {
-    if (responseStream == null)
+    if (responseStream == null) {
       throw new IllegalArgumentException("InputStream is null");
+    }
 
     return fromHttpResponseStream(null, responseStream);
   }
@@ -148,8 +149,9 @@ public class ArtifactDataFactory {
    * @throws IOException
    */
   public static ArtifactData fromHttpResponse(HttpResponse response) throws IOException {
-    if (response == null)
+    if (response == null) {
       throw new IllegalArgumentException("HttpResponse is null");
+    }
 
     HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
