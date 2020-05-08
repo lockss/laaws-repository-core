@@ -132,7 +132,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public void initCollection(String collectionId) throws IOException {
     mkdirs(getCollectionPaths(collectionId));
-    mkdirs(getCollectionTmpWarcsPaths(collectionId));
   }
 
   @Override

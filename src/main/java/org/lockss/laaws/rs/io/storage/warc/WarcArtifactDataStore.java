@@ -360,13 +360,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         .toArray(Path[]::new);
   }
 
-  @Deprecated
-  public Path[] getCollectionTmpWarcsPaths(String collectionId) {
-    return Arrays.stream(getCollectionPaths(collectionId))
-        .map(path -> path.resolve(TMP_WARCS_DIR))
-        .toArray(Path[]::new);
-  }
-
   /**
    * Returns the collections base path, given a base path of this data store.
    *

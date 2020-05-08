@@ -256,7 +256,6 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     }
 
     mkdirs(getCollectionPaths(collectionId));
-    mkdirs(getCollectionTmpWarcsPaths(collectionId));
   }
 
   /**
