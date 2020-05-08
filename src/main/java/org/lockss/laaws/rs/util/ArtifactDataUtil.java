@@ -185,7 +185,7 @@ public class ArtifactDataUtil {
      * @throws IOException
      * @throws HttpException
      */
-    public static void writeHttpResponseStream(ArtifactData artifactData, OutputStream output) throws IOException, HttpException {
+    public static void writeHttpResponseStream(ArtifactData artifactData, OutputStream output) throws IOException {
         writeHttpResponse(
                 getHttpResponseFromArtifactData(artifactData),
                 output

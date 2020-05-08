@@ -43,6 +43,7 @@ import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
+import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.*;
@@ -209,6 +210,11 @@ public class BaseLockssRepository implements LockssRepository,
 						+ artifactId);
     }
     return store.getArtifactData(index.getArtifact(artifactId));
+  }
+
+  @Override
+  public HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException {
+    return store.getArtifactData(index.getArtifact(artifactId)).getMetadata();
   }
 
   /**

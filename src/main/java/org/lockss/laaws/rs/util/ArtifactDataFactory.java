@@ -55,6 +55,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
@@ -213,6 +214,26 @@ public class ArtifactDataFactory {
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
+        version
+    );
+  }
+
+  public static ArtifactIdentifier buildArtifactIdentifier(Map<String, String> headers) {
+    log.trace("headers = {}", headers);
+
+    Integer version = -1;
+
+    String versionHeader = headers.get(ArtifactConstants.ARTIFACT_VERSION_KEY);
+
+    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
+      version = Integer.valueOf(versionHeader);
+    }
+
+    return new ArtifactIdentifier(
+        headers.get(ArtifactConstants.ARTIFACT_ID_KEY),
+        headers.get(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+        headers.get(ArtifactConstants.ARTIFACT_AUID_KEY),
+        headers.get(ArtifactConstants.ARTIFACT_URI_KEY),
         version
     );
   }

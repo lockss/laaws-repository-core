@@ -36,6 +36,7 @@ import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
+import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -127,6 +128,9 @@ public interface LockssRepository extends Ready {
   ArtifactData getArtifactData(String collection,
                                String artifactId)
       throws IOException;
+
+  // FIXME: Use non-Spring HttpHeaders?
+  HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException;
 
   /**
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
