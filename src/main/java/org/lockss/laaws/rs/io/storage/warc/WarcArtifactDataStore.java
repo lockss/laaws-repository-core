@@ -1243,6 +1243,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Null artifact data");
     }
 
+    if (basePaths.length <= 0) {
+      throw new IllegalStateException("No base paths configured");
+    }
+
     // Get the artifact identifier
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
@@ -1267,10 +1271,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       Path basePath = Arrays.stream(basePaths)
           .max((a, b) -> (int) (getFreeSpace(a) - getFreeSpace(b)))
           .filter(bp -> getFreeSpace(bp) >= recordLength)
-          .get();
+          .orElse(null);
 
       if (basePath == null) {
-        throw new IOException("Could not add artifact: No base path available");
+        // Could also be null if there are no base paths but we checked that earlier
+        log.error("No base path available with enough space for this new artifact");
+        throw new IOException("No space left");
       }
 
       // Get a temporary WARC from the temporary WARC pool for this base path
