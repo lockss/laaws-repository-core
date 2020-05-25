@@ -219,6 +219,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public StorageInfo getStorageInfo() {
-    return new StorageInfo("memory");
+    return StorageInfo.fromRuntime().setType("volatile");
   }
 }

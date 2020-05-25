@@ -75,7 +75,7 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
     log.debug("repoinfo: {}", ri);
     StorageInfo ind = ri.getIndexInfo();
     StorageInfo sto = ri.getStoreInfo();
-    assertEquals("disk", ind.getType());
+    assertEquals("local", ind.getType());
     assertTrue(ind.getSize() > 0);
     assertEquals("local", sto.getType());
     assertTrue(sto.getSize() > 0);

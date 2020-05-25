@@ -272,25 +272,49 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     try {
       // Build a StorageInfo
       StorageInfo sum = new StorageInfo("local");
-      List<String> mnts = new ArrayList<>();
+      Map<String,PlatformUtil.DF> mnts = new LinkedHashMap<>(); 
+      List<StorageInfo> basePathSis = new ArrayList<>();
+      PlatformUtil putil = PlatformUtil.getInstance();
 
-      // Compute sum of DFs
+      // Report the sum of the DF for each distinct mount point, include as
+      // components all the base paths (even if they're have the same mount
+      // point, as it's handy for testing)
       for (Path basePath : getBasePaths()) {
-        PlatformUtil.DF df = PlatformUtil.getInstance().getDF(basePath.toString());
-
+        PlatformUtil.DF df = putil.getDF(basePath.toString());
         if (df != null) {
-          mnts.add(df.getMnt());
-          sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
-          sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
-          sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
-        }
+          mnts.put(df.getMnt(), df);
+	  StorageInfo si = StorageInfo.fromDF(df);
+	  si.setPath(basePath.toString());
+	  basePathSis.add(si);
+	}
+      }
+      PlatformUtil.DF oneDF = null;
+      // Compute sum of DFs
+      for (PlatformUtil.DF df : mnts.values()) {
+	oneDF = df;
+	sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
+	sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
+	sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
       }
 
       // Set one-time StorageInfo fields
-      sum.setName(String.join(",", mnts));
-      sum.setPercentUsed(sum.getUsed() / sum.getSize());
-      sum.setPercentUsedString(String.valueOf(Math.round(sum.getPercentUsed())) + "%");
-
+      sum.setName(String.join(",", mnts.keySet()));
+      if (mnts.size() == 1) {
+	// If only one, use percentages returns by DF
+	sum.setPercentUsed(oneDF.getPercent());
+	sum.setPercentUsedString(oneDF.getPercentString());
+      } else {
+	// Compute percent used as 1.0 - avail / size, as some FSs have a
+	// "full" threshold that's lower than the total size
+	sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
+	sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
+							   sum.getPercentUsed())) + "%");
+      }
+      if (basePathSis.size() > 1) {
+	sum.setComponents(basePathSis);
+      } else {
+	sum.setPath(basePathSis.get(0).getPath());
+      }
       // Return the sum
       return sum;
 

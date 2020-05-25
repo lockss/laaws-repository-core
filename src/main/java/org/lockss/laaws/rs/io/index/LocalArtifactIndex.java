@@ -92,7 +92,9 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
 	// Mustn't use persistedIndex filename as it mightn't have been
 	// created yet.  The parent directory is required to already exist.
 	String parentDir = persistedIndex.getParent();
-	return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir));
+	return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir))
+	  .setType("local")
+	  .setPath(persistedIndex.toString());
       } catch (PlatformUtil.UnsupportedException e) {
 	throw new UnsupportedOperationException("Can't get index StorageInfo",
 						e);

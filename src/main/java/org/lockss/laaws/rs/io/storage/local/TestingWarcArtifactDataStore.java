@@ -30,23 +30,12 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import org.apache.commons.io.FileUtils;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
-import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PatternIntMap;
-import org.lockss.util.io.FileUtil;
-import org.lockss.util.os.PlatformUtil;
-import org.lockss.util.storage.StorageInfo;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.*;
-import java.net.URI;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Version of LocalWarcArtifactDataStore that allows manipulating apparent
