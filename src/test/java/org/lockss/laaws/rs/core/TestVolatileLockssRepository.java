@@ -53,8 +53,8 @@ public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
     log.debug("repoinfo: {}", ri);
     StorageInfo ind = ri.getIndexInfo();
     StorageInfo sto = ri.getStoreInfo();
-    assertEquals("memory", ind.getType());
-    assertEquals("memory", sto.getType());
+    assertEquals("volatile", ind.getType());
+    assertEquals("volatile", sto.getType());
   }
 
 }

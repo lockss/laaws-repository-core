@@ -145,7 +145,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public StorageInfo getStorageInfo() {
     try {
       // Create new StorageInfo object
-      StorageInfo info = new StorageInfo();
+      StorageInfo info = new StorageInfo("solr");
 
       // Retrieve Solr core metrics
       MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();
@@ -159,8 +159,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       info.setSize(metrics.getTotalSpace());
       info.setUsed(metrics.getIndexSizeInBytes());
       info.setAvail(metrics.getUsableSpace());
-      info.setPercentUsed(info.getUsed() / info.getSize());
-      info.setPercentUsedString(Math.round(info.getPercentUsed()) + "%");
+      info.setPercentUsed((double)info.getUsed() / (double)info.getSize());
+      info.setPercentUsedString(Math.round(100 * info.getPercentUsed()) + "%");
 
       // Return populated StorageInfo
       return info;

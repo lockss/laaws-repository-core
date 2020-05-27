@@ -424,8 +424,8 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
       // Set one-time StorageInfo fields
       sum.setName(fs.getUri().toString());
 //      sum.setName(String.join(",", uris));
-      sum.setPercentUsed(sum.getUsed() / sum.getSize());
-      sum.setPercentUsedString(String.valueOf(Math.round(sum.getPercentUsed())) + "%");
+      sum.setPercentUsed((double)sum.getUsed() / (double)sum.getSize());
+      sum.setPercentUsedString(String.valueOf(100 * Math.round(sum.getPercentUsed())) + "%");
 
       // Return the sum
       return sum;
