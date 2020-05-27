@@ -32,6 +32,8 @@ package org.lockss.laaws.rs.core;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.index.LocalArtifactIndex;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -75,9 +77,10 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
     log.debug("repoinfo: {}", ri);
     StorageInfo ind = ri.getIndexInfo();
     StorageInfo sto = ri.getStoreInfo();
-    assertEquals("local", ind.getType());
+    assertEquals(LocalArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
     assertTrue(ind.getSize() > 0);
-    assertEquals("local", sto.getType());
+    assertEquals(LocalWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
+		 sto.getType());
     assertTrue(sto.getSize() > 0);
 
     // FIXME: This needs more thought

@@ -68,6 +68,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
   private static final SolrQuery.SortClause AUID_ASC = new SolrQuery.SortClause("auid", SolrQuery.ORDER.asc);
 
+  /** Label to describe type of SolrArtifactIndex */
+  public static String ARTIFACT_INDEX_TYPE = "Solr";
+
   // TODO: Currently only used for getStorageInfo()
   private static final Pattern CORENAME_PATTERN = Pattern.compile("/solr(/(?<core>[^/]+)?)?$");
   private String coreName = DEFAULT_CORE_NAME;
@@ -145,7 +148,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public StorageInfo getStorageInfo() {
     try {
       // Create new StorageInfo object
-      StorageInfo info = new StorageInfo("solr");
+      StorageInfo info = new StorageInfo(ARTIFACT_INDEX_TYPE");
 
       // Retrieve Solr core metrics
       MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();

@@ -58,6 +58,9 @@ import java.util.stream.Collectors;
 public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  /** Label to describe type of HdfsWarcArtifactDataStore */
+  public static String ARTIFACT_DATASTORE_TYPE = "Hdfs";
+
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB * 128;
 
   protected FileSystem fs;
@@ -408,7 +411,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   public StorageInfo getStorageInfo() {
     try {
       // Build a StorageInfo
-      StorageInfo sum = new StorageInfo("hdfs");
+      StorageInfo sum = new StorageInfo(ARTIFACT_DATASTORE_TYPE);
       List<URI> uris = new ArrayList<>();
 
       // Compute sum of DFs
