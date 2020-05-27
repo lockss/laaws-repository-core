@@ -148,7 +148,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public StorageInfo getStorageInfo() {
     try {
       // Create new StorageInfo object
-      StorageInfo info = new StorageInfo(ARTIFACT_INDEX_TYPE");
+      StorageInfo info = new StorageInfo("ARTIFACT_INDEX_TYPE");
 
       // Retrieve Solr core metrics
       MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();
