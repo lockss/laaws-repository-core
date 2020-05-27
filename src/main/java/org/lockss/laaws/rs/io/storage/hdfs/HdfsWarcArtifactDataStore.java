@@ -160,7 +160,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   // *******************************************************************************************************************
-  // * IMPLEMENTATION UTILITY METHODS
+  // * ABSTRACT METHOD IMPLEMENTATION
   // *******************************************************************************************************************
 
   /**

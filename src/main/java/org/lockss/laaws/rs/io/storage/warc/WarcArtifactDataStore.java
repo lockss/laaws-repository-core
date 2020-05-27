@@ -1536,10 +1536,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     /**
      * Moves the WARC record of an artifact from temporary storage to a WARC in permanent storage, and updates the
      * storage URL if successful.
+     *
+     * @return
+     * @throws Exception
      */
     @Override
     public Artifact call() throws Exception {
-      // Get the temporary WARC record location
+      // Get the temporary WARC record location from the artifact's storage URL
       WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(new URI(artifact.getStorageUrl()));
       long recordOffset = loc.getOffset();
       long recordLength = loc.getLength();
