@@ -31,12 +31,15 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang.NotImplementedException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 import org.mockito.ArgumentMatchers;
+import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,8 +47,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.*;
 import java.util.function.Predicate;
 
 import static org.mockito.Mockito.*;
@@ -123,15 +125,16 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
   @Override
   public void testMakeStorageUrlImpl() throws Exception {
     ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+    long pendingArtifactSize = 1234L;
 
     URI expectedStorageUrl = URI.create(String.format(
         "file://%s?offset=%d&length=%d",
-        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), pendingArtifactSize),
         1234L,
         5678L
     ));
 
-    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid());
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), pendingArtifactSize);
     URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
 
     assertEquals(expectedStorageUrl, actualStorageUrl);
@@ -283,6 +286,48 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     verify(mockedFile, times(1)).getFreeSpace();
   }
 
+  /**
+   * Test for {@link LocalWarcArtifactDataStore#initAuDir(String, String)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testInitAuDirImpl() throws Exception {
+    String collectionId = "collection";
+    String auid = "auid";
+
+    // Mocks
+    LocalWarcArtifactDataStore ds = mock(LocalWarcArtifactDataStore.class);
+    Path basePath = mock(Path.class);
+    Path auPath = mock(Path.class);
+    File auPathFile = mock(File.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initAuDir(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
+    when(auPath.toFile()).thenReturn(auPathFile);
+    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+
+    // Assert IllegalStateException thrown if getBasePaths() returns null or is empty
+    when(ds.getBasePaths()).thenReturn(null);
+    assertThrows(IllegalStateException.class, () -> ds.initAuDir(collectionId, auid));
+    when(ds.getBasePaths()).thenReturn(new Path[]{});
+    assertThrows(IllegalStateException.class, () -> ds.initAuDir(collectionId, auid));
+
+    when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
+
+    // Assert directory created if not directory
+    when(auPathFile.isDirectory()).thenReturn(false);
+    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    verify(ds).mkdirs(auPath);
+    clearInvocations(ds);
+
+    // Assert directory is *not* created if directory
+    when(auPathFile.isDirectory()).thenReturn(true);
+    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    verify(ds, never()).mkdirs(auPath);
+    clearInvocations(ds);
+  }
+
   @Override
   public void testInitDataStoreImpl() throws Exception {
     assertTrue(Arrays.stream(store.getBasePaths())
@@ -311,30 +356,60 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     verify(ds).mkdirs(collectionPaths);
   }
 
+  /**
+   * Test for {@link LocalWarcArtifactDataStore#initAu(String, String)}.
+   *
+   * @throws Exception
+   */
   @Override
   public void testInitAuImpl() throws Exception {
     final String collectionId = "collection";
     final String auid = "auid";
-    final Path[] auPaths = new Path[]{Paths.get("/a"), Paths.get("/b")};
 
     // Mocks
     LocalWarcArtifactDataStore ds = mock(LocalWarcArtifactDataStore.class);
-    Path mockedPath = mock(Path.class);
-    File mockedFile = mock(File.class);
+    Path basePath = mock(Path.class);
 
     // Mock behavior
-    when(mockedPath.toFile()).thenReturn(mockedFile);
-    when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
-
-    // Initialize the AU
+    doCallRealMethod().when(ds).clearAuMaps();
     doCallRealMethod().when(ds).initAu(collectionId, auid);
-    ds.initAu(collectionId, auid);
 
-    // Verify correct directory structures were created
-    for (Path auPath : auPaths) {
-      verify(ds).mkdirs(auPath);
-//      verify(ds).mkdirs(auPath.resolve("artifacts"));
-//      verify(ds).mkdirs(auPath.resolve("journals"));
-    }
+    // Assert IllegalStateException thrown if no base paths configured in data store
+    when(ds.getBasePaths()).thenReturn(null);
+    assertThrows(IllegalStateException.class, () -> ds.initAu(collectionId, auid));
+
+    // Assert IllegalStateException thrown if empty base paths
+    when(ds.getBasePaths()).thenReturn(new Path[]{});
+    assertThrows(IllegalStateException.class, () -> ds.initAu(collectionId, auid));
+
+    // FIXME: Initialize maps
+//    FieldSetter.setField(ds, ds.getClass().getDeclaredField("auPathsMap"), new HashMap<>());
+//    FieldSetter.setField(ds, ds.getClass().getDeclaredField("auActiveWarcsMap"), new HashMap<>());
+    ds.clearAuMaps();
+
+    // Assert if no AU paths found then a new one is created
+    when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
+    Path auPath = mockPathFile(false);
+    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+    ds.initAu(collectionId, auid);
+    verify(ds).initAuDir(collectionId, auid);
+    clearInvocations(ds);
+
+    // Assert if existing AU paths are found on disk then they are just returned
+    auPath = mockPathFile(true);
+    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+    List<Path> auPaths = new ArrayList<>();
+    auPaths.add(auPath);
+    assertIterableEquals(auPaths, ds.initAu(collectionId, auid));
+    verify(ds, never()).initAuDir(collectionId, auid);
+    clearInvocations(ds);
+  }
+
+  private Path mockPathFile(boolean isDirectory) {
+    Path path = mock(Path.class);
+    File file = mock(File.class);
+    when(path.toFile()).thenReturn(file);
+    when(file.isDirectory()).thenReturn(isDirectory);
+    return path;
   }
 }

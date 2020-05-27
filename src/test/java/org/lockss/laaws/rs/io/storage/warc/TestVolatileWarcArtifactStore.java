@@ -31,9 +31,12 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.lang.NotImplementedException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
+import org.mockito.ArgumentMatchers;
 import org.springframework.util.MultiValueMap;
 
 import java.io.IOException;
@@ -139,7 +142,32 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
    */
   @Override
   public void testInitAuImpl() throws Exception {
-    // NOP
+    String collectionId = "collection";
+    String auid = "auid";
+    List<Path> auPaths;
+
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    Path auPath = mock(Path.class);
+    ds.auPathsMap = mock(Map.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initAu(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
+    when(ds.initAuDir(collectionId, auid)).thenReturn(auPath);
+
+    // Assert initAuDir() called if a list of AU paths does not exist in the map
+    auPaths = ds.initAu(collectionId, auid);
+    assertNotNull(auPaths);
+    assertTrue(auPaths.contains(auPath));
+    verify(ds).initAuDir(collectionId, auid);
+    clearInvocations(ds);
+
+    // Assert initAuDir() is not called if a list of AU paths exists in the map
+    auPaths = ds.initAu(collectionId, auid);
+    assertNotNull(auPaths);
+    assertTrue(auPaths.contains(auPath));
+    verify(ds).initAuDir(collectionId, auid);
+    clearInvocations(ds);
   }
 
   /**
@@ -153,12 +181,12 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     URI expectedStorageUrl = URI.create(String.format(
         "volatile://%s?offset=%d&length=%d",
-        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid()),
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L),
         1234L,
         5678L
     ));
 
-    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid());
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L);
     URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
 
     assertEquals(expectedStorageUrl, actualStorageUrl);
@@ -302,5 +330,30 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Assert valid freeMemory() output
     assertTrue(store.getFreeSpace(randomPath) > 0 && store.getFreeSpace(randomPath) <= s_runtime.maxMemory());
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#initAuDir(String, String)}.
+   *
+   * @throws Exception
+   */
+  // FIXME: This test seems kind of pointless - we're effectively exercising the mocks
+  @Override
+  public void testInitAuDirImpl() throws Exception {
+    String collectionId = "collection";
+    String auid = "auid";
+
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    Path basePath = mock(Path.class);
+    Path auPath = mock(Path.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initAuDir(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
+    when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
+    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+
+    // Assert initAuDir() returns expected result
+    assertEquals(auPath, ds.initAuDir(collectionId, auid));
   }
 }

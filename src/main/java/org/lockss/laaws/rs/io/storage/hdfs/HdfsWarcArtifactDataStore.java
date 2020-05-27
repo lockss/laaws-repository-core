@@ -159,6 +159,19 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
     return false;
   }
 
+  /**
+   * Only used to enable testing!
+   *
+   */
+  // FIXME
+  protected void clearAuMaps() {
+    log.debug("Cleared internal AU maps");
+
+    // Reset maps
+    auPathsMap = new HashMap<>();
+    auActiveWarcsMap = new HashMap<>();
+  }
+
   // *******************************************************************************************************************
   // * ABSTRACT METHOD IMPLEMENTATION
   // *******************************************************************************************************************

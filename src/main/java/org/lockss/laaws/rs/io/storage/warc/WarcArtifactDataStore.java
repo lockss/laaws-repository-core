@@ -113,6 +113,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
 
+  protected final static long MAX_AUACTIVEWARCS_RELOADED = 10;
+  protected final static double RELOAD_THRESHOLD = 0.95f;
+
   protected static final String ENV_THRESHOLD_WARC_SIZE = "REPO_MAX_WARC_SIZE";
   protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 1L * FileUtils.ONE_GB;
   protected long thresholdWarcSize;
@@ -125,6 +128,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public static Path[] basePaths;
   protected WarcFilePool tmpWarcPool;
   protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap = new HashMap<>();
+  protected Map<CollectionAuidPair, List<Path>> auPathsMap = new HashMap<>();
   protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
 
   protected ScheduledExecutorService scheduledExecutor;
@@ -419,43 +423,66 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Returns an array containing all the paths of this AU (one for each base path of this data store).
+   * Returns a list containing all the paths of this AU.
    *
    * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
-   * @return A {@link Path[]} containing all paths of this AU.
+   * @return A {@link List<Path>} containing all paths of this AU.
    */
-  public Path[] getAuPaths(String collectionId, String auid) {
-    return Arrays.stream(getBasePaths())
-        .map(path -> getAuPath(path, collectionId, auid))
-        .toArray(Path[]::new);
+  public List<Path> getAuPaths(String collectionId, String auid) throws IOException {
+    synchronized (auPathsMap) {
+      // Get AU's initialized paths from map
+      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      List<Path> auPaths = auPathsMap.get(key);
+
+      // Initialize the AU if there is no entry in the map, or return the AU's paths
+      // Q: Do we really want to call initAu() here?
+      return auPaths == null ? initAu(collectionId, auid) : auPaths;
+    }
   }
 
   /**
-   * Returns an active WARC of an AU, on the base path having the most free space.
+   * Returns an active WARC of an AU or initializes a new one, on the base path having the most free space.
    *
    * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
-   * @return A {@link Path} containing the active WARC
+   * @param minSize      A {@code long} containing the minimum available space the underlying base path must have in bytes.
+   * @return A {@link Path} containing the path of the chosen active WARC.
    * @throws IOException
    */
-  public Path getAuActiveWarcPath(String collectionId, String auid) throws IOException {
+  public Path getAuActiveWarcPath(String collectionId, String auid, long minSize) throws IOException {
     synchronized (auActiveWarcsMap) {
-      Path[] activeWarcs = getAuActiveWarcPaths(collectionId, auid);
+      // Get all the active WARCs of this AU
+      List<Path> activeWarcs = getAuActiveWarcPaths(collectionId, auid);
 
-      // TODO: Implement policy for starting multiple active WARCs for an AU here
+      // If there are multiple active WARCs for this AU, pick the one under the base path with the most free space
+      Path activeWarc = getMinMaxFreeSpacePath(activeWarcs, minSize);
 
-      // Q: Should we prioritize starting an active WARC on a base path that does not have an active WARC?
-//      if (activeWarcs.length < getBasePaths().length) {
-//      }
-
-      Path activeWarc = Arrays.stream(activeWarcs)
-          .sorted((a, b) -> (int) (getFreeSpace(b.getParent()) - getFreeSpace(a.getParent())))
-          .findFirst()
-          .orElse(null);
-
-      return activeWarc == null ? initAuActiveWarc(collectionId, auid) : activeWarc;
+      // Return the active WARC or initialize a new one if there were no active WARCs or no active WARC resides under a
+      // base path with enough space
+      return activeWarc == null ? initAuActiveWarc(collectionId, auid, minSize) : activeWarc;
     }
+  }
+
+  /**
+   * Takes a {@link List} of {@link Paths} and selects the path that has the most available space out of the set of
+   * paths meeting a minimum available space threshold.
+   *
+   * @param paths   A {@link List<Path>} containing the set of paths
+   * @param minSize A {@code long} containing the minimum available space threshold in bytes.
+   * @return A {@link Path} containing the chosen path among the provided paths or {@code null} if no such path could
+   * be found.
+   */
+  protected Path getMinMaxFreeSpacePath(List<Path> paths, long minSize) {
+    if (paths == null) {
+      throw new IllegalArgumentException("null paths");
+    }
+
+    return paths.stream()
+        .filter(p -> getFreeSpace(p.getParent()) > minSize)
+        .sorted((a, b) -> (int) (getFreeSpace(b.getParent()) - getFreeSpace(a.getParent())))
+        .findFirst()
+        .orElse(null);
   }
 
   /**
@@ -463,17 +490,111 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
-   * @return A {@link Path[]} containing all active WARCS of this AU.
+   * @return A {@link List<Path>} containing all active WARCs of this AU.
    */
-  public Path[] getAuActiveWarcPaths(String collectionId, String auid) {
-    // Key into the active WARC map
-    CollectionAuidPair aukey = new CollectionAuidPair(collectionId, auid);
-
+  public List<Path> getAuActiveWarcPaths(String collectionId, String auid) throws IOException {
     synchronized (auActiveWarcsMap) {
-      List<Path> paths = auActiveWarcsMap.get(aukey);
-      return paths == null ? new Path[]{} : paths.toArray(new Path[0]);
+      // Get the active WARCs of this AU if it exists in the map
+      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      List<Path> auActiveWarcs = auActiveWarcsMap.get(key);
+
+      log.trace("auActiveWarcs = {}", auActiveWarcs);
+
+      if (auActiveWarcs == null) {
+        // Reload the active WARCs for this AU
+        auActiveWarcs = findAuActiveWarcs(collectionId, auid);
+        auActiveWarcsMap.put(key, auActiveWarcs);
+      }
+
+      return auActiveWarcs;
     }
   }
+
+  /**
+   * In service of {@link WarcArtifactDataStore#findAuActiveWarcs(String, String)}.
+   */
+  private class WarcSizeThresholdPredicate implements Predicate<Path> {
+    @Override
+    public boolean test(Path warcPath) {
+      try {
+        return getWarcLength(warcPath) < RELOAD_THRESHOLD * getThresholdWarcSize();
+      } catch (IOException e) {
+        return false;
+      }
+    }
+  }
+
+  /**
+   * In service of {@link WarcArtifactDataStore#findAuActiveWarcs(String, String)}.
+   */
+  private class WarcLengthComparator implements Comparator<Path> {
+    @Override
+    public int compare(Path a, Path b) {
+      try {
+        return (int) (getWarcLength(a) - getWarcLength(b));
+      } catch (IOException e) {
+        return Integer.MIN_VALUE;
+      }
+    }
+  }
+
+  /**
+   * In service of {@link WarcArtifactDataStore#findAuActiveWarcs(String, String)}.
+   */
+  private Collection<Path> findWarcsOrEmpty(Path path) {
+    try {
+      return findWarcs(path);
+    } catch (IOException e) {
+      log.warn("Caught IOException");
+      return Collections.EMPTY_LIST;
+    }
+  }
+
+  /**
+   * Finds the artifact-containing WARCs of an AU that have not met size or block-usage thresholds and are therefore
+   * eligible to be reloaded as active WARCs (to have new artifacts appended to the WARC).
+   *
+   * @param collectionId A {@link String} containing the collection ID.
+   * @param auid         A {@link String} containing the the AUID.
+   * @return A {@link List<Path>} containing paths to WARCs that are eligible to be reloaded as active WARCs.
+   * @throws IOException
+   */
+  protected List<Path> findAuActiveWarcs(String collectionId, String auid) throws IOException {
+    return getAuPaths(collectionId, auid).stream()
+        .map(auPath -> findWarcsOrEmpty(auPath))
+        .flatMap(Collection::stream)
+        .filter(warcPath -> warcPath.getFileName().toString().startsWith("artifacts_"))
+        .filter(new WarcSizeThresholdPredicate())
+        .sorted(new WarcLengthComparator())
+        .limit(MAX_AUACTIVEWARCS_RELOADED)
+        .collect(Collectors.toList());
+  }
+
+//    protected List<Path> findAuActiveWarcs(String collectionId, String auid) throws IOException {
+    // Will contain paths to WARCs in storage that are eligible to be active WARCs
+//    List<Path> eligibleWarcs = new ArrayList<>();
+
+//    for (Path auPath : getAuPaths(collectionId, auid)) {
+//      for (Path warcPath : findWarcs(auPath)) {
+        // Does this WARC contain artifacts?
+//        boolean containsArtifacts = warcPath.getFileName().toString().startsWith("artifacts_"); // TODO
+//        boolean underSizeThreshold = getWarcLength(warcPath) < blockFinishedThreshold * getThresholdWarcSize();
+
+        // Add WARC to list of WARCs eligible to be active again, if this is an artifact-containing WARC and it has
+        // *not* met fill threshold
+//        if (containsArtifacts && underSizeThreshold) {
+//          log.debug("Adding WARC list of eligible active WARCs [warcPath: {}]", warcPath);
+//          eligibleWarcs.add(warcPath);
+//        }
+//      }
+//    }
+
+    // Return the list of WARCs of this AU that are eligible to be
+//    return eligibleWarcs.stream()
+//        .sorted(new WarcLengthComparator())
+//        .limit(MAX_RELOAD_ACTIVEWARCS)
+//        .collect(Collectors.toList());
+//  }
 
   /**
    * Returns the path of a journal of an AU on the given base path.
@@ -610,39 +731,51 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
+   * @param minSize      A {@code long} containing the minimum amount of available space the underlying filesystem must
+   *                     have available for the new active WARC, in bytes.
    * @return The {@link Path} to the new active WARC for this AU.
    * @throws IOException
    */
-  public Path initAuActiveWarc(String collectionId, String auid) throws IOException {
+  public Path initAuActiveWarc(String collectionId, String auid, long minSize) throws IOException {
+    // Debugging
     log.trace("collection = {}", collectionId);
     log.trace("auid = {}", auid);
+    log.trace("minSize = {}", minSize);
 
-    initAu(collectionId, auid);
+    // Get an array of the AU's initialized paths in storage
+    List<Path> auPaths = getAuPaths(collectionId, auid);
 
-    // Determine which AU path to use by comparing available space
-    Path[] auPaths = getAuPaths(collectionId, auid);
-    Path auPath = Arrays.stream(auPaths)
-        .sorted((a, b) -> (int) (getFreeSpace(b) - getFreeSpace(a)))
-        .findFirst()
-        .orElse(null);
+    // Determine which existing AU path to use based on currently available space
+    Path auPath = getMinMaxFreeSpacePath(auPaths, minSize);
 
     if (auPath == null) {
-      throw new IllegalStateException("Data store is not initialized correctly");
+      //// AU not initialized or no existing AU meets minimum space requirement
+
+      // Have we exhausted all available base paths?
+      if (auPaths.size() < basePaths.length) {
+        // Create a new AU base directory (or get the existing one with the most available space)
+        auPath = initAuDir(collectionId, auid);
+      } else {
+        throw new IOException("No AU base dir");
+      }
     }
 
-    Path warcFile = auPath.resolve(generateActiveWarcName(collectionId, auid));
-//    Path warcFile = auPath.resolve("artifacts").resolve(generateActiveWarcName(collectionId, auid));
+    // Generate path to new active WARC file under chosen AU path
+    Path auActiveWarc = auPath.resolve(generateActiveWarcName(collectionId, auid));
 
-//    initWarc(warcFile);
-
+    // Add new active WARC to active WARCs map
     synchronized (auActiveWarcsMap) {
-      CollectionAuidPair aukey = new CollectionAuidPair(collectionId, auid);
-      List<Path> paths = auActiveWarcsMap.getOrDefault(aukey, new ArrayList<>());
-      paths.add(warcFile);
-      auActiveWarcsMap.put(aukey, paths);
+      // Initialize the new WARC file
+      initWarc(auActiveWarc);
+
+      // Add WARC file path to list of active WARC paths of this AU
+      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      List<Path> auActiveWarcs = auActiveWarcsMap.getOrDefault(key, new ArrayList<>());
+      auActiveWarcs.add(auActiveWarc);
+      auActiveWarcsMap.put(key, auActiveWarcs);
     }
 
-    return warcFile;
+    return auActiveWarc;
   }
 
   /**
@@ -1547,68 +1680,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long recordOffset = loc.getOffset();
       long recordLength = loc.getLength();
 
-      // Get an active WARC (i.e., in permanent storage) of this AU to append the artifact to
-      Path dst = getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid());
-
-      // Initialize the active WARC if necessary
-      initWarc(dst);
+      // Get an active WARC of this AU to append the artifact to
+      Path dst = getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), recordLength);
 
       // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
       long warcLength = getWarcLength(dst);
-
-      // **************************************************************************
-      // Determine whether we should seal this active WARC instead of writing to it
-      // **************************************************************************
-
-      boolean sealBeforeAppend = false;
-
-      // Calculate waste space in last block in two strategies
-      long wasteSealing = (getBlockSize() - (warcLength % getBlockSize())) % getBlockSize();
-      long wasteAppending = (getBlockSize() - ((warcLength + recordLength) % getBlockSize())) % getBlockSize();
-
-      log.debug2(
-          "[warcLength: {}, recordOffset: {}, recordLength: {}, wasteSealing: {}, wasteAppending: {}]",
-          warcLength, recordOffset, recordLength, wasteSealing, wasteAppending
-      );
-
-      if (warcLength < getThresholdWarcSize()) {
-        if (warcLength + recordLength <= getThresholdWarcSize()) {
-          // Append
-//        sealBeforeAppend = false;
-        } else {
-          // Appending this record would trip the file over the size threshold
-          if (wasteSealing > wasteAppending) {
-            // Append
-//          sealBeforeAppend = false;
-          } else {
-            // Seal then append
-            sealBeforeAppend = true;
-          }
-        }
-      } else {
-        // The WARC file already exceeds the WARC file size threshold
-        if (recordLength <= wasteSealing) {
-          // Record fits within the space in the last, already allocated block: Fill it (append)
-//        sealBeforeAppend = false;
-        } else {
-          // Seal then append: Do not allocate new block(s) since we have already exceeded the size threshold
-          sealBeforeAppend = true;
-        }
-      }
-
-      // **********************
-      // Seal WARC if necessary
-      // **********************
-
-      if (sealBeforeAppend) {
-        // Seal active WARC
-        sealActiveWarc(artifact.getCollection(), artifact.getAuid(), dst);
-
-        // Get path to new active WARC and ensure it exists
-        dst = getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid());
-        initWarc(dst);
-        warcLength = getWarcLength(dst);
-      }
 
       // *********************************
       // Append WARC record to active WARC
@@ -1630,10 +1706,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       // Immediately seal if we've gone over the size threshold and filled all the blocks perfectly
-      if (!sealBeforeAppend) {
-        if ((warcLength + recordLength >= getThresholdWarcSize()) && ((warcLength + recordLength) % getBlockSize() == 0)) {
-          sealActiveWarc(artifact.getCollection(), artifact.getAuid(), dst);
-        }
+      if ((warcLength + recordLength >= getThresholdWarcSize()) && ((warcLength + recordLength) % getBlockSize() == 0)) {
+        sealActiveWarc(artifact.getCollection(), artifact.getAuid(), dst);
       }
 
       // ******************
