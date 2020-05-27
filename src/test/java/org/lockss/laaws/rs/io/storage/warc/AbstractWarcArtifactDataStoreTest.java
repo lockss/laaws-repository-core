@@ -1068,12 +1068,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Setup scenario
     List<Path> warcPaths = new ArrayList();
     warcPaths.add(makeTestAuWarcPath(ds, "foo", 100L));
-    warcPaths.add(makeTestAuWarcPath(ds, "artifacts_XXX", 950));
-    warcPaths.add(makeTestAuWarcPath(ds, "artifacts_XXX", 1000L));
+    warcPaths.add(makeTestAuWarcPath(ds, "artifacts_XXX", 1001));
+    warcPaths.add(makeTestAuWarcPath(ds, "artifacts_XXX", 2000L));
 
     List<Path> expectedResults = new ArrayList();
     expectedResults.add(makeTestAuWarcPath(ds, "artifacts_XXX", 100L));
-    expectedResults.add(makeTestAuWarcPath(ds, "artifacts_XXX", 949));
+    expectedResults.add(makeTestAuWarcPath(ds, "artifacts_XXX", 999L));
 
     // Add expected results to eligible WARCs
     warcPaths.addAll(expectedResults);
@@ -1083,12 +1083,24 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Call findAuActiveWarcs()
     assertIterableEquals(expectedResults, ds.findAuActiveWarcs(collectionId, auid));
+
+    // Assert findAuActiveWarcs() returns no more than the maximum number of active WARCs
+    for (int i = 0; i < WarcArtifactDataStore.MAX_AUACTIVEWARCS_RELOADED; i++) {
+      warcPaths.add(makeTestAuWarcPath(ds, String.format("artifacts_%d", i), i));
+    }
+
+    List<Path> result = ds.findAuActiveWarcs(collectionId, auid);
+    assertEquals(WarcArtifactDataStore.MAX_AUACTIVEWARCS_RELOADED, result.size());
+
+    log.trace("result = {}", result);
   }
 
   private Path makeTestAuWarcPath(WarcArtifactDataStore ds, String fileName, long warcSize) throws IOException {
     Path warcPath = mock(Path.class);
     Path warcPathFileName = Paths.get(fileName);
     when(warcPath.getFileName()).thenReturn(warcPathFileName);
+    when(warcPath.toString()).thenReturn(fileName);
+
     when(ds.getWarcLength(warcPath)).thenReturn(warcSize);
 
     return warcPath;

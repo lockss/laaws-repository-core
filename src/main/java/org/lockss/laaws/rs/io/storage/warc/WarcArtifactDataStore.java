@@ -114,7 +114,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   private static final long DEFAULT_DFOS_THRESHOLD = 16L * FileUtils.ONE_MB;
 
   protected final static long MAX_AUACTIVEWARCS_RELOADED = 10;
-  protected final static double RELOAD_THRESHOLD = 0.95f;
 
   protected static final String ENV_THRESHOLD_WARC_SIZE = "REPO_MAX_WARC_SIZE";
   protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 1L * FileUtils.ONE_GB;
@@ -517,8 +516,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     @Override
     public boolean test(Path warcPath) {
       try {
-        return getWarcLength(warcPath) < RELOAD_THRESHOLD * getThresholdWarcSize();
+        return getWarcLength(warcPath) < getThresholdWarcSize();
       } catch (IOException e) {
+        log.warn("Caught IOException", e);
         return false;
       }
     }
@@ -531,8 +531,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     @Override
     public int compare(Path a, Path b) {
       try {
-        return (int) (getWarcLength(a) - getWarcLength(b));
+        return Long.compare(getWarcLength(a), getWarcLength(b));
       } catch (IOException e) {
+        log.warn("Caught IOException", e);
         return Integer.MIN_VALUE;
       }
     }
@@ -545,7 +546,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       return findWarcs(path);
     } catch (IOException e) {
-      log.warn("Caught IOException");
+      log.warn("Caught IOException", e);
       return Collections.EMPTY_LIST;
     }
   }
