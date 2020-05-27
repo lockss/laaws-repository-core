@@ -58,6 +58,9 @@ import java.util.stream.Collectors;
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  /** Label to describe type of VolatileWarcArtifactDataStore */
+  public static String ARTIFACT_DATASTORE_TYPE = "In-Memory";
+
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
 
   protected Map<Path, ByteArrayOutputStream> warcs;
@@ -219,6 +222,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public StorageInfo getStorageInfo() {
-    return StorageInfo.fromRuntime().setType("volatile");
+    return StorageInfo.fromRuntime().setType(ARTIFACT_DATASTORE_TYPE);
   }
 }

@@ -33,6 +33,8 @@ package org.lockss.laaws.rs.core;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
+import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.util.storage.StorageInfo;
 
@@ -53,8 +55,9 @@ public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
     log.debug("repoinfo: {}", ri);
     StorageInfo ind = ri.getIndexInfo();
     StorageInfo sto = ri.getStoreInfo();
-    assertEquals("volatile", ind.getType());
-    assertEquals("volatile", sto.getType());
+    assertEquals(VolatileArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
+    assertEquals(VolatileWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
+		 sto.getType());
   }
 
 }

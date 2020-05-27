@@ -50,6 +50,9 @@ import java.util.stream.Stream;
 public class VolatileArtifactIndex extends AbstractArtifactIndex {
     private final static L4JLogger log = L4JLogger.getLogger();
 
+    /** Label to describe type of VolatileArtifactIndex */
+    public static String ARTIFACT_INDEX_TYPE = "In-memory";
+
     // Internal map from artifact ID to Artifact
     protected Map<String, Artifact> index = new LinkedHashMap<>();
 
@@ -72,7 +75,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      */
     @Override
     public StorageInfo getStorageInfo() {
-      return StorageInfo.fromRuntime().setType("volatile");
+      return StorageInfo.fromRuntime().setType(ARTIFACT_INDEX_TYPE);
     }
 
     /**

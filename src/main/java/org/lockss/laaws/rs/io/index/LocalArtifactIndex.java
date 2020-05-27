@@ -49,6 +49,9 @@ import org.lockss.log.L4JLogger;
 public class LocalArtifactIndex extends VolatileArtifactIndex {
     private final static L4JLogger log = L4JLogger.getLogger();
 
+    /** Label to describe type of LocalArtifactIndex */
+    public static String ARTIFACT_INDEX_TYPE = "Java-persist";
+
     // The location of persisted index.
     private File persistedIndex = null;
 
@@ -93,7 +96,7 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
 	// created yet.  The parent directory is required to already exist.
 	String parentDir = persistedIndex.getParent();
 	return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir))
-	  .setType("local")
+	  .setType(ARTIFACT_INDEX_TYPE)
 	  .setPath(persistedIndex.toString());
       } catch (PlatformUtil.UnsupportedException e) {
 	throw new UnsupportedOperationException("Can't get index StorageInfo",

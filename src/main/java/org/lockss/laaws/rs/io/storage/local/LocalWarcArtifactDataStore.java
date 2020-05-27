@@ -53,6 +53,9 @@ import java.util.stream.Collectors;
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  /** Label to describe type of LocalWarcArtifactDataStore */
+  public static String ARTIFACT_DATASTORE_TYPE = "Posix";
+
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
   // *******************************************************************************************************************
@@ -271,7 +274,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   public StorageInfo getStorageInfo() {
     try {
       // Build a StorageInfo
-      StorageInfo sum = new StorageInfo("local");
+      StorageInfo sum = new StorageInfo(ARTIFACT_DATASTORE_TYPE);
       Map<String,PlatformUtil.DF> mnts = new LinkedHashMap<>(); 
       List<StorageInfo> basePathSis = new ArrayList<>();
       PlatformUtil putil = PlatformUtil.getInstance();
