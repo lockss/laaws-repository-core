@@ -188,6 +188,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   public abstract StorageInfo getStorageInfo();
 
+  protected abstract Path initAuDir(String collectionId, String auid) throws IOException;
+
   // *******************************************************************************************************************
   // * CONSTRUCTORS
   // *******************************************************************************************************************

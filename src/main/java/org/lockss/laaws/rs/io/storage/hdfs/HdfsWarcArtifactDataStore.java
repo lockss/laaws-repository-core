@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.*;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
@@ -48,9 +49,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Apache Hadoop Distributed File System (HDFS) implementation of {@link WarcArtifactDataStore}.
@@ -266,16 +266,87 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    * @throws IOException
    */
   @Override
-  public void initAu(String collectionId, String auid) throws IOException {
-    // Initialize collection on each filesystem
+  public List<Path> initAu(String collectionId, String auid) throws IOException {
+    //// Initialize collection on each filesystem
+
     initCollection(collectionId);
 
-    // Iterate over AU's paths on each filesystem and create AU directory structure
-    for (Path auBasePath : getAuPaths(collectionId, auid)) {
-      mkdirs(auBasePath);
-//      mkdirs(auBasePath.resolve("artifacts"));
-//      mkdirs(auBasePath.resolve("journals"));
+    //// Reload any existing AU base paths
+
+    // Get base paths of the repository
+    Path[] baseDirs = getBasePaths();
+
+    if (baseDirs == null || baseDirs.length < 1) {
+      throw new IllegalStateException("Null or empty baseDirs");
     }
+
+    // Find existing base directories of this AU
+    List<Path> auPathsFound = Arrays.stream(baseDirs)
+        .map(basePath -> getAuPath(basePath, collectionId, auid))
+        .filter(auPath -> {
+          org.apache.hadoop.fs.Path hdfsAuPath = new org.apache.hadoop.fs.Path(auPath.toString());
+          try {
+            FileStatus status = fs.getFileStatus(hdfsAuPath);
+            return status.isDirectory();
+          } catch (IOException e) {
+            // Cannot determine whether AU path exists
+            log.warn("Cannot determine whether AU path exists [hdfsAuPath: {}]", hdfsAuPath, e);
+            return false;
+          }
+        })
+        .collect(Collectors.toList());
+
+    if (auPathsFound.isEmpty()) {
+      // No existing directories for this AU: Initialize a new AU directory
+      auPathsFound.add(initAuDir(collectionId, auid));
+    }
+
+    // Track AU directories in internal AU paths map
+    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    auPathsMap.put(key, auPathsFound);
+
+    return auPathsFound;
+  }
+
+  /**
+   * Creates a new AU directory in HDFS.
+   *
+   * @param collectionId A {@link String} containing the collection ID.
+   * @param auid A {@link String} containing the AUID.
+   * @return A {@link Path} to a directory of this AU.
+   * @throws IOException
+   */
+  @Override
+  protected Path initAuDir(String collectionId, String auid) throws IOException {
+    Path[] basePaths = getBasePaths();
+
+    if (basePaths == null || basePaths.length < 1) {
+      throw new IllegalStateException("Data store is misconfigured");
+    }
+
+    // Determine which base path to use based on current available space
+    Path basePath = Arrays.stream(basePaths)
+        .sorted((a, b) -> (int) (getFreeSpace(b.getParent()) - getFreeSpace(a.getParent())))
+        .findFirst()
+        .get();
+
+    // Generate an AU path under this base path and create it on disk
+    Path auPath = getAuPath(basePath, collectionId, auid);
+
+    // Get FileStatus of AU path in HDFS
+    org.apache.hadoop.fs.Path hdfsAuPath = hdfsPathFromPath(auPath);
+    FileStatus status = fs.getFileStatus(hdfsAuPath);
+
+    // Create the AU directory if necessary
+    if (!status.isDirectory()) {
+      mkdirs(auPath);
+    }
+
+    return auPath;
+  }
+
+  protected org.apache.hadoop.fs.Path hdfsPathFromPath(Path path) {
+    return new org.apache.hadoop.fs.Path(path.toString());
   }
 
   /**

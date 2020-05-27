@@ -34,6 +34,7 @@ import org.apache.commons.io.FileUtils;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.os.PlatformUtil;
@@ -134,17 +135,82 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     mkdirs(getCollectionPaths(collectionId));
   }
 
+  /**
+   * Local filesystems implementation of {@link org.lockss.laaws.rs.io.storage.ArtifactDataStore#initAu(String, String)}.
+   * <p>
+   * Initializes an AU by reloading any existing directories of this AU or creates a new one if initializing this AU
+   * for the first time.
+   *
+   * @param collectionId A {@code String} containing the collection ID of this AU.
+   * @param auid
+   * @return
+   * @throws IOException
+   */
   @Override
-  public void initAu(String collectionId, String auid) throws IOException {
-    // Initialize collection on each filesystem
+  public List<Path> initAu(String collectionId, String auid) throws IOException {
+    //// Initialize collection on each filesystem
+
     initCollection(collectionId);
 
-    // Iterate over AU's paths on each filesystem and create AU directory structure
-    for (Path auBasePath : getAuPaths(collectionId, auid)) {
-      mkdirs(auBasePath);
-//      mkdirs(auBasePath.resolve("artifacts"));
-//      mkdirs(auBasePath.resolve("journals"));
+    //// Reload any existing AU base paths
+
+    // Get base paths of the repository
+    Path[] baseDirs = getBasePaths();
+
+    if (baseDirs == null || baseDirs.length < 1) {
+      throw new IllegalStateException("Null or empty baseDirs");
     }
+
+    // Find existing base directories of this AU
+    List<Path> auPathsFound = Arrays.stream(baseDirs)
+        .map(basePath -> getAuPath(basePath, collectionId, auid))
+        .filter(auPath -> auPath.toFile().isDirectory())
+        .collect(Collectors.toList());
+
+    if (auPathsFound.isEmpty()) {
+      // No existing directories for this AU: Initialize a new AU directory
+      auPathsFound.add(initAuDir(collectionId, auid));
+    }
+
+    // Track AU directories in internal AU paths map
+    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    auPathsMap.put(key, auPathsFound);
+
+    return auPathsFound;
+  }
+
+  /**
+   * Creates a new AU base directory on the repository base directory having the most free space. No-op if the directory
+   * already exists on disk.
+   *
+   * @param collectionId A {@link String} containing the collection ID containing the AU
+   * @param auid         A {@link String} containing the AUID of the AU.
+   * @return A {@link Path} containing the path to the AU base directory.
+   * @throws IOException
+   */
+  @Override
+  protected Path initAuDir(String collectionId, String auid) throws IOException {
+    Path[] basePaths = getBasePaths();
+
+    if (basePaths == null || basePaths.length < 1) {
+      throw new IllegalStateException("Data store is misconfigured");
+    }
+
+    // Determine which base path to use based on current available space
+    Path basePath = Arrays.stream(basePaths)
+        .sorted((a, b) -> (int) (getFreeSpace(b.getParent()) - getFreeSpace(a.getParent())))
+        .findFirst()
+        .get();
+
+    // Generate an AU path under this base path and create it on disk
+    Path auPath = getAuPath(basePath, collectionId, auid);
+
+    // Create the AU directory if necessary
+    if (!auPath.toFile().isDirectory()) {
+      mkdirs(auPath);
+    }
+
+    return auPath;
   }
 
   /**
