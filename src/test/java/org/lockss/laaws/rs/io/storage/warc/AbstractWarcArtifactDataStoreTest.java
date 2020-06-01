@@ -81,6 +81,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.WARC_FILE_EXTENSION;
 import static org.mockito.Mockito.*;
 
 /**
@@ -1135,10 +1136,46 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path journalPath = ds.getAuMetadataWarcPath(basePath, aid, journalName);
 
     // Assert expected path is resolved from auPath
-    String journalFile = String.format("%s.%s", journalName, WarcArtifactDataStore.WARC_FILE_EXTENSION);
+    String journalFile = String.format("%s.%s", journalName, WARC_FILE_EXTENSION);
 //    verify(auPath).resolve(journalFile);
 //    verifyNoMoreInteractions(auPath);
     assertEquals(auPath.resolve(journalFile), journalPath);
+  }
+
+  @Test
+  public void testGetAuMetadataWarcPaths() throws IOException {
+    String collectionId = "collection";
+    String auid = "auid";
+    String journalName = "journal";
+
+    List<Path> auPaths = new ArrayList<>();
+
+    // Mock
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+    ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
+
+    // Setup mock behavior
+    when(aid.getCollection()).thenReturn(collectionId);
+    when(aid.getAuid()).thenReturn(auid);
+    doCallRealMethod().when(ds).getAuMetadataWarcPaths(aid, journalName);
+    when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
+
+//    when(ds.getAuPaths(collectionId, auid)).thenReturn(null);
+//    when(ds.getAuPaths(collectionId, auid)).thenReturn(EMPTY_LIST);
+//    when(ds.getAuPaths(collectionId, auid)).thenThrow(IOException.class);
+
+    // Call real method
+    Path[] actualWarcPaths = ds.getAuMetadataWarcPaths(aid, journalName);
+
+    // Assert the number of metadata WARC paths of the AU matches the input
+    assertEquals(auPaths.size(), actualWarcPaths.length);
+
+    Path[] expectedWarcPaths = auPaths.stream()
+        .map(auPath-> auPath.resolve(journalName + "." + WARC_FILE_EXTENSION))
+        .toArray(Path[]::new);
+
+    // Assert we resolved expected paths
+    assertArrayEquals(expectedWarcPaths, actualWarcPaths);
   }
 
   // *******************************************************************************************************************
