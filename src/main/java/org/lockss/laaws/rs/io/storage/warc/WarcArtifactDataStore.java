@@ -1706,8 +1706,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       }
 
-      // Immediately seal if we've gone over the size threshold and filled all the blocks perfectly
-      if ((warcLength + recordLength >= getThresholdWarcSize()) && ((warcLength + recordLength) % getBlockSize() == 0)) {
+      // Seal if we've gone over the size threshold
+      if (warcLength + recordLength >= getThresholdWarcSize()) {
         sealActiveWarc(artifact.getCollection(), artifact.getAuid(), dst);
       }
 
