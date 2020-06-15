@@ -618,7 +618,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected Path[] getAuMetadataWarcPaths(ArtifactIdentifier aid, String journalName) throws IOException {
     return getAuPaths(aid.getCollection(), aid.getAuid()).stream()
-        .map(auPath-> auPath.resolve(journalName + "." + WARC_FILE_EXTENSION))
+        .map(auPath -> auPath.resolve(journalName + "." + WARC_FILE_EXTENSION))
         .toArray(Path[]::new);
   }
 
@@ -1398,7 +1398,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Determine which base path to use based on which has the most available space
       Path basePath = Arrays.stream(basePaths)
-          .max((a, b) -> (int) (getFreeSpace(a) - getFreeSpace(b)))
+          .max((a, b) -> (int) (getFreeSpace(b) - getFreeSpace(a)))
           .filter(bp -> getFreeSpace(bp) >= recordLength)
           .orElse(null);
 
@@ -1463,21 +1463,40 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         tmpWarcPool.returnWarcFile(tmpWarcFile);
       }
 
+      // Update ArtifactData object with new properties
+      artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
+      artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcFilePath, offset, recordLength));
+
       // **********************************
       // Write artifact metadata to journal
       // **********************************
 
-      artifactData.setRepositoryMetadata(new RepositoryArtifactMetadata(artifactId, false, false));
-      updateArtifactMetadata(basePath, artifactId, artifactData.getRepositoryMetadata());
+      // Write journal entry to journal file under an existing AU path
+      List<Path> auPaths = getAuPaths(artifactId.getCollection(), artifactId.getAuid());
+
+      Path auPath = auPaths.stream()
+          .sorted((a,b) -> (int) (getFreeSpace(b) - getFreeSpace(a)))
+          .findFirst()
+          .orElse(null); // should never happen
+
+      Path auBasePath = Arrays.stream(getBasePaths())
+          .sorted()
+          .filter(bp -> auPath.startsWith(bp))
+          .findFirst()
+          .orElse(null); // should never happen
+
+      // Write journal entry
+      updateArtifactMetadata(auBasePath, artifactId, artifactData.getRepositoryMetadata());
 
       // ******************
       // Index the artifact
       // ******************
 
-      // Set artifact data storage URL and repository state
-      artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcFilePath, offset, recordLength));
       artifactIndex.indexArtifact(artifactData);
-//      Artifact artifact = artifactIndex.indexArtifact(artifactData);
+
+      // *******************
+      // Return the artifact
+      // *******************
 
       // Create a new Artifact object to return
       Artifact artifact = new Artifact(
@@ -1496,10 +1515,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return artifact;
 
     } catch (Exception e) {
-
       log.error("Could not add artifact data!", e);
       throw e;
-
     }
   }
 
@@ -1641,8 +1658,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * This is implemented as a {@link StripedCallable} because we maintain one active WARC file per AU in which to commit
    * artifacts permanently.
    */
-  private class CommitArtifactTask implements StripedCallable<Artifact> {
-    private Artifact artifact;
+  protected class CommitArtifactTask implements StripedCallable<Artifact> {
+    protected Artifact artifact;
 
     /**
      * Constructor of {@link CommitArtifactTask}.
