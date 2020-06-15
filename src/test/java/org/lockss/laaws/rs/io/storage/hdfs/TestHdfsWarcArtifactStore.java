@@ -553,6 +553,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     clearInvocations(ds);
 
     // Assert directory is *not* created if directory
+    when(ds.fs.exists(hdfsAuPath)).thenReturn(true);
     when(status.isDirectory()).thenReturn(true);
     assertEquals(auPath, ds.initAuDir(collectionId, auid));
     verify(ds, never()).mkdirs(auPath);

@@ -351,10 +351,9 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
     // Get FileStatus of AU path in HDFS
     org.apache.hadoop.fs.Path hdfsAuPath = hdfsPathFromPath(auPath);
-    FileStatus status = fs.getFileStatus(hdfsAuPath);
 
     // Create the AU directory if necessary
-    if (!status.isDirectory()) {
+    if (!fs.exists(hdfsAuPath) || !fs.getFileStatus(hdfsAuPath).isDirectory()) {
       mkdirs(auPath);
     }
 
