@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,36 +28,57 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.core;
+package org.lockss.laaws.rs.io.storage.local;
 
-import java.io.IOException;
-import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.log.L4JLogger;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
-import org.lockss.laaws.rs.model.*;
-import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.PatternIntMap;
+
+import java.io.*;
+import java.nio.file.Path;
 
 /**
- * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
+ * Version of LocalWarcArtifactDataStore that allows manipulating apparent
+ * free space
  */
-public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
-    private final static L4JLogger log = L4JLogger.getLogger();
+public class TestingWarcArtifactDataStore extends LocalWarcArtifactDataStore {
+  private final static L4JLogger log = L4JLogger.getLogger();
+  private PatternIntMap freeSpacePatternMap;
 
-    @Override
-    public LockssRepository makeLockssRepository() throws IOException {
-        return new VolatileLockssRepository();
+  public TestingWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
+    super(index, basePath);
+  }
+
+  public TestingWarcArtifactDataStore(ArtifactIndex index, File[] basePath)
+      throws IOException {
+    super(index, basePath);
+  }
+
+  public TestingWarcArtifactDataStore(ArtifactIndex index, Path basePaths)
+      throws IOException {
+    super(index, basePaths);
+  }
+
+  public TestingWarcArtifactDataStore(ArtifactIndex index, Path[] basePaths)
+      throws IOException {
+    super(index, basePaths);
+  }
+
+  @Override
+  protected long getFreeSpace(Path fsPath) {
+    if (freeSpacePatternMap != null) {
+      long fake = freeSpacePatternMap.getMatch(fsPath.toString(), -1);
+      if (fake > 0) {
+	log.debug("Returning fake free space for {}: {}", fsPath, fake);
+	return fake;
+      }
     }
+    return super.getFreeSpace(fsPath);
+  }
 
-  @Test
-  public void testRepoInfo() throws Exception {
-    RepositoryInfo ri = repository.getRepositoryInfo();
-    log.debug("repoinfo: {}", ri);
-    StorageInfo ind = ri.getIndexInfo();
-    StorageInfo sto = ri.getStoreInfo();
-    assertEquals(VolatileArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
-    assertEquals(VolatileWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
-		 sto.getType());
+  public void setTestingDiskSpaceMap(PatternIntMap freeSpacePatternMap) {
+    this.freeSpacePatternMap = freeSpacePatternMap;
+    log.debug2("freeSpacePatternMap: {}", freeSpacePatternMap);
   }
 
 }

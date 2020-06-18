@@ -35,6 +35,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
@@ -46,10 +47,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -57,6 +55,9 @@ import java.util.stream.Collectors;
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  /** Label to describe type of VolatileWarcArtifactDataStore */
+  public static String ARTIFACT_DATASTORE_TYPE = "In-Memory";
 
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
 
@@ -94,8 +95,22 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void initAu(String collectionId, String auid) {
-    // NOP
+  public List<Path> initAu(String collectionId, String auid) throws IOException {
+    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    List<Path> auPaths = auPathsMap.get(key);
+
+    if (auPaths == null) {
+      auPaths = new ArrayList<>();
+      auPaths.add(initAuDir(collectionId, auid));
+      auPathsMap.put(key, auPaths);
+    }
+
+    return auPaths;
+  }
+
+  @Override
+  protected Path initAuDir(String collectionId, String auid) throws IOException {
+    return getAuPath(getBasePaths()[0], collectionId, auid);
   }
 
   @Override
@@ -134,15 +149,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   // FIXME: This is ugly.
   protected long getFreeSpace(Runtime runtime, Path fsPath) {
     return runtime.freeMemory();
-  }
-
-  @Override
-  public Path getAuActiveWarcPath(String collectionId, String auid) throws IOException {
-    Path[] warcPaths = getAuActiveWarcPaths(collectionId, auid);
-
-    // Return a random active WARC for the AU since memory is one resource
-    return warcPaths.length > 0 ?
-        warcPaths[new Random().nextInt(warcPaths.length)] : initAuActiveWarc(collectionId, auid);
   }
 
   @Override
@@ -219,6 +225,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public StorageInfo getStorageInfo() {
-    return new StorageInfo("memory");
+    return StorageInfo.fromRuntime().setType(ARTIFACT_DATASTORE_TYPE);
   }
 }

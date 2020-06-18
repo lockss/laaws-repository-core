@@ -34,6 +34,7 @@ import org.apache.commons.io.FileUtils;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.os.PlatformUtil;
@@ -52,6 +53,9 @@ import java.util.stream.Collectors;
  */
 public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  /** Label to describe type of LocalWarcArtifactDataStore */
+  public static String ARTIFACT_DATASTORE_TYPE = "Posix";
 
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_KB * 4;
 
@@ -115,6 +119,20 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
   }
 
+
+  /**
+   * Only used to enable testing!
+   *
+   */
+  // FIXME
+  protected void clearAuMaps() {
+    log.debug("Cleared internal AU maps");
+
+    // Reset maps
+    auPathsMap = new HashMap<>();
+    auActiveWarcsMap = new HashMap<>();
+  }
+
   // *******************************************************************************************************************
   // * ABSTRACT METHOD IMPLEMENTATION
   // *******************************************************************************************************************
@@ -132,20 +150,84 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public void initCollection(String collectionId) throws IOException {
     mkdirs(getCollectionPaths(collectionId));
-    mkdirs(getCollectionTmpWarcsPaths(collectionId));
   }
 
+  /**
+   * Local filesystems implementation of {@link org.lockss.laaws.rs.io.storage.ArtifactDataStore#initAu(String, String)}.
+   * <p>
+   * Initializes an AU by reloading any existing directories of this AU or creates a new one if initializing this AU
+   * for the first time.
+   *
+   * @param collectionId A {@code String} containing the collection ID of this AU.
+   * @param auid
+   * @return
+   * @throws IOException
+   */
   @Override
-  public void initAu(String collectionId, String auid) throws IOException {
-    // Initialize collection on each filesystem
+  public List<Path> initAu(String collectionId, String auid) throws IOException {
+    //// Initialize collection on each filesystem
+
     initCollection(collectionId);
 
-    // Iterate over AU's paths on each filesystem and create AU directory structure
-    for (Path auBasePath : getAuPaths(collectionId, auid)) {
-      mkdirs(auBasePath);
-//      mkdirs(auBasePath.resolve("artifacts"));
-//      mkdirs(auBasePath.resolve("journals"));
+    //// Reload any existing AU base paths
+
+    // Get base paths of the repository
+    Path[] baseDirs = getBasePaths();
+
+    if (baseDirs == null || baseDirs.length < 1) {
+      throw new IllegalStateException("Null or empty baseDirs");
     }
+
+    // Find existing base directories of this AU
+    List<Path> auPathsFound = Arrays.stream(baseDirs)
+        .map(basePath -> getAuPath(basePath, collectionId, auid))
+        .filter(auPath -> auPath.toFile().isDirectory())
+        .collect(Collectors.toList());
+
+    if (auPathsFound.isEmpty()) {
+      // No existing directories for this AU: Initialize a new AU directory
+      auPathsFound.add(initAuDir(collectionId, auid));
+    }
+
+    // Track AU directories in internal AU paths map
+    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    auPathsMap.put(key, auPathsFound);
+
+    return auPathsFound;
+  }
+
+  /**
+   * Creates a new AU base directory on the repository base directory having the most free space. No-op if the directory
+   * already exists on disk.
+   *
+   * @param collectionId A {@link String} containing the collection ID containing the AU
+   * @param auid         A {@link String} containing the AUID of the AU.
+   * @return A {@link Path} containing the path to the AU base directory.
+   * @throws IOException
+   */
+  @Override
+  protected Path initAuDir(String collectionId, String auid) throws IOException {
+    Path[] basePaths = getBasePaths();
+
+    if (basePaths == null || basePaths.length < 1) {
+      throw new IllegalStateException("Data store is misconfigured");
+    }
+
+    // Determine which base path to use based on current available space
+    Path basePath = Arrays.stream(basePaths)
+        .sorted((a, b) -> (int) (getFreeSpace(b.getParent()) - getFreeSpace(a.getParent())))
+        .findFirst()
+        .get();
+
+    // Generate an AU path under this base path and create it on disk
+    Path auPath = getAuPath(basePath, collectionId, auid);
+
+    // Create the AU directory if necessary
+    if (!auPath.toFile().isDirectory()) {
+      mkdirs(auPath);
+    }
+
+    return auPath;
   }
 
   /**
@@ -271,26 +353,50 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   public StorageInfo getStorageInfo() {
     try {
       // Build a StorageInfo
-      StorageInfo sum = new StorageInfo("local");
-      List<String> mnts = new ArrayList<>();
+      StorageInfo sum = new StorageInfo(ARTIFACT_DATASTORE_TYPE);
+      Map<String,PlatformUtil.DF> mnts = new LinkedHashMap<>(); 
+      List<StorageInfo> basePathSis = new ArrayList<>();
+      PlatformUtil putil = PlatformUtil.getInstance();
 
-      // Compute sum of DFs
+      // Report the sum of the DF for each distinct mount point, include as
+      // components all the base paths (even if they're have the same mount
+      // point, as it's handy for testing)
       for (Path basePath : getBasePaths()) {
-        PlatformUtil.DF df = PlatformUtil.getInstance().getDF(basePath.toString());
-
+        PlatformUtil.DF df = putil.getDF(basePath.toString());
         if (df != null) {
-          mnts.add(df.getMnt());
-          sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
-          sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
-          sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
-        }
+          mnts.put(df.getMnt(), df);
+	  StorageInfo si = StorageInfo.fromDF(df);
+	  si.setPath(basePath.toString());
+	  basePathSis.add(si);
+	}
+      }
+      PlatformUtil.DF oneDF = null;
+      // Compute sum of DFs
+      for (PlatformUtil.DF df : mnts.values()) {
+	oneDF = df;
+	sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
+	sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
+	sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
       }
 
       // Set one-time StorageInfo fields
-      sum.setName(String.join(",", mnts));
-      sum.setPercentUsed(sum.getUsed() / sum.getSize());
-      sum.setPercentUsedString(String.valueOf(Math.round(sum.getPercentUsed())) + "%");
-
+      sum.setName(String.join(",", mnts.keySet()));
+      if (mnts.size() == 1) {
+	// If only one, use percentages returns by DF
+	sum.setPercentUsed(oneDF.getPercent());
+	sum.setPercentUsedString(oneDF.getPercentString());
+      } else {
+	// Compute percent used as 1.0 - avail / size, as some FSs have a
+	// "full" threshold that's lower than the total size
+	sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
+	sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
+							   sum.getPercentUsed())) + "%");
+      }
+      if (basePathSis.size() > 1) {
+	sum.setComponents(basePathSis);
+      } else {
+	sum.setPath(basePathSis.get(0).getPath());
+      }
       // Return the sum
       return sum;
 

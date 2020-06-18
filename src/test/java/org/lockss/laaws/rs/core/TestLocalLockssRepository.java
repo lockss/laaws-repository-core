@@ -32,6 +32,8 @@ package org.lockss.laaws.rs.core;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.index.*;
+import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -75,8 +77,9 @@ public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     log.debug("repoinfo: {}", ri);
     StorageInfo ind = ri.getIndexInfo();
     StorageInfo sto = ri.getStoreInfo();
-    assertEquals("memory", ind.getType());
-    assertEquals("local", sto.getType());
+    assertEquals(VolatileArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
+    assertEquals(LocalWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
+		 sto.getType());
     assertTrue(sto.getSize() > 0);
     assertFalse(sto.isSameDevice(ind));
   }

@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
+import org.lockss.util.storage.StorageInfo;
 
 import java.io.*;
 import java.net.URL;
@@ -146,5 +147,16 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   public void testWaitReady() throws Exception {
     removeSolrCollection();
     super.testWaitReady();
+  }
+
+  //  @Test
+  // XXX This gets
+//   java.lang.ClassCastException: org.apache.solr.client.solrj.embedded.EmbeddedSolrServer cannot be cast to org.apache.solr.client.solrj.impl.HttpSolrClient
+// 	at org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex.getStorageInfo(SolrArtifactIndex.java:157)
+  public void testStorageInfo() throws Exception {
+    StorageInfo si = index.getStorageInfo();
+    log.debug("storeinfo: {}", si);
+    assertEquals(SolrArtifactIndex.ARTIFACT_INDEX_TYPE, si.getType());
+    assertTrue(si.getSize() > 0);
   }
 }

@@ -40,6 +40,8 @@ import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
@@ -71,14 +73,15 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     void initCollection(String collectionId) throws IOException;
 
     /**
-     * Initializes an Archival Unit (AU) storage structure in an artifact data store implementation.
+     * Initializes an Archival Unit (AU) storage structure in an artifact data store implementation. Returns the AU's
+     * initialized paths in storage or initializes a new one if none exist.
      *
-     * @param collectionId
-     *          A {@code String} containing the collection ID of this AU.
-     * @param auid
-     *          A {@code String} containing the AU ID of the AU to initialize.
+     * @param collectionId A {@link String} containing the collection ID of this AU.
+     * @param auid A {@link String} containing the AU ID of the AU to initialize.
+     * @return A {@link List<Path>} containing all the initialized paths of the AU.
+     * @throws IOException
      */
-    void initAu(String collectionId, String auid) throws IOException;
+    List<Path> initAu(String collectionId, String auid) throws IOException;
 
     /**
      * Adds an artifact to this artifact store.
