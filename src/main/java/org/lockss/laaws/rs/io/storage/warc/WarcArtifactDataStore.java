@@ -1369,11 +1369,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public Artifact addArtifactData(ArtifactData artifactData) throws IOException {
     if (artifactData == null) {
-      throw new IllegalArgumentException("Null artifactData");
-    }
-
-    if (basePaths.length == 0) {
-      throw new IllegalStateException("No base paths configured in data store");
+      throw new IllegalArgumentException("Null artifact data");
     }
 
     if (basePaths.length <= 0) {

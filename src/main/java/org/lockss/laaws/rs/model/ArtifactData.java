@@ -392,7 +392,6 @@ public class ArtifactData implements Comparable<ArtifactData> {
     return sw.toString();
   }
 
-
   /**
    * Finalizer.
    */

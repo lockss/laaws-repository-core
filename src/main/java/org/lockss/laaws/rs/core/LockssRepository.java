@@ -129,7 +129,15 @@ public interface LockssRepository extends Ready {
                                String artifactId)
       throws IOException;
 
-  // FIXME: Use non-Spring HttpHeaders?
+  /**
+   * Returns the headers of an artifact.
+   *
+   * @param collection The collection ID of the artifact.
+   * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+   * @return A {@link HttpHeaders} containing the artifact's headers.
+   * @throws IOException
+   */
+  // Q: Use non-Spring HttpHeaders?
   HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException;
 
   /**
