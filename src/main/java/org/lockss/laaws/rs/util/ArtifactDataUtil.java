@@ -42,6 +42,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -91,23 +92,21 @@ public class ArtifactDataUtil {
         // Create an InputStreamEntity from artifact InputStream
         response.setEntity(new InputStreamEntity(artifactData.getInputStream()));
 
-        // Merge artifact metadata into HTTP response header
+        // Add artifact headers into HTTP response
         if (artifactData.getMetadata() != null) {
-            artifactData.getMetadata().forEach((headerName, headerValues) -> {
-                headerValues.forEach((headerValue) -> {
-                            response.setHeader(headerName, headerValue);
-                        }
-                );
-            });
+
+            ArrayList<Header> headers = new ArrayList<>();
+
+            // Compile a list of headers
+            artifactData.getMetadata().forEach((headerName, headerValues) ->
+                headerValues.forEach((headerValue) ->
+                    headers.add(new BasicHeader(headerName, headerValue))
+                    // TODO : response.addHeader();
+            ));
+
+            // Add headers to response
+            response.setHeaders(headers.toArray(new Header[0]));
         }
-
-//        response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(artifactData.getContentLength()));
-
-        // Embed artifact identifier into header if set - cannot use reponse.setHeaders() because it will replace the
-        // current set of headers entirely
-//        for (Header header : ArtifactDataUtil.getArtifactIdentifierHeaders(id)) {
-//            response.setHeader(header);
-//        }
 
         return response;
     }
