@@ -260,6 +260,7 @@ public class RestLockssRepository implements LockssRepository {
               HttpMethod.POST,
               multipartEntity,
               String.class, "addArtifact");
+
       checkStatusOk(response);
 
       ObjectMapper mapper = new ObjectMapper();
@@ -308,20 +309,20 @@ public class RestLockssRepository implements LockssRepository {
    *
    * @param collection         A {@code String} containing the collection ID.
    * @param artifactId         A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
-   * @param includeInputStream true to request the content be made available, false if the
+   * @param includeContent     {@code true} to request the content be made available, {@code} false if the
    *                           content isn't needed
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String collection, String artifactId, boolean includeInputStream)
+  public ArtifactData getArtifactData(String collection, String artifactId, boolean includeContent)
       throws IOException {
 
     if ((collection == null) || (artifactId == null)) {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeInputStream);
+    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeContent);
 
     if (cached != null) {
       return cached;
@@ -594,8 +595,7 @@ public class RestLockssRepository implements LockssRepository {
       checkStatusOk(response);
 
       HttpHeaders headers = response.getHeaders();
-      String committedValue =
-          headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
+      String committedValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
 
       if (committedValue == null) {
         String msg = String.format("Remote repository did not return %s header for artifact (Collection: %s, Artifact: %s)",
