@@ -36,6 +36,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpException;
+import org.apache.http.ProtocolVersion;
+import org.apache.http.StatusLine;
+import org.apache.http.message.BasicStatusLine;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -49,6 +52,8 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.*;
 import org.lockss.util.rest.*;
 import org.lockss.util.rest.exception.*;
+import org.lockss.util.rest.multipart.MimeMultipartHttpMessageConverter;
+import org.lockss.util.rest.multipart.MultipartResponse;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 import org.lockss.util.time.Deadline;
@@ -67,6 +72,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import javax.jms.*;
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMultipart;
 
 /**
  * REST client implementation of the LOCKSS Repository API; makes REST
@@ -329,22 +336,78 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     try {
-      ResponseEntity<Resource> response = RestUtil.callRestService(
+      // Build the artifact endpoint
+      UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(collection, artifactId));
+
+      if (!includeContent) {
+        // includeContent defaults to true
+        builder.queryParam("includeContent", false);
+      }
+
+      URI artifactEndpoint = builder.build().encode().toUri();
+
+      // Add the multipart/form-data converter
+      List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
+      messageConverters.add(new MimeMultipartHttpMessageConverter());
+
+//      restTemplate.setMessageConverters(Collections.singletonList(new MimeMultipartHttpMessageConverter()));
+//      restTemplate.setInterceptors(Collections.singletonList(new RequestResponseLoggingInterceptor()));
+
+      HttpHeaders requestHeaders = getInitializedHttpHeaders();
+      requestHeaders.setAccept(Arrays.asList(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
+
+      // Make the request to the REST service and get its response
+      ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
-          artifactEndpoint(collection, artifactId),
+          artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
-          Resource.class,
-          "getArtifactData"
+          new HttpEntity<>(null, requestHeaders),
+          MimeMultipart.class,
+          "RestLockssRepository#getArtifactData"
       );
 
       checkStatusOk(response);
 
-      // TODO: Is response.getBody.getInputStream() backed by memory?
-      // Or over a threshold, is it backed by disk?
-      ArtifactData res = ArtifactDataFactory.fromTransportResponseEntity(response);
+      // Parse get parts from multipart response
+      MultipartResponse multipartResponse = new MultipartResponse(response);
+      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
 
-      if (res != null) {    // possible?
+      // Q: Is Part#getInputStream() backed by memory? Or over a threshold, is it backed by disk?
+      MultipartResponse.Part contentPart = parts.get("artifact-content");
+
+      // Convert Map<String, String> to HttpHeaders
+      HttpHeaders contentPartHeaders = new HttpHeaders();
+      contentPart.getHeaders().forEach((k,v) -> contentPartHeaders.add(k,v));
+
+      StatusLine responseStatus = new BasicStatusLine(
+          new ProtocolVersion("HTTP", 1, 1),
+          200,
+          "OK"
+      );
+
+      // Get artifact header part
+      MultipartResponse.Part headerPart = parts.get("artifact-header");
+
+      // Parse map into HttpHeaders object
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      HttpHeaders headers = new HttpHeaders();
+      headers.setAll(mapper.readValue(headerPart.getInputStream(), Map.class));
+
+      log.trace("headers = {}", headers);
+
+      ArtifactData res = new ArtifactData(
+          ArtifactDataFactory.buildArtifactIdentifier(contentPart.getHeaders()),
+          headers,
+          contentPart.getInputStream(),
+          responseStatus
+      );
+
+      res.setContentLength(contentPartHeaders.getContentLength());
+      res.setContentDigest(contentPartHeaders.get(ArtifactConstants.ARTIFACT_DIGEST_KEY).get(0));
+
+      // Add to artifact data cache
+      if (res != null) {    // Q: possible?
         artCache.putArtifactData(collection, artifactId, res);
       }
 
@@ -358,6 +421,10 @@ public class RestLockssRepository implements LockssRepository {
     } catch (LockssRestException e) {
       log.error("Could not get artifact data", e);
       throw e;
+
+    } catch (MessagingException e) {
+      log.error("Multipart response processing error", e);
+      throw new IOException("Multipart response processing error");
     }
   }
 
