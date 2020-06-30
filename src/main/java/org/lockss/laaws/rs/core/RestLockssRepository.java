@@ -613,14 +613,15 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     try {
-      ResponseEntity<Void> response =
-          RestUtil.callRestService(restTemplate,
-              artifactEndpoint(collection, artifactId),
-              HttpMethod.HEAD,
-              new HttpEntity<>(null,
-                  getInitializedHttpHeaders()),
-              Void.class,
-              "artifactExists");
+      ResponseEntity<Void> response = RestUtil.callRestService(
+          restTemplate,
+          artifactHeadersEndpoint(collection, artifactId),
+          HttpMethod.HEAD,
+          new HttpEntity<>(null, getInitializedHttpHeaders()),
+          Void.class,
+          "artifactExists"
+      );
+
       checkStatusOk(response);
       return true;
     } catch (LockssRestHttpException e) {
@@ -651,14 +652,15 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     try {
-      ResponseEntity<Void> response =
-          RestUtil.callRestService(restTemplate,
-              artifactEndpoint(collection, artifactId),
-              HttpMethod.HEAD,
-              new HttpEntity<>(null,
-                  getInitializedHttpHeaders()),
-              Void.class,
-              "isArtifactCommitted");
+      ResponseEntity<Void> response = RestUtil.callRestService(
+          restTemplate,
+          artifactHeadersEndpoint(collection, artifactId),
+          HttpMethod.HEAD,
+          new HttpEntity<>(null, getInitializedHttpHeaders()),
+          Void.class,
+          "isArtifactCommitted"
+      );
+
       checkStatusOk(response);
 
       HttpHeaders headers = response.getHeaders();
