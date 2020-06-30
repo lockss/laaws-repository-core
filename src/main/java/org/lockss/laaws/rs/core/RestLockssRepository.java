@@ -239,7 +239,7 @@ public class RestLockssRepository implements LockssRepository {
       // Add artifact multipart to multiparts list. The name of the part
       // must be "file" because that is what the Swagger-generated code
       // specifies.
-      parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
+      parts.add("content", new HttpEntity<>(artifactPartResource, contentPartHeaders));
     } catch (HttpException e) {
       String errMsg = String.format("Error generating HTTP response stream from artifact data: %s", e);
       log.error(errMsg);
