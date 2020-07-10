@@ -174,7 +174,7 @@ public class ArtifactDataFactory {
    * @param headers An {@code HttpHeaders} object representing HTTP headers containing an artifact identity.
    * @return An {@code ArtifactIdentifier}.
    */
-  private static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
+  public static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
     Integer version = -1;
 
     String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACT_VERSION_KEY);
@@ -218,6 +218,7 @@ public class ArtifactDataFactory {
     );
   }
 
+  @Deprecated
   public static ArtifactIdentifier buildArtifactIdentifier(Map<String, String> headers) {
     log.trace("headers = {}", headers);
 

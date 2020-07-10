@@ -378,10 +378,6 @@ public class RestLockssRepository implements LockssRepository {
       // Q: Is Part#getInputStream() backed by memory? Or over a threshold, is it backed by disk?
       MultipartResponse.Part contentPart = parts.get("artifact-content");
 
-      // Convert Map<String, String> to HttpHeaders
-      HttpHeaders contentPartHeaders = new HttpHeaders();
-      contentPart.getHeaders().forEach((k,v) -> contentPartHeaders.add(k,v));
-
       StatusLine responseStatus = new BasicStatusLine(
           new ProtocolVersion("HTTP", 1, 1),
           200,
@@ -404,6 +400,9 @@ public class RestLockssRepository implements LockssRepository {
           contentPart.getInputStream(),
           responseStatus
       );
+
+      // Get content part headers
+      HttpHeaders contentPartHeaders = contentPart.getHeaders();
 
       // Set artifact's state from request headers in content part
       res.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(contentPartHeaders));
