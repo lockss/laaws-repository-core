@@ -411,7 +411,7 @@ public class ArtifactDataFactory {
     return ad;
   }
 
-  private static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
+  public static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
     return new RepositoryArtifactMetadata(
         buildArtifactIdentifier(headers),
         headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED).equalsIgnoreCase(String.valueOf(true)),

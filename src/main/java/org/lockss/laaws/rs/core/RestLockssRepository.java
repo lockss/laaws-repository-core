@@ -405,6 +405,9 @@ public class RestLockssRepository implements LockssRepository {
           responseStatus
       );
 
+      // Set artifact's state from request headers in content part
+      res.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(contentPartHeaders));
+
       res.setContentLength(contentPartHeaders.getContentLength());
       res.setContentDigest(contentPartHeaders.get(ArtifactConstants.ARTIFACT_DIGEST_KEY).get(0));
 
