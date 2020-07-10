@@ -343,13 +343,13 @@ public class RestLockssRepository implements LockssRepository {
       UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(collection, artifactId));
 
       if (!includeContent) {
-        // includeContent defaults to true
+        // REST query argument includeContent defaults to true so it is only necessary to specify if false
         builder.queryParam("includeContent", false);
       }
 
       URI artifactEndpoint = builder.build().encode().toUri();
 
-      // Add the multipart/form-data converter
+      // Add the multipart/form-data converter to the RestTemplate
       List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
       messageConverters.add(new MimeMultipartHttpMessageConverter());
 
@@ -391,7 +391,7 @@ public class RestLockssRepository implements LockssRepository {
       // Get artifact header part
       MultipartResponse.Part headerPart = parts.get("artifact-header");
 
-      // Parse map into HttpHeaders object
+      // Parse header part body into HttpHeaders object
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
       HttpHeaders headers = mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
