@@ -39,24 +39,25 @@ import org.apache.http.HttpException;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactPageInfo;
-import org.lockss.laaws.rs.model.RepositoryInfo;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.jms.*;
-import org.lockss.util.rest.*;
-import org.lockss.util.rest.exception.*;
+import org.lockss.util.jms.JmsConsumer;
+import org.lockss.util.jms.JmsFactory;
+import org.lockss.util.jms.JmsProducer;
+import org.lockss.util.jms.JmsUtil;
+import org.lockss.util.rest.RestUtil;
+import org.lockss.util.rest.exception.LockssRestException;
+import org.lockss.util.rest.exception.LockssRestHttpException;
+import org.lockss.util.rest.exception.LockssRestInvalidResponseException;
 import org.lockss.util.rest.multipart.MimeMultipartHttpMessageConverter;
 import org.lockss.util.rest.multipart.MultipartResponse;
+import org.lockss.util.time.Deadline;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
-import org.lockss.util.time.Deadline;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -66,14 +67,16 @@ import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.*;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.MessageListener;
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMultipart;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import javax.jms.*;
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMultipart;
 
 /**
  * REST client implementation of the LOCKSS Repository API; makes REST
@@ -391,8 +394,7 @@ public class RestLockssRepository implements LockssRepository {
       // Parse map into HttpHeaders object
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      HttpHeaders headers = new HttpHeaders();
-      headers.setAll(mapper.readValue(headerPart.getInputStream(), Map.class));
+      HttpHeaders headers = mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
 
       log.trace("headers = {}", headers);
 
