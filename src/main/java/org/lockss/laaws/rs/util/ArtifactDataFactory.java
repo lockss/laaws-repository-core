@@ -30,9 +30,14 @@
 
 package org.lockss.laaws.rs.util;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
-import org.apache.http.impl.io.*;
+import org.apache.http.impl.io.DefaultHttpResponseParser;
+import org.apache.http.impl.io.HttpTransportMetricsImpl;
+import org.apache.http.impl.io.IdentityInputStream;
+import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
@@ -41,11 +46,13 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
-import org.springframework.core.io.Resource;
+import org.lockss.util.rest.multipart.MultipartResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMultipart;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -54,6 +61,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -400,23 +408,71 @@ public class ArtifactDataFactory {
     return null;
   }
 
-  public static ArtifactData fromTransportResponseEntity(ResponseEntity<Resource> response) throws IOException {
-    ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getBody().getInputStream());
+  public static ArtifactData fromTransportResponseEntity(ResponseEntity<MimeMultipart> response) throws IOException {
+    try {
+      // Parse get parts from multipart response
+      MultipartResponse multipartResponse = new MultipartResponse(response);
+      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
 
-    ad.setIdentifier(buildArtifactIdentifier(response.getHeaders()));
-    ad.setRepositoryMetadata(buildRepositoryMetadata(response.getHeaders()));
-    ad.setContentLength(Long.valueOf(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
-    ad.setContentDigest(response.getHeaders().getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
-//        ad.setStorageUrl();
+      // Get artifact header part
+      MultipartResponse.Part headerPart = parts.get("artifact-header");
 
-    return ad;
+      // Parse header part body into HttpHeaders object
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      HttpHeaders headers = mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
+
+      log.trace("headers = {}", headers);
+
+      // Get artifact content part
+      MultipartResponse.Part contentPart = parts.get("artifact-content");
+
+      ArtifactData result = null;
+
+      if (contentPart != null) {
+        // Parse content part body as an HTTP response stream
+        result = ArtifactDataFactory.fromHttpResponseStream(contentPart.getInputStream());
+      } else {
+        result = new ArtifactData(
+            ArtifactDataFactory.buildArtifactIdentifier(headerPart.getHeaders()),
+            headers,
+            contentPart != null ? contentPart.getInputStream() : null,
+            null
+        );
+      }
+
+      // Get header part headers
+      HttpHeaders headerPartHeaders = headerPart.getHeaders();
+
+      result.setIdentifier(ArtifactDataFactory.buildArtifactIdentifier(headerPartHeaders));
+
+      // Set artifact's state from headers in header part
+      result.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(headerPartHeaders));
+
+      result.setContentLength(headerPartHeaders.getContentLength());
+      result.setContentDigest(headerPartHeaders.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+
+      return result;
+
+    } catch (MessagingException e) {
+      log.error("Error processing multipart response");
+      throw new IOException("Error processing multipart response");
+    }
   }
 
-  public static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
+  private static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
     return new RepositoryArtifactMetadata(
         buildArtifactIdentifier(headers),
-        headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED).equalsIgnoreCase(String.valueOf(true)),
-        headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED).equalsIgnoreCase(String.valueOf(true))
+        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
+        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
     );
+  }
+
+  private static boolean getBooleanHeaderValue(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Header value is null");
+    }
+
+    return value.equalsIgnoreCase(String.valueOf(true));
   }
 }

@@ -356,44 +356,7 @@ public class RestLockssRepository implements LockssRepository {
 
       checkStatusOk(response);
 
-      // Parse get parts from multipart response
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
-
-      // Q: Is Part#getInputStream() backed by memory? Or over a threshold, is it backed by disk?
-      MultipartResponse.Part contentPart = parts.get("artifact-content");
-
-      StatusLine responseStatus = new BasicStatusLine(
-          new ProtocolVersion("HTTP", 1, 1),
-          200,
-          "OK"
-      );
-
-      // Get artifact header part
-      MultipartResponse.Part headerPart = parts.get("artifact-header");
-
-      // Parse header part body into HttpHeaders object
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      HttpHeaders headers = mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
-
-      log.trace("headers = {}", headers);
-
-      ArtifactData res = new ArtifactData(
-          ArtifactDataFactory.buildArtifactIdentifier(contentPart.getHeaders()),
-          headers,
-          contentPart.getInputStream(),
-          responseStatus
-      );
-
-      // Get content part headers
-      HttpHeaders contentPartHeaders = contentPart.getHeaders();
-
-      // Set artifact's state from request headers in content part
-      res.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(contentPartHeaders));
-
-      res.setContentLength(contentPartHeaders.getContentLength());
-      res.setContentDigest(contentPartHeaders.get(ArtifactConstants.ARTIFACT_DIGEST_KEY).get(0));
+      ArtifactData res = ArtifactDataFactory.fromTransportResponseEntity(response);
 
       // Add to artifact data cache
       if (res != null) {    // Q: possible?
@@ -410,10 +373,6 @@ public class RestLockssRepository implements LockssRepository {
     } catch (LockssRestException e) {
       log.error("Could not get artifact data", e);
       throw e;
-
-    } catch (MessagingException e) {
-      log.error("Multipart response processing error", e);
-      throw new IOException("Multipart response processing error");
     }
   }
 
