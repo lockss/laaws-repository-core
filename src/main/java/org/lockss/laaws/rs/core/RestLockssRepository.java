@@ -234,25 +234,14 @@ public class RestLockssRepository implements LockssRepository {
     contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
 
     // Prepare artifact multipart body
-    try {
-      Resource artifactPartResource =
-          new NamedInputStreamResource("content",
-              ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
+    Resource artifactPartResource =
+        new NamedInputStreamResource("content",
+            ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
 
-      // Add artifact multipart to multiparts list. The name of the part
-      // must be "file" because that is what the Swagger-generated code
-      // specifies.
-      parts.add("content", new HttpEntity<>(artifactPartResource, contentPartHeaders));
-    } catch (HttpException e) {
-      String errMsg = String.format("Error generating HTTP response stream from artifact data: %s", e);
-      log.error(errMsg);
-      throw new IOException(errMsg);
-    }
-
-    // TODO: Create an attach optional artifact aspects
-//        parts.add("aspectsParts", new NamedByteArrayResource("aspect1", "metadata bytes1".getBytes()));
-//        parts.add("aspectsParts", new NamedByteArrayResource("aspect2", "metadata bytes2".getBytes()));
-//        parts.add("aspectsParts", new NamedByteArrayResource("aspect3", "metadata bytes3".getBytes()));
+    // Add artifact multipart to multiparts list. The name of the part
+    // must be "file" because that is what the Swagger-generated code
+    // specifies.
+    parts.add("content", new HttpEntity<>(artifactPartResource, contentPartHeaders));
 
     // POST body entity
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
