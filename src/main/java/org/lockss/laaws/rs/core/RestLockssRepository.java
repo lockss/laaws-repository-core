@@ -148,6 +148,10 @@ public class RestLockssRepository implements LockssRepository {
       }
     });
 
+    // Add the multipart/form-data converter to the RestTemplate
+    List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
+    messageConverters.add(new MimeMultipartHttpMessageConverter());
+
     // Set the buffer to false for streaming - still needed?
     //SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
     //factory.setBufferRequestBody(false);
@@ -338,22 +342,12 @@ public class RestLockssRepository implements LockssRepository {
 
       URI artifactEndpoint = builder.build().encode().toUri();
 
-      // Add the multipart/form-data converter to the RestTemplate
-      List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
-      messageConverters.add(new MimeMultipartHttpMessageConverter());
-
-//      restTemplate.setMessageConverters(Collections.singletonList(new MimeMultipartHttpMessageConverter()));
-//      restTemplate.setInterceptors(Collections.singletonList(new RequestResponseLoggingInterceptor()));
-
-      HttpHeaders requestHeaders = getInitializedHttpHeaders();
-      requestHeaders.setAccept(Arrays.asList(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
-
       // Make the request to the REST service and get its response
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, requestHeaders),
+          new HttpEntity<>(null, getInitializedHttpHeaders()),
           MimeMultipart.class,
           "RestLockssRepository#getArtifactData"
       );
