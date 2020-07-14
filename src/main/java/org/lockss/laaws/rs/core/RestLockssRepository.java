@@ -337,15 +337,7 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     try {
-      // Build the artifact endpoint
-      UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(collection, artifactId));
-
-      if (!includeContent) {
-        // REST query argument includeContent defaults to true so it is only necessary to specify if false
-        builder.queryParam("includeContent", false);
-      }
-
-      URI artifactEndpoint = builder.build().encode().toUri();
+      URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
       // Make the request to the REST service and get its response
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
