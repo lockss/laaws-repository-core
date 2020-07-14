@@ -87,6 +87,9 @@ public class RestLockssRepository implements LockssRepository {
   public static final int DEFAULT_MAX_ART_CACHE_SIZE = 500;
   public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE = 20;
 
+  public static final String MULTIPART_ARTIFACT_HEADER = "artifact-header";
+  public static final String MULTIPART_ARTIFACT_CONTENT = "artifact-content";
+
   private RestTemplate restTemplate;
   private URL repositoryUrl;
 
@@ -615,7 +618,7 @@ public class RestLockssRepository implements LockssRepository {
       LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
 
       // Get artifact header part from multipart response
-      MultipartResponse.Part headerPart = parts.get("artifact-header");
+      MultipartResponse.Part headerPart = parts.get(MULTIPART_ARTIFACT_HEADER);
       String committedHeaderValue = headerPart.getHeaders().getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
 
       if (committedHeaderValue == null) {

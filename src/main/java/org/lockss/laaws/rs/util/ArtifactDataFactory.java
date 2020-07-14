@@ -42,6 +42,7 @@ import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
@@ -415,7 +416,7 @@ public class ArtifactDataFactory {
       LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
 
       // Get artifact header part
-      MultipartResponse.Part headerPart = parts.get("artifact-header");
+      MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
 
       // Parse header part body into HttpHeaders object
       ObjectMapper mapper = new ObjectMapper();
@@ -425,7 +426,7 @@ public class ArtifactDataFactory {
       log.trace("headers = {}", headers);
 
       // Get artifact content part
-      MultipartResponse.Part contentPart = parts.get("artifact-content");
+      MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
 
       ArtifactData result = null;
 
