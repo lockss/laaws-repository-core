@@ -72,55 +72,63 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public static String ARTIFACT_INDEX_TYPE = "Solr";
 
   // TODO: Currently only used for getStorageInfo()
-  private static final Pattern SOLR_COLLECTION_PATTERN = Pattern.compile("/solr(/(?<collection>[^/]+)?)?$");
+  private static final Pattern SOLR_COLLECTION_ENDPOINT_PATTERN = Pattern.compile("/solr(/(?<collection>[^/]+)?)?$");
   private String solrCollection = DEFAULT_COLLECTION_NAME;
 
   private SolrClient solrClient;
   private boolean isInternalClient;
 
   /**
-   * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
+   * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr collection endpoint.
    *
    * @param solrBaseUrl A {@link String} containing the URL to a Solr collection or core.
    */
   public SolrArtifactIndex(String solrBaseUrl) {
-    // Determine Solr collection/core name from base URL
+    this(solrBaseUrl, null);
+  }
+
+  /**
+   * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr base URL and Solr
+   * collection or core name.
+   *
+   * @param solrBaseUrl A {@link String} containing the Solr base URL.
+   * @param collection @ {@link String} containing the name of the Solr collection to use.
+   */
+  public SolrArtifactIndex(String solrBaseUrl, String collection) {
+    // Convert provided Solr base URL to URI object
     URI baseUrl = URI.create(solrBaseUrl);
-    String endpoint = baseUrl.normalize().getPath();
-    Matcher m = SOLR_COLLECTION_PATTERN.matcher(endpoint);
 
-    if (m.find()) {
-      // Yes: Get the name of the core from the match results
-      solrCollection = m.group("collection");
+    // Set Solr collection to use
+    this.solrCollection = collection;
 
-      // Collection/core name must not be null
-      if (solrCollection == null) {
-        log.error("Solr collection or core not specified in Solr base URL");
-        throw new IllegalArgumentException("Solr collection or core not specified in Solr base URL");
+    // Determine Solr collection/core name from base URL if collection is null or empty
+    if (solrCollection == null || solrCollection.isEmpty()) {
+      String restEndpoint = baseUrl.normalize().getPath();
+      Matcher m = SOLR_COLLECTION_ENDPOINT_PATTERN.matcher(restEndpoint);
+
+      if (m.find()) {
+        // Yes: Get the name of the core from the match results
+        solrCollection = m.group("collection");
+
+        // Q: I don't think the regex allows these possibilities?
+        if (collection == null || collection.isEmpty()) {
+          log.error("Solr collection not specified explicitly or in the Solr base URL");
+          throw new IllegalArgumentException("Missing Solr collection name");
+        }
+      } else {
+        // No: Did not match expected pattern
+        log.error("Unexpected Solr base URL [solrBaseUrl: {}]", solrBaseUrl);
+        throw new IllegalArgumentException("Unexpected Solr base URL");
       }
-    } else {
-      // No: Did not match expected pattern
-      log.error("Unexpected Solr base URL [solrBaseUrl: {}]", solrBaseUrl);
-      throw new IllegalArgumentException("Unexpected Solr base URL");
     }
 
+    // Resolve Solr base REST endpoint
     URI solrUrl = baseUrl.resolve("/solr");
 
     // Build a HttpSolrClient instance using the base URL
     this.solrClient = new HttpSolrClient.Builder()
         .withBaseSolrUrl(solrUrl.toString())
         .build();
-
-    this.isInternalClient = true;
-  }
-
-  public SolrArtifactIndex(String solrBaseUrl, String collection) {
-    // Build a HttpSolrClient instance using the base URL
-    this.solrClient = new HttpSolrClient.Builder()
-        .withBaseSolrUrl(solrBaseUrl)
-        .build();
-
-    this.solrCollection = collection;
 
     this.isInternalClient = true;
   }
