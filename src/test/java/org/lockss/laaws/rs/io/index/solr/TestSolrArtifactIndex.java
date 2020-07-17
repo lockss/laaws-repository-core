@@ -149,10 +149,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     super.testWaitReady();
   }
 
-  //  @Test
-  // XXX This gets
-//   java.lang.ClassCastException: org.apache.solr.client.solrj.embedded.EmbeddedSolrServer cannot be cast to org.apache.solr.client.solrj.impl.HttpSolrClient
-// 	at org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex.getStorageInfo(SolrArtifactIndex.java:157)
+  @Test
   public void testStorageInfo() throws Exception {
     StorageInfo si = index.getStorageInfo();
     log.debug("storeinfo: {}", si);

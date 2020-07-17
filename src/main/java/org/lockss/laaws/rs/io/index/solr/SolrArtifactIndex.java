@@ -167,7 +167,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();
       MetricsResponse.CoreMetricsResponse res = req.process(solrClient);
 
-      ((HttpSolrClient)solrClient).getBaseURL();
       MetricsResponse.CoreMetrics metrics = res.getCoreMetrics(solrCollection);
 
       // Populate StorageInfo from Solr core metrics
