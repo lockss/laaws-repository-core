@@ -113,7 +113,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     // TODO May be faster to use one EmbeddedSolrServer from @BeforeAll then call client.getCoreContainer().reload(...);
     client = new EmbeddedSolrServer(tmpSolrHome.toPath(), TEST_SOLR_CORE_NAME);
 
-    return new SolrArtifactIndex(TEST_SOLR_CORE_NAME, client);
+    return new SolrArtifactIndex(client, TEST_SOLR_CORE_NAME);
   }
 
   @AfterEach

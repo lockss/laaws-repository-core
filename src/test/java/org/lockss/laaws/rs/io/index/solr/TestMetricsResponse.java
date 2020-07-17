@@ -149,7 +149,7 @@ public class TestMetricsResponse extends LockssTestCase5 {
 
     // Q: Should this move to TestSolrArtifactIndex instead?
 
-    SolrArtifactIndex index = new SolrArtifactIndex("lockss-repo", solrClient);
+    SolrArtifactIndex index = new SolrArtifactIndex(solrClient, "lockss-repo");
     StorageInfo info = index.getStorageInfo();
 
     log.trace("StorageInfo = {}", info);

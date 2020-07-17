@@ -115,11 +115,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Constructor taking the name of the Solr core to use and an  {@link SolrClient}.
    *
-   * @param coreName A {@link String} containing name of the Solr core to use.
    * @param solrClient The {@link SolrClient} to perform operations to the Solr core through.
+   * @param collection A {@link String} containing name of the Solr core to use.
    */
-  public SolrArtifactIndex(String coreName, SolrClient solrClient) {
-    this.coreName = coreName;
+  public SolrArtifactIndex(SolrClient solrClient, String collection) {
+    this.solrCollection = collection;
     this.solrClient = solrClient;
     this.isInternalClient = false;
   }
