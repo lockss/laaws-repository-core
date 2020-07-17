@@ -58,6 +58,8 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
   // The Solr query used to obtain artifacts from Solr.
   private final SolrQuery solrQuery;
 
+  private final String solrCollection;
+
   // The internal buffer used to store locally the artifacts provides by Solr.
   private List<Artifact> artifactBuffer = null;
 
@@ -76,8 +78,8 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
    * @param solrClient A SolrClient used to query Solr.
    * @param solrQuery  A SolrQuery used to obtain artifacts from Solr.
    */
-  public SolrQueryArtifactIterator(SolrClient solrClient, SolrQuery solrQuery) {
-    this(solrClient, solrQuery, 10);
+  public SolrQueryArtifactIterator(String collection, SolrClient solrClient, SolrQuery solrQuery) {
+    this(collection, solrClient, solrQuery, 10);
   }
 
   /**
@@ -88,7 +90,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
    * @param batchSize  An int with the number of artifacts to request on each
    *                   Solr query.
    */
-  public SolrQueryArtifactIterator(SolrClient solrClient, SolrQuery solrQuery,
+  public SolrQueryArtifactIterator(String collection, SolrClient solrClient, SolrQuery solrQuery,
       int batchSize) {
     // Validation.
     if (solrClient == null) {
@@ -104,6 +106,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
     }
 
     // Initialization.
+    this.solrCollection = collection;
     this.solrClient = solrClient;
     this.solrQuery = solrQuery;
     artifactBuffer = new ArrayList<>(batchSize);
@@ -187,7 +190,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
 
     // Make the query to Solr.
     QueryResponse response = SolrArtifactIndex.handleSolrResponse(
-	solrClient.query(solrQuery), "Problem performing Solr query");
+	solrClient.query(solrCollection, solrQuery), "Problem performing Solr query");
 
     // Get the position for the next query.
     String nextCursorMark = response.getNextCursorMark();
