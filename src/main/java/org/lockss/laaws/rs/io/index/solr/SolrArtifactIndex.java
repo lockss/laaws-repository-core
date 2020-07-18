@@ -111,7 +111,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         solrCollection = m.group("collection");
 
         // Q: I don't think the regex allows these possibilities?
-        if (collection == null || collection.isEmpty()) {
+        if (solrCollection == null || solrCollection.isEmpty()) {
           log.error("Solr collection not specified explicitly or in the Solr base URL");
           throw new IllegalArgumentException("Missing Solr collection name");
         }
