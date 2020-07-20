@@ -37,10 +37,8 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.response.FacetField;
-import org.apache.solr.client.solrj.response.FieldStatsInfo;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.SolrResponseBase;
+import org.apache.solr.client.solrj.request.SolrPing;
+import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
@@ -62,7 +60,7 @@ import java.util.regex.Pattern;
 public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  private final static String DEFAULT_CORE_NAME = "lockss-repo";
+  private final static String DEFAULT_COLLECTION_NAME = "lockss-repo";
 
   private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
@@ -72,54 +70,75 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public static String ARTIFACT_INDEX_TYPE = "Solr";
 
   // TODO: Currently only used for getStorageInfo()
-  private static final Pattern CORENAME_PATTERN = Pattern.compile("/solr(/(?<core>[^/]+)?)?$");
-  private String coreName = DEFAULT_CORE_NAME;
+  private static final Pattern SOLR_COLLECTION_ENDPOINT_PATTERN = Pattern.compile("/solr(/(?<collection>[^/]+)?)?$");
+  private String solrCollection = DEFAULT_COLLECTION_NAME;
 
   private SolrClient solrClient;
   private boolean isInternalClient;
 
   /**
-   * Constructor. Creates and uses a HttpSolrClient from a Solr collection URL.
+   * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr collection endpoint.
    *
    * @param solrBaseUrl A {@link String} containing the URL to a Solr collection or core.
    */
   public SolrArtifactIndex(String solrBaseUrl) {
-    // Determine Solr collection/core name from base URL
+    this(solrBaseUrl, null);
+  }
+
+  /**
+   * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr base URL and Solr
+   * collection or core name.
+   *
+   * @param solrBaseUrl A {@link String} containing the Solr base URL.
+   * @param collection @ {@link String} containing the name of the Solr collection to use.
+   */
+  public SolrArtifactIndex(String solrBaseUrl, String collection) {
+    // Convert provided Solr base URL to URI object
     URI baseUrl = URI.create(solrBaseUrl);
-    String endpoint = baseUrl.normalize().getPath();
-    Matcher m = CORENAME_PATTERN.matcher(endpoint);
 
-    if (m.find()) {
-      // Yes: Get the name of the core from the match results
-      String core = m.group("core");
+    // Set Solr collection to use
+    this.solrCollection = collection;
 
-      // Core name must not be null
-      if (core == null) {
-        log.error("Solr collection or core not specified in Solr base URL");
-        throw new IllegalArgumentException("Solr collection or core not specified in Solr base URL");
+    // Determine Solr collection/core name from base URL if collection is null or empty
+    if (solrCollection == null || solrCollection.isEmpty()) {
+      String restEndpoint = baseUrl.normalize().getPath();
+      Matcher m = SOLR_COLLECTION_ENDPOINT_PATTERN.matcher(restEndpoint);
+
+      if (m.find()) {
+        // Yes: Get the name of the core from the match results
+        solrCollection = m.group("collection");
+
+        // Q: I don't think the regex allows these possibilities?
+        if (solrCollection == null || solrCollection.isEmpty()) {
+          log.error("Solr collection not specified explicitly or in the Solr base URL");
+          throw new IllegalArgumentException("Missing Solr collection name");
+        }
+      } else {
+        // No: Did not match expected pattern
+        log.error("Unexpected Solr base URL [solrBaseUrl: {}]", solrBaseUrl);
+        throw new IllegalArgumentException("Unexpected Solr base URL");
       }
-
-      // Set core name
-      setCoreName(core);
-    } else {
-      // No: Did not match expected pattern
-      log.error("Unexpected Solr base URL [solrBaseUrl: {}]", solrBaseUrl);
-      throw new IllegalArgumentException("Unexpected Solr base URL");
     }
 
+    // Resolve Solr base REST endpoint
+    URI solrUrl = baseUrl.resolve("/solr");
+
     // Build a HttpSolrClient instance using the base URL
-    this.solrClient = new HttpSolrClient.Builder(solrBaseUrl).build();
+    this.solrClient = new HttpSolrClient.Builder()
+        .withBaseSolrUrl(solrUrl.toString())
+        .build();
+
     this.isInternalClient = true;
   }
 
   /**
    * Constructor taking the name of the Solr core to use and an  {@link SolrClient}.
    *
-   * @param coreName A {@link String} containing name of the Solr core to use.
    * @param solrClient The {@link SolrClient} to perform operations to the Solr core through.
+   * @param collection A {@link String} containing name of the Solr core to use.
    */
-  public SolrArtifactIndex(String coreName, SolrClient solrClient) {
-    this.coreName = coreName;
+  public SolrArtifactIndex(SolrClient solrClient, String collection) {
+    this.solrCollection = collection;
     this.solrClient = solrClient;
     this.isInternalClient = false;
   }
@@ -154,8 +173,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       MetricsRequest.CoreMetricsRequest req = new MetricsRequest.CoreMetricsRequest();
       MetricsResponse.CoreMetricsResponse res = req.process(solrClient);
 
-      ((HttpSolrClient)solrClient).getBaseURL();
-      MetricsResponse.CoreMetrics metrics = res.getCoreMetrics(getCoreName());
+      MetricsResponse.CoreMetrics metrics = res.getCoreMetrics(solrCollection);
 
       // Populate StorageInfo from Solr core metrics
       info.setName(metrics.getIndexDir());
@@ -174,12 +192,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
   }
 
-  public String getCoreName() {
-    return coreName;
+  public String getSolrCollection() {
+    return solrCollection;
   }
 
-  public void setCoreName(String coreName) {
-    this.coreName = coreName;
+  public void setSolrCollection(String collection) {
+    this.solrCollection = collection;
   }
 
   /**
@@ -239,10 +257,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   private boolean checkAlive() {
     try {
-      handleSolrResponse(solrClient.ping(), "Problem pinging Solr");
+      // Cannot use SolrClient#ping() because it assumes the Solr base URL contains the collection name (and therefore
+      // passes a null collection to SolrRequest#process(SolrClient, String)).
+      SolrPingResponse response = new SolrPing().process(solrClient, solrCollection);
+      handleSolrResponse(response, "Problem pinging Solr");
       return true;
     } catch (Exception e) {
-      log.warn("Could not ping Solr: {}", e);
+      log.warn("Could not ping Solr", e);
     }
 
     return false;
@@ -293,9 +314,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Add the Artifact to Solr as a bean
     try {
-      handleSolrResponse(solrClient.addBean(artifact), "Problem adding artifact '"
+      handleSolrResponse(solrClient.addBean(solrCollection, artifact), "Problem adding artifact '"
 	    + artifact + "' to Solr");
-      handleSolrResponse(solrClient.commit(), "Problem committing addition of "
+      handleSolrResponse(solrClient.commit(solrCollection), "Problem committing addition of "
 	    + "artifact '" + artifact + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -331,7 +352,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     try {
       // Submit the Solr query and get results as Artifact objects
       final QueryResponse response =
-	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
+	  handleSolrResponse(solrClient.query(solrCollection, q), "Problem performing Solr query");
       final List<Artifact> artifacts = response.getBeans(Artifact.class);
 
       // Run some checks against the results
@@ -390,9 +411,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       // Update the artifact.
-      handleSolrResponse(solrClient.add(document), "Problem adding document '"
+      handleSolrResponse(solrClient.add(solrCollection, document), "Problem adding document '"
 	  + document + "' to Solr");
-      handleSolrResponse(solrClient.commit(), "Problem committing addition of "
+      handleSolrResponse(solrClient.commit(solrCollection), "Problem committing addition of "
 	  + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -433,9 +454,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     if (artifactExists(artifactId)) {
       // Yes: Artifact found - remove Solr document for this artifact
       try {
-        handleSolrResponse(solrClient.deleteById(artifactId), "Problem deleting "
+        handleSolrResponse(solrClient.deleteById(solrCollection, artifactId), "Problem deleting "
   	  + "artifact '" + artifactId + "' from Solr");
-        handleSolrResponse(solrClient.commit(), "Problem committing deletion of "
+        handleSolrResponse(solrClient.commit(solrCollection), "Problem committing deletion of "
   	  + "artifact '" + artifactId + "' from Solr");
         return true;
       } catch (SolrResponseErrorException | SolrServerException e) {
@@ -499,9 +520,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       // Update the field
-      handleSolrResponse(solrClient.add(document), "Problem adding document '"
+      handleSolrResponse(solrClient.add(solrCollection, document), "Problem adding document '"
 	  + document + "' to Solr");
-      handleSolrResponse(solrClient.commit(), "Problem committing addition of "
+      handleSolrResponse(solrClient.commit(solrCollection), "Problem committing addition of "
 	  + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -527,7 +548,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Return the number of documents our query matched
     QueryResponse result =
-	handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
+	handleSolrResponse(solrClient.query(solrCollection, q), "Problem performing Solr query");
     return result.getResults().getNumFound() == 0;
   }
 
@@ -556,7 +577,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       // Get the facet field from the result
       QueryResponse result =
-  	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
+  	  handleSolrResponse(solrClient.query(solrCollection, q), "Problem performing Solr query");
       FacetField ff = result.getFacetField("collection");
 
       if (log.isDebug2Enabled()) {
@@ -602,7 +623,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       QueryResponse response =
-  	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
+  	  handleSolrResponse(solrClient.query(solrCollection, q), "Problem performing Solr query");
       FacetField ff = response.getFacetField("auid");return IteratorUtils.asIterable(
           ff.getValues().stream()
               .filter(x -> x.getCount() > 0).map(x -> x.getName()).sorted().iterator()
@@ -648,7 +669,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform collapse filter query and return result
     q.addFilterQuery("{!collapse field=uri max=version}");
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -674,7 +695,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -712,7 +733,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform collapse filter query and return result
     q.addFilterQuery("{!collapse field=uri max=version}");
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -736,7 +757,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -762,7 +783,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -785,7 +806,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -806,7 +827,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
 
-    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrClient, q));
+    return IteratorUtils.asIterable(new SolrQueryArtifactIterator(solrCollection, solrClient, q));
   }
 
   /**
@@ -848,7 +869,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform a collapse filter query (must have documents in result set to operate on)
     q.addFilterQuery("{!collapse field=uri max=version}");
-    Iterator<Artifact> result = new SolrQueryArtifactIterator(solrClient, q);
+    Iterator<Artifact> result = new SolrQueryArtifactIterator(solrCollection, solrClient, q);
 
     // Return the latest artifact
     if (result.hasNext()) {
@@ -893,7 +914,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
     q.addFilterQuery(String.format("version:%s", version));
 
-    Iterator<Artifact> result = new SolrQueryArtifactIterator(solrClient, q);
+    Iterator<Artifact> result = new SolrQueryArtifactIterator(solrCollection, solrClient, q);
     if (result.hasNext()) {
       Artifact artifact = result.next();
       if (result.hasNext()) {
@@ -940,7 +961,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     try {
       // Query Solr and get
       QueryResponse response =
-  	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
+  	  handleSolrResponse(solrClient.query(solrCollection, q), "Problem performing Solr query");
       FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
 
       return ((Double) contentLengthStats.getSum()).longValue();
@@ -956,7 +977,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     // Perform query and find the number of documents
     try {
       QueryResponse response =
-	  handleSolrResponse(solrClient.query(q), "Problem performing Solr query");
+	  handleSolrResponse(solrClient.query(solrCollection, q), "Problem performing Solr query");
       return response.getResults().getNumFound() == 0;
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(String.format("Caught SolrServerException attempting to execute Solr query: %s", q));
