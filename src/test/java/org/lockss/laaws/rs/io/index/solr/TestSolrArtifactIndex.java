@@ -113,7 +113,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     // TODO May be faster to use one EmbeddedSolrServer from @BeforeAll then call client.getCoreContainer().reload(...);
     client = new EmbeddedSolrServer(tmpSolrHome.toPath(), TEST_SOLR_CORE_NAME);
 
-    return new SolrArtifactIndex(TEST_SOLR_CORE_NAME, client);
+    return new SolrArtifactIndex(client, TEST_SOLR_CORE_NAME);
   }
 
   @AfterEach
@@ -149,10 +149,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     super.testWaitReady();
   }
 
-  //  @Test
-  // XXX This gets
-//   java.lang.ClassCastException: org.apache.solr.client.solrj.embedded.EmbeddedSolrServer cannot be cast to org.apache.solr.client.solrj.impl.HttpSolrClient
-// 	at org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex.getStorageInfo(SolrArtifactIndex.java:157)
+  @Test
   public void testStorageInfo() throws Exception {
     StorageInfo si = index.getStorageInfo();
     log.debug("storeinfo: {}", si);
