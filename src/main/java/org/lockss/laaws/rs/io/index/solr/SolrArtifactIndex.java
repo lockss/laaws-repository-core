@@ -37,10 +37,8 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.response.FacetField;
-import org.apache.solr.client.solrj.response.FieldStatsInfo;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.client.solrj.response.SolrResponseBase;
+import org.apache.solr.client.solrj.request.SolrPing;
+import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
@@ -259,10 +257,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   private boolean checkAlive() {
     try {
-      handleSolrResponse(solrClient.ping(), "Problem pinging Solr");
+      // Cannot use SolrClient#ping() because it assumes the Solr base URL contains the collection name (and therefore
+      // passes a null collection to SolrRequest#process(SolrClient, String)).
+      SolrPingResponse response = new SolrPing().process(solrClient, solrCollection);
+      handleSolrResponse(response, "Problem pinging Solr");
       return true;
     } catch (Exception e) {
-      log.warn("Could not ping Solr: {}", e);
+      log.warn("Could not ping Solr", e);
     }
 
     return false;
