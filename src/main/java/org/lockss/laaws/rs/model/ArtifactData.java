@@ -67,8 +67,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
 
   // Artifact data stream
   private InputStream artifactStream;
-  private final CountingInputStream cis;
-  private final DigestInputStream dis;
+  private CountingInputStream cis;
+  private DigestInputStream dis;
 
   // The byte stream of this artifact before it is wrapped in the WARC
   // processing code that does not honor close().
@@ -77,6 +77,8 @@ public class ArtifactData implements Comparable<ArtifactData> {
   // Artifact data properties
   private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
   private StatusLine httpStatus;
+  private InputStream origInputStream;
+  private boolean hadAnInputStream = false;
   private long contentLength;
   private String contentDigest;
 
@@ -138,39 +140,14 @@ public class ArtifactData implements Comparable<ArtifactData> {
     this.httpStatus = httpStatus;
     this.storageUrl = storageUrl;
     this.repositoryMetadata = repoMetadata;
+    if (inputStream != null) {
+      this.origInputStream = inputStream;
+      hadAnInputStream = true;
+    }
 
     this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
     setCollectionDate(this.artifactMetadata.getDate());
 
-    // Comment in to log creation point of unused InputStreams
-// 	openTrace = stackTraceString(new Exception("Open"));
-
-    try {
-      // Wrap the stream in a DigestInputStream
-      cis = new CountingInputStream(inputStream);
-      dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
-
-      // Wrap the WARC-aware byte stream of this artifact so that the
-      // underlying stream can be closed.
-      artifactStream = new CloseCallbackInputStream(
-          dis,
-          new CloseCallbackInputStream.Callback() {
-            // Called when the close() method of the stream is closed.
-            @Override
-            public void streamClosed(Object o) {
-              // Release any resources bound to this object.
-              ((ArtifactData) o).release();
-            }
-          },
-          this);
-    } catch (NoSuchAlgorithmException e) {
-      String errMsg = String.format(
-          "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
-      );
-
-      log.error(errMsg);
-      throw new RuntimeException(errMsg);
-    }
   }
 
   /**
@@ -188,7 +165,7 @@ public class ArtifactData implements Comparable<ArtifactData> {
    * @return true if this artifact's byte stream is available
    */
   public boolean hasContentInputStream() {
-    return artifactStream != null;
+    return origInputStream != null;
   }
 
   /**
@@ -197,8 +174,41 @@ public class ArtifactData implements Comparable<ArtifactData> {
    * @return An {@code InputStream} containing this artifact's byte stream.
    */
   public InputStream getInputStream() {
-    if (artifactStream == null) {
-      throw new IllegalStateException("Can't call getInputStream() more than once");
+    // Comment in to log creation point of unused InputStreams
+// 	openTrace = stackTraceString(new Exception("Open"));
+
+    try {
+      // Wrap the stream in a DigestInputStream
+      if (!hadAnInputStream) {
+	throw new IllegalStateException("Attempt to get InputStream from ArtifactData that was created without one");
+      }
+      if (origInputStream == null) {
+	throw new IllegalStateException("Attempt to get InputStream from ArtifactData whose InputStream has been used");
+      }
+      cis = new CountingInputStream(origInputStream);
+      dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
+
+      // Wrap the WARC-aware byte stream of this artifact so that the
+      // underlying stream can be closed.
+      artifactStream = new CloseCallbackInputStream(
+          dis,
+          new CloseCallbackInputStream.Callback() {
+            // Called when the close() method of the stream is closed.
+            @Override
+            public void streamClosed(Object o) {
+              // Release any resources bound to this object.
+              ((ArtifactData) o).release();
+            }
+          },
+          this);
+      origInputStream = null;
+    } catch (NoSuchAlgorithmException e) {
+      String errMsg = String.format(
+          "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
+      );
+
+      log.error(errMsg);
+      throw new RuntimeException(errMsg);
     }
     InputStream res = artifactStream;
     artifactStream = null;
