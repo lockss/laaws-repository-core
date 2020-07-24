@@ -377,7 +377,16 @@ public class RestLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
+    // Retrieve artifact from the artifact cache if cached
+    ArtifactData cached = artCache.getArtifactData(collectionId, artifactId, false);
+
+    if (cached != null) {
+      // Artifact found in cache; return its headers
+      return cached.getMetadata();
+    }
+
     try {
+      // Make REST call to artifact endpoint requesting only headers
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint(collectionId, artifactId, false),
@@ -389,7 +398,27 @@ public class RestLockssRepository implements LockssRepository {
 
       checkStatusOk(response);
 
-      return ArtifactDataFactory.fromTransportResponseEntity(response).getMetadata();
+      // Parse and get parts from multipart response
+      MultipartResponse multipartResponse = new MultipartResponse(response);
+      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
+
+      MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
+      MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
+
+      // If we received a content part anyway (e.g., because it was small enough) don't miss the opportunity to add the
+      // artifact header and content to the cache in case of later retrieval:
+      if (contentPart != null) {
+        ArtifactData ad = ArtifactDataFactory.fromMultipartResponsePart(contentPart);
+        artCache.putArtifactData(collectionId, artifactId, ad);
+        // return ad.getMetadata();
+      }
+
+      // Setup Jackson ObjectMapper and properties
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+      // Parse header part body into HttpHeaders object
+      return mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
 
     } catch (LockssRestHttpException e) {
       log.error("Could not get artifact headers: {}", e.toString());
@@ -399,6 +428,9 @@ public class RestLockssRepository implements LockssRepository {
     } catch (LockssRestException e) {
       log.error("Could not get artifact headers", e);
       throw e;
+    } catch (MessagingException e) {
+      log.error("Error parsing multipart response", e);
+      throw new IOException("Error parsing multipart response");
     }
   }
 

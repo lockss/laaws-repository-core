@@ -409,54 +409,39 @@ public class ArtifactDataFactory {
     return null;
   }
 
+  public static ArtifactData fromMultipartResponsePart(MultipartResponse.Part contentPart) throws IOException {
+    ArtifactData result = null;
+
+    if (contentPart == null) {
+      log.error("Cannot create ArtifactData from null content part");
+      throw new IllegalArgumentException("Null content part");
+    }
+
+    // Parse content part body as an HTTP response stream
+    result = ArtifactDataFactory.fromHttpResponseStream(contentPart.getInputStream());
+
+    // Set artifact properties
+    HttpHeaders contentPartHeaders = contentPart.getHeaders();
+    result.setIdentifier(ArtifactDataFactory.buildArtifactIdentifier(contentPartHeaders));
+    result.setContentLength(contentPartHeaders.getContentLength());
+    result.setContentDigest(contentPartHeaders.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+
+    // Set artifact's state in repository
+    result.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(contentPartHeaders));
+
+    return result;
+  }
+
   public static ArtifactData fromTransportResponseEntity(ResponseEntity<MimeMultipart> response) throws IOException {
     try {
-      // Parse get parts from multipart response
+      // Parse and get parts from multipart response
       MultipartResponse multipartResponse = new MultipartResponse(response);
       LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
 
-      // Get artifact header part
-      MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
-
-      // Parse header part body into HttpHeaders object
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      HttpHeaders headers = mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
-
-      log.trace("headers = {}", headers);
-
-      // Get artifact content part
-      MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
-
-      ArtifactData result = null;
-
-      if (contentPart != null) {
-        // Parse content part body as an HTTP response stream
-        result = ArtifactDataFactory.fromHttpResponseStream(contentPart.getInputStream());
-      } else {
-        result = new ArtifactData(
-            ArtifactDataFactory.buildArtifactIdentifier(headerPart.getHeaders()),
-            headers,
-            contentPart != null ? contentPart.getInputStream() : null,
-            null
-        );
-      }
-
-      // Get header part headers
-      HttpHeaders headerPartHeaders = headerPart.getHeaders();
-
-      result.setIdentifier(ArtifactDataFactory.buildArtifactIdentifier(headerPartHeaders));
-
-      // Set artifact's state from headers in header part
-      result.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(headerPartHeaders));
-
-      result.setContentLength(headerPartHeaders.getContentLength());
-      result.setContentDigest(headerPartHeaders.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
-
-      return result;
-
+      // Assemble ArtifactData object from multipart response parts
+      return fromMultipartResponsePart(parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT));
     } catch (MessagingException e) {
-      log.error("Error processing multipart response");
+      log.error("Error processing multipart response", e);
       throw new IOException("Error processing multipart response");
     }
   }
