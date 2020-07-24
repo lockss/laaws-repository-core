@@ -38,6 +38,7 @@ import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -58,7 +59,7 @@ import java.util.Objects;
  * been called.
  * </ul>
  */
-public class ArtifactData implements Comparable<ArtifactData> {
+public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private final static L4JLogger log = L4JLogger.getLogger();
   public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
@@ -429,6 +430,14 @@ public class ArtifactData implements Comparable<ArtifactData> {
   }
 
   static Stats stats = new Stats();
+
+  @Override
+  public void close() throws IOException {
+    if (hasContentInputStream()) {
+      origInputStream.close();
+      origInputStream = null;
+    }
+  }
 
   public static class Stats {
     private int inputUsed;

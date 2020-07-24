@@ -214,7 +214,9 @@ public class BaseLockssRepository implements LockssRepository,
 
   @Override
   public HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException {
-    return store.getArtifactData(index.getArtifact(artifactId)).getMetadata();
+    try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
+      return ad.getMetadata();
+    }
   }
 
   /**
