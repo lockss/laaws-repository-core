@@ -194,14 +194,6 @@ public interface LockssRepository extends Ready {
       throws IOException;
 
   /**
-   * Checks whether an artifact exists in this LOCKSS repository.
-   *
-   * @param artifactId A {@code String} containing the artifact ID to check.
-   * @return A boolean indicating whether an artifact exists in this repository.
-   */
-  Boolean artifactExists(String collection, String artifactId) throws IOException;
-
-  /**
    * Checks whether an artifact is committed to this LOCKSS repository.
    *
    * @param artifactId A {@code String} containing the artifact ID to check.

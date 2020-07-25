@@ -576,45 +576,6 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   /**
-   * Returns a boolean indicating whether an artifact by an artifact ID exists in this LOCKSS repository.
-   *
-   * @param artifactId A String with the ArtifactData ID of the artifact to check for existence.
-   * @return A boolean indicating whether an artifact exists in this repository.
-   */
-  @Override
-  public Boolean artifactExists(String collection, String artifactId)
-      throws IOException {
-    if ((collection == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null collection id or artifact id");
-    if (StringUtils.isEmpty(artifactId)) {
-      throw new IllegalArgumentException("Null or empty identifier");
-    }
-
-    try {
-      ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
-          restTemplate,
-          artifactEndpoint(collection, artifactId, IncludeContent.NEVER),
-          HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
-          MimeMultipart.class,
-          "artifactExists"
-      );
-
-      checkStatusOk(response);
-      return true;
-    } catch (LockssRestHttpException e) {
-      if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-        return false;
-      }
-      log.error("Could not get artifact data HEAD: {}", artifactId, e);
-      throw e;
-    } catch (LockssRestException e) {
-      log.error("Could not get artifact data HEAD: {}", artifactId, e);
-      throw e;
-    }
-  }
-
-  /**
    * Returns a boolean indicating whether an artifact is committed in this LOCKSS repository.
    *
    * @param artifactId ArtifactData ID of the artifact to check committed status.
