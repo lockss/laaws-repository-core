@@ -629,10 +629,18 @@ public class RestLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null or empty identifier");
     }
 
+    // Retrieve artifact from the artifact cache if cached
+    ArtifactData cached = artCache.getArtifactData(collection, artifactId, false);
+
+    if (cached != null) {
+      // Artifact found in cache; return its headers
+      return cached.getRepositoryMetadata().isCommitted();
+    }
+
     try {
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
-          artifactEndpoint(collection, artifactId, IncludeContent.NEVER),
+          artifactEndpoint(collection, artifactId, IncludeContent.IF_SMALL),
           HttpMethod.GET,
           new HttpEntity<>(null, getInitializedHttpHeaders()),
           MimeMultipart.class,
@@ -641,12 +649,21 @@ public class RestLockssRepository implements LockssRepository {
 
       checkStatusOk(response);
 
-      // Parse get parts from multipart response
+      // Parse and get parts from multipart response
       MultipartResponse multipartResponse = new MultipartResponse(response);
       LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
 
-      // Get artifact header part from multipart response
-      MultipartResponse.Part headerPart = parts.get(MULTIPART_ARTIFACT_HEADER);
+      MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
+      MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
+
+      // If we received a content part anyway (e.g., because it was small enough) don't miss the opportunity to add the
+      // artifact header and content to the cache in case of later retrieval:
+      if (contentPart != null) {
+        ArtifactData ad = ArtifactDataFactory.fromMultipartResponsePart(contentPart);
+        artCache.putArtifactData(collection, artifactId, ad);
+        // return ad.getMetadata();
+      }
+
       String committedHeaderValue = headerPart.getHeaders().getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
 
       if (committedHeaderValue == null) {
