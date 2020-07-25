@@ -42,7 +42,6 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -95,17 +94,11 @@ public class ArtifactDataUtil {
         // Add artifact headers into HTTP response
         if (artifactData.getMetadata() != null) {
 
-            ArrayList<Header> headers = new ArrayList<>();
-
             // Compile a list of headers
             artifactData.getMetadata().forEach((headerName, headerValues) ->
                 headerValues.forEach((headerValue) ->
-                    headers.add(new BasicHeader(headerName, headerValue))
-                    // TODO : response.addHeader();
+                    response.addHeader(headerName, headerValue)
             ));
-
-            // Add headers to response
-            response.setHeaders(headers.toArray(new Header[0]));
         }
 
         return response;
