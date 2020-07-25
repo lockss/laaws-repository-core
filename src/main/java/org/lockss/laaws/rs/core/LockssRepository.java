@@ -30,7 +30,6 @@
 
 package org.lockss.laaws.rs.core;
 
-import com.sun.research.ws.wadl.Include;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryInfo;
