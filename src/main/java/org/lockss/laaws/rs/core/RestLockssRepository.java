@@ -164,7 +164,7 @@ public class RestLockssRepository implements LockssRepository {
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
   private URI artifactEndpoint(String collection, String artifactId) {
-    return this.artifactEndpoint(collection, artifactId, true);
+    return this.artifactEndpoint(collection, artifactId, IncludeContent.ALWAYS);
   }
 
   /**
@@ -172,17 +172,17 @@ public class RestLockssRepository implements LockssRepository {
    *
    * @param collection A {@code String} containing the collection ID.
    * @param artifactId A {@code String} containing the artifact ID.
-   * @param includeContent A {@code boolean} indicating whether the server should include the artifact content part in
-   *                       its multipart response.
+   * @param includeContent An {@link IncludeContent} indicating whether the artifact content part can or should be
+   *                       included in the multipart response. Default is {@link IncludeContent#ALWAYS}.
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
-  private URI artifactEndpoint(String collection, String artifactId, boolean includeContent) {
+  private URI artifactEndpoint(String collection, String artifactId, IncludeContent includeContent) {
     String endpoint = String.format("%s/collections/%s/artifacts/%s", repositoryUrl, collection, artifactId);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-    if (includeContent == false) {
-      // includeContent defaults to true in the REST API
-      builder.queryParam("includeContent", false);
+    if (includeContent != IncludeContent.ALWAYS) {
+      // includeContent defaults to ALWAYS in the REST API
+      builder.queryParam("includeContent", includeContent);
     }
 
     return builder.build().encode().toUri();
@@ -309,7 +309,7 @@ public class RestLockssRepository implements LockssRepository {
   @Override
   public ArtifactData getArtifactData(String collection, String artifactId)
       throws IOException {
-    return getArtifactData(collection, artifactId, true);
+    return getArtifactData(collection, artifactId, IncludeContent.ALWAYS);
   }
 
   /**
@@ -317,20 +317,24 @@ public class RestLockssRepository implements LockssRepository {
    *
    * @param collection         A {@code String} containing the collection ID.
    * @param artifactId         A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
-   * @param includeContent     {@code true} to request the content be made available, {@code} false if the
-   *                           content isn't needed
+   * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
+   *                       {@link ArtifactData} returned by this method.
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String collection, String artifactId, boolean includeContent)
+  public ArtifactData getArtifactData(String collection, String artifactId, IncludeContent includeContent)
       throws IOException {
 
     if ((collection == null) || (artifactId == null)) {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeContent);
+    // Q: Is this okay? I think so - we aren't opening a new InputStream
+    boolean includeCachedContent =
+        (includeContent == IncludeContent.IF_SMALL ||  includeContent == IncludeContent.ALWAYS);
+
+    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeCachedContent);
 
     if (cached != null) {
       return cached;
@@ -389,7 +393,7 @@ public class RestLockssRepository implements LockssRepository {
       // Make REST call to artifact endpoint requesting only headers
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
-          artifactEndpoint(collectionId, artifactId, false),
+          artifactEndpoint(collectionId, artifactId, IncludeContent.IF_SMALL),
           HttpMethod.GET,
           new HttpEntity<>(null, getInitializedHttpHeaders()),
           MimeMultipart.class,
@@ -589,7 +593,7 @@ public class RestLockssRepository implements LockssRepository {
     try {
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
-          artifactEndpoint(collection, artifactId, false),
+          artifactEndpoint(collection, artifactId, IncludeContent.NEVER),
           HttpMethod.GET,
           new HttpEntity<>(null, getInitializedHttpHeaders()),
           MimeMultipart.class,
@@ -628,7 +632,7 @@ public class RestLockssRepository implements LockssRepository {
     try {
       ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
           restTemplate,
-          artifactEndpoint(collection, artifactId, false),
+          artifactEndpoint(collection, artifactId, IncludeContent.NEVER),
           HttpMethod.GET,
           new HttpEntity<>(null, getInitializedHttpHeaders()),
           MimeMultipart.class,

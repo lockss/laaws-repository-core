@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import com.sun.research.ws.wadl.Include;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.RepositoryInfo;
@@ -47,6 +48,17 @@ import java.util.concurrent.TimeoutException;
  * This is the interface of the abstract LOCKSS repository service.
  */
 public interface LockssRepository extends Ready {
+
+  /**
+   * NEVER: Artifact content should never be included. The client does not want it, period.
+   * IF_SMALL: Include the artifact content if the artifact is small enough.
+   * ALWAYS: Artifact content must be included.
+   */
+  enum IncludeContent {
+    NEVER,
+    IF_SMALL,
+    ALWAYS
+  }
 
   default void initRepository() throws IOException {
     // NOP
@@ -84,16 +96,16 @@ public interface LockssRepository extends Ready {
    * org.lockss.laaws.rs.model.ArtifactData})
    *
    * @param artifact           An artifact to retrieve from this repository.
-   * @param includeInputStream true to request the content be made available, false if the
-   *                           content isn't needed
+   * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
+   *                       {@link ArtifactData} returned by this method.
    * @return The {@code ArtifactData} referenced by this artifact.
    * @throws IOException
    */
   default ArtifactData getArtifactData(Artifact artifact,
-                                       boolean includeInputStream)
+                                       IncludeContent includeContent)
       throws IOException {
     return getArtifactData(artifact.getCollection(), artifact.getId(),
-        includeInputStream);
+        includeContent);
   }
 
   /**
@@ -103,14 +115,14 @@ public interface LockssRepository extends Ready {
    *
    * @param collection         The collection ID of the artifact.
    * @param artifactId         A {@code String} with the artifact ID of the artifact to retrieve from this repository.
-   * @param includeInputStream true to request the content be made available, false if the
-   *                           content isn't needed
+   * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
+   *                       {@link ArtifactData} returned by this method.
    * @return The {@code ArtifactData} referenced by this artifact ID.
    * @throws IOException
    */
   default ArtifactData getArtifactData(String collection,
                                        String artifactId,
-                                       boolean includeInputStream)
+                                       IncludeContent includeContent)
       throws IOException {
     return getArtifactData(collection, artifactId);
   }
