@@ -141,9 +141,11 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     this.httpStatus = httpStatus;
     this.storageUrl = storageUrl;
     this.repositoryMetadata = repoMetadata;
+    stats.totalAllocated++;
     if (inputStream != null) {
       this.origInputStream = inputStream;
       hadAnInputStream = true;
+      stats.withContent++;
     }
 
     this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
@@ -410,18 +412,21 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   protected void finalize() throws Throwable {
     if (!isReleased) {
       stats.unreleased++;
+      IOUtils.closeQuietly(closableInputStream);
       updateStats();
     }
     super.finalize();
   }
 
   private void updateStats() {
-    if (artifactStream == null) {
-      stats.inputUsed++;
-    } else {
-      stats.inputUnused++;
-      log.debug2("Unused InputStream: {}, opened at {}",
-          getIdentifier(), openTrace);
+    if (hadAnInputStream) {
+      if (origInputStream == null) {
+	stats.inputUsed++;
+      } else {
+	stats.inputUnused++;
+	log.debug2("Unused InputStream: {}, opened at {}",
+		   getIdentifier(), openTrace);
+      }
     }
   }
 
@@ -440,19 +445,29 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   public static class Stats {
-    private int inputUsed;
-    private int inputUnused;
-    private int unreleased;
+    private volatile long totalAllocated;
+    private volatile long withContent;;
+    private volatile long inputUsed;
+    private volatile long inputUnused;
+    private volatile long unreleased;
 
-    public int getInputUsed() {
+    public long getTotalAllocated() {
+      return totalAllocated;
+    }
+
+    public long getWithContent() {
+      return withContent;
+    }
+
+    public long getInputUsed() {
       return inputUsed;
     }
 
-    public int getInputUnused() {
+    public long getInputUnused() {
       return inputUnused;
     }
 
-    public int getUnreleased() {
+    public long getUnreleased() {
       return unreleased;
     }
   }
