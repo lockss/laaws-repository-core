@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
+import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.time.TimeBase;
@@ -154,6 +155,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
     setCollectionDate(this.artifactMetadata.getDate());
 
+    setContentLength(this.artifactMetadata.getContentLength());
+    setContentDigest(this.artifactMetadata.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
   }
 
   /**

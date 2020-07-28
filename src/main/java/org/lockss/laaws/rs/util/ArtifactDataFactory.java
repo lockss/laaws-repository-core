@@ -47,7 +47,7 @@ import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.rest.multipart.MultipartResponse;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -415,41 +415,17 @@ public class ArtifactDataFactory {
     return null;
   }
 
-  public static ArtifactData fromMultipartResponsePart(MultipartResponse.Part contentPart) throws IOException {
-    ArtifactData result = null;
 
-    if (contentPart == null) {
-      log.error("Cannot create ArtifactData from null content part");
-      throw new IllegalArgumentException("Null content part");
-    }
+  public static ArtifactData fromTransportResponseEntity(ResponseEntity<Resource> response) throws IOException {
+    ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getBody().getInputStream());
 
-    // Parse content part body as an HTTP response stream
-    result = ArtifactDataFactory.fromHttpResponseStream(contentPart.getInputStream());
+    ad.setIdentifier(buildArtifactIdentifier(ad.getMetadata()));
+    ad.setRepositoryMetadata(buildRepositoryMetadata(ad.getMetadata()));
+    ad.setContentLength(Long.valueOf(ad.getMetadata().getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+    ad.setContentDigest(ad.getMetadata().getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+//        ad.setStorageUrl();
 
-    // Set artifact properties
-    HttpHeaders contentPartHeaders = contentPart.getHeaders();
-    result.setIdentifier(ArtifactDataFactory.buildArtifactIdentifier(contentPartHeaders));
-    result.setContentLength(contentPartHeaders.getContentLength());
-    result.setContentDigest(contentPartHeaders.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
-
-    // Set artifact's state in repository
-    result.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(contentPartHeaders));
-
-    return result;
-  }
-
-  public static ArtifactData fromTransportResponseEntity(ResponseEntity<MimeMultipart> response) throws IOException {
-    try {
-      // Parse and get parts from multipart response
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
-
-      // Assemble ArtifactData object from multipart response parts
-      return fromMultipartResponsePart(parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT));
-    } catch (MessagingException e) {
-      log.error("Error processing multipart response", e);
-      throw new IOException("Error processing multipart response");
-    }
+    return ad;
   }
 
   private static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {

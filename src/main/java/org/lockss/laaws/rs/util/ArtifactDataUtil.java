@@ -30,20 +30,17 @@
 
 package org.lockss.laaws.rs.util;
 
-import org.apache.http.Header;
-import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
+import org.apache.http.*;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.*;
-import org.apache.http.message.BasicHeader;
+import org.apache.http.io.SessionOutputBuffer;
 import org.apache.http.message.BasicHttpResponse;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
+import org.springframework.http.HttpHeaders;
 
 import java.io.*;
-import java.util.Collection;
-import java.util.HashSet;
 
 /**
  * Common utilities and adapters for LOCKSS repository ArtifactData objects.
@@ -62,13 +59,29 @@ public class ArtifactDataUtil {
      * @throws HttpException
      */
     public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData) throws IOException {
-        InputStream httpResponse = getHttpResponseStreamFromHttpResponse(
-                getHttpResponseFromArtifactData(artifactData)
-        );
+      return getHttpResponseStreamFromArtifactData(artifactData, true);
+    }
 
-        artifactData.setContentLength(artifactData.getBytesRead());
+    /**
+     * Transforms an {@link ArtifactData} and returns an {@link InputStream} containing an HTTP response stream
+     * serialization of the artifact.
+     *
+     * @param artifactData
+     *          An {@code ArtifactData} to to transform.
+     * @return An {@code InputStream} containing an HTTP response stream representation of the artifact.
+     * @throws IOException
+     * @throws HttpException
+     */
+    public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData,
+                                                                    boolean includeContent) throws IOException {
 
-        return httpResponse;
+        // Transform ArtifactData object to HttpResponse object
+        HttpResponse httpResponse = getHttpResponseFromArtifactData(artifactData, includeContent);
+
+        // Transform HttpResponse object to InputStream containing HTTP response
+        InputStream httpResponseStream = getHttpResponseStreamFromHttpResponse(httpResponse);
+
+        return httpResponseStream;
     }
 
 
@@ -85,22 +98,78 @@ public class ArtifactDataUtil {
      * @throws IOException
      */
     public static HttpResponse getHttpResponseFromArtifactData(ArtifactData artifactData) {
-        // Craft a new HTTP response object representation from the artifact
+        return getHttpResponseFromArtifactData(artifactData, true);
+    }
+
+    public static HttpResponse getHttpResponseFromArtifactData(ArtifactData artifactData, boolean includeContent) {
+        // Craft a new HTTP response object using the artifact's HTTP status
         BasicHttpResponse response = new BasicHttpResponse(artifactData.getHttpStatus());
 
-        // Create an InputStreamEntity from artifact InputStream
-        response.setEntity(new InputStreamEntity(artifactData.getInputStream()));
+        // Get artifact headers
+        HttpHeaders headers = artifactData.getMetadata();
 
         // Add artifact headers into HTTP response
         if (artifactData.getMetadata() != null) {
             // Compile a list of headers
-            artifactData.getMetadata().forEach((headerName, headerValues) ->
+            headers.forEach((headerName, headerValues) ->
                 headerValues.forEach((headerValue) ->
                     response.addHeader(headerName, headerValue)
+                )
+            );
+        }
+
+        // Add repository headers
+        getArtifactRepositoryHeaders(artifactData).forEach((headerName, headerValues) ->
+            headerValues.forEach((headerValue) ->
+                response.setHeader(headerName, headerValue)
+            )
+        );
+
+        // Set the response entity (body) if we're to include the content and the artifact has content
+        if (includeContent && artifactData.hasContentInputStream()) {
+            response.setEntity(new InputStreamEntity(
+                artifactData.getInputStream(),
+                artifactData.getContentLength()
+//                , ContentType.create(headers.getContentType().getType(), Consts.UTF_8)
             ));
         }
 
         return response;
+    }
+
+    private static HttpHeaders getArtifactRepositoryHeaders(ArtifactData ad) {
+        HttpHeaders headers = new HttpHeaders();
+
+        // Add artifact repository ID headers
+        ArtifactIdentifier id = ad.getIdentifier();
+        headers.set(ArtifactConstants.ARTIFACT_ID_KEY, id.getId());
+        headers.set(ArtifactConstants.ARTIFACT_COLLECTION_KEY, id.getCollection());
+        headers.set(ArtifactConstants.ARTIFACT_AUID_KEY, id.getAuid());
+        headers.set(ArtifactConstants.ARTIFACT_URI_KEY, id.getUri());
+        headers.set(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
+
+        // Add artifact's repository state headers
+        if (ad.getRepositoryMetadata() != null) {
+            headers.set(
+                ArtifactConstants.ARTIFACT_STATE_COMMITTED,
+                String.valueOf(ad.getRepositoryMetadata().getCommitted())
+            );
+
+            // FIXME: I don't think this is ever false externally
+            headers.set(
+                ArtifactConstants.ARTIFACT_STATE_DELETED,
+                String.valueOf(ad.getRepositoryMetadata().getDeleted())
+            );
+        }
+
+        // Add artifact
+        headers.set(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
+        headers.set(ArtifactConstants.ARTIFACT_DIGEST_KEY, ad.getContentDigest());
+
+        // Content-Length header defaults to artifact length but it may be overwritten if IncludeContent.NEVER
+        headers.setContentLength(ad.getContentLength());
+
+        return headers;
     }
 
     /**
@@ -111,9 +180,11 @@ public class ArtifactDataUtil {
      *          An {@code ArtifactData} whose {@code ArtifactIdentifier} will be adapted.
      * @return An {@code Header[]} representing the {@code ArtifactData}'s {@code ArtifactIdentifier}.
      */
+    /*
     private static Header[] getArtifactIdentifierHeaders(ArtifactData artifact) {
         return getArtifactIdentifierHeaders(artifact.getIdentifier());
     }
+    */
 
     /**
      * Adapter that takes an {@code ArtifactIdentifier} and returns an array of Apache Header objects representing the
@@ -123,6 +194,7 @@ public class ArtifactDataUtil {
      *          An {@code ArtifactIdentifier} to adapt.
      * @return A {@code Header[]} representing the {@code ArtifactIdentifier}.
      */
+    /*
     private static Header[] getArtifactIdentifierHeaders(ArtifactIdentifier id) {
         Collection<Header> headers = new HashSet<>();
         headers.add(new BasicHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY, id.getCollection()));
@@ -132,6 +204,7 @@ public class ArtifactDataUtil {
 
         return headers.toArray(new Header[headers.size()]);
     }
+    */
 
     /**
      * Adapts an {@code HttpResponse} object to an InputStream containing a HTTP response stream representation of the
@@ -183,12 +256,14 @@ public class ArtifactDataUtil {
      * @throws IOException
      * @throws HttpException
      */
+    /*
     public static void writeHttpResponseStream(ArtifactData artifactData, OutputStream output) throws IOException {
         writeHttpResponse(
-                getHttpResponseFromArtifactData(artifactData),
+                getHttpResponseFromArtifactData(artifactData, true),
                 output
         );
     }
+    */
 
     /**
      * Writes a HTTP response stream of an Apache {@link HttpResponse} to an {@link OutputStream}.
@@ -206,16 +281,22 @@ public class ArtifactDataUtil {
 
         // Write the response HTTP status and headers
         writeHttpResponseHeader(response, outputBuffer);
-        outputBuffer.flush();
-        response.getEntity().writeTo(output);
-        output.flush();
+
+        // Get response body entity
+        HttpEntity entity = response.getEntity();
+
+        // Write the response body if we have an entity
+        if (entity != null) {
+            entity.writeTo(output);
+            output.flush();
+        }
     }
 
     /**
      * Writes an Apache {@link HttpResponse} object's HTTP status and headers to an Apache {@link SessionOutputBuffer}.
      *
      * @param response
-     *          A {@code HttpResponse} whose HTTP status and headers will be written to the {@code OutputStream}.
+     *          A {@link HttpResponse} whose HTTP status and headers will be written to the {@link OutputStream}.
      * @param outputBuffer
      *          The {@link SessionOutputBuffer} to write to.
      * @throws IOException
@@ -225,6 +306,7 @@ public class ArtifactDataUtil {
             // Write the HTTP response status and headers to the output buffer
             DefaultHttpResponseWriter responseWriter = new DefaultHttpResponseWriter(outputBuffer);
             responseWriter.write(response);
+            outputBuffer.flush();
         } catch (HttpException e) {
             log.error("Caught HttpException while attempting to write the headers of an HttpResponse using DefaultHttpResponseWriter");
             throw new IOException(e);
