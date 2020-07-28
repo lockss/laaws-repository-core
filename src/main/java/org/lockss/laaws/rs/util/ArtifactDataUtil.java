@@ -73,10 +73,10 @@ public class ArtifactDataUtil {
 
 
     /**
-     * Adapter that takes an {@code ArtifactData} and returns an Apache {@code HttpResponse} object representation of
+     * Adapter that takes an {@link ArtifactData} and returns an Apache {@link HttpResponse} object representation of
      * the artifact.
      *
-     * This is effectively the inverse operation of {@code ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
+     * This is the inverse of {@link ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
      *
      * @param artifactData
      *          An {@code ArtifactData} to to transform to an HttpResponse object.
@@ -93,7 +93,6 @@ public class ArtifactDataUtil {
 
         // Add artifact headers into HTTP response
         if (artifactData.getMetadata() != null) {
-
             // Compile a list of headers
             artifactData.getMetadata().forEach((headerName, headerValues) ->
                 headerValues.forEach((headerValue) ->
@@ -151,6 +150,13 @@ public class ArtifactDataUtil {
         );
     }
 
+    /**
+     * Transforms the headers of an {@link HttpResponse} object into a byte array.
+     *
+     * @param response
+     * @return
+     * @throws IOException
+     */
     public static byte[] getHttpResponseHeader(HttpResponse response) throws IOException {
         ByteArrayOutputStream headerStream = new ByteArrayOutputStream();
 
@@ -185,19 +191,20 @@ public class ArtifactDataUtil {
     }
 
     /**
-     * Writes a HTTP response stream representation of a {@code HttpResponse} to an {@code OutputStream}.
+     * Writes a HTTP response stream of an Apache {@link HttpResponse} to an {@link OutputStream}.
+     *
      * @param response
-     *          A {@code HttpResponse} to convert to an HTTP response stream and write to the {@code OutputStream}.
+     *          An {@link HttpResponse} to convert to an HTTP response stream and write to the {@code OutputStream}.
      * @param output
-     *          The {@code OutputStream} to write to.
+     *          The {@link OutputStream} to write to.
      * @throws IOException
      */
     public static void writeHttpResponse(HttpResponse response, OutputStream output) throws IOException {
-        // Create a new SessionOutputBuffer from the OutputStream
+        // Create a new SessionOutputBuffer and bind the OutputStream to it
         SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
         outputBuffer.bind(output);
 
-        // Re-construct the response
+        // Write the response HTTP status and headers
         writeHttpResponseHeader(response, outputBuffer);
         outputBuffer.flush();
         response.getEntity().writeTo(output);
@@ -205,16 +212,17 @@ public class ArtifactDataUtil {
     }
 
     /**
-     * Writes a {@code HttpResponse} object's HTTP status and headers to an {@code OutputStream}.
+     * Writes an Apache {@link HttpResponse} object's HTTP status and headers to an Apache {@link SessionOutputBuffer}.
+     *
      * @param response
      *          A {@code HttpResponse} whose HTTP status and headers will be written to the {@code OutputStream}.
      * @param outputBuffer
-     *          The {@code OutputStream} to write to.
+     *          The {@link SessionOutputBuffer} to write to.
      * @throws IOException
      */
     public static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
         try {
-            // Write the HTTP response header
+            // Write the HTTP response status and headers to the output buffer
             DefaultHttpResponseWriter responseWriter = new DefaultHttpResponseWriter(outputBuffer);
             responseWriter.write(response);
         } catch (HttpException e) {

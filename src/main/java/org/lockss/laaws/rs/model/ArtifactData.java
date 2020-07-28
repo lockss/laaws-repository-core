@@ -137,11 +137,13 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
                       StatusLine httpStatus,
                       URI storageUrl,
                       RepositoryArtifactMetadata repoMetadata) {
+
     this.identifier = identifier;
     this.httpStatus = httpStatus;
     this.storageUrl = storageUrl;
     this.repositoryMetadata = repoMetadata;
     stats.totalAllocated++;
+
     if (inputStream != null) {
       this.origInputStream = inputStream;
       hadAnInputStream = true;
@@ -149,6 +151,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     }
 
     this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+
     setCollectionDate(this.artifactMetadata.getDate());
 
   }

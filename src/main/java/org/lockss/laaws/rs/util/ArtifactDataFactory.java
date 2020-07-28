@@ -78,7 +78,7 @@ public class ArtifactDataFactory {
   /**
    * Instantiates an {@code ArtifactData} from an {@code InputStream} containing the byte stream of an HTTP response.
    *
-   * @param responseStream An {@code InputStream} containing an HTTP response byte stream which in turn encodes an artifact.
+   * @param responseStream An {@link InputStream} containing an HTTP response byte stream which in turn encodes an artifact.
    * @return An {@code ArtifactData} representing the artifact encoded in an HTTP response input stream.
    * @throws IOException
    */
@@ -91,12 +91,13 @@ public class ArtifactDataFactory {
   }
 
   /**
-   * Instantiates an {@code ArtifactData} from an {@code InputStream} containing the byte stream of an HTTP response.
+   * Instantiates an {@link ArtifactData} from an {@link InputStream} containing the byte stream of an HTTP response.
    * <p>
    * Allows additional HTTP headers to be injected by passing a {@code HttpHeaders}.
    *
-   * @param additionalMetadata A {@code HttpHeader} with additional headers.
-   * @param responseStream     An {@code InputStream} containing an HTTP response byte stream which in turn encodes an artifact.
+   * @param additionalMetadata A {@link HttpHeaders} with additional headers.
+   * @param responseStream     An {@link InputStream} containing an HTTP response byte stream which in turn encodes an
+   *                           artifact.
    * @return An {@code ArtifactData} representing the artifact encoded in an HTTP response input stream.
    * @throws IOException
    */
@@ -128,7 +129,7 @@ public class ArtifactDataFactory {
   /**
    * Adapts an {@code InputStream} with an HTTP response into an Apache {@code HttpResponse} object.
    *
-   * @param inputStream An {@code InputStream} containing an HTTP response to parse.
+   * @param inputStream An {@link InputStream} containing an HTTP response to parse.
    * @return A {@code HttpResponse} representing the HTTP response in the {@code InputStream}.
    * @throws HttpException
    * @throws IOException
@@ -152,10 +153,12 @@ public class ArtifactDataFactory {
   }
 
   /**
-   * Instantiates an {@code ArtifactData} from a Apache {@code HttpResponse} object.
+   * Transforms an Apache {@link HttpResponse} object to an {@link ArtifactData} object.
    *
-   * @param response A {@code HttpResponse} object containing an artifact.
-   * @return An {@code ArtifactData} representing the artifact encoded in the {@code HttpResponse} object.
+   * Also see {@link ArtifactDataUtil#getHttpResponseFromArtifactData(ArtifactData, boolean)}.
+   *
+   * @param response A {@link HttpResponse} object containing an artifact.
+   * @return An {@link ArtifactData} representing the artifact in the {@link HttpResponse} object.
    * @throws IOException
    */
   public static ArtifactData fromHttpResponse(HttpResponse response) throws IOException {
@@ -163,8 +166,10 @@ public class ArtifactDataFactory {
       throw new IllegalArgumentException("HttpResponse is null");
     }
 
+    // Transform Apache Header[] array to Spring HttpHeaders object
     HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
+    // Assemble ArtifactData
     ArtifactData artifactData = new ArtifactData(
         buildArtifactIdentifier(headers),
         headers,
@@ -172,16 +177,14 @@ public class ArtifactDataFactory {
         response.getStatusLine()
     );
 
-//        artifactData.setContentLength(response.getEntity().getContentLength());
-
     return artifactData;
   }
 
   /**
-   * Instantiates an {@code ArtifactIdentifier} from HTTP headers in a {@code HttpHeaders} object.
+   * Instantiates an {@link ArtifactIdentifier} from HTTP headers in a {@link HttpHeaders} object.
    *
-   * @param headers An {@code HttpHeaders} object representing HTTP headers containing an artifact identity.
-   * @return An {@code ArtifactIdentifier}.
+   * @param headers An {@link HttpHeaders} object representing HTTP headers containing an artifact identity.
+   * @return An {@link ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
     Integer version = -1;
@@ -202,10 +205,10 @@ public class ArtifactDataFactory {
   }
 
   /**
-   * Instantiates an {@code ArtifactIdentifier} from headers in a ARC / WARC {@code ArchiveRecordHeader} object.
+   * Instantiates an {@link ArtifactIdentifier} from headers in a ARC / WARC {@link ArchiveRecordHeader} object.
    *
-   * @param headers An {@code ArchiveRecordHeader} ARC / WARC header containing an artifact identity.
-   * @return An {@code ArtifactIdentifier}.
+   * @param headers An {@link ArchiveRecordHeader} ARC / WARC header containing an artifact identity.
+   * @return An {@link ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
     Integer version = -1;
@@ -272,14 +275,17 @@ public class ArtifactDataFactory {
   }
 
   /**
-   * Reorganizes an array of Apache Header objects into a single Spring HttpHeaders object.
+   * Reorganizes an array of Apache {@link Header} objects into a single Spring {@link HttpHeaders} object.
    *
-   * @param headerArray An array of {@code Header} objects to reorganize.
-   * @return A Spring {@code HttpHeaders} object representing the array of Apache {@code Header} objects.
+   * @param headerArray An array of {@link Header} objects to reorganize.
+   * @return A Spring {@link HttpHeaders} object representing the array of Apache {@code Header} objects.
    */
   private static HttpHeaders transformHeaderArrayToHttpHeaders(Header[] headerArray) {
     HttpHeaders headers = new HttpHeaders();
-    Arrays.stream(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
+
+    Arrays.stream(headerArray).forEach(
+        header -> headers.add(header.getName(), header.getValue())
+    );
 
     return headers;
   }
@@ -320,8 +326,8 @@ public class ArtifactDataFactory {
    * <p>
    * Takes a {@code StatusLine} containing the HTTP response status associated with this byte stream.
    *
-   * @param metadata       A Spring {@code HttpHeaders} object containing optional artifact headers.
-   * @param resourceStream An {@code InputStream} containing an arbitrary byte stream.
+   * @param metadata       A Spring {@link HttpHeaders} object containing optional artifact headers.
+   * @param resourceStream An {@link InputStream} containing an arbitrary byte stream.
    * @param responseStatus
    * @return An {@code ArtifactData} wrapping the byte stream.
    */
@@ -332,8 +338,8 @@ public class ArtifactDataFactory {
   /**
    * Instantiates an {@code ArtifactData} from an ARC / WARC {@code ArchiveRecord} object containing an artifact.
    *
-   * @param record An {@code ArchiveRecord} object containing an artifact.
-   * @return An {@code ArtifactData} representing the artifact contained in the {@code ArchiveRecord}.
+   * @param record An {@link ArchiveRecord} object containing an artifact.
+   * @return An {@link ArtifactData} representing the artifact contained in the {@code ArchiveRecord}.
    * @throws IOException
    */
   public static ArtifactData fromArchiveRecord(ArchiveRecord record) throws IOException {

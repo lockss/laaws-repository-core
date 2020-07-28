@@ -36,10 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactConstants;
-import org.lockss.laaws.rs.util.ArtifactDataFactory;
-import org.lockss.laaws.rs.util.ArtifactDataUtil;
-import org.lockss.laaws.rs.util.NamedInputStreamResource;
+import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
@@ -272,12 +269,11 @@ public class RestLockssRepository implements LockssRepository {
       checkStatusOk(response);
 
       ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          false);
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
       Artifact res = mapper.readValue(response.getBody(), Artifact.class);
       artCache.put(res);
-      artCache.putArtifactData(res.getCollection(), res.getIdentifier().getId(),
-          artifactData);
+      artCache.putArtifactData(res.getCollection(), res.getIdentifier().getId(), artifactData);
 
       return res;
 
@@ -330,7 +326,6 @@ public class RestLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    // Q: Is this okay? I think so - we aren't opening a new InputStream
     boolean includeCachedContent =
         (includeContent == IncludeContent.IF_SMALL ||  includeContent == IncludeContent.ALWAYS);
 
@@ -377,7 +372,7 @@ public class RestLockssRepository implements LockssRepository {
 
   @Override
   public HttpHeaders getArtifactHeaders(String collectionId, String artifactId) throws IOException {
-    if ((collectionId == null) || (artifactId == null)) {
+    if (collectionId == null || artifactId == null) {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
@@ -402,9 +397,8 @@ public class RestLockssRepository implements LockssRepository {
 
       checkStatusOk(response);
 
-      // Parse and get parts from multipart response
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
+      // Deserialize HTTP response to ArtifactData object
+      ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(response.getBody().getInputStream());
 
       MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
       MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
@@ -582,10 +576,11 @@ public class RestLockssRepository implements LockssRepository {
    * @return A boolean indicating whether the artifact is committed.
    */
   @Override
-  public Boolean isArtifactCommitted(String collection, String artifactId)
-      throws IOException {
-    if ((collection == null) || (artifactId == null))
+  public Boolean isArtifactCommitted(String collection, String artifactId) throws IOException {
+    if (collection == null || artifactId == null) {
       throw new IllegalArgumentException("Null collection id or artifact id");
+    }
+
     if (StringUtils.isEmpty(artifactId)) {
       throw new IllegalArgumentException("Null or empty identifier");
     }
