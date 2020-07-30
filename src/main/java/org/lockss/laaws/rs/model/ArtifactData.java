@@ -95,6 +95,13 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private String openTrace;
 
   /**
+   * Constructor.
+   */
+  public ArtifactData() {
+    // Intentionally left blank
+  }
+
+  /**
    * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
    *
    * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
@@ -142,11 +149,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     this.storageUrl = storageUrl;
     this.repositoryMetadata = repoMetadata;
     stats.totalAllocated++;
-    if (inputStream != null) {
-      this.origInputStream = inputStream;
-      hadAnInputStream = true;
-      stats.withContent++;
-    }
+
+    this.setInputStream(inputStream);
 
     this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
     setCollectionDate(this.artifactMetadata.getDate());
@@ -160,6 +164,10 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    */
   public HttpHeaders getMetadata() {
     return artifactMetadata;
+  }
+
+  public void setMetadata(HttpHeaders headers) {
+    this.artifactMetadata = headers;
   }
 
   /**
@@ -218,6 +226,14 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     return res;
   }
 
+  public void setInputStream(InputStream inputStream) {
+    if (inputStream != null) {
+      this.origInputStream = inputStream;
+      hadAnInputStream = true;
+      stats.withContent++;
+    }
+  }
+
   /**
    * Returns this artifact's HTTP response status if it originated from a web server.
    *
@@ -225,6 +241,10 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    */
   public StatusLine getHttpStatus() {
     return this.httpStatus;
+  }
+
+  public void setHttpStatus(StatusLine status) {
+    this.httpStatus = status;
   }
 
   /**
