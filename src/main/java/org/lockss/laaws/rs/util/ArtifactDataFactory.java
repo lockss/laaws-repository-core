@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.util;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.io.DefaultHttpResponseParser;
@@ -439,12 +440,17 @@ public class ArtifactDataFactory {
         result.setIdentifier(id);
 
         // Set artifact repository state
-        RepositoryArtifactMetadata artifactState = new RepositoryArtifactMetadata(
-           id,
-            Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-            Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-        );
-        result.setRepositoryMetadata(artifactState);
+        String committedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
+        String deletedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED);
+
+        if (!(StringUtils.isEmpty(committedHeaderValue) || StringUtils.isEmpty(deletedHeaderValue))) {
+          RepositoryArtifactMetadata artifactState = new RepositoryArtifactMetadata(
+              id,
+              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
+              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
+          );
+          result.setRepositoryMetadata(artifactState);
+        }
 
         // Set misc. artifact properties
         result.setContentLength(Integer.parseInt(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));

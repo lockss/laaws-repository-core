@@ -47,6 +47,7 @@ import org.lockss.util.jms.JmsUtil;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
+import org.lockss.util.rest.exception.LockssRestInvalidResponseException;
 import org.lockss.util.rest.multipart.MimeMultipartHttpMessageConverter;
 import org.lockss.util.time.Deadline;
 import org.lockss.util.time.TimeUtil;
@@ -552,6 +553,11 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
+
+    if (ad.getRepositoryMetadata() == null ) {
+      throw new LockssRestInvalidResponseException("Missing artifact repository state");
+    }
+
     return ad.getRepositoryMetadata().isCommitted();
   }
 
