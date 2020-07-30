@@ -35,7 +35,9 @@ import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.impl.io.*;
+import org.apache.http.impl.io.DefaultHttpResponseWriter;
+import org.apache.http.impl.io.HttpTransportMetricsImpl;
+import org.apache.http.impl.io.SessionOutputBufferImpl;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicLineFormatter;
@@ -215,7 +217,7 @@ public class ArtifactDataUtil {
      *          The {@code OutputStream} to write to.
      * @throws IOException
      */
-    public static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
+    private static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
         try {
             // Write the HTTP response header
             DefaultHttpResponseWriter responseWriter = new DefaultHttpResponseWriter(outputBuffer);
