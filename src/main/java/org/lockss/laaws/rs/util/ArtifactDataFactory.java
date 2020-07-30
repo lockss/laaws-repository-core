@@ -38,6 +38,7 @@ import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.IdentityInputStream;
 import org.apache.http.impl.io.SessionInputBufferImpl;
+import org.apache.http.message.BasicLineParser;
 import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
@@ -411,12 +412,80 @@ public class ArtifactDataFactory {
 
   public static ArtifactData fromTransportResponseEntity(ResponseEntity<MimeMultipart> response) throws IOException {
     try {
-      // Parse and get parts from multipart response
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
+      // For JSON object parsing
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
       // Assemble ArtifactData object from multipart response parts
-      return fromMultipartResponsePart(parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT));
+      MultipartResponse multipartResponse = new MultipartResponse(response);
+      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
+      ArtifactData result = new ArtifactData();
+
+      //// Set artifact repository properties
+      {
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_REPO_PROPS);
+
+        HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
+
+        // Set ArtifactIdentifier
+        ArtifactIdentifier id = new ArtifactIdentifier(
+            headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
+            headers.getFirst(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+            headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
+            headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
+            Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY))
+        );
+
+        result.setIdentifier(id);
+
+        // Set artifact repository state
+        RepositoryArtifactMetadata artifactState = new RepositoryArtifactMetadata(
+           id,
+            Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
+            Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
+        );
+        result.setRepositoryMetadata(artifactState);
+
+        // Set misc. artifact properties
+        result.setContentLength(Integer.parseInt(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+        result.setContentDigest(headers.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+      }
+
+      //// Set artifact headers
+      {
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
+
+        // Parse header part body into HttpHeaders object
+        HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
+        result.setMetadata(headers);
+      }
+
+      //// Set artifact HTTP status if present
+      {
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS);
+
+        if (part != null) {
+          // Create a SessionInputBuffer and bind the InputStream from the multipart
+          SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
+          buffer.bind(part.getInputStream());
+
+          // Read and parse HTTP status line
+          StatusLine httpStatus = BasicLineParser.parseStatusLine(buffer.readLine(), null);
+          result.setHttpStatus(httpStatus);
+        }
+      }
+
+      //// Set artifact content if present
+      {
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
+
+        if (part != null) {
+          result.setInputStream(part.getInputStream());
+        }
+      }
+
+      return result;
+
     } catch (MessagingException e) {
       log.error("Error processing multipart response", e);
       throw new IOException("Error processing multipart response");
