@@ -87,7 +87,9 @@ public class RestLockssRepository implements LockssRepository {
   public static final int DEFAULT_MAX_ART_CACHE_SIZE = 500;
   public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE = 20;
 
+  public static final String MULTIPART_ARTIFACT_REPO_PROPS = "artifact-repo-props";
   public static final String MULTIPART_ARTIFACT_HEADER = "artifact-header";
+  public static final String MULTIPART_ARTIFACT_HTTP_STATUS = "artifact-http-status";
   public static final String MULTIPART_ARTIFACT_CONTENT = "artifact-content";
 
   private RestTemplate restTemplate;
