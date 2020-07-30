@@ -409,29 +409,6 @@ public class ArtifactDataFactory {
     return null;
   }
 
-  public static ArtifactData fromMultipartResponsePart(MultipartResponse.Part contentPart) throws IOException {
-    ArtifactData result = null;
-
-    if (contentPart == null) {
-      log.error("Cannot create ArtifactData from null content part");
-      throw new IllegalArgumentException("Null content part");
-    }
-
-    // Parse content part body as an HTTP response stream
-    result = ArtifactDataFactory.fromHttpResponseStream(contentPart.getInputStream());
-
-    // Set artifact properties
-    HttpHeaders contentPartHeaders = contentPart.getHeaders();
-    result.setIdentifier(ArtifactDataFactory.buildArtifactIdentifier(contentPartHeaders));
-    result.setContentLength(contentPartHeaders.getContentLength());
-    result.setContentDigest(contentPartHeaders.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
-
-    // Set artifact's state in repository
-    result.setRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata(contentPartHeaders));
-
-    return result;
-  }
-
   public static ArtifactData fromTransportResponseEntity(ResponseEntity<MimeMultipart> response) throws IOException {
     try {
       // Parse and get parts from multipart response
