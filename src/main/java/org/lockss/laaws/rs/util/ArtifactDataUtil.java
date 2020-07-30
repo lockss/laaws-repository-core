@@ -33,10 +33,13 @@ package org.lockss.laaws.rs.util;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.*;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
+import org.apache.http.message.BasicLineFormatter;
+import org.apache.http.util.CharArrayBuffer;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -221,5 +224,26 @@ public class ArtifactDataUtil {
             log.error("Caught HttpException while attempting to write the headers of an HttpResponse using DefaultHttpResponseWriter");
             throw new IOException(e);
         }
+    }
+
+    public static byte[] getHttpStatusByteArray(StatusLine httpStatus) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        CharArrayBuffer lineBuf = new CharArrayBuffer(128);
+
+        // Create a new SessionOutputBuffer and bind the ByteArrayOutputStream
+        SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
+        outputBuffer.bind(output);
+
+        // Write HTTP status line
+        BasicLineFormatter.INSTANCE.formatStatusLine(lineBuf, httpStatus);
+        outputBuffer.writeLine(lineBuf);
+        outputBuffer.flush();
+
+        // Flush and close ByteArrayOutputStream
+        output.flush();
+        output.close();
+
+        // Return HTTP status byte array
+        return output.toByteArray();
     }
 }
