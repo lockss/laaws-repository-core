@@ -36,7 +36,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.model.*;
-import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
@@ -48,9 +47,7 @@ import org.lockss.util.jms.JmsUtil;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
-import org.lockss.util.rest.exception.LockssRestInvalidResponseException;
 import org.lockss.util.rest.multipart.MimeMultipartHttpMessageConverter;
-import org.lockss.util.rest.multipart.MultipartResponse;
 import org.lockss.util.time.Deadline;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
@@ -66,7 +63,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
-import javax.mail.MessagingException;
 import javax.mail.internet.MimeMultipart;
 import java.io.IOException;
 import java.net.URI;
@@ -391,53 +387,8 @@ public class RestLockssRepository implements LockssRepository {
       return cached.getMetadata();
     }
 
-    try {
-      // Make REST call to artifact endpoint requesting only headers
-      ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
-          restTemplate,
-          artifactEndpoint(collectionId, artifactId, IncludeContent.IF_SMALL),
-          HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
-          MimeMultipart.class,
-          "getArtifactHeaders"
-      );
-
-      checkStatusOk(response);
-
-      // Parse and get parts from multipart response
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
-
-      MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
-      MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
-
-      // If we received a content part anyway (e.g., because it was small enough) don't miss the opportunity to add the
-      // artifact header and content to the cache in case of later retrieval:
-      if (contentPart != null) {
-        ArtifactData ad = ArtifactDataFactory.fromMultipartResponsePart(contentPart);
-        artCache.putArtifactData(collectionId, artifactId, ad);
-        // return ad.getMetadata();
-      }
-
-      // Setup Jackson ObjectMapper and properties
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-      // Parse header part body into HttpHeaders object
-      return mapper.readValue(headerPart.getInputStream(), HttpHeaders.class);
-
-    } catch (LockssRestHttpException e) {
-      log.error("Could not get artifact headers: {}", e.toString());
-      checkArtIdError(e, artifactId, "Artifact Id not found");
-      throw e;
-
-    } catch (LockssRestException e) {
-      log.error("Could not get artifact headers", e);
-      throw e;
-    } catch (MessagingException e) {
-      log.error("Error parsing multipart response", e);
-      throw new IOException("Error parsing multipart response");
-    }
+    ArtifactData ad = getArtifactData(collectionId, artifactId, IncludeContent.IF_SMALL);
+    return ad.getMetadata();
   }
 
   /**
@@ -600,57 +551,8 @@ public class RestLockssRepository implements LockssRepository {
       return cached.getRepositoryMetadata().isCommitted();
     }
 
-    try {
-      ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
-          restTemplate,
-          artifactEndpoint(collection, artifactId, IncludeContent.IF_SMALL),
-          HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
-          MimeMultipart.class,
-          "isArtifactCommitted"
-      );
-
-      checkStatusOk(response);
-
-      // Parse and get parts from multipart response
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
-
-      MultipartResponse.Part headerPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
-      MultipartResponse.Part contentPart = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
-
-      // If we received a content part anyway (e.g., because it was small enough) don't miss the opportunity to add the
-      // artifact header and content to the cache in case of later retrieval:
-      if (contentPart != null) {
-        ArtifactData ad = ArtifactDataFactory.fromMultipartResponsePart(contentPart);
-        artCache.putArtifactData(collection, artifactId, ad);
-        // return ad.getMetadata();
-      }
-
-      String committedHeaderValue = headerPart.getHeaders().getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
-
-      if (committedHeaderValue == null) {
-        String msg = String.format("Remote repository did not return %s header for artifact (Collection: %s, Artifact: %s)",
-            ArtifactConstants.ARTIFACT_STATE_COMMITTED,
-            collection,
-            artifactId);
-        log.error(msg);
-        throw new LockssRestInvalidResponseException(msg);
-      }
-
-      return committedHeaderValue.equalsIgnoreCase(String.valueOf(true));
-
-    } catch (MessagingException e) {
-      log.error("Could not parse multipart response");
-      throw new IOException("Could not parse multipart response");
-    } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Non-existent artifact id");
-      log.error("Could not determine artifact commit status", e);
-      throw e;
-    } catch (LockssRestException e) {
-      log.error("Could not determine artifact commit status", e);
-      throw e;
-    }
+    ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
+    return ad.getRepositoryMetadata().isCommitted();
   }
 
   /**
