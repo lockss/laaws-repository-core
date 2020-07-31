@@ -389,6 +389,7 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     ArtifactData ad = getArtifactData(collectionId, artifactId, IncludeContent.IF_SMALL);
+    // TODO: IOUtils.closeQuietly(ad.getInputStream());
     return ad.getMetadata();
   }
 
@@ -553,6 +554,7 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
+    // TODO: IOUtils.closeQuietly(ad.getInputStream());
 
     if (ad.getRepositoryMetadata() == null ) {
       throw new LockssRestInvalidResponseException("Missing artifact repository state");
