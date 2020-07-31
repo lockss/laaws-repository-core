@@ -163,7 +163,7 @@ public class RestLockssRepository implements LockssRepository {
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
   private URI artifactEndpoint(String collection, String artifactId) {
-    return this.artifactEndpoint(collection, artifactId, IncludeContent.ALWAYS);
+    return this.artifactEndpoint(collection, artifactId, null);
   }
 
   /**
@@ -179,8 +179,8 @@ public class RestLockssRepository implements LockssRepository {
     String endpoint = String.format("%s/collections/%s/artifacts/%s", repositoryUrl, collection, artifactId);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-    if (includeContent != IncludeContent.ALWAYS) {
-      // includeContent defaults to ALWAYS in the REST API
+    if (includeContent != null) {
+      // includeContent defaults to ALWAYS but lets be explicit to avoid confusion
       builder.queryParam("includeContent", includeContent);
     }
 
