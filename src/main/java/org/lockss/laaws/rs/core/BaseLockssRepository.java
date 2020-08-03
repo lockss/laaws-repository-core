@@ -43,6 +43,7 @@ import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
+import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.*;
@@ -200,15 +201,29 @@ public class BaseLockssRepository implements LockssRepository,
    */
   @Override
   public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null))
+    if ((collection == null) || (artifactId == null)) {
       throw new IllegalArgumentException("Null collection id or artifact id");
-
-    // Throw if artifact doesn't exist
-    if (!artifactExists(collection, artifactId)) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						+ artifactId);
     }
-    return store.getArtifactData(index.getArtifact(artifactId));
+
+    Artifact artifactRef = index.getArtifact(artifactId);
+
+    if (artifactRef == null) {
+      // FIXME: Do we really want to do throw? Or should we return null?
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
+    }
+
+    // Fetch artifact from data store
+    ArtifactData ad = store.getArtifactData(artifactRef);
+
+    return ad;
+  }
+
+  @Override
+  public HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException {
+    try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
+      return ad.getMetadata();
+    }
   }
 
   /**
@@ -267,23 +282,6 @@ public class BaseLockssRepository implements LockssRepository,
 
       // Remove from index and data store
       store.deleteArtifactData(artifact);
-    }
-  }
-
-  /**
-   * Checks whether an artifact exists in this LOCKSS repository.
-   *
-   * @param artifactId A {@code String} containing the artifact ID to check.
-   * @return A boolean indicating whether an artifact exists in this repository.
-   */
-  @Override
-  public Boolean artifactExists(String collectionId, String artifactId) throws IOException {
-    if (collectionId == null || artifactId == null) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
-    }
-
-    synchronized (index) {
-      return index.artifactExists(artifactId);
     }
   }
 

@@ -1542,6 +1542,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Guard against deleted or non-existent artifact
       if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
+        log.debug("Artifact not found: [artifactId: {}]", artifactId);
         return null;
       }
 

@@ -91,8 +91,9 @@ public class ArtifactSpec implements Comparable<Object> {
   protected static HttpHeaders HEADERS1 = new HttpHeaders();
 
   static {
-    HEADERS1.set("key1", "val1");
-    HEADERS1.set("key2", "val2");
+    HEADERS1.add("key1", "val1");
+    HEADERS1.add("key1", "val2");
+    HEADERS1.add("key2", "val1");
   }
 
   static final Comparator<ArtifactSpec> artSpecComparator =

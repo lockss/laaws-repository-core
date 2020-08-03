@@ -38,6 +38,7 @@ import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -58,216 +59,233 @@ import java.util.Objects;
  * been called.
  * </ul>
  */
-public class ArtifactData implements Comparable<ArtifactData> {
-    private final static L4JLogger log = L4JLogger.getLogger();
-    public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
+public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
+  private final static L4JLogger log = L4JLogger.getLogger();
+  public static final String DEFAULT_DIGEST_ALGORITHM = "SHA-256";
 
-    // Core artifact attributes
-    private ArtifactIdentifier identifier;
+  // Core artifact attributes
+  private ArtifactIdentifier identifier;
 
-    // Artifact data stream
-    private InputStream artifactStream;
-    private final CountingInputStream cis;
-    private final DigestInputStream dis;
+  // Artifact data stream
+  private InputStream artifactStream;
+  private CountingInputStream cis;
+  private DigestInputStream dis;
 
-    // The byte stream of this artifact before it is wrapped in the WARC
-    // processing code that does not honor close().
-    private InputStream closableInputStream;
+  // The byte stream of this artifact before it is wrapped in the WARC
+  // processing code that does not honor close().
+  private InputStream closableInputStream;
 
-    // Artifact data properties
-    private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
-    private StatusLine httpStatus;
-    private long contentLength;
-    private String contentDigest;
+  // Artifact data properties
+  private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
+  private StatusLine httpStatus;
+  private InputStream origInputStream;
+  private boolean hadAnInputStream = false;
+  private long contentLength;
+  private String contentDigest;
 
   // Internal repository metadata
   private RepositoryArtifactMetadata repositoryMetadata;
   private URI storageUrl;
 
-    // The collection date.
-    private long collectionDate = TimeBase.nowMs();
+  // The collection date.
+  private long collectionDate = TimeBase.nowMs();
 
-    private boolean isReleased;
+  private boolean isReleased;
 
-    private String openTrace;
+  private String openTrace;
 
-    /**
-     * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
-     *
-     * @param artifactMetadata
-     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
-     * @param inputStream
-     *          An {@code InputStream} containing the byte stream of this artifact.
-     * @param responseStatus
-     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
-     */
-    public ArtifactData(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
-        this(null, artifactMetadata, inputStream, responseStatus, null, null);
-    }
+  /**
+   * Constructor.
+   */
+  public ArtifactData() {
+    // Intentionally left blank
+  }
 
-    /**
-     * Constructor for artifact data that has an identity relative to a LOCKSS repository, but has not yet been added to
-     * an artifact store.
-     *
-     * @param identifier
-     *          An {@code ArtifactIdentifier} for this artifact data.
-     * @param artifactMetadata
-     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
-     * @param inputStream
-     *          An {@code InputStream} containing the byte stream of this artifact.
-     * @param httpStatus
-     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
-     */
-    public ArtifactData(ArtifactIdentifier identifier,
-                        HttpHeaders artifactMetadata,
-                        InputStream inputStream,
-                        StatusLine httpStatus) {
-        this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
-    }
+  /**
+   * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
+   *
+   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
+   * @param responseStatus   A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+   */
+  public ArtifactData(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
+    this(null, artifactMetadata, inputStream, responseStatus, null, null);
+  }
 
-    /**
-     * Full constructor for artifact data.
-     *
-     * @param identifier
-     *          An {@code ArtifactIdentifier} for this artifact data.
-     * @param artifactMetadata
-     *          A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
-     * @param inputStream
-     *          An {@code InputStream} containing the byte stream of this artifact.
-     * @param httpStatus
-     *          A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
-     * @param storageUrl
-     *          A {@code String} URL pointing to the storage of this artifact data.
-     * @param repoMetadata
-     *          A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
-     */
-    public ArtifactData(ArtifactIdentifier identifier,
-                        HttpHeaders artifactMetadata,
-                        InputStream inputStream,
-                        StatusLine httpStatus,
-                        URI storageUrl,
-                        RepositoryArtifactMetadata repoMetadata) {
-        this.identifier = identifier;
-        this.httpStatus = httpStatus;
-        this.storageUrl = storageUrl;
-        this.repositoryMetadata = repoMetadata;
+  /**
+   * Constructor for artifact data that has an identity relative to a LOCKSS repository, but has not yet been added to
+   * an artifact store.
+   *
+   * @param identifier       An {@code ArtifactIdentifier} for this artifact data.
+   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
+   * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+   */
+  public ArtifactData(ArtifactIdentifier identifier,
+                      HttpHeaders artifactMetadata,
+                      InputStream inputStream,
+                      StatusLine httpStatus) {
+    this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
+  }
 
-        this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
-        setCollectionDate(this.artifactMetadata.getDate());
+  /**
+   * Full constructor for artifact data.
+   *
+   * @param identifier       An {@code ArtifactIdentifier} for this artifact data.
+   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
+   * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
+   * @param storageUrl       A {@code String} URL pointing to the storage of this artifact data.
+   * @param repoMetadata     A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
+   */
+  public ArtifactData(ArtifactIdentifier identifier,
+                      HttpHeaders artifactMetadata,
+                      InputStream inputStream,
+                      StatusLine httpStatus,
+                      URI storageUrl,
+                      RepositoryArtifactMetadata repoMetadata) {
+    this.identifier = identifier;
+    this.httpStatus = httpStatus;
+    this.storageUrl = storageUrl;
+    this.repositoryMetadata = repoMetadata;
+    stats.totalAllocated++;
 
-	// Comment in to log creation point of unused InputStreams
+    this.setInputStream(inputStream);
+
+    this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+    setCollectionDate(this.artifactMetadata.getDate());
+
+  }
+
+  /**
+   * Returns additional key-value properties associated with this artifact.
+   *
+   * @return A {@code HttpHeaders} containing this artifact's additional properties.
+   */
+  public HttpHeaders getMetadata() {
+    return artifactMetadata;
+  }
+
+  public void setMetadata(HttpHeaders headers) {
+    this.artifactMetadata = headers;
+  }
+
+  /**
+   * Returns true if an InputStream is available.
+   *
+   * @return true if this artifact's byte stream is available
+   */
+  public boolean hasContentInputStream() {
+    return origInputStream != null;
+  }
+
+  /**
+   * Returns this artifact's byte stream in a one-time use {@code InputStream}.
+   *
+   * @return An {@code InputStream} containing this artifact's byte stream.
+   */
+  public InputStream getInputStream() {
+    // Comment in to log creation point of unused InputStreams
 // 	openTrace = stackTraceString(new Exception("Open"));
 
-        try {
-            // Wrap the stream in a DigestInputStream
-            cis = new CountingInputStream(inputStream);
-            dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
+    try {
+      // Wrap the stream in a DigestInputStream
+      if (!hadAnInputStream) {
+	throw new IllegalStateException("Attempt to get InputStream from ArtifactData that was created without one");
+      }
+      if (origInputStream == null) {
+	throw new IllegalStateException("Attempt to get InputStream from ArtifactData whose InputStream has been used");
+      }
+      cis = new CountingInputStream(origInputStream);
+      dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
 
-            // Wrap the WARC-aware byte stream of this artifact so that the
-            // underlying stream can be closed.
-            artifactStream = new CloseCallbackInputStream(
-                dis,
-                new CloseCallbackInputStream.Callback() {
-                    // Called when the close() method of the stream is closed.
-              	@Override
-              	public void streamClosed(Object o) {
-              	    // Release any resources bound to this object.
-              	    ((ArtifactData)o).release();
-              	}
-                },
-                this);
-        } catch (NoSuchAlgorithmException e) {
-            String errMsg = String.format(
-                    "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
-            );
+      // Wrap the WARC-aware byte stream of this artifact so that the
+      // underlying stream can be closed.
+      artifactStream = new CloseCallbackInputStream(
+          dis,
+          new CloseCallbackInputStream.Callback() {
+            // Called when the close() method of the stream is closed.
+            @Override
+            public void streamClosed(Object o) {
+              // Release any resources bound to this object.
+              ((ArtifactData) o).release();
+            }
+          },
+          this);
+      origInputStream = null;
+    } catch (NoSuchAlgorithmException e) {
+      String errMsg = String.format(
+          "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
+      );
 
-            log.error(errMsg);
-            throw new RuntimeException(errMsg);
-        }
+      log.error(errMsg);
+      throw new RuntimeException(errMsg);
     }
+    InputStream res = artifactStream;
+    artifactStream = null;
+    return res;
+  }
 
-    /**
-     * Returns additional key-value properties associated with this artifact.
-     *
-     * @return A {@code HttpHeaders} containing this artifact's additional properties.
-     */
-    public HttpHeaders getMetadata() {
-        return artifactMetadata;
+  public void setInputStream(InputStream inputStream) {
+    if (inputStream != null) {
+      this.origInputStream = inputStream;
+      hadAnInputStream = true;
+      stats.withContent++;
     }
+  }
 
-    /**
-     * Returns true if an InputStream is available.
-     *
-     * @return true if this artifact's byte stream is available
-     */
-    public boolean hasContentInputStream() {
-      return artifactStream != null;
-    }
+  /**
+   * Returns this artifact's HTTP response status if it originated from a web server.
+   *
+   * @return A {@code StatusLine} containing this artifact's HTTP response status.
+   */
+  public StatusLine getHttpStatus() {
+    return this.httpStatus;
+  }
 
-    /**
-     * Returns this artifact's byte stream in a one-time use {@code InputStream}.
-     *
-     * @return An {@code InputStream} containing this artifact's byte stream.
-     */
-    public InputStream getInputStream() {
-	if (artifactStream == null) {
-	  throw new IllegalStateException("Can't call getInputStream() more than once");
-	}
-        InputStream res = artifactStream;
-        artifactStream = null;
-        return res;
-    }
+  public void setHttpStatus(StatusLine status) {
+    this.httpStatus = status;
+  }
 
-    /**
-     * Returns this artifact's HTTP response status if it originated from a web server.
-     *
-     * @return A {@code StatusLine} containing this artifact's HTTP response status.
-     */
-    public StatusLine getHttpStatus() {
-        return this.httpStatus;
-    }
+  /**
+   * Return this artifact data's artifact identifier.
+   *
+   * @return An {@code ArtifactIdentifier}.
+   */
+  public ArtifactIdentifier getIdentifier() {
+    return this.identifier;
+  }
 
-    /**
-     * Return this artifact data's artifact identifier.
-     *
-     * @return An {@code ArtifactIdentifier}.
-     */
-    public ArtifactIdentifier getIdentifier() {
-        return this.identifier;
-    }
+  /**
+   * Sets an artifact identifier for this artifact data.
+   *
+   * @param identifier An {@code ArtifactIdentifier} for this artifact data.
+   * @return This {@code ArtifactData} with its identifier set to the one provided.
+   */
+  public ArtifactData setIdentifier(ArtifactIdentifier identifier) {
+    this.identifier = identifier;
+    return this;
+  }
 
-    /**
-     * Sets an artifact identifier for this artifact data.
-     *
-     * @param identifier
-     *          An {@code ArtifactIdentifier} for this artifact data.
-     * @return This {@code ArtifactData} with its identifier set to the one provided.
-     */
-    public ArtifactData setIdentifier(ArtifactIdentifier identifier) {
-        this.identifier = identifier;
-        return this;
-    }
+  /**
+   * Returns the repository state information for this artifact data.
+   *
+   * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
+   */
+  public RepositoryArtifactMetadata getRepositoryMetadata() {
+    return repositoryMetadata;
+  }
 
-    /**
-     * Returns the repository state information for this artifact data.
-     *
-     * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
-     */
-    public RepositoryArtifactMetadata getRepositoryMetadata() {
-        return repositoryMetadata;
-    }
-
-    /**
-     * Sets the repository state information for this artifact data.
-     *
-     * @param metadata
-     *          A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
-     * @return
-     */
-    public ArtifactData setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
-        this.repositoryMetadata = metadata;
-        return this;
-    }
+  /**
+   * Sets the repository state information for this artifact data.
+   *
+   * @param metadata A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
+   * @return
+   */
+  public ArtifactData setRepositoryMetadata(RepositoryArtifactMetadata metadata) {
+    this.repositoryMetadata = metadata;
+    return this;
+  }
 
   /**
    * Returns the location where the byte stream for this artifact data can be found.
@@ -278,88 +296,85 @@ public class ArtifactData implements Comparable<ArtifactData> {
     return storageUrl;
   }
 
-    /**
-     * Sets the location where the byte stream for this artifact data can be found.
-     * @param storageUrl
-     *          A {@code String} containing the location of this artifact data.
-     */
-    public void setStorageUrl(URI storageUrl) {
-      this.storageUrl = storageUrl;
-    }
+  /**
+   * Sets the location where the byte stream for this artifact data can be found.
+   *
+   * @param storageUrl A {@code String} containing the location of this artifact data.
+   */
+  public void setStorageUrl(URI storageUrl) {
+    this.storageUrl = storageUrl;
+  }
 
   /**
-     * Implements {@code Comparable<ArtifactData>} so that sets of {@code ArtifactData} can be ordered.
-     *
-     * There may be a better canonical order but for now, this defers to implementations of ArtifactIdentifier.
-     *
-     * @param other
-     *          Another {@code ArtifactData} to compare against.
-     * @return An {@code int} denoting the order of this artifact, relative to another.
-     */
-    @Override
-    public int compareTo(ArtifactData other) {
-        return this.getIdentifier().compareTo(other.getIdentifier());
-    }
+   * Implements {@code Comparable<ArtifactData>} so that sets of {@code ArtifactData} can be ordered.
+   * <p>
+   * There may be a better canonical order but for now, this defers to implementations of ArtifactIdentifier.
+   *
+   * @param other Another {@code ArtifactData} to compare against.
+   * @return An {@code int} denoting the order of this artifact, relative to another.
+   */
+  @Override
+  public int compareTo(ArtifactData other) {
+    return this.getIdentifier().compareTo(other.getIdentifier());
+  }
 
-    public String getContentDigest() {
-        return contentDigest;
-    }
+  public String getContentDigest() {
+    return contentDigest;
+  }
 
-    public void setContentDigest(String contentDigest) {
-        this.contentDigest = contentDigest;
-    }
+  public void setContentDigest(String contentDigest) {
+    this.contentDigest = contentDigest;
+  }
 
-    public long getContentLength() {
-        return contentLength;
-    }
+  public long getContentLength() {
+    return contentLength;
+  }
 
-    public void setContentLength(long contentLength) {
-        this.contentLength = contentLength;
-    }
+  public void setContentLength(long contentLength) {
+    this.contentLength = contentLength;
+  }
 
-    /**
-     * Provides the artifact collection date.
-     * 
-     * @return a long with the artifact collection date in milliseconds since
-     *         the epoch.
-     */
-    public long getCollectionDate() {
-      return collectionDate;
-    }
+  /**
+   * Provides the artifact collection date.
+   *
+   * @return a long with the artifact collection date in milliseconds since
+   * the epoch.
+   */
+  public long getCollectionDate() {
+    return collectionDate;
+  }
 
-    /**
-     * Saves the artifact collection date.
-     * 
-     * @param collectionDate
-     *          A long with the artifact collection date in milliseconds since
-     *          the epoch.
-     */
-    public void setCollectionDate(long collectionDate) {
-      if (collectionDate >= 0) {
-	this.collectionDate = collectionDate;
-      }
+  /**
+   * Saves the artifact collection date.
+   *
+   * @param collectionDate A long with the artifact collection date in milliseconds since
+   *                       the epoch.
+   */
+  public void setCollectionDate(long collectionDate) {
+    if (collectionDate >= 0) {
+      this.collectionDate = collectionDate;
     }
+  }
 
-    /**
-     * Returns a closable version of this artifact's byte stream.
-     *
-     * @return an {@code InputStream} with the underlying, closable, byte
-     *         stream.
-     */
-    public InputStream getClosableInputStream() {
-      return closableInputStream;
-    }
+  /**
+   * Returns a closable version of this artifact's byte stream.
+   *
+   * @return an {@code InputStream} with the underlying, closable, byte
+   * stream.
+   */
+  public InputStream getClosableInputStream() {
+    return closableInputStream;
+  }
 
-    /**
-     * Sets the closable version of this artifact's byte stream.
-     * 
-     * @param closableInputStream
-     *          A {@code InputStream} containing the underlying, closable, byte
-     *          stream.
-     */
-    public void setClosableInputStream(InputStream closableInputStream) {
-      this.closableInputStream = closableInputStream;
-    }
+  /**
+   * Sets the closable version of this artifact's byte stream.
+   *
+   * @param closableInputStream A {@code InputStream} containing the underlying, closable, byte
+   *                            stream.
+   */
+  public void setClosableInputStream(InputStream closableInputStream) {
+    this.closableInputStream = closableInputStream;
+  }
 
   // Temporary until InputStream refactored
   private boolean isAutoRelease = false;
@@ -372,36 +387,36 @@ public class ArtifactData implements Comparable<ArtifactData> {
     return isAutoRelease;
   }
 
-    /**
-     * Releases resources used.
-     */
-    public void release() {
-      if (!isReleased) {
-	IOUtils.closeQuietly(closableInputStream);
-	updateStats();
-	artifactStream = null;
-	closableInputStream = null;
-	isReleased = true;
-      }
+  /**
+   * Releases resources used.
+   */
+  public void release() {
+    if (!isReleased) {
+      IOUtils.closeQuietly(closableInputStream);
+      updateStats();
+      artifactStream = null;
+      closableInputStream = null;
+      isReleased = true;
     }
+  }
 
-    @Override
-    public String toString() {
-        return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
-            + artifactMetadata + ", httpStatus=" + httpStatus
-            + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
-            + storageUrl + ", contentDigest=" + getContentDigest()
-            + ", contentLength=" + getContentLength() + ", collectionDate="
-            + getCollectionDate() + "]";
-    }
+  @Override
+  public String toString() {
+    return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
+        + artifactMetadata + ", httpStatus=" + httpStatus
+        + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
+        + storageUrl + ", contentDigest=" + getContentDigest()
+        + ", contentLength=" + getContentLength() + ", collectionDate="
+        + getCollectionDate() + "]";
+  }
 
-    public long getBytesRead() {
-        return cis.getByteCount();
-    }
+  public long getBytesRead() {
+    return cis.getByteCount();
+  }
 
-    public MessageDigest getMessageDigest() {
-        return dis.getMessageDigest();
-    }
+  public MessageDigest getMessageDigest() {
+    return dis.getMessageDigest();
+  }
 
   public String stackTraceString(Throwable th) {
     StringWriter sw = new StringWriter();
@@ -410,8 +425,6 @@ public class ArtifactData implements Comparable<ArtifactData> {
     return sw.toString();
   }
 
-
-
   /**
    * Finalizer.
    */
@@ -419,18 +432,21 @@ public class ArtifactData implements Comparable<ArtifactData> {
   protected void finalize() throws Throwable {
     if (!isReleased) {
       stats.unreleased++;
+      IOUtils.closeQuietly(closableInputStream);
       updateStats();
     }
     super.finalize();
   }
 
   private void updateStats() {
-    if (artifactStream == null) {
-      stats.inputUsed++;
-    } else {
-      stats.inputUnused++;
-      log.debug2("Unused InputStream: {}, opened at {}",
-		 getIdentifier(), openTrace);
+    if (hadAnInputStream) {
+      if (origInputStream == null) {
+	stats.inputUsed++;
+      } else {
+	stats.inputUnused++;
+	log.debug2("Unused InputStream: {}, opened at {}",
+		   getIdentifier(), openTrace);
+      }
     }
   }
 
@@ -440,20 +456,38 @@ public class ArtifactData implements Comparable<ArtifactData> {
 
   static Stats stats = new Stats();
 
-  public static class Stats {
-    private int inputUsed;
-    private int inputUnused;
-    private int unreleased;
+  @Override
+  public void close() throws IOException {
+    if (hasContentInputStream()) {
+      origInputStream.close();
+      origInputStream = null;
+    }
+  }
 
-    public int getInputUsed() {
+  public static class Stats {
+    private volatile long totalAllocated;
+    private volatile long withContent;;
+    private volatile long inputUsed;
+    private volatile long inputUnused;
+    private volatile long unreleased;
+
+    public long getTotalAllocated() {
+      return totalAllocated;
+    }
+
+    public long getWithContent() {
+      return withContent;
+    }
+
+    public long getInputUsed() {
       return inputUsed;
     }
 
-    public int getInputUnused() {
+    public long getInputUnused() {
       return inputUnused;
     }
 
-    public int getUnreleased() {
+    public long getUnreleased() {
       return unreleased;
     }
   }
