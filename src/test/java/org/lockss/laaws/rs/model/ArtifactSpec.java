@@ -546,9 +546,8 @@ public class ArtifactSpec implements Comparable<Object> {
       Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
       assertArtifactData(ad2);
     } catch (Exception e) {
-      log.error("Caught exception asserting artifact: {}", e);
+      log.error("Caught exception asserting artifact spec: {}", this, e);
       log.error("art = {}", art);
-      log.error("spec = {}", this);
       throw e;
     }
   }
