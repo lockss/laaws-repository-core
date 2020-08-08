@@ -98,7 +98,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * Constructor.
    */
   public ArtifactData() {
-    // Intentionally left blank
+    stats.totalAllocated++;
   }
 
   /**
@@ -177,6 +177,14 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    */
   public boolean hasContentInputStream() {
     return origInputStream != null;
+  }
+
+  /**
+   * Returns true if this ArtifactData originally had an InputStream.  Used
+   * for stats
+   */
+  public boolean hadAnInputStream() {
+    return hadAnInputStream;
   }
 
   /**
