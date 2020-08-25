@@ -1430,7 +1430,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         try (InputStream input = dfos.getInputStream()) {
 
           // Write the serialized artifact to the temporary WARC file
-          bytesWritten = IOUtils.copy(input, output);
+          bytesWritten = IOUtils.copyLarge(input, output);
 
           // Debugging
           log.debug2("Wrote {} bytes starting at byte offset {} to {}; size is now {}",
