@@ -2260,7 +2260,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
       );
 
-      IOUtils.copy(httpResponse, dfos);
+      IOUtils.copyLarge(httpResponse, dfos);
 
       dfos.flush();
       dfos.close();
@@ -2380,7 +2380,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     if (record.getContentStream() != null) {
       // Write the WARC payload
-      int bytesWritten = IOUtils.copy(record.getContentStream(), out);
+      long bytesWritten = IOUtils.copyLarge(record.getContentStream(), out);
 
       // Sanity check
       if (bytesWritten != record.getContentLength()) {
