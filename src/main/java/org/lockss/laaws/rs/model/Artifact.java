@@ -224,6 +224,10 @@ public class Artifact implements Serializable {
         return committed;
     }
 
+    public boolean isCommitted() {
+      return getCommitted() == true;
+    }
+
     public void setCommitted(Boolean committed) {
         if (committed == null) {
           throw new IllegalArgumentException("Cannot set null commit status");

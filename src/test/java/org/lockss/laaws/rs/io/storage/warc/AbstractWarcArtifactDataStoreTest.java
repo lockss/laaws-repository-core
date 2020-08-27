@@ -1108,15 +1108,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getAuMetadataWarcPath(Path, ArtifactIdentifier, String)}.
+   * Test for {@link WarcArtifactDataStore#getAuJournalPath(Path, String, String, String)}.
    *
    * @throws Exception
    */
   @Test
-  public void testGetAuMetadataWarcPath() throws Exception {
+  public void testGetAuJournalPath() throws Exception {
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-
     Path basePath = mock(Path.class);
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
 
@@ -1124,16 +1123,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path auPath = Paths.get("/lockss");
 
     // Mock behavior
+    when(aid.getCollection()).thenReturn("collection");
+    when(aid.getAuid()).thenReturn("auid");
+
     when(ds.getAuPath(basePath, aid.getCollection(), aid.getAuid())).thenReturn(auPath);
-    doCallRealMethod().when(ds).getAuMetadataWarcPath(
+
+    doCallRealMethod().when(ds).getAuJournalPath(
         ArgumentMatchers.any(Path.class),
-        ArgumentMatchers.any(ArtifactIdentifier.class),
-        ArgumentMatchers.any(String.class)
+        ArgumentMatchers.anyString(),
+        ArgumentMatchers.anyString(),
+        ArgumentMatchers.anyString()
     );
 
     // Call getAuMetadataWarcPath
     String journalName = "journal";
-    Path journalPath = ds.getAuMetadataWarcPath(basePath, aid, journalName);
+    Path journalPath = ds.getAuJournalPath(basePath, aid.getCollection(), aid.getAuid(), journalName);
 
     // Assert expected path is resolved from auPath
     String journalFile = String.format("%s.%s", journalName, WARC_FILE_EXTENSION);
@@ -1142,8 +1146,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(auPath.resolve(journalFile), journalPath);
   }
 
+  /**
+   * Test for {@link WarcArtifactDataStore#getAuJournalPaths(String, String, String)}
+   *
+   * @throws IOException
+   */
   @Test
-  public void testGetAuMetadataWarcPaths() throws IOException {
+  public void testGetAuJournalPaths() throws IOException {
     String collectionId = "collection";
     String auid = "auid";
     String journalName = "journal";
@@ -1157,7 +1166,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Setup mock behavior
     when(aid.getCollection()).thenReturn(collectionId);
     when(aid.getAuid()).thenReturn(auid);
-    doCallRealMethod().when(ds).getAuMetadataWarcPaths(aid, journalName);
+    doCallRealMethod().when(ds).getAuJournalPaths(aid.getCollection(), aid.getAuid(), journalName);
     when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
 
 //    when(ds.getAuPaths(collectionId, auid)).thenReturn(null);
@@ -1165,7 +1174,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    when(ds.getAuPaths(collectionId, auid)).thenThrow(IOException.class);
 
     // Call real method
-    Path[] actualWarcPaths = ds.getAuMetadataWarcPaths(aid, journalName);
+    Path[] actualWarcPaths = ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), journalName);
 
     // Assert the number of metadata WARC paths of the AU matches the input
     assertEquals(auPaths.size(), actualWarcPaths.length);
@@ -1670,7 +1679,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Collection<Path> tmpWarcs = reloadedStore.findWarcs(tmpWarcBasePath);
 
     // Determine artifact state
-    ArtifactState artifactState = reloadedStore.getArtifactState(expire, delete, artifact);
+    ArtifactState artifactState = reloadedStore.getArtifactState(artifact.getIdentifier(), expire);
 
     log.debug("commit = {}, expire = {}, delete = {}, artifactState = {}", commit, expire, delete, artifactState);
 
@@ -1795,9 +1804,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
       for (ArtifactState state : ArtifactState.values()) {
         when(ds.getArtifactState(
-            ArgumentMatchers.anyBoolean(),
-            ArgumentMatchers.anyBoolean(),
-            ArgumentMatchers.any(Artifact.class))
+            ArgumentMatchers.any(ArtifactIdentifier.class),
+            ArgumentMatchers.anyBoolean())
         ).thenReturn(state);
 
         // Assert expected return based on artifact state
@@ -1822,7 +1830,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // ******************************************************************************************************************
 
   /**
-   * Test for {@link WarcArtifactDataStore#getArtifactState(boolean, boolean, Artifact)}.
+   * Test for {@link WarcArtifactDataStore#getArtifactState(ArtifactIdentifier, boolean)}.
    *
    * @throws Exception
    */
@@ -1851,12 +1859,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(index, store.getArtifactIndex());
 
     // Get the state of an artifact that has been deleted
-    ArtifactState artifactState = store.getArtifactState(expired, true, null);
+    ArtifactState artifactState = store.getArtifactState(null, expired);
     log.trace("artifactState = {}", artifactState);
     assertEquals(ArtifactState.DELETED, artifactState);
 
     // Get the state of an artifact that has not been indexed.
-    artifactState = store.getArtifactState(expired, false, null);
+    artifactState = store.getArtifactState(null, expired);
     log.trace("artifactState = {}", artifactState);
 
     // Verify.
@@ -1875,7 +1883,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Artifact artifact = store.addArtifactData(ad);
 
     // Get the artifact state.
-    artifactState = store.getArtifactState(expired, false, artifact);
+    artifactState = store.getArtifactState(artifact.getIdentifier(), expired);
     log.trace("artifactState = {}", artifactState);
 
     // Verify.
@@ -1890,7 +1898,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Verify.
     assertEquals(ArtifactState.COMMITTED,
-        store.getArtifactState(expired, false, artifact));
+        store.getArtifactState(artifact.getIdentifier(), expired));
 
     // Commit to artifact data store
     Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
@@ -1902,7 +1910,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(artifact.getCommitted());
 
     // Verify.
-    assertEquals(ArtifactState.COPIED, store.getArtifactState(expired, false, artifact));
+    assertEquals(ArtifactState.COPIED, store.getArtifactState(artifact.getIdentifier(), expired));
 
     // Shutdown data store and index
     store.shutdownDataStore();
@@ -1946,16 +1954,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
-    RepositoryArtifactMetadata metadata = mock(RepositoryArtifactMetadata.class);
+    ArtifactRepositoryState metadata = mock(ArtifactRepositoryState.class);
 
     doCallRealMethod().when(ds).isArtifactDeleted(aid);
 
     // Assert if there is no journal entry for this artifact it is assumed to be deleted
-    when(ds.getRepositoryMetadata(aid)).thenReturn(null);
+    when(ds.getArtifactRepositoryState(aid)).thenReturn(null);
     assertTrue(ds.isArtifactDeleted(aid));
 
     // Setup journal entry return
-    when(ds.getRepositoryMetadata(aid)).thenReturn(metadata);
+    when(ds.getArtifactRepositoryState(aid)).thenReturn(metadata);
 
     // Assert return from isArtifactDeleted() matches journal
     when(metadata.isDeleted()).thenReturn(false);
@@ -1974,16 +1982,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
-    RepositoryArtifactMetadata metadata = mock(RepositoryArtifactMetadata.class);
+    ArtifactRepositoryState metadata = mock(ArtifactRepositoryState.class);
 
     doCallRealMethod().when(ds).isArtifactCommitted(aid);
 
     // Assert if there is no journal entry for this artifact, isArtifactCommitted is false
-    when(ds.getRepositoryMetadata(aid)).thenReturn(null);
+    when(ds.getArtifactRepositoryState(aid)).thenReturn(null);
     assertFalse(ds.isArtifactCommitted(aid));
 
     // Setup journal entry return
-    when(ds.getRepositoryMetadata(aid)).thenReturn(metadata);
+    when(ds.getArtifactRepositoryState(aid)).thenReturn(metadata);
 
     // Assert return from isArtifactCommitted() matches journal
     when(metadata.isCommitted()).thenReturn(false);
@@ -2441,7 +2449,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link WarcArtifactDataStore#updateArtifactMetadata(Path, ArtifactIdentifier, RepositoryArtifactMetadata)}.
+   * Test for {@link WarcArtifactDataStore#updateArtifactRepositoryState(Path, ArtifactIdentifier, ArtifactRepositoryState)}.
    *
    * @throws Exception
    */
@@ -2450,7 +2458,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testUpdateArtifactMetadata() throws Exception {
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
-      RepositoryArtifactMetadata metadata = store.getRepositoryMetadata(spec.getArtifactIdentifier());
+      ArtifactRepositoryState metadata = store.getArtifactRepositoryState(spec.getArtifactIdentifier());
       assertEquals(spec.isCommitted(), metadata.isCommitted());
       assertEquals(spec.isDeleted(), metadata.isDeleted());
     }
@@ -2468,44 +2476,45 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   private void runTestUpdateArtifactMetadata(boolean committed, boolean deleted) throws Exception {
     // Create an ArtifactIdentifier to test with
     ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "c", "a", "u", 1);
-    RepositoryArtifactMetadata metadata = new RepositoryArtifactMetadata(identifier, committed, deleted);
+    ArtifactRepositoryState metadata = new ArtifactRepositoryState(identifier, committed, deleted);
 
     Path basePath = store.getBasePaths()[0];
 
     // Write metadata
-    store.updateArtifactMetadata(basePath, identifier, metadata);
+    store.updateArtifactRepositoryState(basePath, identifier, metadata);
 
     // Assert metadata file exists
-    assertTrue(isFile(store.getAuMetadataWarcPath(basePath, identifier, RepositoryArtifactMetadata.getMetadataId())));
+    assertTrue(isFile(store.getAuJournalPath(basePath, identifier.getCollection(), identifier.getAuid(),
+        ArtifactRepositoryState.getMetadataId())));
 
     // Read and assert metadata
-    RepositoryArtifactMetadata storedMetadata = store.getRepositoryMetadata(identifier);
+    ArtifactRepositoryState storedMetadata = store.getArtifactRepositoryState(identifier);
     assertEquals(metadata.getArtifactId(), storedMetadata.getArtifactId());
     assertEquals(metadata.getCommitted(), storedMetadata.getCommitted());
     assertEquals(metadata.getDeleted(), storedMetadata.getDeleted());
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#truncateMetadataJournal(Path)}.
+   * Test for {@link WarcArtifactDataStore#truncateAuJournalFile(Path)}.
    * <p>
    * Q: What do we want to demonstrate here? It seems to me any test of this method is really testing
-   * {@link WarcArtifactDataStore#readMetadataJournal(Path)}.
+   * {@link WarcArtifactDataStore#readAuJournalEntries(Path, Class)}.
    * <p>
    * Discussion:
    * <p>
-   * {@link WarcArtifactDataStore#truncateMetadataJournal(Path)} should replace the journal file with a new file
+   * {@link WarcArtifactDataStore#truncateAuJournalFile(Path)} should replace the journal file with a new file
    * containing only the most recent entry per artifact ID. It relies on
-   * {@link WarcArtifactDataStore#readMetadataJournal(Path)} to read the journal and compile a
+   * {@link WarcArtifactDataStore#readAuJournalEntries(Path, Class)} to read the journal and compile a
    * {@link Map<String, JSONObject>} from artifact ID to most recent journal entry (i.e., a {@link JSONObject} object).
    * <p>
-   * Each entry is then deserialized into a {@link RepositoryArtifactMetadata} object then immediately serialized to the
+   * Each entry is then deserialized into a {@link ArtifactRepositoryState} object then immediately serialized to the
    * journal file again.
    *
    * @throws Exception
    */
   @Test
   public void testTruncateMetadataJournal() throws Exception {
-    Map<String, JSONObject> journal = new HashMap<>();
+    List<ArtifactRepositoryState> journal = new ArrayList<>();
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     // Mocks
@@ -2513,23 +2522,23 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path journalPath = mock(Path.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).truncateMetadataJournal(journalPath);
-    when(ds.readMetadataJournal(journalPath)).thenReturn(journal);
+    doCallRealMethod().when(ds).truncateAuJournalFile(journalPath);
+    when(ds.readAuJournalEntries(journalPath, ArtifactRepositoryState.class)).thenReturn(journal);
     when(ds.getAppendableOutputStream(journalPath)).thenReturn(output);
 
     // Call method
-    ds.truncateMetadataJournal(journalPath);
+    ds.truncateAuJournalFile(journalPath);
 
     // TODO: See above
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getRepositoryMetadata(ArtifactIdentifier)}.
+   * Test for {@link WarcArtifactDataStore#getArtifactRepositoryState(ArtifactIdentifier)}.
    *
    * @throws Exception
    */
   @Test
-  public void testGetRepositoryMetadata() throws Exception {
+  public void testGetArtifactRepositoryState() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
 
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
@@ -2539,22 +2548,22 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path j2Path = mock(Path.class);
     Path[] journalPaths = new Path[]{j1Path, j2Path};
 
-    doCallRealMethod().when(ds).getRepositoryMetadata(aid);
+    doCallRealMethod().when(ds).getArtifactRepositoryState(aid);
 
     // Assert null return if no journals found
-    when(ds.getAuMetadataWarcPaths(aid, RepositoryArtifactMetadata.LOCKSS_METADATA_ID)).thenReturn(new Path[]{});
-    assertNull(ds.getRepositoryMetadata(aid));
+    when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(new Path[]{});
+    assertNull(ds.getArtifactRepositoryState(aid));
 
     // Assert null return if journals do not contain an entry for this artifact
-    when(ds.getAuMetadataWarcPaths(aid, RepositoryArtifactMetadata.LOCKSS_METADATA_ID)).thenReturn(journalPaths);
-    assertNull(ds.getRepositoryMetadata(aid));
+    when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(journalPaths);
+    assertNull(ds.getArtifactRepositoryState(aid));
 
     // Assert expected entry returned
-    Map<String, JSONObject> journal1 = new HashMap<>();
+    List<ArtifactRepositoryState> journal1 = new ArrayList<>();
     JSONObject entry1 = new JSONObject("{artifactId: \"test\", committed: \"false\", deleted: \"false\"}");
-    journal1.put(aid.getId(), entry1);
-    when(ds.readMetadataJournal(j1Path)).thenReturn(journal1);
-    assertEquals(new RepositoryArtifactMetadata(entry1), ds.getRepositoryMetadata(aid));
+    journal1.add(new ArtifactRepositoryState(entry1));
+    when(ds.readAuJournalEntries(j1Path, ArtifactRepositoryState.class)).thenReturn(journal1);
+    assertEquals(new ArtifactRepositoryState(entry1), ds.getArtifactRepositoryState(aid));
 
     // TODO: Right now getRepositoryMetadata() returns the first journal entry it comes across in the first journal file
     //       it come across. It would be robust if it compared by some sort of version or timestamp. Test that here:
@@ -2567,20 +2576,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#readMetadataJournal(Path)}.
+   * Test for {@link WarcArtifactDataStore#readAuJournalEntries(Path, Class)}.
    *
    * @throws Exception
    */
   @Test
-  public void testReadMetadataJournal() throws Exception {
+  public void testReadAuJournalEntries() throws Exception {
     // Mocks
     WarcArtifactDataStore ds = spy(store);
     Path journalPath = mock(Path.class);
 
     // Generate two repository metadata records for the same artifact
     ArtifactIdentifier aid = new ArtifactIdentifier("artifact", "collection", "auid", "url", 1);
-    RepositoryArtifactMetadata am1 = new RepositoryArtifactMetadata(aid);
-    RepositoryArtifactMetadata am2 = new RepositoryArtifactMetadata(aid);
+    ArtifactRepositoryState am1 = new ArtifactRepositoryState(aid);
+    ArtifactRepositoryState am2 = new ArtifactRepositoryState(aid);
     am2.setCommitted(true);
     WARCRecordInfo r1 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am1);
     WARCRecordInfo r2 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am2);
@@ -2597,20 +2606,22 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert that we the JSON serialization of the repository metadata for this artifact matches the latest
     // (i.e., last) entry written to the journal
-    Map<String, JSONObject> journal = ds.readMetadataJournal(journalPath);
-    assertEquals(am2.toJson().toString(), journal.get(aid.getId()).toString());
+    List<ArtifactRepositoryState> journalEntries = ds.readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
+
+    assertTrue(journalEntries.contains(am1));
+    assertTrue(journalEntries.contains(am2));
 
     // FIXME: This is fragile
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#replayRepositoryMetadata(ArtifactIndex, Path)}.
+   * Test for {@link WarcArtifactDataStore#replayArtifactRepositoryStateJournal(ArtifactIndex, Path)}.
    *
    * @throws Exception
    */
   @Test
-  public void testReplayRepositoryMetadata() throws Exception {
-    Map<String, JSONObject> journal = new HashMap<>();
+  public void testReplayArtifactRepositoryStateJournal() throws Exception {
+    List<ArtifactRepositoryState> journal = new ArrayList<>();
 
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -2618,29 +2629,38 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path journalPath = mock(Path.class);
 
     // Mock behavior
-    when(ds.readMetadataJournal(journalPath)).thenReturn(journal);
-    doCallRealMethod().when(ds).replayRepositoryMetadata(index, journalPath);
+    when(ds.readAuJournalEntries(journalPath, ArtifactRepositoryState.class)).thenReturn(journal);
+    doCallRealMethod().when(ds).replayArtifactRepositoryStateJournal(index, journalPath);
 
     // "WARN: Artifact referenced by journal is not deleted but doesn't exist in index! [artifactId: test]"
-    journal.put("test", new JSONObject("{artifactId: \"test\", committed: \"false\", deleted: \"false\"}"));
-    ds.replayRepositoryMetadata(index, journalPath);
+    journal.add(new ArtifactRepositoryState(
+        new JSONObject("{artifactId: \"test\", committed: \"false\", deleted: \"false\"}")
+    ));
+    ds.replayArtifactRepositoryStateJournal(index, journalPath);
 
-    // Nothing to do
+    // Nothing to do (artifact is already committed)
     clearInvocations(ds, index);
     when(index.artifactExists("test")).thenReturn(true);
-    ds.replayRepositoryMetadata(index, journalPath);
+    ds.replayArtifactRepositoryStateJournal(index, journalPath);
     verify(index).artifactExists("test");
     verifyNoMoreInteractions(index);
 
     // Trigger a commit replay
-    journal.put("test", new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"false\"}"));
-    ds.replayRepositoryMetadata(index, journalPath);
+    clearInvocations(index);
+    journal.clear();
+    journal.add(new ArtifactRepositoryState(
+        new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"false\"}")
+    ));
+    ds.replayArtifactRepositoryStateJournal(index, journalPath);
     verify(index).commitArtifact("test");
 
     // Trigger a delete replay (but not a commit)
     clearInvocations(index);
-    journal.put("test", new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"true\"}"));
-    ds.replayRepositoryMetadata(index, journalPath);
+    journal.clear();
+    journal.add(new ArtifactRepositoryState(
+        new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"true\"}")
+    ));
+    ds.replayArtifactRepositoryStateJournal(index, journalPath);
     verify(index).deleteArtifact("test");
     verify(index, never()).commitArtifact("test");
   }

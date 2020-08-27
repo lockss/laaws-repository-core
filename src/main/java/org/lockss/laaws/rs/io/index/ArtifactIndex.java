@@ -34,6 +34,7 @@ package org.lockss.laaws.rs.io.index;
 
 import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.laaws.rs.model.Artifact;
@@ -67,6 +68,10 @@ public interface ArtifactIndex extends StorageInfoSource, Ready {
      * @return an Artifact with the artifact indexing data.
      */
     Artifact getArtifact(String artifactId) throws IOException;
+
+    default Artifact getArtifact(ArtifactIdentifier aid) throws IOException {
+        return getArtifact(aid.getId());
+    }
 
     /**
      * Provides the index data of an artifact with a given index identifier

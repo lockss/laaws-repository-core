@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import java.nio.file.Path;
 
+// TODO: This really should use a storage URL
 public class WarcFile {
   private final Path path;
   private long length = 0;

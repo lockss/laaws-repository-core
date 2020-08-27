@@ -32,12 +32,14 @@ package org.lockss.laaws.rs.model;
 
 import org.json.JSONObject;
 
+import java.time.Instant;
+
 /**
  * Encapsulates the LOCKSS repository -specific metadata of an artifact. E.g., whether an artifact is committed.
  *
  */
-public class RepositoryArtifactMetadata {
-    public static String LOCKSS_METADATA_ID = "lockss-repo";
+public class ArtifactRepositoryState implements AuJournalEntry {
+    public static String LOCKSS_JOURNAL_ID = "lockss-repo";
 
     public static final String LOCKSS_MD_ARTIFACTID_KEY = "artifactId";
     public static final String REPOSITORY_COMMITTED_KEY = "committed";
@@ -47,16 +49,18 @@ public class RepositoryArtifactMetadata {
     private boolean committed;
     private boolean deleted;
 
+    public ArtifactRepositoryState() { }
+
     /**
      * Constructor that takes JSON formatted as a String object.
      *
      * @param s JSON string
      */
-    public RepositoryArtifactMetadata(String s) {
+    public ArtifactRepositoryState(String s) {
         this(new JSONObject(s));
     }
 
-    public RepositoryArtifactMetadata(JSONObject json) {
+    public ArtifactRepositoryState(JSONObject json) {
       artifactId = json.getString(LOCKSS_MD_ARTIFACTID_KEY);
       committed = json.getBoolean(REPOSITORY_COMMITTED_KEY);
       deleted = json.getBoolean(REPOSITORY_DELETED_KEY);
@@ -68,7 +72,7 @@ public class RepositoryArtifactMetadata {
      * @return A {@code String} containing the metadata ID.
      */
     public static String getMetadataId() {
-        return LOCKSS_METADATA_ID;
+        return LOCKSS_JOURNAL_ID;
     }
 
     /**
@@ -77,7 +81,7 @@ public class RepositoryArtifactMetadata {
      * @param artifactId
      *          An ArtifactIdentifier with the artifact identifying information.
      */
-    public RepositoryArtifactMetadata(ArtifactIdentifier artifactId) {
+    public ArtifactRepositoryState(ArtifactIdentifier artifactId) {
         this.artifactId = artifactId.getId();
     }
 
@@ -88,7 +92,7 @@ public class RepositoryArtifactMetadata {
      * @param committed Boolean indicating whether this artifact is committed
      * @param deleted Boolean indicating whether this artifact is deleted
      */
-    public RepositoryArtifactMetadata(ArtifactIdentifier artifactId, boolean committed, boolean deleted) {
+    public ArtifactRepositoryState(ArtifactIdentifier artifactId, boolean committed, boolean deleted) {
         this(artifactId);
 
         this.committed = committed;
@@ -100,8 +104,14 @@ public class RepositoryArtifactMetadata {
      *
      * @return ArtifactData ID
      */
+    @Override
     public String getArtifactId() {
         return artifactId;
+    }
+
+    @Override
+    public Instant getEntryDate() {
+        return null;
     }
 
     /**
@@ -174,7 +184,7 @@ public class RepositoryArtifactMetadata {
 
     @Override
     public boolean equals(Object obj) {
-      RepositoryArtifactMetadata other = (RepositoryArtifactMetadata)obj;
+      ArtifactRepositoryState other = (ArtifactRepositoryState)obj;
 
       return other.getArtifactId().equals(this.getArtifactId()) &&
              other.getCommitted() == this.getCommitted() &&

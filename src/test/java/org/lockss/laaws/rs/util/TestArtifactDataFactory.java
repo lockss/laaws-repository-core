@@ -40,7 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
@@ -158,7 +158,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            RepositoryArtifactMetadata repositoryState = artifact.getRepositoryMetadata();
+            ArtifactRepositoryState repositoryState = artifact.getRepositoryMetadata();
             assertNull(repositoryState);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
@@ -214,7 +214,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            RepositoryArtifactMetadata repositoryState = artifact.getRepositoryMetadata();
+            ArtifactRepositoryState repositoryState = artifact.getRepositoryMetadata();
             assertNull(repositoryState);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
