@@ -48,7 +48,8 @@ import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
 import org.lockss.util.rest.exception.LockssRestInvalidResponseException;
-import org.lockss.util.rest.multipart.MimeMultipartHttpMessageConverter;
+import org.lockss.util.rest.multipart.MultipartMessage;
+import org.lockss.util.rest.multipart.MultipartMessageHttpMessageConverter;
 import org.lockss.util.time.Deadline;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
@@ -65,7 +66,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
-import javax.mail.internet.MimeMultipart;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -149,7 +149,7 @@ public class RestLockssRepository implements LockssRepository {
 
     // Add the multipart/form-data converter to the RestTemplate
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
-    messageConverters.add(new MimeMultipartHttpMessageConverter());
+    messageConverters.add(new MultipartMessageHttpMessageConverter());
 
     // Set the buffer to false for streaming - still needed?
 //     SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
@@ -357,12 +357,12 @@ public class RestLockssRepository implements LockssRepository {
       URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
       // Make the request to the REST service and get its response
-      ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
+      ResponseEntity<MultipartMessage> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
           new HttpEntity<>(null, getInitializedHttpHeaders()),
-          MimeMultipart.class,
+          MultipartMessage.class,
           "RestLockssRepository#getArtifactData"
       );
 
