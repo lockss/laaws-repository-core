@@ -1427,7 +1427,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
 
         // Get an InputStream containing the serialized artifact from the DFOS
-        try (InputStream input = dfos.getInputStream()) {
+        try (InputStream input = dfos.getDeleteOnCloseInputStream()) {
 
           // Write the serialized artifact to the temporary WARC file
           bytesWritten = IOUtils.copyLarge(input, output);
