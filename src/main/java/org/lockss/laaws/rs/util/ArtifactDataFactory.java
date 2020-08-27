@@ -453,7 +453,7 @@ public class ArtifactDataFactory {
         }
 
         // Set misc. artifact properties
-        result.setContentLength(Integer.parseInt(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+        result.setContentLength(Long.parseLong(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
         result.setContentDigest(headers.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
       }
 
