@@ -40,6 +40,7 @@ import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
@@ -353,12 +354,16 @@ public class RestLockssRepository implements LockssRepository {
     try {
       URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
+      // Set Accept header in request
+      HttpHeaders requestHeaders = getInitializedHttpHeaders();
+      requestHeaders.setAccept(ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
+
       // Make the request to the REST service and get its response
       ResponseEntity<MultipartMessage> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
+          new HttpEntity<>(null, requestHeaders),
           MultipartMessage.class,
           "RestLockssRepository#getArtifactData"
       );
