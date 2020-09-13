@@ -2255,6 +2255,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
     DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "writeArtifactData");
     try {
+      artifactData.setComputeDigestOnRead(true);
       // Create a HTTP response stream from the ArtifactData
       InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
           ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)

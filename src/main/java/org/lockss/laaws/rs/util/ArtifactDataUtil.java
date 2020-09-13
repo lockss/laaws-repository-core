@@ -71,7 +71,8 @@ public class ArtifactDataUtil {
                 getHttpResponseFromArtifactData(artifactData)
         );
 
-        artifactData.setContentLength(artifactData.getBytesRead());
+	// getBytesRead() hasn't been computed yet
+//         artifactData.setContentLength(artifactData.getBytesRead());
 
         return httpResponse;
     }

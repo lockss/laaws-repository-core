@@ -70,6 +70,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private InputStream artifactStream;
   private CountingInputStream cis;
   private DigestInputStream dis;
+  private boolean isComputeDigestOnRead = false;
 
   // The byte stream of this artifact before it is wrapped in the WARC
   // processing code that does not honor close().
@@ -80,7 +81,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private StatusLine httpStatus;
   private InputStream origInputStream;
   private boolean hadAnInputStream = false;
-  private long contentLength;
+  private long contentLength = -1;
   private String contentDigest;
 
   // Internal repository metadata
@@ -187,6 +188,15 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     return hadAnInputStream;
   }
 
+  /** If the argument is true, a MessageDigest of the content will be
+   * computed as it's read.  Must be called before {@link
+   * #getInputStream()}
+   * @param val If true a digest will be computed.
+   */
+  public void setComputeDigestOnRead(boolean val) {
+    isComputeDigestOnRead = val;
+  }
+
   /**
    * Returns this artifact's byte stream in a one-time use {@code InputStream}.
    *
@@ -205,12 +215,17 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 	throw new IllegalStateException("Attempt to get InputStream from ArtifactData whose InputStream has been used");
       }
       cis = new CountingInputStream(origInputStream);
-      dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
-
+      InputStream outerStream;
+      if (isComputeDigestOnRead) {
+	dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
+	outerStream = dis;
+      } else {
+	outerStream = cis;
+      }
       // Wrap the WARC-aware byte stream of this artifact so that the
       // underlying stream can be closed.
       artifactStream = new CloseCallbackInputStream(
-          dis,
+          outerStream,
           new CloseCallbackInputStream.Callback() {
             // Called when the close() method of the stream is closed.
             @Override
@@ -327,6 +342,9 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   public String getContentDigest() {
+    if (contentDigest == null) {
+      throw new RuntimeException("Content digest has not been set");
+    }
     return contentDigest;
   }
 
@@ -335,6 +353,9 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   public long getContentLength() {
+    if (contentLength < 0) {
+      throw new RuntimeException("Content length has not been set");
+    }
     return contentLength;
   }
 
@@ -413,16 +434,33 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
         + artifactMetadata + ", httpStatus=" + httpStatus
         + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
-        + storageUrl + ", contentDigest=" + getContentDigest()
-        + ", contentLength=" + getContentLength() + ", collectionDate="
+        + storageUrl + ", contentDigest=" + contentDigest
+        + ", contentLength=" + contentLength + ", collectionDate="
         + getCollectionDate() + "]";
   }
 
   public long getBytesRead() {
+    try {
+      if (cis.available() > 0) {
+	throw new RuntimeException("Content length has not been computed");
+      }
+    } catch (IOException e) {
+      log.warn("Couldn't check whether CountingInputStream has been used", e);
+    }
     return cis.getByteCount();
   }
 
   public MessageDigest getMessageDigest() {
+    if (dis == null) {
+      throw new RuntimeException("Content digest was not requested");
+    }
+    try {
+      if (dis.available() > 0) {
+	throw new RuntimeException("Content digest has not been computed");
+      }
+    } catch (IOException e) {
+      log.warn("Couldn't check whether DigestInputStream has been used", e);
+    }
     return dis.getMessageDigest();
   }
 
