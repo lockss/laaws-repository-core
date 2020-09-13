@@ -55,7 +55,6 @@ import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -152,22 +151,9 @@ public class RestLockssRepository implements LockssRepository {
     messageConverters.add(new MultipartMessageHttpMessageConverter());
 
     // Set the buffer to false for streaming - still needed?
-//     SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
-//     factory.setBufferRequestBody(false);
-//     factory.setOutputStreaming(true);
-
-    // Use an unbuffered streaming request factory
-//     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-//     factory.setBufferRequestBody(false);
-//     factory.setOutputStreaming(true); // default
-//     restTemplate.setRequestFactory(factory);
-
-    HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-    factory.setBufferRequestBody(false);
-    restTemplate.setRequestFactory(factory);
-
+    //SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
+    //factory.setBufferRequestBody(false);
   }
-
 
   /**
    * Constructs a REST endpoint to an artifact in the repository.
