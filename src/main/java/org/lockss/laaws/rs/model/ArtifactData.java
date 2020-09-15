@@ -35,6 +35,7 @@ import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.io.EofRememberingInputStream;
 import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
@@ -70,6 +71,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private InputStream artifactStream;
   private CountingInputStream cis;
   private DigestInputStream dis;
+  private EofRememberingInputStream eofis;
   private boolean isComputeDigestOnRead = false;
 
   // The byte stream of this artifact before it is wrapped in the WARC
@@ -215,17 +217,16 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 	throw new IllegalStateException("Attempt to get InputStream from ArtifactData whose InputStream has been used");
       }
       cis = new CountingInputStream(origInputStream);
-      InputStream outerStream;
       if (isComputeDigestOnRead) {
 	dis = new DigestInputStream(cis, MessageDigest.getInstance(DEFAULT_DIGEST_ALGORITHM));
-	outerStream = dis;
+	eofis = new EofRememberingInputStream(dis);
       } else {
-	outerStream = cis;
+	eofis = new EofRememberingInputStream(cis);
       }
       // Wrap the WARC-aware byte stream of this artifact so that the
       // underlying stream can be closed.
       artifactStream = new CloseCallbackInputStream(
-          outerStream,
+          eofis,
           new CloseCallbackInputStream.Callback() {
             // Called when the close() method of the stream is closed.
             @Override
@@ -440,12 +441,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   public long getBytesRead() {
-    try {
-      if (cis.available() > 0) {
-	throw new RuntimeException("Content length has not been computed");
-      }
-    } catch (IOException e) {
-      log.warn("Couldn't check whether CountingInputStream has been used", e);
+    if (!eofis.isAtEof()) {
+      throw new RuntimeException("Content length has not been computed");
     }
     return cis.getByteCount();
   }
@@ -454,12 +451,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     if (dis == null) {
       throw new RuntimeException("Content digest was not requested");
     }
-    try {
-      if (dis.available() > 0) {
-	throw new RuntimeException("Content digest has not been computed");
-      }
-    } catch (IOException e) {
-      log.warn("Couldn't check whether DigestInputStream has been used", e);
+    if (!eofis.isAtEof()) {
+      throw new RuntimeException("Content digest has not been computed");
     }
     return dis.getMessageDigest();
   }
