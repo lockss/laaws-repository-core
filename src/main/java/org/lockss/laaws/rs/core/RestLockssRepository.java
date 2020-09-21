@@ -40,6 +40,7 @@ import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.auth.*;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
@@ -111,7 +112,7 @@ public class RestLockssRepository implements LockssRepository {
    */
   public RestLockssRepository(URL repositoryUrl, String userName,
                               String password) {
-    this(repositoryUrl, new RestTemplate(), userName, password);
+    this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
   /**
@@ -135,9 +136,7 @@ public class RestLockssRepository implements LockssRepository {
 
     // Check whether user credentials were passed.
     if (userName != null && password != null) {
-      String credentials = userName + ":" + password;
-      authHeaderValue = "Basic " + Base64.getEncoder()
-          .encodeToString(credentials.getBytes(StandardCharsets.US_ASCII));
+      authHeaderValue = AuthUtil.basicAuthHeaderValue(userName, password);
     }
 
     log.trace("authHeaderValue = {}", authHeaderValue);
