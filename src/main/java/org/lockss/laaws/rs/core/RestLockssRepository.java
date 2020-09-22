@@ -111,8 +111,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, String userName,
-                              String password) {
+  public RestLockssRepository(URL repositoryUrl, String userName, String password) {
     this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
@@ -130,9 +129,11 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate,
-                              String userName, String password) {
+  private RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
+    // Set RestTemplate used by RestLockssRepository
     this.restTemplate = restTemplate;
+
+    // Set remote Repository service URL
     this.repositoryUrl = repositoryUrl;
 
     // Check whether user credentials were passed.
@@ -1191,7 +1192,7 @@ public class RestLockssRepository implements LockssRepository {
           repositoryUrl.toString());
       try {
         jmsProducer.sendMap(map);
-      } catch (javax.jms.JMSException e) {
+      } catch (JMSException e) {
         log.error("Couldn't send ping", e);
       }
     }
@@ -1203,6 +1204,10 @@ public class RestLockssRepository implements LockssRepository {
    */
   public ArtifactCache getArtifactCache() {
     return artCache;
+  }
+
+  public RestTemplate getRestTemplate() {
+    return restTemplate;
   }
 
   //
