@@ -57,6 +57,8 @@ import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -148,9 +150,14 @@ public class RestLockssRepository implements LockssRepository {
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
     messageConverters.add(new MultipartMessageHttpMessageConverter());
 
-    // Set the buffer to false for streaming - still needed?
-    //SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
-    //factory.setBufferRequestBody(false);
+    // Get the RestTemplate's client request factory
+    ClientHttpRequestFactory factory = this.restTemplate.getRequestFactory();
+
+    // Set request body buffering to false to stream the request directly, if the RestTemplate
+    // is configured to use SimpleClientHttpRequestFactory
+    if (factory instanceof SimpleClientHttpRequestFactory) {
+      ((SimpleClientHttpRequestFactory) factory).setBufferRequestBody(false);
+    }
   }
 
   /**
