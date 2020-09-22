@@ -113,7 +113,7 @@ public class RestLockssRepository implements LockssRepository {
    */
   public RestLockssRepository(URL repositoryUrl, String userName,
                               String password) {
-    this(repositoryUrl, new RestTemplate(), userName, password);
+    this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
   /**
@@ -149,15 +149,6 @@ public class RestLockssRepository implements LockssRepository {
     // Add the multipart/form-data converter to the RestTemplate
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
     messageConverters.add(new MultipartMessageHttpMessageConverter());
-
-    // Get the RestTemplate's client request factory
-    ClientHttpRequestFactory factory = this.restTemplate.getRequestFactory();
-
-    // Set request body buffering to false to stream the request directly, if the RestTemplate
-    // is configured to use SimpleClientHttpRequestFactory
-    if (factory instanceof SimpleClientHttpRequestFactory) {
-      ((SimpleClientHttpRequestFactory) factory).setBufferRequestBody(false);
-    }
   }
 
   /**
