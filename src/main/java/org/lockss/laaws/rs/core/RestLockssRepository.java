@@ -41,6 +41,7 @@ import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
+import org.lockss.util.auth.*;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
@@ -57,8 +58,6 @@ import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
-import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -138,9 +137,7 @@ public class RestLockssRepository implements LockssRepository {
 
     // Check whether user credentials were passed.
     if (userName != null && password != null) {
-      String credentials = userName + ":" + password;
-      authHeaderValue = "Basic " + Base64.getEncoder()
-          .encodeToString(credentials.getBytes(StandardCharsets.US_ASCII));
+      authHeaderValue = AuthUtil.basicAuthHeaderValue(userName, password);
     }
 
     log.trace("authHeaderValue = {}", authHeaderValue);
@@ -151,6 +148,7 @@ public class RestLockssRepository implements LockssRepository {
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
     messageConverters.add(new MultipartMessageHttpMessageConverter());
   }
+
 
   /**
    * Constructs a REST endpoint to an artifact in the repository.
