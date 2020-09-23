@@ -40,6 +40,7 @@ import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
 import org.lockss.util.auth.*;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
@@ -57,7 +58,6 @@ import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -110,8 +110,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, String userName,
-                              String password) {
+  public RestLockssRepository(URL repositoryUrl, String userName, String password) {
     this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
@@ -129,9 +128,11 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate,
-                              String userName, String password) {
+  private RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
+    // Set RestTemplate used by RestLockssRepository
     this.restTemplate = restTemplate;
+
+    // Set remote Repository service URL
     this.repositoryUrl = repositoryUrl;
 
     // Check whether user credentials were passed.
@@ -146,22 +147,6 @@ public class RestLockssRepository implements LockssRepository {
     // Add the multipart/form-data converter to the RestTemplate
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
     messageConverters.add(new MultipartMessageHttpMessageConverter());
-
-    // Set the buffer to false for streaming - still needed?
-//     SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
-//     factory.setBufferRequestBody(false);
-//     factory.setOutputStreaming(true);
-
-    // Use an unbuffered streaming request factory
-//     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-//     factory.setBufferRequestBody(false);
-//     factory.setOutputStreaming(true); // default
-//     restTemplate.setRequestFactory(factory);
-
-    HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-    factory.setBufferRequestBody(false);
-    restTemplate.setRequestFactory(factory);
-
   }
 
 
@@ -352,12 +337,16 @@ public class RestLockssRepository implements LockssRepository {
     try {
       URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
+      // Set Accept header in request
+      HttpHeaders requestHeaders = getInitializedHttpHeaders();
+      requestHeaders.setAccept(ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
+
       // Make the request to the REST service and get its response
       ResponseEntity<MultipartMessage> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
+          new HttpEntity<>(null, requestHeaders),
           MultipartMessage.class,
           "RestLockssRepository#getArtifactData"
       );
@@ -1201,7 +1190,7 @@ public class RestLockssRepository implements LockssRepository {
           repositoryUrl.toString());
       try {
         jmsProducer.sendMap(map);
-      } catch (javax.jms.JMSException e) {
+      } catch (JMSException e) {
         log.error("Couldn't send ping", e);
       }
     }
@@ -1213,6 +1202,10 @@ public class RestLockssRepository implements LockssRepository {
    */
   public ArtifactCache getArtifactCache() {
     return artCache;
+  }
+
+  public RestTemplate getRestTemplate() {
+    return restTemplate;
   }
 
   //
