@@ -102,7 +102,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected static final String AU_DIR_PREFIX = "au-";
 
   protected static final String COLLECTIONS_DIR = "collections";
-  protected static final String TMP_WARCS_DIR = "temp";
+  protected static final String TMP_WARCS_DIR = "tempwarcs";
 
   protected static final String WARCID_SCHEME = "urn:uuid";
   protected static final String CRLF = "\r\n";
