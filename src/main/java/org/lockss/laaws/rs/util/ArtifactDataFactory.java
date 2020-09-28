@@ -55,8 +55,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMultipart;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -412,15 +410,15 @@ public class ArtifactDataFactory {
     return null;
   }
 
-  public static ArtifactData fromTransportResponseEntity(ResponseEntity<MimeMultipart> response) throws IOException {
+  public static ArtifactData fromTransportResponseEntity(ResponseEntity<MultipartMessage> response) throws IOException {
     try {
       // For JSON object parsing
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
       // Assemble ArtifactData object from multipart response parts
-      MultipartResponse multipartResponse = new MultipartResponse(response);
-      LinkedHashMap<String, MultipartResponse.Part> parts = multipartResponse.getParts();
+      MultipartResponse multipartMessage = new MultipartResponse(response);
+      LinkedHashMap<String, MultipartResponse.Part> parts = multipartMessage.getParts();
       ArtifactData result = new ArtifactData();
 
       //// Set artifact repository properties
@@ -454,7 +452,7 @@ public class ArtifactDataFactory {
         }
 
         // Set misc. artifact properties
-        result.setContentLength(Integer.parseInt(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
+        result.setContentLength(Long.parseLong(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
         result.setContentDigest(headers.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
       }
 
@@ -493,8 +491,8 @@ public class ArtifactDataFactory {
 
       return result;
 
-    } catch (MessagingException e) {
-      log.error("Error processing multipart response", e);
+    } catch (IOException e) {
+      log.error("Could not process MultipartMessage into ArtifactData object", e);
       throw new IOException("Error processing multipart response");
     }
   }

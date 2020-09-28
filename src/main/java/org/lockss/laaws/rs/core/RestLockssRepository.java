@@ -40,21 +40,24 @@ import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
+import org.lockss.util.auth.*;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
 import org.lockss.util.jms.JmsUtil;
+import org.lockss.util.rest.LockssResponseErrorHandler;
 import org.lockss.util.rest.RestUtil;
 import org.lockss.util.rest.exception.LockssRestException;
 import org.lockss.util.rest.exception.LockssRestHttpException;
 import org.lockss.util.rest.exception.LockssRestInvalidResponseException;
-import org.lockss.util.rest.multipart.MimeMultipartHttpMessageConverter;
+import org.lockss.util.rest.multipart.MultipartMessage;
+import org.lockss.util.rest.multipart.MultipartMessageHttpMessageConverter;
 import org.lockss.util.time.Deadline;
 import org.lockss.util.time.TimeUtil;
 import org.lockss.util.time.TimerUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -65,7 +68,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
-import javax.mail.internet.MimeMultipart;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -108,9 +110,8 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, String userName,
-                              String password) {
-    this(repositoryUrl, new RestTemplate(), userName, password);
+  public RestLockssRepository(URL repositoryUrl, String userName, String password) {
+    this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
   /**
@@ -127,45 +128,25 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate,
-                              String userName, String password) {
+  private RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
+    // Set RestTemplate used by RestLockssRepository
     this.restTemplate = restTemplate;
+
+    // Set remote Repository service URL
     this.repositoryUrl = repositoryUrl;
 
     // Check whether user credentials were passed.
     if (userName != null && password != null) {
-      String credentials = userName + ":" + password;
-      authHeaderValue = "Basic " + Base64.getEncoder()
-          .encodeToString(credentials.getBytes(StandardCharsets.US_ASCII));
+      authHeaderValue = AuthUtil.basicAuthHeaderValue(userName, password);
     }
 
     log.trace("authHeaderValue = {}", authHeaderValue);
 
-    restTemplate.setErrorHandler(new DefaultResponseErrorHandler() {
-      protected boolean hasError(HttpStatus statusCode) {
-        return false;
-      }
-    });
+    restTemplate.setErrorHandler(new LockssResponseErrorHandler(restTemplate.getMessageConverters()));
 
     // Add the multipart/form-data converter to the RestTemplate
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
-    messageConverters.add(new MimeMultipartHttpMessageConverter());
-
-    // Set the buffer to false for streaming - still needed?
-//     SimpleClientHttpRequestFactory factory = (SimpleClientHttpRequestFactory) this.restTemplate.getRequestFactory();
-//     factory.setBufferRequestBody(false);
-//     factory.setOutputStreaming(true);
-
-    // Use an unbuffered streaming request factory
-//     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-//     factory.setBufferRequestBody(false);
-//     factory.setOutputStreaming(true); // default
-//     restTemplate.setRequestFactory(factory);
-
-    HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-    factory.setBufferRequestBody(false);
-    restTemplate.setRequestFactory(factory);
-
+    messageConverters.add(new MultipartMessageHttpMessageConverter());
   }
 
 
@@ -356,13 +337,17 @@ public class RestLockssRepository implements LockssRepository {
     try {
       URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
+      // Set Accept header in request
+      HttpHeaders requestHeaders = getInitializedHttpHeaders();
+      requestHeaders.setAccept(ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
+
       // Make the request to the REST service and get its response
-      ResponseEntity<MimeMultipart> response = RestUtil.callRestService(
+      ResponseEntity<MultipartMessage> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, getInitializedHttpHeaders()),
-          MimeMultipart.class,
+          new HttpEntity<>(null, requestHeaders),
+          MultipartMessage.class,
           "RestLockssRepository#getArtifactData"
       );
 
@@ -1205,7 +1190,7 @@ public class RestLockssRepository implements LockssRepository {
           repositoryUrl.toString());
       try {
         jmsProducer.sendMap(map);
-      } catch (javax.jms.JMSException e) {
+      } catch (JMSException e) {
         log.error("Couldn't send ping", e);
       }
     }
@@ -1217,6 +1202,10 @@ public class RestLockssRepository implements LockssRepository {
    */
   public ArtifactCache getArtifactCache() {
     return artCache;
+  }
+
+  public RestTemplate getRestTemplate() {
+    return restTemplate;
   }
 
   //

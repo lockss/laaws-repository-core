@@ -104,7 +104,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected static final String AU_DIR_PREFIX = "au-";
 
   protected static final String COLLECTIONS_DIR = "collections";
-  protected static final String TMP_WARCS_DIR = "temp";
+  protected static final String TMP_WARCS_DIR = "tempwarcs";
 
   protected static final String WARCID_SCHEME = "urn:uuid";
   protected static final String CRLF = "\r\n";
@@ -1423,7 +1423,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try (OutputStream output = getAppendableOutputStream(tmpWarcFilePath)) {
 
         // Get an InputStream containing the serialized artifact from the DFOS
-        try (InputStream input = dfos.getInputStream()) {
+        try (InputStream input = dfos.getDeleteOnCloseInputStream()) {
 
           // Write the serialized artifact to the temporary WARC file
           bytesWritten = IOUtils.copyLarge(input, output);
@@ -2270,6 +2270,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
     DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "writeArtifactData");
     try {
+      artifactData.setComputeDigestOnRead(true);
       // Create a HTTP response stream from the ArtifactData
       InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
           ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
