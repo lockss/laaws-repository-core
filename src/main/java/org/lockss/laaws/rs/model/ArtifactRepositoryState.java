@@ -41,11 +41,11 @@ import java.time.Instant;
 public class ArtifactRepositoryState implements AuJournalEntry {
     public static String LOCKSS_JOURNAL_ID = "lockss-repo";
 
-    public static final String LOCKSS_MD_ARTIFACTID_KEY = "artifactId";
     public static final String REPOSITORY_COMMITTED_KEY = "committed";
     public static final String REPOSITORY_DELETED_KEY = "deleted";
 
     private String artifactId;
+    private long entryDate;
     private boolean committed;
     private boolean deleted;
 
@@ -62,6 +62,8 @@ public class ArtifactRepositoryState implements AuJournalEntry {
 
     public ArtifactRepositoryState(JSONObject json) {
       artifactId = json.getString(LOCKSS_MD_ARTIFACTID_KEY);
+      entryDate = json.getLong(JOURNAL_ENTRY_DATE);
+
       committed = json.getBoolean(REPOSITORY_COMMITTED_KEY);
       deleted = json.getBoolean(REPOSITORY_DELETED_KEY);
     }
@@ -82,7 +84,7 @@ public class ArtifactRepositoryState implements AuJournalEntry {
      *          An ArtifactIdentifier with the artifact identifying information.
      */
     public ArtifactRepositoryState(ArtifactIdentifier artifactId) {
-        this.artifactId = artifactId.getId();
+        this(artifactId, false, false);
     }
 
     /**
@@ -93,10 +95,11 @@ public class ArtifactRepositoryState implements AuJournalEntry {
      * @param deleted Boolean indicating whether this artifact is deleted
      */
     public ArtifactRepositoryState(ArtifactIdentifier artifactId, boolean committed, boolean deleted) {
-        this(artifactId);
-
+        this.artifactId = artifactId.getId();
         this.committed = committed;
         this.deleted = deleted;
+
+        this.entryDate = Instant.now().toEpochMilli();
     }
 
     /**
@@ -111,7 +114,7 @@ public class ArtifactRepositoryState implements AuJournalEntry {
 
     @Override
     public Instant getEntryDate() {
-        return null;
+        return Instant.ofEpochMilli(this.entryDate);
     }
 
     /**
@@ -139,6 +142,7 @@ public class ArtifactRepositoryState implements AuJournalEntry {
      */
     public void setCommitted(boolean committed) {
         this.committed = committed;
+        this.entryDate = Instant.now().toEpochMilli(); // FIXME
     }
 
     /**
@@ -166,6 +170,7 @@ public class ArtifactRepositoryState implements AuJournalEntry {
      */
     public void setDeleted(boolean deleted) {
         this.deleted = deleted;
+        this.entryDate = Instant.now().toEpochMilli(); // FIXME
     }
 
     /**
@@ -176,10 +181,23 @@ public class ArtifactRepositoryState implements AuJournalEntry {
     public JSONObject toJson() {
       JSONObject json = new JSONObject();
       json.put(LOCKSS_MD_ARTIFACTID_KEY, artifactId);
+
+      json.put(JOURNAL_ENTRY_DATE, getEntryDate().toEpochMilli());
+
       json.put(REPOSITORY_COMMITTED_KEY, committed);
       json.put(REPOSITORY_DELETED_KEY, deleted);
 
       return json;
+    }
+
+    @Override
+    public String toString() {
+        return "ArtifactRepositoryState{" +
+                "artifactId='" + artifactId + '\'' +
+                ", entryDate=" + entryDate +
+                ", committed=" + committed +
+                ", deleted=" + deleted +
+                '}';
     }
 
     @Override

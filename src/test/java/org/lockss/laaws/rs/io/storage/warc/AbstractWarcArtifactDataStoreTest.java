@@ -2551,6 +2551,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path[] journalPaths = new Path[]{j1Path, j2Path};
 
     doCallRealMethod().when(ds).getArtifactRepositoryState(aid);
+    ds.artifactStates = new HashMap<>();
 
     // Assert null return if no journals found
     when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(new Path[]{});
@@ -2562,7 +2563,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert expected entry returned
     List<ArtifactRepositoryState> journal1 = new ArrayList<>();
-    JSONObject entry1 = new JSONObject("{artifactId: \"test\", committed: \"false\", deleted: \"false\"}");
+    JSONObject entry1 = new JSONObject("{artifactId: \"test\", entryDate: 1234, committed: \"false\", deleted: \"false\"}");
     journal1.add(new ArtifactRepositoryState(entry1));
     when(ds.readAuJournalEntries(j1Path, ArtifactRepositoryState.class)).thenReturn(journal1);
     assertEquals(new ArtifactRepositoryState(entry1), ds.getArtifactRepositoryState(aid));
@@ -2636,7 +2637,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // "WARN: Artifact referenced by journal is not deleted but doesn't exist in index! [artifactId: test]"
     journal.add(new ArtifactRepositoryState(
-        new JSONObject("{artifactId: \"test\", committed: \"false\", deleted: \"false\"}")
+        new JSONObject("{artifactId: \"test\", entryDate: 1234, committed: \"false\", deleted: \"false\"}")
     ));
     ds.replayArtifactRepositoryStateJournal(index, journalPath);
 
@@ -2651,7 +2652,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     clearInvocations(index);
     journal.clear();
     journal.add(new ArtifactRepositoryState(
-        new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"false\"}")
+        new JSONObject("{artifactId: \"test\",entryDate: 1234,  committed: \"true\", deleted: \"false\"}")
     ));
     ds.replayArtifactRepositoryStateJournal(index, journalPath);
     verify(index).commitArtifact("test");
@@ -2660,7 +2661,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     clearInvocations(index);
     journal.clear();
     journal.add(new ArtifactRepositoryState(
-        new JSONObject("{artifactId: \"test\", committed: \"true\", deleted: \"true\"}")
+        new JSONObject("{artifactId: \"test\", entryDate: 1234, committed: \"true\", deleted: \"true\"}")
     ));
     ds.replayArtifactRepositoryStateJournal(index, journalPath);
     verify(index).deleteArtifact("test");

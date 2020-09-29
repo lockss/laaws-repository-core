@@ -2129,6 +2129,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected ArtifactRepositoryState getArtifactRepositoryState(ArtifactIdentifier aid) throws IOException {
+    if (aid == null) {
+      throw new IllegalArgumentException("Null artifact identifier");
+    }
+
     // Read AU repository state journal files if needed
     if (!artifactStates.containsKey(aid.getId())) {
       for (Path journalPath :
@@ -2142,9 +2146,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           // Get current state from map
           ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
 
-          // Add to map if not found or if the journal entry is newer
-          if (state == null || state.getEntryDate().isBefore(journalEntry.getEntryDate())) {
-            repoStates.put(journalEntry.getArtifactId(), journalEntry);
+          // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
+          // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
+          //       fast machine. The effect of equals() here is, falling back to the order in which the journal
+          //       entries appear (appended) in a journal file and the order in which journal files are read.
+          if (state == null ||
+              journalEntry.getEntryDate().equals(state.getEntryDate()) ||
+              journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
+
+            artifactStates.put(journalEntry.getArtifactId(), journalEntry);
           }
         }
       }
