@@ -1202,7 +1202,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     if (artifact != null) {
       try {
-        if (!isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
+        if (artifact.isCommitted() && !isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
           // Artifact is marked committed and in permanent storage
           return ArtifactState.COPIED;
         } else if (artifact.isCommitted()) {
