@@ -537,6 +537,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
       ArtifactData ad = new ArtifactData(id, null, baos1.toInputStream(), statusOK);
 
+      // Set collection date to now by default
+      ad.setCollectionDate(Instant.now().toEpochMilli());
+
       return ad;
     }
   }

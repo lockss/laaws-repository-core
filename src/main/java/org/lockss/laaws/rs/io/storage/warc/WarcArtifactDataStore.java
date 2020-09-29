@@ -2282,6 +2282,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.addExtraHeader(ArtifactConstants.ARTIFACT_URI_KEY, artifactId.getUri());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
+    record.addExtraHeader(
+        ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY,
+        DateTimeFormatter.ISO_INSTANT.format(
+                Instant.ofEpochMilli(artifactData.getCollectionDate()).atZone(ZoneOffset.UTC)
+        )
+    );
+
     // We're required to pre-compute the WARC payload size (which is an artifact encoded as an HTTP response stream)
     // but it is not possible to determine the final size without exhausting the InputStream, so we use a
     // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.

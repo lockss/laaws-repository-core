@@ -373,6 +373,13 @@ public class ArtifactDataFactory {
           artifact.setContentDigest(artifactDigest);
         }
 
+        String artifactDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY);
+        log.debug2("artifactDate = {}", artifactDate);
+        if (artifactDate != null && !artifactDate.trim().isEmpty()) {
+          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactDate);
+          artifact.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+        }
+
         log.debug2("artifact = {}", artifact);
 
         return artifact;
