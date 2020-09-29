@@ -760,7 +760,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Create a new AU base directory (or get the existing one with the most available space)
         auPath = initAuDir(collectionId, auid);
       } else {
-        throw new IOException("No AU base dir");
+        log.error("No AU directory available: Configured data store base paths are full");
+        throw new IOException("No AU directory available");
       }
     }
 
@@ -954,7 +955,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @throws IOException
    */
-  protected void reloadTemporaryWarcs() throws IOException {
+  public void reloadTemporaryWarcs() throws IOException {
     if (artifactIndex == null) {
       throw new IllegalStateException("Cannot reload data store state from temporary WARCs without an artifact index");
     }
@@ -1014,8 +1015,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         ArtifactIdentifier aid = ArtifactDataFactory.buildArtifactIdentifier(record.getHeader());
 
+        ArtifactState artifactState = getArtifactState(aid, isArtifactExpired(record));
+
+        log.trace("artifact.state = {}", artifactState);
+
         // Resume artifact lifecycle based on the artifact's state
-        switch (getArtifactState(aid, isArtifactExpired(record))) {
+        switch (artifactState) {
           case NOT_INDEXED:
             // An artifact was found in a temporary WARC that is not indexed for some reason - index the artifact now
             log.debug("Artifact missing from index; indexing now [artifactId: {}]", aid.getId());
@@ -1052,8 +1057,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           case EXPIRED:
           case COPIED:
           case DELETED:
-            log.debug2("Temporary WARC record is removable [warcId: {}]", record.getHeader().getRecordIdentifier());
+            log.debug2("Temporary WARC record is removable [warcId: {}, state: {}]",
+                record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
             isRecordRemovable = true;
+            break;
 
           case UNKNOWN:
           default:
