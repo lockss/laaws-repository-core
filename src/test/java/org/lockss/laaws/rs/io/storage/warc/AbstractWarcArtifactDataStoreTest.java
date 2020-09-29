@@ -1847,8 +1847,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Do not use provided data store
     teardownDataStore();
 
-    runTestGetArtifactState(true);
-    runTestGetArtifactState(false);
+    for (ArtifactState testState : ArtifactState.values()) {
+      runTestGetArtifactState(testState);
+    }
+
   }
 
   /**
@@ -1856,8 +1858,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    *
    * @throws Exception
    */
-  private void runTestGetArtifactState(boolean expired) throws Exception {
-    // Configure WARC artifact data store with a newly instantiated volatile artifact index
+  private void runTestGetArtifactState(ArtifactState expectedState) throws Exception {
+    // Assert IllegalArgumentException is thrown if a null artifact identifier is passed
+    assertThrows(IllegalArgumentException.class, () -> store.getArtifactState(null, true));
+    assertThrows(IllegalArgumentException.class, () -> store.getArtifactState(null, false));
+
+    // Configure WARC artifact data store with new volatile index
     ArtifactIndex index = new VolatileArtifactIndex();
 
     // Instantiate a new WARC artifact data store for this run
@@ -1867,56 +1873,55 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(store);
     assertEquals(index, store.getArtifactIndex());
 
-    // Get the state of an artifact that has been deleted
-    ArtifactState artifactState = store.getArtifactState(null, expired);
-    log.trace("artifactState = {}", artifactState);
-    assertEquals(ArtifactState.DELETED, artifactState);
+    // ************************************
+    // Create conditions for expected state
+    // ************************************
 
-    // Get the state of an artifact that has not been indexed.
-    artifactState = store.getArtifactState(null, expired);
-    log.trace("artifactState = {}", artifactState);
-
-    // Verify.
-    if (expired) {
-      assertEquals(ArtifactState.EXPIRED, artifactState);
-    } else {
-      assertEquals(ArtifactState.NOT_INDEXED, artifactState);
-    }
-
-    // Initialize data store and index
-    index.initIndex();
-    store.initDataStore();
-
-    // Add an artifact to the store and index
-    ArtifactData ad = generateTestArtifactData("coll", "auid", "uri", 1, 512);
+    // Add and remove an artifact
+    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 128);
     Artifact artifact = store.addArtifactData(ad);
 
-    // Get the artifact state.
-    artifactState = store.getArtifactState(artifact.getIdentifier(), expired);
-    log.trace("artifactState = {}", artifactState);
+    boolean isExpired = false;
 
-    // Verify.
-    if (expired) {
-      assertEquals(ArtifactState.EXPIRED, artifactState);
-    } else {
-      assertEquals(ArtifactState.UNCOMMITTED, artifactState);
+    switch (expectedState) {
+      case UNKNOWN:
+        artifact = new Artifact("unknown", "collection", "auid", "uri", 1, false, "storageurl", 1, "digest");
+        break;
+
+      case NOT_INDEXED:
+        // Set data store's index to new index
+        store.setArtifactIndex(new VolatileArtifactIndex());
+        break;
+
+      case UNCOMMITTED:
+        break;
+
+      case EXPIRED:
+        isExpired = true;
+        break;
+
+      case COMMITTED:
+        index.commitArtifact(artifact.getId());
+        // TODO Mark as committed in journal?
+        break;
+
+      case COPIED:
+        Future<Artifact> future = store.commitArtifactData(artifact);
+        artifact = future.get(1, TimeUnit.SECONDS);
+        break;
+
+      case DELETED:
+        // Remove artifact
+        store.deleteArtifactData(artifact);
+        break;
+
+      default:
+        fail("Unknown artifact state");
     }
 
-    // Commit the artifact.
-    artifact.setCommitted(true);
-
-    // Verify.
-    assertEquals(ArtifactState.COMMITTED,
-        store.getArtifactState(artifact.getIdentifier(), expired));
-
-    // Commit to artifact data store
-    Future<Artifact> artifactFuture = store.commitArtifactData(artifact);
-    assertNotNull(artifactFuture);
-
-    // Wait for data store commit (copy from temporary to permanent storage) to complete
-    artifact = artifactFuture.get(10, TimeUnit.SECONDS);
-    assertNotNull(artifact);
-    assertTrue(artifact.getCommitted());
+    // ***********************************************************
+    // Get artifact state and assert it matches the expected state
+    // ***********************************************************
 
     ArtifactState artifactState = store.getArtifactState(artifact.getIdentifier(), isExpired);
     assertEquals(expectedState, artifactState);
@@ -1965,7 +1970,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert if there is no journal entry for this artifact it is assumed to be deleted
     when(ds.getArtifactRepositoryState(aid)).thenReturn(null);
-    assertTrue(ds.isArtifactDeleted(aid));
+    assertThrows(LockssNoSuchArtifactIdException.class, () -> ds.isArtifactDeleted(aid));
 
     // Setup journal entry return
     when(ds.getArtifactRepositoryState(aid)).thenReturn(metadata);
