@@ -1170,9 +1170,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Returns the {@link ArtifactState} of an artifact.
    */
   protected ArtifactState getArtifactState(ArtifactIdentifier aid, boolean isExpired) throws IOException {
-    if (isArtifactDeleted(aid)) {
-      // Artifact is deleted
-      return ArtifactState.DELETED;
+    if (aid == null) {
+      throw new IllegalArgumentException("Null ArtifactIdentifier");
+    }
+
+    try {
+      if (isArtifactDeleted(aid)) {
+        return ArtifactState.DELETED;
+      }
+    } catch (IOException e) {
+      log.warn("Could not determine artifact state", e);
+      return ArtifactState.UNKNOWN;
     }
 
     Artifact artifact = null;
@@ -1254,7 +1262,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return state.isDeleted();
     }
 
-    return true;
+    throw new LockssNoSuchArtifactIdException();
   }
 
   /**
@@ -1272,7 +1280,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return state.isCommitted();
     }
 
-    return false;
+    throw new LockssNoSuchArtifactIdException();
   }
 
   // *******************************************************************************************************************
