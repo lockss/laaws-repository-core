@@ -374,6 +374,7 @@ public class ArtifactDataFactory {
         }
 
         log.debug2("artifact = {}", artifact);
+
         return artifact;
 
       case resource:
@@ -448,7 +449,7 @@ public class ArtifactDataFactory {
               Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
               Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
           );
-          result.setRepositoryMetadata(artifactState);
+          result.setArtifactRepositoryState(artifactState);
         }
 
         // Set misc. artifact properties

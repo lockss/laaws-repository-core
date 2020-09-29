@@ -86,8 +86,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private long contentLength = -1;
   private String contentDigest;
 
-  // Internal repository metadata
-  private ArtifactRepositoryState repositoryMetadata;
+  // Internal repository state
+  private ArtifactRepositoryState artifactRepositoryState;
   private URI storageUrl;
 
   // The collection date.
@@ -139,23 +139,24 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    * @param storageUrl       A {@code String} URL pointing to the storage of this artifact data.
-   * @param repoMetadata     A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
+   * @param state     A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
    */
   public ArtifactData(ArtifactIdentifier identifier,
                       HttpHeaders artifactMetadata,
                       InputStream inputStream,
                       StatusLine httpStatus,
                       URI storageUrl,
-                      ArtifactRepositoryState repoMetadata) {
+                      ArtifactRepositoryState state) {
     this.identifier = identifier;
     this.httpStatus = httpStatus;
     this.storageUrl = storageUrl;
-    this.repositoryMetadata = repoMetadata;
+    this.artifactRepositoryState = state;
     stats.totalAllocated++;
 
     this.setInputStream(inputStream);
 
     this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+
     setCollectionDate(this.artifactMetadata.getDate());
 
   }
@@ -296,8 +297,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    *
    * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
    */
-  public ArtifactRepositoryState getRepositoryMetadata() {
-    return repositoryMetadata;
+  public ArtifactRepositoryState getArtifactRepositoryState() {
+    return artifactRepositoryState;
   }
 
   /**
@@ -306,8 +307,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * @param metadata A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
    * @return
    */
-  public ArtifactData setRepositoryMetadata(ArtifactRepositoryState metadata) {
-    this.repositoryMetadata = metadata;
+  public ArtifactData setArtifactRepositoryState(ArtifactRepositoryState metadata) {
+    this.artifactRepositoryState = metadata;
     return this;
   }
 
@@ -434,7 +435,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   public String toString() {
     return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
         + artifactMetadata + ", httpStatus=" + httpStatus
-        + ", repositoryMetadata=" + repositoryMetadata + ", storageUrl="
+        + ", artifactRepositoryState=" + artifactRepositoryState + ", storageUrl="
         + storageUrl + ", contentDigest=" + contentDigest
         + ", contentLength=" + contentLength + ", collectionDate="
         + getCollectionDate() + "]";

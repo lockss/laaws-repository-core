@@ -49,6 +49,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.ArtifactState;
@@ -1166,7 +1167,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Setup mock behavior
     when(aid.getCollection()).thenReturn(collectionId);
     when(aid.getAuid()).thenReturn(auid);
-    doCallRealMethod().when(ds).getAuJournalPaths(aid.getCollection(), aid.getAuid(), journalName);
+    doCallRealMethod().when(ds).getAuJournalPaths(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
     when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
 
 //    when(ds.getAuPaths(collectionId, auid)).thenReturn(null);
@@ -1577,20 +1578,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Get temporary WARCs directory storage path
     Path tmpWarcBasePath = store.getTmpWarcBasePaths()[0];
 
-    // Garbage collector must not be running while reloading temporary WARCs so we do NOT initialize it
-    //store.initDataStore();
+    // Garbage collector must not be running while reloading temporary WARCs
     assertEquals(WarcArtifactDataStore.DataStoreState.UNINITIALIZED, store.getDataStoreState());
 
     // Assert empty temporary WARCs directory
-    assertEquals(0, store.findWarcs(tmpWarcBasePath).size());
+    assertEmpty(store.findWarcs(tmpWarcBasePath));
 
-    // Add an artifact to the store and index
+    // Get an artifact spec
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
-    spec.setArtifactId(UUID.randomUUID().toString());
+    spec.setArtifactId(UUID.randomUUID().toString()); // FIXME Is this needed?
     spec.generateContent();
 
+    // Get an ArtifactData from the spec
     ArtifactData ad = spec.getArtifactData();
 
+    // Add the artifact data
     Artifact storedArtifact = store.addArtifactData(ad);
     assertNotNull(storedArtifact);
 
@@ -1688,6 +1690,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       case UNCOMMITTED:
       case COMMITTED:
         // The temporary WARC containing this artifact should NOT have been removed
+        log.debug("storageUrl = {}", WarcArtifactDataStore.getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
+        log.debug("tmpWarcBasePath = {}", tmpWarcBasePath);
+
         assertTrue(WarcArtifactDataStore.getPathFromStorageUrl(new URI(artifact.getStorageUrl())).startsWith(tmpWarcBasePath));
         assertEquals(1, tmpWarcs.size());
         break;
@@ -1846,7 +1851,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   /**
    * Runs tests for the determination of the life cycle state of an Artifact.
    *
-   * @param expired A boolean indicating whether the artifact has expired.
    * @throws Exception
    */
   private void runTestGetArtifactState(boolean expired) throws Exception {
@@ -1855,6 +1859,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Instantiate a new WARC artifact data store for this run
     store = makeWarcArtifactDataStore(index);
+
+    // Sanity check
     assertNotNull(store);
     assertEquals(index, store.getArtifactIndex());
 
@@ -1909,12 +1915,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(artifact);
     assertTrue(artifact.getCommitted());
 
-    // Verify.
-    assertEquals(ArtifactState.COPIED, store.getArtifactState(artifact.getIdentifier(), expired));
-
-    // Shutdown data store and index
-    store.shutdownDataStore();
-    index.shutdownIndex();
+    ArtifactState artifactState = store.getArtifactState(artifact.getIdentifier(), isExpired);
+    assertEquals(expectedState, artifactState);
   }
 
   /**
@@ -2485,7 +2487,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert metadata file exists
     assertTrue(isFile(store.getAuJournalPath(basePath, identifier.getCollection(), identifier.getAuid(),
-        ArtifactRepositoryState.getMetadataId())));
+        ArtifactRepositoryState.getJournalId())));
 
     // Read and assert metadata
     ArtifactRepositoryState storedMetadata = store.getArtifactRepositoryState(identifier);

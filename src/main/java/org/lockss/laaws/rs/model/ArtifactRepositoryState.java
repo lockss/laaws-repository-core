@@ -71,7 +71,7 @@ public class ArtifactRepositoryState implements AuJournalEntry {
      *
      * @return A {@code String} containing the metadata ID.
      */
-    public static String getMetadataId() {
+    public static String getJournalId() {
         return LOCKSS_JOURNAL_ID;
     }
 

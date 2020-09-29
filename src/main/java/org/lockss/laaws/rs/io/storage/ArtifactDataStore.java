@@ -55,6 +55,7 @@ import java.util.concurrent.TimeoutException;
  * @param <MD> extends {@code RepositoryArtifactMetadata}
  *            Implementation of RepositoryArtifactMetadata to parameterize this interface with.
  */
+// TODO Remove generics
 public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends ArtifactRepositoryState> extends StorageInfoSource, Ready {
     /**
      *

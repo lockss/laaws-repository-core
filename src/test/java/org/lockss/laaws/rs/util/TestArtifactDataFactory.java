@@ -158,7 +158,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getRepositoryMetadata();
+            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
             assertNull(repositoryState);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
@@ -214,7 +214,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getRepositoryMetadata();
+            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
             assertNull(repositoryState);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));

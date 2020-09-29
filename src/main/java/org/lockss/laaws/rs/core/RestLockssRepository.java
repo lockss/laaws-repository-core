@@ -61,7 +61,6 @@ import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -71,7 +70,6 @@ import javax.jms.MessageListener;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -549,17 +547,17 @@ public class RestLockssRepository implements LockssRepository {
 
     if (cached != null) {
       // Artifact found in cache; return its headers
-      return cached.getRepositoryMetadata().isCommitted();
+      return cached.getArtifactRepositoryState().isCommitted();
     }
 
     ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
 
-    if (ad.getRepositoryMetadata() == null ) {
+    if (ad.getArtifactRepositoryState() == null ) {
       throw new LockssRestInvalidResponseException("Missing artifact repository state");
     }
 
-    return ad.getRepositoryMetadata().isCommitted();
+    return ad.getArtifactRepositoryState().isCommitted();
   }
 
   /**
