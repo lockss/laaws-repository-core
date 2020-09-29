@@ -1998,7 +1998,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert if there is no journal entry for this artifact, isArtifactCommitted is false
     when(ds.getArtifactRepositoryState(aid)).thenReturn(null);
-    assertFalse(ds.isArtifactCommitted(aid));
+    assertThrows(LockssNoSuchArtifactIdException.class, () -> ds.isArtifactCommitted(aid));
 
     // Setup journal entry return
     when(ds.getArtifactRepositoryState(aid)).thenReturn(metadata);
