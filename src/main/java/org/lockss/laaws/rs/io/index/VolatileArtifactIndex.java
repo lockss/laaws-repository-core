@@ -35,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -106,10 +107,13 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
               "ArtifactIdentifier has null or empty id");
         }
 
+        // Get artifact's repository state
+        ArtifactRepositoryState state = artifactData.getArtifactRepositoryState();
+
         // Create and populate an Artifact bean for this ArtifactData
         Artifact artifact = new Artifact(
             artifactId,
-            false,
+            state.isCommitted(),
             artifactData.getStorageUrl().toString(),
             artifactData.getContentLength(),
             artifactData.getContentDigest()
