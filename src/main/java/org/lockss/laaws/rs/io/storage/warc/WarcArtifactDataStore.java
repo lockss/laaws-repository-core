@@ -1035,6 +1035,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // Set the artifact's storage URL to where we read it from:
             artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
 
+            ArtifactRepositoryState state = new ArtifactRepositoryState(
+                aid,
+                isArtifactCommitted(aid),
+                isArtifactDeleted(aid)
+            );
+
+            // Set artifact data's repository state (from AU journal)
+            artifactData.setArtifactRepositoryState(state);
+
             // Index the artifact
             index.indexArtifact(artifactData);
             break;
