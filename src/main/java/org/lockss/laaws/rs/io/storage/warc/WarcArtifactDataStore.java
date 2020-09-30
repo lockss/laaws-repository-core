@@ -982,13 +982,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Iterate over the temporary WARC files that were found
     for (Path tmpWarc : tmpWarcs) {
       // TODO: Use file lock to prevent other processes or threads from modifying file?
-      reloadOrPruneTemporaryWarc(index, tmpWarc);
+      reloadOrRemoveTemporaryWarc(index, tmpWarc);
     }
 
     log.debug("Finished reloading temporary WARCs from {}", tmpWarcBasePath);
   }
 
-  protected void reloadOrPruneTemporaryWarc(ArtifactIndex index, Path tmpWarc) throws IOException {
+  protected void reloadOrRemoveTemporaryWarc(ArtifactIndex index, Path tmpWarc) throws IOException {
     log.trace("tmpWarc = {}", tmpWarc);
 
     // Q: In what situation can this happen?
