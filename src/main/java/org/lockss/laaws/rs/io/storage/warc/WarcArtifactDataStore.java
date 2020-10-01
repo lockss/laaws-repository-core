@@ -566,41 +566,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected List<Path> findAuActiveWarcs(String collectionId, String auid) throws IOException {
-    return getAuPaths(collectionId, auid).stream()
-        .map(auPath -> findWarcsOrEmpty(auPath))
-        .flatMap(Collection::stream)
-        .filter(warcPath -> warcPath.getFileName().toString().startsWith("artifacts_"))
+    return findAuArtifactWarcs(collectionId, auid).stream()
         .filter(new WarcSizeThresholdPredicate())
         .sorted(new WarcLengthComparator())
         .limit(MAX_AUACTIVEWARCS_RELOADED)
         .collect(Collectors.toList());
   }
 
-//    protected List<Path> findAuActiveWarcs(String collectionId, String auid) throws IOException {
-    // Will contain paths to WARCs in storage that are eligible to be active WARCs
-//    List<Path> eligibleWarcs = new ArrayList<>();
-
-//    for (Path auPath : getAuPaths(collectionId, auid)) {
-//      for (Path warcPath : findWarcs(auPath)) {
-        // Does this WARC contain artifacts?
-//        boolean containsArtifacts = warcPath.getFileName().toString().startsWith("artifacts_"); // TODO
-//        boolean underSizeThreshold = getWarcLength(warcPath) < blockFinishedThreshold * getThresholdWarcSize();
-
-        // Add WARC to list of WARCs eligible to be active again, if this is an artifact-containing WARC and it has
-        // *not* met fill threshold
-//        if (containsArtifacts && underSizeThreshold) {
-//          log.debug("Adding WARC list of eligible active WARCs [warcPath: {}]", warcPath);
-//          eligibleWarcs.add(warcPath);
-//        }
-//      }
-//    }
-
-    // Return the list of WARCs of this AU that are eligible to be
-//    return eligibleWarcs.stream()
-//        .sorted(new WarcLengthComparator())
-//        .limit(MAX_RELOAD_ACTIVEWARCS)
-//        .collect(Collectors.toList());
-//  }
+  protected List<Path> findAuArtifactWarcs(String collectionId, String auid) throws IOException {
+    return getAuPaths(collectionId, auid).stream()
+        .map(auPath -> findWarcsOrEmpty(auPath))
+        .flatMap(Collection::stream)
+        .filter(warcPath -> warcPath.getFileName().toString().startsWith("artifacts_"))
+        .collect(Collectors.toList());
+  }
 
   /**
    * Returns the path of a journal of an AU on the given base path.
@@ -1135,33 +1114,31 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Map<String, URI> storageUrls = new HashMap<>();
 
     // Process all WARCs in the AU, across all its paths
-    for (Path auBasePath : getAuPaths(collection, auid)) {
-      for (Path warcPath : findWarcsOrEmpty(auBasePath)) {
+    for (Path warcPath : findAuArtifactWarcs(collection, auid)) {
 
-        // Open WARC and get an ArchiveReader
-        try (InputStream warcStream = markAndGetInputStream(warcPath)) {
-          ArchiveReader warcReader = new UncompressedWARCReader(warcPath.toString(), warcStream);
+      // Open WARC and get an ArchiveReader
+      try (InputStream warcStream = markAndGetInputStream(warcPath)) {
+        ArchiveReader warcReader = new UncompressedWARCReader(warcPath.toString(), warcStream);
 
-          // Process WARC records
-          for (ArchiveRecord warcRecord : warcReader) {
+        // Process WARC records
+        for (ArchiveRecord warcRecord : warcReader) {
 
-            // Read record header
-            ArchiveRecordHeader warcHeader = warcRecord.getHeader();
-            ArtifactIdentifier artifactId = ArtifactDataFactory.buildArtifactIdentifier(warcHeader);
+          // Read record header
+          ArchiveRecordHeader warcHeader = warcRecord.getHeader();
+          ArtifactIdentifier artifactId = ArtifactDataFactory.buildArtifactIdentifier(warcHeader);
 
-            // Note: ArchiveRecordHeader#getLength() does not account for the pair of CRLFs at the end of every WARC
-            // record. We correct that here:
-            URI storageUrl = makeWarcRecordStorageUrl(warcPath, warcHeader.getOffset(), warcHeader.getLength() + 4L);
+          // Note: ArchiveRecordHeader#getLength() does not account for the pair of CRLFs at the end of every WARC
+          // record. We correct that here:
+          URI storageUrl = makeWarcRecordStorageUrl(warcPath, warcHeader.getOffset(), warcHeader.getLength() + 4L);
 
-            if (storageUrls.containsKey(artifactId.getId())) {
-              log.warn("Artifact found in multiple locations [artifactId :{}]", artifactId.getId());
-              log.trace("storageUrl.prev = {}", storageUrls.get(artifactId.getId()));
-              log.trace("storageUrl.next = {}", storageUrl);
-            }
-
-            // Add to map
-            storageUrls.put(artifactId.getId(), storageUrl);
+          if (storageUrls.containsKey(artifactId.getId())) {
+            log.warn("Artifact found in multiple locations [artifactId: {}]", artifactId);
+            log.debug2("storageUrl.prev = {}", storageUrls.get(artifactId.getId()));
+            log.debug2("storageUrl.next = {}", storageUrl);
           }
+
+          // Add to map
+          storageUrls.put(artifactId.getId(), storageUrl);
         }
       }
     }
