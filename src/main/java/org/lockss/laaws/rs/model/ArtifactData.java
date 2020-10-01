@@ -204,7 +204,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    *
    * @return An {@code InputStream} containing this artifact's byte stream.
    */
-  public InputStream getInputStream() {
+  public synchronized InputStream getInputStream() {
     // Comment in to log creation point of unused InputStreams
 // 	openTrace = stackTraceString(new Exception("Open"));
 
@@ -420,7 +420,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   /**
    * Releases resources used.
    */
-  public void release() {
+  public synchronized void release() {
     if (!isReleased) {
       IOUtils.closeQuietly(closableInputStream);
       updateStats();
