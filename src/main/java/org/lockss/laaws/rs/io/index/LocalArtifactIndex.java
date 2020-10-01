@@ -70,6 +70,7 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         if (basePath != null && (!basePath.exists() || basePath.isDirectory())
             && persistedIndexName != null
             && !persistedIndexName.trim().isEmpty()) {
+
             // Yes: Get the location of the persisted index.
             persistedIndex = new File(basePath, persistedIndexName);
             log.info("Setup persistence of index to file " + persistedIndex);
@@ -79,6 +80,14 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         } else {
             log.info("Persistence of index is disabled");
         }
+    }
+
+    @Override
+    public void shutdownIndex() {
+        super.shutdownIndex();
+
+        // Persist index one last time
+        persist();
     }
 
     /**
