@@ -1032,8 +1032,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // record. We correct that here:
             long recordLength = record.getHeader().getLength() + 4L;
 
-            // Set the artifact's storage URL to where we read it from:
-            artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
+            if (!isArtifactCommitted(aid)) {
+              // Set the artifact's storage URL to the temporary WARC record we read it from:
+              artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
+            } else {
+              // Get storage URLs of artifacts in this AU
+              Map<String, URI> storageUrls = getAuArtifactStorageUrls(aid.getCollection(), aid.getAuid());
+
+              // Set storage URL to the WARC record in permanent storage
+              artifactData.setStorageUrl(storageUrls.get(aid.getId()));
+            }
 
             ArtifactRepositoryState state = new ArtifactRepositoryState(
                 aid,
@@ -1046,33 +1054,38 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
             // Index the artifact
             index.indexArtifact(artifactData);
-            break;
-
-          case UNCOMMITTED:
-            break;
 
           case COMMITTED:
+            // Requeue the copy of this artifact from temporary to permanent storage
+            if (isArtifactCommitted(aid)) {
+              log.debug2("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
 
-            log.debug2("Temp. WARC not removable [artifactId: {}, state: {}, isCommitted: {}]",
+              try {
+                Artifact artifact = index.getArtifact(aid.getId());
+                stripedExecutor.submit(new CommitArtifactTask(artifact));
+              } catch (RejectedExecutionException e) {
+                log.warn("Could not re-queue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
+              }
+            }
+
+          case UNCOMMITTED:
+            log.debug2(
+                "WARC not removable [artifactId: {}, state: {}, isCommitted: {}]",
                 aid.getId(), artifactState, isArtifactCommitted(aid)
             );
-
-            // Requeue the copy of this artifact from temporary to permanent storage
-            log.trace("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
-
-            try {
-              stripedExecutor.submit(new CommitArtifactTask(index.getArtifact(aid.getId())));
-            } catch (RejectedExecutionException e) {
-              log.warn("Could not requeue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
-            }
 
             break;
 
           case EXPIRED:
-          case COPIED:
           case DELETED:
+            if (index.deleteArtifact(aid.getId())) {
+              log.debug2("Removed artifact from index [artifactId: {}]", aid.getId());
+            }
+
+          case COPIED:
             log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
                 record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
+
             isRecordRemovable = true;
             break;
 
@@ -1107,6 +1120,53 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long tmpWarcFileLen = getWarcLength(tmpWarc);
       tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
     }
+  }
+
+  /**
+   * Returns a map from artifact ID to its storage URL.
+   *
+   * @param collection A {@link String} containing the collection ID.
+   * @param auid A {@link String} containing the Archival Unit ID (AUID).
+   * @return A {@link Map<String, URI>} containing a map from artifact ID to storage URL.
+   * @throws IOException
+   */
+  protected Map<String, URI> getAuArtifactStorageUrls(String collection, String auid) throws IOException {
+    // Artifact ID to artifact storage URL
+    Map<String, URI> storageUrls = new HashMap<>();
+
+    // Process all WARCs in the AU, across all its paths
+    for (Path auBasePath : getAuPaths(collection, auid)) {
+      for (Path warcPath : findWarcsOrEmpty(auBasePath)) {
+
+        // Open WARC and get an ArchiveReader
+        try (InputStream warcStream = markAndGetInputStream(warcPath)) {
+          ArchiveReader warcReader = new UncompressedWARCReader(warcPath.toString(), warcStream);
+
+          // Process WARC records
+          for (ArchiveRecord warcRecord : warcReader) {
+
+            // Read record header
+            ArchiveRecordHeader warcHeader = warcRecord.getHeader();
+            ArtifactIdentifier artifactId = ArtifactDataFactory.buildArtifactIdentifier(warcHeader);
+
+            // Note: ArchiveRecordHeader#getLength() does not account for the pair of CRLFs at the end of every WARC
+            // record. We correct that here:
+            URI storageUrl = makeWarcRecordStorageUrl(warcPath, warcHeader.getOffset(), warcHeader.getLength() + 4L);
+
+            if (storageUrls.containsKey(artifactId.getId())) {
+              log.warn("Artifact found in multiple locations [artifactId :{}]", artifactId.getId());
+              log.trace("storageUrl.prev = {}", storageUrls.get(artifactId.getId()));
+              log.trace("storageUrl.next = {}", storageUrl);
+            }
+
+            // Add to map
+            storageUrls.put(artifactId.getId(), storageUrl);
+          }
+        }
+      }
+    }
+
+    return storageUrls;
   }
 
   /**
@@ -2114,8 +2174,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       artifactStates.put(artifactId.getId(), state);
     }
-
-    log.debug2("Finished updateArtifactMetadata() for [artifactId: {}]", artifactId.getId());
 
     return state;
   }
