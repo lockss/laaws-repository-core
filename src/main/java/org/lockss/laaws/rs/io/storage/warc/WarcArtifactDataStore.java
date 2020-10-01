@@ -1052,6 +1052,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             break;
 
           case COMMITTED:
+
+            log.debug2("Temp. WARC not removable [artifactId: {}, state: {}, isCommitted: {}]",
+                aid.getId(), artifactState, isArtifactCommitted(aid)
+            );
+
             // Requeue the copy of this artifact from temporary to permanent storage
             log.trace("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
 
@@ -1066,7 +1071,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           case EXPIRED:
           case COPIED:
           case DELETED:
-            log.debug2("Temporary WARC record is removable [warcId: {}, state: {}]",
+            log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
                 record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
             isRecordRemovable = true;
             break;
@@ -1752,7 +1757,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         try (InputStream is = markAndGetInputStreamAndSeek(loc.getPath(), loc.getOffset())) {
           long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
-          log.debug2("Moved artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is now {}",
+          log.debug2("Copied artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is" +
+                  " now {}",
               artifact.getIdentifier().getId(),
               bytesWritten,
               recordLength,
@@ -1775,6 +1781,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Set the artifact's new storage URL and update the index
       artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
       artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+
+      log.debug2("Updated storage URL [artifactId: {}, storageUrl: {}]",
+          artifact.getId(), artifact.getStorageUrl()
+      );
 
       // *********************
       // Update artifact state

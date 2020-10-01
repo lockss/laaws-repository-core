@@ -362,25 +362,25 @@ public class ArtifactDataFactory {
         artifact.setIdentifier(artifactId);
 
         String artifactContentLength = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
-        log.debug2("artifactContentLength = {}", artifactContentLength);
+        log.trace("artifactContentLength = {}", artifactContentLength);
         if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
           artifact.setContentLength(Long.parseLong(artifactContentLength));
         }
 
         String artifactDigest = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
-        log.debug2("artifactDigest = {}", artifactDigest);
+        log.trace("artifactDigest = {}", artifactDigest);
         if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
           artifact.setContentDigest(artifactDigest);
         }
 
         String artifactDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY);
-        log.debug2("artifactDate = {}", artifactDate);
+        log.trace("artifactDate = {}", artifactDate);
         if (artifactDate != null && !artifactDate.trim().isEmpty()) {
           TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactDate);
           artifact.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
         }
 
-        log.debug2("artifact = {}", artifact);
+        log.trace("artifact = {}", artifact);
 
         return artifact;
 
