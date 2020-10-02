@@ -45,6 +45,7 @@ import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
@@ -300,10 +301,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throw new IllegalArgumentException("ArtifactData has null identifier");
     }
 
+    ArtifactRepositoryState state = artifactData.getArtifactRepositoryState();
+
     // Create an instance of Artifact to represent the artifact
     Artifact artifact = new Artifact(
         artifactId,
-        false,
+        state == null ? false : state.isCommitted(),
         artifactData.getStorageUrl().toString(),
         artifactData.getContentLength(),
         artifactData.getContentDigest()
