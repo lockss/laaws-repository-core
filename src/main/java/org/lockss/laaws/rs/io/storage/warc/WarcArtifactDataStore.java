@@ -1037,13 +1037,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           case COMMITTED:
             // Requeue the copy of this artifact from temporary to permanent storage
             if (isArtifactCommitted(aid)) {
-              log.debug2("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
-
               try {
                 Artifact artifact = index.getArtifact(aid.getId());
-                stripedExecutor.submit(new CommitArtifactTask(artifact));
+
+                // Only reschedule a copy to permanent storage if the artifact is still in temporary storage
+                if (isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
+                  log.debug("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
+
+                  stripedExecutor.submit(new CommitArtifactTask(artifact));
+                }
               } catch (RejectedExecutionException e) {
                 log.warn("Could not re-queue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
+              } catch (URISyntaxException e) {
+                // This should never happen
+                log.error("Bad storage URL [artifactId: {}]", aid.getId());
+                break;
               }
             }
 
