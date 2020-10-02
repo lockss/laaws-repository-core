@@ -124,9 +124,6 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
     @Override
     protected synchronized void addToIndex(String id, Artifact artifact) {
         super.addToIndex(id, artifact);
-
-        // Persist the just modified index.
-        persist();
     }
 
     /**
@@ -139,11 +136,7 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
      */
     @Override
     protected synchronized Artifact removeFromIndex(String id) {
-        Artifact artifact = super.removeFromIndex(id);
-
-        // Persist the just modified index.
-        persist();
-        return artifact;
+        return super.removeFromIndex(id);
     }
 
     /**
