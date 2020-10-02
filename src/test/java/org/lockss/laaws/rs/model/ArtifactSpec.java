@@ -322,7 +322,7 @@ public class ArtifactSpec implements Comparable<Object> {
     // Set an artificial collection date
     setCollectionDate(TimeBase.nowMs());
 
-    log.debug("Generated content");
+    log.debug2("Generated content");
     return this;
   }
 

@@ -1048,6 +1048,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             }
 
           case UNCOMMITTED:
+            // Nothing to do
             log.debug2(
                 "WARC not removable [artifactId: {}, state: {}, isCommitted: {}]",
                 aid.getId(), artifactState, isArtifactCommitted(aid)
@@ -1057,6 +1058,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           case EXPIRED:
           case DELETED:
+            // Remove artifact reference from index if it exists
             if (index.deleteArtifact(aid.getId())) {
               log.debug2("Removed artifact from index [artifactId: {}]", aid.getId());
             }
@@ -1065,6 +1067,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
                 record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
 
+            // Mark this WARC record as removable
             isRecordRemovable = true;
             break;
 
