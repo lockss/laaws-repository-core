@@ -964,6 +964,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       reloadOrRemoveTemporaryWarc(index, tmpWarc);
     }
 
+    storageUrls = new HashMap<>();
+    artifactStates = new HashMap<>();
+
     log.debug("Finished reloading temporary WARCs from {}", tmpWarcBasePath);
   }
 
@@ -1015,8 +1018,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               // Set the artifact's storage URL to the temporary WARC record we read it from:
               artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
             } else {
-              // Get storage URLs of artifacts in this AU
-              Map<String, URI> storageUrls = getAuArtifactStorageUrls(aid.getCollection(), aid.getAuid());
+              if (!storageUrls.containsKey(aid.getId())) {
+                // Get storage URLs of artifacts in this AU
+                getAuArtifactStorageUrls(aid.getCollection(), aid.getAuid());
+              }
 
               // Set storage URL to the WARC record in permanent storage
               artifactData.setStorageUrl(storageUrls.get(aid.getId()));
@@ -1112,6 +1117,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
+  // Artifact ID to artifact storage URL
+  Map<String, URI> storageUrls = new HashMap<>();
+
   /**
    * Returns a map from artifact ID to its storage URL.
    *
@@ -1121,9 +1129,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected Map<String, URI> getAuArtifactStorageUrls(String collection, String auid) throws IOException {
-    // Artifact ID to artifact storage URL
-    Map<String, URI> storageUrls = new HashMap<>();
-
     // Process all WARCs in the AU, across all its paths
     for (Path warcPath : findAuArtifactWarcs(collection, auid)) {
 
