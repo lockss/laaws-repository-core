@@ -113,7 +113,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         // Create and populate an Artifact bean for this ArtifactData
         Artifact artifact = new Artifact(
             artifactId,
-            state.isCommitted(),
+            state == null ? false : state.isCommitted(),
             artifactData.getStorageUrl().toString(),
             artifactData.getContentLength(),
             artifactData.getContentDigest()
