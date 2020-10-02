@@ -1066,6 +1066,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Mock behavior
     doCallRealMethod().when(ds).findAuActiveWarcs(collectionId, auid);
+    doCallRealMethod().when(ds).findAuArtifactWarcs(collectionId, auid);
     when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
     when(ds.getThresholdWarcSize()).thenReturn(1000L);
     when(ds.getBlockSize()).thenReturn(100L);
