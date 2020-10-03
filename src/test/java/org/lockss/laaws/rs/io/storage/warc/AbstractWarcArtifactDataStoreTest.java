@@ -2701,7 +2701,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
 
     // Transform WARC record byte stream to WARCRecord object
-    WARCRecord record = new WARCRecord(new BufferedInputStream(baos.toInputStream()), getClass().getSimpleName(), 0);
+    WARCRecord record = new WARCRecord(new BufferedInputStream(baos.toInputStream()), getClass().getSimpleName(), 0, false, false);
 
     // Assert things about the WARC record
     assertNotNull(record);

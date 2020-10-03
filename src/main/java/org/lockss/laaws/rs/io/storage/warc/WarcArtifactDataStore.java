@@ -996,6 +996,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Get an ArchiveReader (an implementation of Iterable) over ArchiveRecord objects
       ArchiveReader archiveReader = new UncompressedWARCReader(tmpWarc.toString(), warcStream);
+      archiveReader.setDigest(false);
 
       // Iterate over the WARC records
       for (ArchiveRecord record : archiveReader) {
@@ -1151,6 +1152,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try (InputStream warcStream = markAndGetInputStream(warcPath)) {
         // FIXME This is expensive because UncompressedWARCReader uses skip() which reads data
         ArchiveReader warcReader = new UncompressedWARCReader(warcPath.toString(), warcStream);
+      warcReader.setDigest(false);
 
         // Process WARC records
         for (ArchiveRecord warcRecord : warcReader) {
@@ -1194,6 +1196,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
       // Get a WARCReader to the temporary WARC
       ArchiveReader archiveReader = WARCReaderFactory.get(tmpWarc.toString(), warcStream, true);
+      archiveReader.setDigest(false);
 
       for (ArchiveRecord record : archiveReader) {
         if (!isTempWarcRecordRemovable(record)) {
@@ -1673,7 +1676,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       // Create WARCRecord object from InputStream
-      WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName(), 0L);
+      WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName(), 0L, false, false);
 
       // Convert the WARCRecord object to an ArtifactData
       ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil or ArtifactData

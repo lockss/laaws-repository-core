@@ -240,7 +240,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 log.info("Attempt test fromArchiveRecord()");
                 InputStream warcStream = new ByteArrayInputStream(ARTIFACT_WARC_ENCODED.getBytes());
 
-                WARCRecord record = new WARCRecord(warcStream, "TestArtifactDataFactory", 0);
+                WARCRecord record = new WARCRecord(warcStream, "TestArtifactDataFactory", 0, false, false);
                 assertNotNull(record);
 
                 ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
