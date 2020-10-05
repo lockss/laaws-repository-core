@@ -52,7 +52,6 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
 import org.lockss.laaws.rs.core.ArtifactCache;
-import org.lockss.laaws.rs.core.LockssArtifactExpiredException;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -1761,14 +1760,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           return new CompletedFuture<>(artifact);
 
         case EXPIRED:
-          log.warn("Cannot commit an expired artifact [artifactId: {}, state: {}]", artifact.getId(),
-              artifactState.toString());
-          throw new LockssArtifactExpiredException();
-
         case DELETED:
-          log.warn("Cannot commit deleted artifact [artifactId: {}, state: {}]", artifact.getId(),
-              artifactState.toString());
-          throw new LockssNoSuchArtifactIdException();
+          log.warn("Cannot commit deleted or expired artifact [artifactId: {}, state: {}]", artifact.getId(), artifactState.toString());
+          break;
 
         case UNKNOWN:
         default:
@@ -1777,7 +1771,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     } catch (URISyntaxException e) {
       // This should never happen since storage URLs are internal
-      log.error("Unexpected URISyntaxException");
       throw new IllegalStateException(e);
     }
 
