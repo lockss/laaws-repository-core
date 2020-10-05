@@ -41,7 +41,7 @@ import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
-import org.lockss.util.auth.*;
+import org.lockss.util.auth.AuthUtil;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
@@ -223,55 +223,90 @@ public class RestLockssRepository implements LockssRepository {
 
     // Create a multivalue map to contain the multipart parts
     MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
-    parts.add("auid", artifactId.getAuid());
-    parts.add("uri", artifactId.getUri());
 
-    // Prepare artifact multipart headers
-    HttpHeaders contentPartHeaders = new HttpHeaders();
+    //// Add artifact repository properties
+    {
+      Artifact artifact = new Artifact();
 
-    // This must be set or else AbstractResource#contentLength will read the entire InputStream to determine the
-    // content length, which will exhaust the InputStream.
-    contentPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
-    contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
+      artifact.setCollection(artifactId.getCollection());
+      artifact.setAuid(artifactId.getAuid());
+      artifact.setUri(artifactId.getUri());
+      artifact.setVersion(artifactId.getVersion());
 
-    // Prepare artifact multipart body
-    Resource artifactPartResource =
-        new NamedInputStreamResource("content",
-            ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
+      artifact.setCollectionDate(artifactData.getCollectionDate());
+      artifact.setContentLength(artifactData.getContentLength());
+      artifact.setContentDigest(artifactData.getContentDigest());
 
-    // Add artifact multipart to multiparts list. The name of the part
-    // must be "file" because that is what the Swagger-generated code
-    // specifies.
-    parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
+      // These aren't used in this context
+//    artifact.setCommitted(null);
+//    artifact.setSortUri(null);
+//    artifact.setStorageUrl(null);
 
-    // POST body entity
+      parts.add("properties", artifact);
+    }
+
+    //// Add artifact headers
+    {
+      HttpHeaders headers = artifactData.getMetadata();
+      parts.add("artifactHeaders", headers);
+    }
+
+    //// Add artifact content part
+    {
+      HttpHeaders contentPartHeaders = new HttpHeaders();
+
+      // This must be set or else AbstractResource#contentLength will read the entire InputStream to determine the
+      // content length, which will exhaust the InputStream.
+      contentPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
+      contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
+
+      // Prepare artifact multipart body
+      Resource artifactPartResource =
+          new NamedInputStreamResource("content",
+              ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
+
+      // Add artifact multipart to multiparts list. The name of the part
+      // must be "file" because that is what the Swagger-generated code
+      // specifies.
+      parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
+    }
+
+    // POST request entity
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
         new HttpEntity<>(parts, getInitializedHttpHeaders());
 
     // Construct REST endpoint to collection
-    String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, artifactId.getCollection());
+    String endpoint = String.format(
+        "%s/collections/%s/artifacts",
+        repositoryUrl, artifactId.getCollection());
+
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-    // POST the multipart entity to the remote LOCKSS repository and return the result
     try {
-      ResponseEntity<String> response =
+      // POST the multipart entity to the remote LOCKSS repository and return the result
+      ResponseEntity<Artifact> response =
           RestUtil.callRestService(restTemplate,
               builder.build().encode().toUri(),
               HttpMethod.POST,
               multipartEntity,
-              String.class, "addArtifact");
+              Artifact.class, "addArtifact");
 
       checkStatusOk(response);
 
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          false);
-      Artifact res = mapper.readValue(response.getBody(), Artifact.class);
-      artCache.put(res);
-      artCache.putArtifactData(res.getCollection(), res.getIdentifier().getId(),
-          artifactData);
+      // FIXME
+//      ObjectMapper mapper = new ObjectMapper();
+//      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-      return res;
+      // Convert JSON response to Artifact object
+//      Artifact result = mapper.readValue(response.getBody(), Artifact.class);
+
+      Artifact result = response.getBody();
+
+      // Add artifact to cache
+      artCache.put(result);
+      artCache.putArtifactData(result.getCollection(), result.getIdentifier().getId(), artifactData);
+
+      return result;
 
     } catch (LockssRestException e) {
       log.error("Could not add artifact", e);
