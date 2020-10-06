@@ -2530,14 +2530,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   public static void writeWarcRecord(WARCRecordInfo record, OutputStream out) throws IOException {
-    // Write the header
-    out.write(createRecordHeader(record).getBytes(WARC_HEADER_ENCODING));
-
-    // Write a CRLF block to separate header from body
-    out.write(CRLF_BYTES);
+    // Write the WARC record header
+    writeWarcRecordHeader(record, out);
 
     if (record.getContentStream() != null) {
-      // Write the WARC payload
+      // Write the WARC record payload
       long bytesWritten = IOUtils.copyLarge(record.getContentStream(), out);
 
       // Sanity check
@@ -2550,8 +2547,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     }
 
-    // Write the two CRLF blocks required at end of every record
+    // Write the two CRLF blocks required at end of every record (per the spec)
     out.write(CRLF_BYTES);
+    out.write(CRLF_BYTES);
+  }
+
+  public static void writeWarcRecordHeader(WARCRecordInfo record, OutputStream out) throws IOException {
+    // Write the header
+    out.write(createRecordHeader(record).getBytes(WARC_HEADER_ENCODING));
+
+    // Write a CRLF block to separate header from body
     out.write(CRLF_BYTES);
   }
 
