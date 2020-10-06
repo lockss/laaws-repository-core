@@ -31,13 +31,11 @@
 package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.*;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
@@ -47,8 +45,6 @@ import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -57,7 +53,7 @@ public class BaseLockssRepository implements LockssRepository,
 					     JmsFactorySource {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
+  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;
   protected ArtifactIndex index;
   protected JmsFactory jmsFact;
 

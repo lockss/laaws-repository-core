@@ -74,7 +74,7 @@ public enum TempWarcInUseTracker {
 
     inUseMap.putIfAbsent(path, 0);
     inUseMap.put(path, inUseMap.get(path) + 1);
-    log.debug2("Count for path '{}' increased to {}", path, inUseMap.get(path));
+    log.trace("Count for path '{}' increased to {}", path, inUseMap.get(path));
   }
 
   /**
@@ -95,10 +95,10 @@ public enum TempWarcInUseTracker {
           "Attempt to decrement past zero for WARC file '" + path + "'");
     } else if (count.intValue() == 1) {
       inUseMap.remove(path);
-      log.debug2("Count for path '{}' decreased to 0", path);
+      log.trace("Count for path '{}' decreased to 0", path);
     } else {
       inUseMap.put(path, count.intValue() - 1);
-      log.debug2("Count for path '{}' decreased to {}", path,
+      log.trace("Count for path '{}' decreased to {}", path,
 	  inUseMap.get(path));
     }
   }

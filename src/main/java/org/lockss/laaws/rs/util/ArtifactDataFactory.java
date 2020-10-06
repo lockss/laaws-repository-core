@@ -47,7 +47,7 @@ import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
@@ -72,9 +72,6 @@ import java.util.Map;
  */
 public class ArtifactDataFactory {
   private final static L4JLogger log = L4JLogger.getLogger();
-
-  private static final String RESPONSE_TYPE = WARCConstants.WARCRecordType.response.toString();
-  private static final String RESOURCE_TYPE = WARCConstants.WARCRecordType.resource.toString();
 
   /**
    * Instantiates an {@code ArtifactData} from an {@code InputStream} containing the byte stream of an HTTP response.
@@ -340,70 +337,88 @@ public class ArtifactDataFactory {
   public static ArtifactData fromArchiveRecord(ArchiveRecord record) throws IOException {
     // Get WARC record header
     ArchiveRecordHeader headers = record.getHeader();
-    String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
+
+    WARCConstants.WARCRecordType recordType =
+        WARCConstants.WARCRecordType.valueOf((String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE));
 
     // Create an ArtifactIdentifier object from the WARC record headers
     ArtifactIdentifier artifactId = buildArtifactIdentifier(headers);
 
     // Artifacts can only be read out of WARC response and resource type records
-    if (recordType.equals(RESPONSE_TYPE)) {
-      if (!headers.getMimetype().startsWith("application/http")) {
-        log.warn(String.format(
-            "Unexpected content MIME type (%s) from a WARC response record",
-            headers.getMimetype()
-        ));
+    switch (recordType) {
+      case response:
+        if (!headers.getMimetype().startsWith("application/http")) {
+          log.warn(String.format(
+              "Unexpected content MIME type (%s) from a WARC response record",
+              headers.getMimetype()
+          ));
 
-        // TODO: Return null or throw?
-        return null;
-      }
+          // TODO: Return null or throw?
+          return null;
+        }
 
-      // Parse the ArchiveRecord into an artifact and return it
-      ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(record);
-      artifact.setIdentifier(artifactId);
+        // Parse the ArchiveRecord into an artifact and return it
+        ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(record);
+        ad.setIdentifier(artifactId);
 
-      String artifactContentLength = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
-      log.debug2("artifactContentLength = {}", artifactContentLength);
-      if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
-        artifact.setContentLength(Long.parseLong(artifactContentLength));
-      }
+        String artifactContentLength = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
+        log.trace("artifactContentLength = {}", artifactContentLength);
+        if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
+          ad.setContentLength(Long.parseLong(artifactContentLength));
+        }
 
-      String artifactDigest = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
-      log.debug2("artifactDigest = {}", artifactDigest);
-      if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
-        artifact.setContentDigest(artifactDigest);
-      }
+        String artifactDigest = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
+        log.trace("artifactDigest = {}", artifactDigest);
+        if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
+          ad.setContentDigest(artifactDigest);
+        }
 
-      log.debug2("artifact = {}", artifact);
-      return artifact;
+        String artifactCreationDate = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
+        log.trace("artifactCreationDate = {}", artifactCreationDate);
+        if (artifactCreationDate != null && !artifactCreationDate.trim().isEmpty()) {
+          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCreationDate);
+          ad.setStorageDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+        }
 
-    } else if (recordType.equals(RESOURCE_TYPE)) {
-      // Holds optional HTTP headers for metadata
-      HttpHeaders metadata = new HttpHeaders();
+        String artifactCollectionDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY);
+        log.trace("artifactCollectionDate = {}", artifactCollectionDate);
+        if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
+          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
+          ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+        }
 
-      // Setup artifact headers from WARC record headers
-      metadata.setContentLength((int) headers.getContentLength());
-      metadata.setContentType(MediaType.valueOf(headers.getMimetype()));
+        log.trace("ad = {}", ad);
 
-      // Use WARC-Date as our notion of crawl/capture/collecton time in this context
-      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(headers.getDate());
-      metadata.setDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toEpochSecond());
-      //metadata.setDate(DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC)));
-      //metadata.setDate(DateTimeFormatter.RFC_1123_DATE_TIME.format(
-      //        ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC)
-      //));
+        return ad;
 
-      // Custom header to indicate the origin of this artifact
-      metadata.add(ArtifactConstants.ARTIFACT_ORIGIN_KEY, "warc");
+      case resource:
+        // Holds optional HTTP headers for metadata
+        HttpHeaders metadata = new HttpHeaders();
 
-      // Parse the ArchiveRecord into an artifact and return it
-      return ArtifactDataFactory.fromResourceStream(metadata, record);
+        // Setup artifact headers from WARC record headers
+        metadata.setContentLength((int) headers.getContentLength());
+        metadata.setContentType(MediaType.valueOf(headers.getMimetype()));
 
-    } else {
-      log.warn(String.format(
-          "Skipped WARC record %s of type %s; artifacts can only be created from response or resource types",
-          record.getHeader().getHeaderValue("WARC-Record-ID"),
-          recordType
-      ));
+        // Use WARC-Date as our notion of crawl/capture/collecton time in this context
+        TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(headers.getDate());
+        metadata.setDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toEpochSecond());
+        //metadata.setDate(DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC)));
+        //metadata.setDate(DateTimeFormatter.RFC_1123_DATE_TIME.format(
+        //        ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC)
+        //));
+
+        // Custom header to indicate the origin of this artifact
+        metadata.add(ArtifactConstants.ARTIFACT_ORIGIN_KEY, "warc");
+
+        // Parse the ArchiveRecord into an artifact and return it
+        return ArtifactDataFactory.fromResourceStream(metadata, record);
+
+      default:
+        log.warn(
+            "Cannot instantiate ArtifactData object: Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
+            headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
+            recordType
+        );
     }
 
     // Could not return an artifact elsewhere
@@ -443,12 +458,12 @@ public class ArtifactDataFactory {
         String deletedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED);
 
         if (!(StringUtils.isEmpty(committedHeaderValue) || StringUtils.isEmpty(deletedHeaderValue))) {
-          RepositoryArtifactMetadata artifactState = new RepositoryArtifactMetadata(
+          ArtifactRepositoryState artifactState = new ArtifactRepositoryState(
               id,
               Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
               Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
           );
-          result.setRepositoryMetadata(artifactState);
+          result.setArtifactRepositoryState(artifactState);
         }
 
         // Set misc. artifact properties
@@ -497,8 +512,8 @@ public class ArtifactDataFactory {
     }
   }
 
-  private static RepositoryArtifactMetadata buildRepositoryMetadata(HttpHeaders headers) {
-    return new RepositoryArtifactMetadata(
+  private static ArtifactRepositoryState buildRepositoryMetadata(HttpHeaders headers) {
+    return new ArtifactRepositoryState(
         buildArtifactIdentifier(headers),
         getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
         getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))

@@ -175,7 +175,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     Path[] baseDirs = getBasePaths();
 
     if (baseDirs == null || baseDirs.length < 1) {
-      throw new IllegalStateException("Null or empty baseDirs");
+      log.error("No data store base directories configured");
+      throw new IllegalStateException("Data store is misconfigured");
     }
 
     // Find existing base directories of this AU
@@ -210,6 +211,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     Path[] basePaths = getBasePaths();
 
     if (basePaths == null || basePaths.length < 1) {
+      log.error("No data store base directories configured");
       throw new IllegalStateException("Data store is misconfigured");
     }
 

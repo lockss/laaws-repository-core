@@ -36,10 +36,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactSpec;
-import org.lockss.laaws.rs.model.VariantState;
+import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
@@ -48,6 +46,7 @@ import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -275,6 +274,40 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Assert the artifact exists in the index and it matches the spec
     assertTrue(index.artifactExists(spec1.getArtifactId()));
     spec1.assertArtifactCommon(index.getArtifact(spec1.getArtifactId()));
+  }
+
+  /**
+   * Asserts that an artifact's repository state is recorded accurately in the index.
+   *
+   * TODO: Move this to {@link ArtifactSpec#assertArtifact(LockssRepository, Artifact)}?
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testIndexArtfact_artifactRepoState() throws Exception {
+    ArtifactSpec spec = new ArtifactSpec()
+        .setArtifactId(UUID.randomUUID().toString())
+        .setCollection("collection")
+        .setAuid("auid")
+        .setUrl("url")
+        .setVersion(1)
+        .setCollectionDate(Instant.now().toEpochMilli())
+        .setStorageUrl(new URI("storageUrl"))
+        .setContentLength(1232L)
+        .setCommitted(true)
+        .setDeleted(false);
+
+    spec.generateContent();
+
+    ArtifactRepositoryState state =
+        new ArtifactRepositoryState(spec.getArtifactIdentifier(), spec.isCommitted(), spec.isDeleted());
+
+    ArtifactData ad = spec.getArtifactData();
+    ad.setArtifactRepositoryState(state);
+
+    Artifact indexed = index.indexArtifact(ad);
+
+    assertEquals(spec.isCommitted(), indexed.isCommitted());
   }
 
   @VariantTest
