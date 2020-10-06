@@ -1724,11 +1724,24 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     log.trace("artifact = {}", artifact);
 
+    String artifactId = artifact.getId();
+
+    // Guard against deleted or non-existent artifact
+    if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
+      log.debug("Artifact not found: [artifactId: {}]", artifactId);
+      return null;
+    }
+
     try {
+      // FIXME
+      ArtifactData ad = getArtifactData(artifact);
+
       // Determine if the artifact is expired
-      Instant created = Instant.ofEpochMilli(artifact.getCollectionDate());
+      Instant created = Instant.ofEpochMilli(ad.getStorageDate());
       Instant expiration = created.plus(getUncommittedArtifactExpiration(), ChronoUnit.MILLIS);
       boolean isExpired = Instant.now().isAfter(expiration);
+
+      ad.release();
 
       // Determine what action to take based on the state of the artifact
       // FIXME: Potential for race condition? What if the state of the artifact changes?
