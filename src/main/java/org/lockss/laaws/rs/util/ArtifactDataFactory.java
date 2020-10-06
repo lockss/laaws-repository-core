@@ -358,31 +358,38 @@ public class ArtifactDataFactory {
         }
 
         // Parse the ArchiveRecord into an artifact and return it
-        ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(record);
-        artifact.setIdentifier(artifactId);
+        ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(record);
+        ad.setIdentifier(artifactId);
 
         String artifactContentLength = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
         log.trace("artifactContentLength = {}", artifactContentLength);
         if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
-          artifact.setContentLength(Long.parseLong(artifactContentLength));
+          ad.setContentLength(Long.parseLong(artifactContentLength));
         }
 
         String artifactDigest = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
         log.trace("artifactDigest = {}", artifactDigest);
         if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
-          artifact.setContentDigest(artifactDigest);
+          ad.setContentDigest(artifactDigest);
         }
 
-        String artifactDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY);
-        log.trace("artifactDate = {}", artifactDate);
-        if (artifactDate != null && !artifactDate.trim().isEmpty()) {
-          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactDate);
-          artifact.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+        String artifactCreationDate = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
+        log.trace("artifactCreationDate = {}", artifactCreationDate);
+        if (artifactCreationDate != null && !artifactCreationDate.trim().isEmpty()) {
+          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCreationDate);
+          ad.setStorageDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
         }
 
-        log.trace("artifact = {}", artifact);
+        String artifactCollectionDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY);
+        log.trace("artifactCollectionDate = {}", artifactCollectionDate);
+        if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
+          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
+          ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+        }
 
-        return artifact;
+        log.trace("ad = {}", ad);
+
+        return ad;
 
       case resource:
         // Holds optional HTTP headers for metadata

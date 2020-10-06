@@ -92,6 +92,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
   // The collection date.
   private long collectionDate = TimeBase.nowMs();
+  private long storageDate = -1;
 
   private boolean isReleased;
 
@@ -502,6 +503,14 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
       origInputStream.close();
       origInputStream = null;
     }
+  }
+
+  public long getStorageDate() {
+    return storageDate;
+  }
+
+  public void setStorageDate(long storageDate) {
+    this.storageDate = storageDate;
   }
 
   public static class Stats {
