@@ -36,7 +36,6 @@ import org.apache.http.StatusLine;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.io.EofRememberingInputStream;
-import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
@@ -91,8 +90,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private URI storageUrl;
 
   // The collection date.
-  private long collectionDate = TimeBase.nowMs();
-  private long storageDate = -1;
+  private long collectionDate = -1;
+  private long createdDate = -1;
 
   private boolean isReleased;
 
@@ -505,12 +504,12 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     }
   }
 
-  public long getStorageDate() {
-    return storageDate;
+  public long getCreatedDate() {
+    return createdDate;
   }
 
-  public void setStorageDate(long storageDate) {
-    this.storageDate = storageDate;
+  public void setCreatedDate(long createdDate) {
+    this.createdDate = createdDate;
   }
 
   public static class Stats {

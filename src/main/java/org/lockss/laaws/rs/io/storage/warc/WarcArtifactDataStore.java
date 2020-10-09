@@ -59,6 +59,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
+import org.lockss.util.Constants;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.io.DeferredTempFileOutputStream;
@@ -1737,7 +1738,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ArtifactData ad = getArtifactData(artifact);
 
       // Determine if the artifact is expired
-      Instant created = Instant.ofEpochMilli(ad.getStorageDate());
+      Instant created = Instant.ofEpochMilli(ad.getCreatedDate());
       Instant expiration = created.plus(getUncommittedArtifactExpiration(), ChronoUnit.MILLIS);
       boolean isExpired = Instant.now().isAfter(expiration);
 
@@ -2384,7 +2385,23 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Mandatory WARC record headers
     record.setRecordId(URI.create(artifactId.getId()));
-    record.setCreate14DigitDate(DateTimeFormatter.ISO_INSTANT.format(Instant.now().atZone(ZoneOffset.UTC)));
+
+    // Get fetch time property from artifact if present
+    long fetchTime = artifactData.getMetadata().getFirstDate(Constants.X_LOCKSS_FETCH_TIME);
+
+    // Fallback to collection date from artifact if fetch time property is missing
+    if (fetchTime < 0) {
+      fetchTime = artifactData.getCollectionDate();
+    }
+
+    // Set WARC-Date field
+    record.setCreate14DigitDate(
+        DateTimeFormatter.ISO_INSTANT.format(
+            fetchTime > 0 ?
+                Instant.ofEpochMilli(fetchTime).atZone(ZoneOffset.UTC) :
+                Instant.now().atZone(ZoneOffset.UTC)
+        ));
+
     record.setType(WARCRecordType.response);
 
     // Optional WARC record headers
@@ -2400,9 +2417,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
     record.addExtraHeader(
-        ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY,
+        ArtifactConstants.ARTIFACT_CREATED_DATE,
         DateTimeFormatter.ISO_INSTANT.format(
-                Instant.ofEpochMilli(artifactData.getCollectionDate()).atZone(ZoneOffset.UTC)
+            // Inherit created time if set
+            artifactData.getCreatedDate() > 0 ?
+                Instant.ofEpochMilli(artifactData.getCreatedDate()).atZone(ZoneOffset.UTC) :
+                Instant.now().atZone(ZoneOffset.UTC)
         )
     );
 

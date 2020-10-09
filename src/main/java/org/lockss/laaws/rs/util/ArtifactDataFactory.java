@@ -373,14 +373,14 @@ public class ArtifactDataFactory {
           ad.setContentDigest(artifactDigest);
         }
 
-        String artifactCreationDate = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
+        String artifactCreationDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_CREATED_DATE);
         log.trace("artifactCreationDate = {}", artifactCreationDate);
         if (artifactCreationDate != null && !artifactCreationDate.trim().isEmpty()) {
           TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCreationDate);
-          ad.setStorageDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+          ad.setCreatedDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
         }
 
-        String artifactCollectionDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY);
+        String artifactCollectionDate = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
         log.trace("artifactCollectionDate = {}", artifactCollectionDate);
         if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
           TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
