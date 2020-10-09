@@ -1909,7 +1909,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
       case COPIED:
         Future<Artifact> future = store.commitArtifactData(artifact);
-        artifact = future.get(1, TimeUnit.SECONDS);
+        artifact = future.get(10, TimeUnit.SECONDS);
         break;
 
       case DELETED:
