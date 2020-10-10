@@ -1738,7 +1738,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ArtifactData ad = getArtifactData(artifact);
 
       // Determine if the artifact is expired
-      Instant created = Instant.ofEpochMilli(ad.getCreatedDate());
+      Instant created = Instant.ofEpochMilli(ad.getStoredDate());
       Instant expiration = created.plus(getUncommittedArtifactExpiration(), ChronoUnit.MILLIS);
       boolean isExpired = Instant.now().isAfter(expiration);
 
@@ -2386,15 +2386,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Mandatory WARC record headers
     record.setRecordId(URI.create(artifactId.getId()));
 
-    // Get fetch time property from artifact if present
-    long fetchTime = artifactData.getMetadata().getFirstDate(Constants.X_LOCKSS_FETCH_TIME);
+    // Use fetch time property from artifact for WARC-Date if present
+    String fetchTimeValue = artifactData.getMetadata().getFirst(Constants.X_LOCKSS_FETCH_TIME);
+
+    long fetchTime = -1;
+
+    if (fetchTimeValue != null) {
+      try {
+        fetchTime = Long.valueOf(fetchTimeValue);
+      } catch (NumberFormatException e) {
+        // Ignore
+      }
+    }
 
     // Fallback to collection date from artifact if fetch time property is missing
     if (fetchTime < 0) {
       fetchTime = artifactData.getCollectionDate();
     }
 
-    // Set WARC-Date field
+    // Set WARC-Date field; default to now() if fetch time property and collection date not present
     record.setCreate14DigitDate(
         DateTimeFormatter.ISO_INSTANT.format(
             fetchTime > 0 ?
@@ -2417,11 +2427,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
     record.addExtraHeader(
-        ArtifactConstants.ARTIFACT_CREATED_DATE,
+        ArtifactConstants.ARTIFACT_STORED_DATE,
         DateTimeFormatter.ISO_INSTANT.format(
-            // Inherit created time if set
-            artifactData.getCreatedDate() > 0 ?
-                Instant.ofEpochMilli(artifactData.getCreatedDate()).atZone(ZoneOffset.UTC) :
+            // Inherit stored date if set (e.g., in the temporary WARC record)
+            artifactData.getStoredDate() > 0 ?
+                Instant.ofEpochMilli(artifactData.getStoredDate()).atZone(ZoneOffset.UTC) :
                 Instant.now().atZone(ZoneOffset.UTC)
         )
     );
