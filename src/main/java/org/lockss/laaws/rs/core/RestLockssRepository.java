@@ -226,6 +226,11 @@ public class RestLockssRepository implements LockssRepository {
     parts.add("auid", artifactId.getAuid());
     parts.add("uri", artifactId.getUri());
 
+    // Add collection date form data part if set
+    if (artifactData.getCollectionDate() >= 0) {
+      parts.add("collectionDate", artifactData.getCollectionDate());
+    }
+
     // Prepare artifact multipart headers
     HttpHeaders contentPartHeaders = new HttpHeaders();
 
