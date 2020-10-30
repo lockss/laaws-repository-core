@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,13 +30,13 @@
 
 package org.lockss.laaws.rs.model;
 
-import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.regex.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
+
+import java.io.Serializable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * LOCKSS repository Artifact
@@ -224,6 +224,10 @@ public class Artifact implements Serializable {
         return committed;
     }
 
+    public boolean isCommitted() {
+      return getCommitted() == true;
+    }
+
     public void setCommitted(Boolean committed) {
         if (committed == null) {
           throw new IllegalArgumentException("Cannot set null commit status");
@@ -280,11 +284,6 @@ public class Artifact implements Serializable {
     this.collectionDate = collectionDate;
   }
 
-    public static String getPathFromStorageUrl(String storageUrl)
-	throws URISyntaxException {
-      return new URI(storageUrl).getPath();
-    }
-
     @Override
     public String toString() {
         return "Artifact{" +
@@ -292,7 +291,7 @@ public class Artifact implements Serializable {
                 ", collection='" + collection + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +
-                ", sortUri='" + sortUri + '\'' +
+//                 ", sortUri='" + sortUri + '\'' +
                 ", version='" + version + '\'' +
                 ", committed=" + committed +
                 ", storageUrl='" + storageUrl + '\'' +

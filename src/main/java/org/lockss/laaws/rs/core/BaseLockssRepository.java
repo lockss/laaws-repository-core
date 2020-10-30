@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,21 +31,20 @@
 package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.*;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.model.RepositoryInfo;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.util.jms.JmsFactory;
+import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
+import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -54,7 +53,7 @@ public class BaseLockssRepository implements LockssRepository,
 					     JmsFactorySource {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, RepositoryArtifactMetadata> store;
+  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;
   protected ArtifactIndex index;
   protected JmsFactory jmsFact;
 
@@ -107,6 +106,29 @@ public class BaseLockssRepository implements LockssRepository,
    */
   public JmsFactory getJmsFactory() {
     return jmsFact;
+  }
+
+  /**
+   * Returns information about the repository's storage areas
+   *
+   * @return A {@code RepositoryInfo}
+   * @throws IOException if there are problems getting the repository data.
+   */
+  @Override
+  public RepositoryInfo getRepositoryInfo() throws IOException {
+    StorageInfo ind = null;
+    StorageInfo sto = null;
+    try {
+      ind = index.getStorageInfo();
+    } catch (Exception e) {
+      log.warn("Couldn't get index space", e);
+    }
+    try {
+      sto = store.getStorageInfo();
+    } catch (Exception e) {
+      log.warn("Couldn't get store space", e);
+    }
+    return new RepositoryInfo(sto, ind);
   }
 
   /**
@@ -175,15 +197,29 @@ public class BaseLockssRepository implements LockssRepository,
    */
   @Override
   public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null))
+    if ((collection == null) || (artifactId == null)) {
       throw new IllegalArgumentException("Null collection id or artifact id");
-
-    // Throw if artifact doesn't exist
-    if (!artifactExists(collection, artifactId)) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						+ artifactId);
     }
-    return store.getArtifactData(index.getArtifact(artifactId));
+
+    Artifact artifactRef = index.getArtifact(artifactId);
+
+    if (artifactRef == null) {
+      // FIXME: Do we really want to do throw? Or should we return null?
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
+    }
+
+    // Fetch artifact from data store
+    ArtifactData ad = store.getArtifactData(artifactRef);
+
+    return ad;
+  }
+
+  @Override
+  public HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException {
+    try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
+      return ad.getMetadata();
+    }
   }
 
   /**
@@ -211,37 +247,11 @@ public class BaseLockssRepository implements LockssRepository,
 
       if (!artifact.getCommitted()) {
         // Commit artifact in data store and index
-        Future<Artifact> future = store.commitArtifactData(artifact);
+        store.commitArtifactData(artifact);
         index.commitArtifact(artifactId);
-
-        if (future != null) {
-          try {
-            Artifact committedArtifact = future.get();
-            index.updateStorageUrl(artifact.getId(), committedArtifact.getStorageUrl());
-            return committedArtifact;
-          } catch (InterruptedException e) {
-            log.error(
-                "Move of artifact [artifactId: {}] to permanent storage was interrupted: {}",
-                artifactId,
-                e
-            );
-
-            // TODO: Requeue?
-            throw new IOException(e);
-          } catch (ExecutionException e) {
-            log.error(
-                "Caught ExecutionException while moving artifact [artifactId: {}] to permanent storage",
-                artifactId,
-                e
-            );
-
-            // TODO: Need to discuss what to do here - for now wrap and throw
-            throw new IOException(e);
-          }
-        }
+        artifact.setCommitted(true);
       }
 
-      // TODO: An Artifact could be marked as committed but have no pending move to permanent storage queued
       return artifact;
     }
   }
@@ -268,23 +278,6 @@ public class BaseLockssRepository implements LockssRepository,
 
       // Remove from index and data store
       store.deleteArtifactData(artifact);
-    }
-  }
-
-  /**
-   * Checks whether an artifact exists in this LOCKSS repository.
-   *
-   * @param artifactId A {@code String} containing the artifact ID to check.
-   * @return A boolean indicating whether an artifact exists in this repository.
-   */
-  @Override
-  public Boolean artifactExists(String collectionId, String artifactId) throws IOException {
-    if (collectionId == null || artifactId == null) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
-    }
-
-    synchronized (index) {
-      return index.artifactExists(artifactId);
     }
   }
 

@@ -33,10 +33,15 @@ package org.lockss.laaws.rs.util;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.impl.io.*;
+import org.apache.http.impl.io.DefaultHttpResponseWriter;
+import org.apache.http.impl.io.HttpTransportMetricsImpl;
+import org.apache.http.impl.io.SessionOutputBufferImpl;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
+import org.apache.http.message.BasicLineFormatter;
+import org.apache.http.util.CharArrayBuffer;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -61,12 +66,13 @@ public class ArtifactDataUtil {
      * @throws IOException
      * @throws HttpException
      */
-    public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData) throws IOException, HttpException {
+    public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData) throws IOException {
         InputStream httpResponse = getHttpResponseStreamFromHttpResponse(
                 getHttpResponseFromArtifactData(artifactData)
         );
 
-        artifactData.setContentLength(artifactData.getBytesRead());
+	// getBytesRead() hasn't been computed yet
+//         artifactData.setContentLength(artifactData.getBytesRead());
 
         return httpResponse;
     }
@@ -91,23 +97,15 @@ public class ArtifactDataUtil {
         // Create an InputStreamEntity from artifact InputStream
         response.setEntity(new InputStreamEntity(artifactData.getInputStream()));
 
-        // Merge artifact metadata into HTTP response header
+        // Add artifact headers into HTTP response
         if (artifactData.getMetadata() != null) {
-            artifactData.getMetadata().forEach((headerName, headerValues) -> {
-                headerValues.forEach((headerValue) -> {
-                            response.setHeader(headerName, headerValue);
-                        }
-                );
-            });
+
+            // Compile a list of headers
+            artifactData.getMetadata().forEach((headerName, headerValues) ->
+                headerValues.forEach((headerValue) ->
+                    response.addHeader(headerName, headerValue)
+            ));
         }
-
-//        response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(artifactData.getContentLength()));
-
-        // Embed artifact identifier into header if set - cannot use reponse.setHeaders() because it will replace the
-        // current set of headers entirely
-//        for (Header header : ArtifactDataUtil.getArtifactIdentifierHeaders(id)) {
-//            response.setHeader(header);
-//        }
 
         return response;
     }
@@ -185,7 +183,7 @@ public class ArtifactDataUtil {
      * @throws IOException
      * @throws HttpException
      */
-    public static void writeHttpResponseStream(ArtifactData artifactData, OutputStream output) throws IOException, HttpException {
+    public static void writeHttpResponseStream(ArtifactData artifactData, OutputStream output) throws IOException {
         writeHttpResponse(
                 getHttpResponseFromArtifactData(artifactData),
                 output
@@ -220,7 +218,7 @@ public class ArtifactDataUtil {
      *          The {@code OutputStream} to write to.
      * @throws IOException
      */
-    public static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
+    private static void writeHttpResponseHeader(HttpResponse response, SessionOutputBufferImpl outputBuffer) throws IOException {
         try {
             // Write the HTTP response header
             DefaultHttpResponseWriter responseWriter = new DefaultHttpResponseWriter(outputBuffer);
@@ -229,5 +227,26 @@ public class ArtifactDataUtil {
             log.error("Caught HttpException while attempting to write the headers of an HttpResponse using DefaultHttpResponseWriter");
             throw new IOException(e);
         }
+    }
+
+    public static byte[] getHttpStatusByteArray(StatusLine httpStatus) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        CharArrayBuffer lineBuf = new CharArrayBuffer(128);
+
+        // Create a new SessionOutputBuffer and bind the ByteArrayOutputStream
+        SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
+        outputBuffer.bind(output);
+
+        // Write HTTP status line
+        BasicLineFormatter.INSTANCE.formatStatusLine(lineBuf, httpStatus);
+        outputBuffer.writeLine(lineBuf);
+        outputBuffer.flush();
+
+        // Flush and close ByteArrayOutputStream
+        output.flush();
+        output.close();
+
+        // Return HTTP status byte array
+        return output.toByteArray();
     }
 }

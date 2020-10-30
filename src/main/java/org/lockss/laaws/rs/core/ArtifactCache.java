@@ -421,6 +421,9 @@ public class ArtifactCache {
     updateHist(stats.artDataHist, artDataMap, key);
     ArtifactData res = artDataMap.get(key);
     if (res != null && needInputStream && !res.hasContentInputStream()) {
+      if (!res.hadAnInputStream()) {
+	stats.refetchedForContent++;
+      }
       res = null;
     }
     if (res == null) {
@@ -490,6 +493,7 @@ public class ArtifactCache {
     private int dataCacheHits = 0;
     private int dataCacheMisses = 0;
     private int dataCacheStores = 0;
+    private int refetchedForContent = 0;
     private int[] artDataHist;
 
     public void setSizes(int maxArtSize, int maxArtDataSize) {
@@ -542,6 +546,10 @@ public class ArtifactCache {
 
     public int getDataCacheStores() {
       return dataCacheStores;
+    }
+
+    public int getRefetchedForContent() {
+      return refetchedForContent;
     }
 
     public int getMaxArtSize() {

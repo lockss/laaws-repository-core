@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,20 +30,33 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.jupiter.api.*;
+import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.lang.NotImplementedException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.RepositoryArtifactMetadata;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
+import org.mockito.ArgumentMatchers;
+import org.springframework.util.MultiValueMap;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+
+import static org.mockito.Mockito.*;
 
 /**
- * Test class for {org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore}.
+ * Test class for {@link VolatileWarcArtifactDataStore}.
  */
 public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStoreTest<VolatileWarcArtifactDataStore> {
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  // *******************************************************************************************************************
+  // * JUNIT
+  // *******************************************************************************************************************
 
   @Override
   protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
@@ -57,68 +70,290 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     return n_store;
   }
 
+  // *******************************************************************************************************************
+  // * IMPLEMENTATION SPECIFIC TEST UTILITY METHODS
+  // *******************************************************************************************************************
+
   @Override
-  protected String expected_getBasePath() {
-    return "/";
+  protected Path[] expected_getBasePaths() {
+    return new Path[]{VolatileWarcArtifactDataStore.DEFAULT_BASEPATH};
   }
 
   @Override
-  protected String expected_getTmpWarcBasePath() {
-    return WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH;
+  protected Path[] expected_getTmpWarcBasePaths() {
+    return new Path[]{expected_getBasePaths()[0].resolve(VolatileWarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH)};
   }
 
   @Override
-  public void runTestInitArtifactDataStore() {
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
-  }
-
-  @Override
-  public void runTestInitCollection() throws Exception {
-    // NOP
-  }
-
-  @Override
-  public void runTestInitAu() throws Exception {
-    // NOP
-  }
-
-  @Override
-  @Test
-  public void testGetAuMetadataWarcPath() throws Exception {
-//    File tmp1 = makeLocalTempDir();
-//    WarcArtifactDataStore store = new LocalWarcArtifactDataStore(tmp1.getAbsolutePath());
-    ArtifactIdentifier ident1 = new ArtifactIdentifier("coll1", "auid1", null, null);
-    RepositoryArtifactMetadata md1 = new RepositoryArtifactMetadata(ident1);
-    String expectedAuDirPath = "/collections/coll1/au-" + DigestUtils.md5Hex("auid1");
-    String expectedFileName = "lockss-repo.warc";
-    String expectedPath = expectedAuDirPath + "/" + expectedFileName;
-    String actualPath = store.getAuMetadataWarcPath(ident1, md1);
-    assertEquals(expectedPath, actualPath);
-//    quietlyDeleteDir(tmp1);
-  }
-
-  @Override
-  protected boolean pathExists(String path) {
+  protected boolean pathExists(Path path) {
     return isFile(path) || isDirectory(path);
   }
 
   @Override
-  protected boolean isDirectory(String path) {
+  protected boolean isDirectory(Path path) {
     return store.warcs.keySet().stream().anyMatch(x -> x.startsWith(path + "/"));
   }
 
   @Override
-  protected boolean isFile(String path) {
+  protected boolean isFile(Path path) {
     return store.warcs.get(path) != null;
   }
 
+  // *******************************************************************************************************************
+  // * AbstractWarcArtifactDataStoreTest IMPLEMENTATION
+  // *******************************************************************************************************************
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#initDataStore()}.
+   *
+   * @throws Exception
+   */
   @Override
-  protected String expected_makeStorageUrl(ArtifactIdentifier aid, long offset, long length) throws Exception {
-    return String.format(
+  public void testInitDataStoreImpl() throws Exception {
+    // Mocks
+    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initDataStore();
+
+    // Initialize data store
+    ds.initDataStore();
+
+    // FIXME: Method access not permissive enough (protected) - why?
+//    verify(ds).reloadDataStoreState();
+
+    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#initCollection(String)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testInitCollectionImpl() throws Exception {
+    // NOP
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#initAu(String, String)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testInitAuImpl() throws Exception {
+    String collectionId = "collection";
+    String auid = "auid";
+    List<Path> auPaths;
+
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    Path auPath = mock(Path.class);
+    ds.auPathsMap = mock(Map.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initAu(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
+    when(ds.initAuDir(collectionId, auid)).thenReturn(auPath);
+
+    // Assert initAuDir() called if a list of AU paths does not exist in the map
+    auPaths = ds.initAu(collectionId, auid);
+    assertNotNull(auPaths);
+    assertTrue(auPaths.contains(auPath));
+    verify(ds).initAuDir(collectionId, auid);
+    clearInvocations(ds);
+
+    // Assert initAuDir() is not called if a list of AU paths exists in the map
+    auPaths = ds.initAu(collectionId, auid);
+    assertNotNull(auPaths);
+    assertTrue(auPaths.contains(auPath));
+    verify(ds).initAuDir(collectionId, auid);
+    clearInvocations(ds);
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#makeStorageUrl(Path, MultiValueMap)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testMakeStorageUrlImpl() throws Exception {
+    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+
+    URI expectedStorageUrl = URI.create(String.format(
         "volatile://%s?offset=%d&length=%d",
-        store.getActiveWarcPath(aid.getCollection(), aid.getAuid()),
-        offset,
-        length
-    );
+        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L),
+        1234L,
+        5678L
+    ));
+
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L);
+    URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
+
+    assertEquals(expectedStorageUrl, actualStorageUrl);
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#initWarc(Path)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testInitWarcImpl() throws Exception {
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    Path warcPath = mock(Path.class);
+    ds.warcs = new HashMap<>();
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initWarc(warcPath);
+    doCallRealMethod().when(ds).getAppendableOutputStream(warcPath);
+
+    // Call method
+    ds.initWarc(warcPath);
+
+    // Assert a ByteArrayOutputStream is in the map for this WARC path
+    OutputStream output = ds.getAppendableOutputStream(warcPath);
+    assertNotNull(output);
+
+    // Assert that a WARC info record was written
+    verify(ds).writeWarcInfoRecord(output);
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#getWarcLength(Path)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testGetWarcLengthImpl() throws Exception {
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    ds.warcs = mock(Map.class);
+    Path warcPath = mock(Path.class);
+    ByteArrayOutputStream output = mock(ByteArrayOutputStream.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).getWarcLength(warcPath);
+    when(output.size()).thenReturn(1234);
+
+    // Assert WARC length is 0 if WARC is not found
+    when(ds.warcs.get(warcPath)).thenReturn(null);
+    assertEquals(0L, ds.getWarcLength(warcPath));
+
+    // Assert WARC length is the expected size if found
+    when(ds.warcs.get(warcPath)).thenReturn(output);
+    assertEquals(1234L, ds.getWarcLength(warcPath));
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#findWarcs(Path)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testFindWarcsImpl() throws Exception {
+    Path basePath = Paths.get("/lockss");
+
+    // Setup set of files
+    Path[] files = {
+        basePath.resolve("foo"),
+        basePath.resolve("bar.warc"),
+        basePath.resolve("xyzyy.txt"),
+    };
+
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    ds.warcs = mock(Map.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).findWarcs(basePath);
+
+    // Assert only the WARCs are returned
+    when(ds.warcs.keySet()).thenReturn(new HashSet<>(Arrays.asList(files)));
+    log.trace("keySet = {}", ds.warcs.keySet());
+    Collection<Path> result = ds.findWarcs(basePath);
+    assertEquals(1, result.size());
+    assertTrue(result.contains(basePath.resolve("bar.warc")));
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#removeWarc(Path)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testRemoveWarcImpl() throws Exception {
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    ds.warcs = mock(Map.class);
+    Path warcPath = mock(Path.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).removeWarc(warcPath);
+
+    // Call method
+    ds.removeWarc(warcPath);
+
+    // Assert that the WARC is removed from the internal map
+    verify(ds.warcs).remove(warcPath);
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#getBlockSize()}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testGetBlockSizeImpl() throws Exception {
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    doCallRealMethod().when(ds).getBlockSize();
+
+    // Assert we get the expected block size
+    assertEquals(VolatileWarcArtifactDataStore.DEFAULT_BLOCKSIZE, ds.getBlockSize());
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#getFreeSpace(Path)}.
+   *
+   * @throws Exception
+   */
+  @Override
+  public void testGetFreeSpaceImpl() throws Exception {
+    Path randomPath = Paths.get(UUID.randomUUID().toString());
+
+    // Setup spy of Runtime object
+    Runtime s_runtime = spy(Runtime.getRuntime());
+    when(s_runtime.freeMemory()).thenReturn(1234L);
+
+    // Assert freeMemory() is called by getFreeSpace()
+    assertEquals(s_runtime.freeMemory(), store.getFreeSpace(s_runtime, randomPath));
+
+    // Assert valid freeMemory() output
+    assertTrue(store.getFreeSpace(randomPath) > 0 && store.getFreeSpace(randomPath) <= s_runtime.maxMemory());
+  }
+
+  /**
+   * Test for {@link VolatileWarcArtifactDataStore#initAuDir(String, String)}.
+   *
+   * @throws Exception
+   */
+  // FIXME: This test seems kind of pointless - we're effectively exercising the mocks
+  @Override
+  public void testInitAuDirImpl() throws Exception {
+    String collectionId = "collection";
+    String auid = "auid";
+
+    // Mocks
+    VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
+    Path basePath = mock(Path.class);
+    Path auPath = mock(Path.class);
+
+    // Mock behavior
+    doCallRealMethod().when(ds).initAuDir(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
+    when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
+    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+
+    // Assert initAuDir() returns expected result
+    assertEquals(auPath, ds.initAuDir(collectionId, auid));
   }
 }

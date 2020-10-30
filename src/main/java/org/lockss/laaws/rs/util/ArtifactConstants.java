@@ -51,4 +51,5 @@ public class ArtifactConstants {
 
     // Miscellaneous
     public static final String ARTIFACT_ORIGIN_KEY = "X-LockssRepo-Artifact-Origin";
+    public static final String ARTIFACT_STORED_DATE = "X-LockssRepo-Artifact-StoredDate";
 }

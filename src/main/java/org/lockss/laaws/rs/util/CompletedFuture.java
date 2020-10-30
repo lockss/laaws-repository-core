@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,36 +28,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.core;
+package org.lockss.laaws.rs.util;
 
-import java.io.IOException;
-import org.junit.jupiter.api.Test;
-import org.lockss.log.L4JLogger;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
-import org.lockss.laaws.rs.model.*;
-import org.lockss.util.storage.StorageInfo;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
- * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
+ * Implements {@code Future} that is already completed upon instantiation.
+ *
+ * @param <T> Type of the return object.
  */
-public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
-    private final static L4JLogger log = L4JLogger.getLogger();
+public class CompletedFuture<T> implements Future<T> {
+  private T v;
 
-    @Override
-    public LockssRepository makeLockssRepository() throws IOException {
-        return new VolatileLockssRepository();
-    }
-
-  @Test
-  public void testRepoInfo() throws Exception {
-    RepositoryInfo ri = repository.getRepositoryInfo();
-    log.debug("repoinfo: {}", ri);
-    StorageInfo ind = ri.getIndexInfo();
-    StorageInfo sto = ri.getStoreInfo();
-    assertEquals(VolatileArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
-    assertEquals(VolatileWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
-		 sto.getType());
+  public CompletedFuture(T v) {
+    this.v = v;
   }
 
+  @Override
+  public boolean cancel(boolean mayInterruptIfRunning) {
+    return false;
+  }
+
+  @Override
+  public boolean isCancelled() {
+    return false;
+  }
+
+  @Override
+  public boolean isDone() {
+    return true;
+  }
+
+  @Override
+  public T get() throws InterruptedException, ExecutionException {
+    return v;
+  }
+
+  @Override
+  public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+    return v;
+  }
 }
+

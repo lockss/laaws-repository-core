@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,93 +30,191 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.test.LockssTestCase5;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Set;
+
+import static org.mockito.Mockito.*;
 
 /**
- * TODO: Write real tests
+ * Unit tests for {@link WarcFilePool}.
  */
-class TestWarcFilePool {
+class TestWarcFilePool extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  class RunnableDemo implements Runnable {
-    private final long baseWait;
-    private WarcFilePool warcFilePool;
-    private Thread t;
-    private String threadName;
+  @Test
+  public void testCreateWarcFile() throws Exception {
+    WarcFile warcFile;
 
-    public RunnableDemo(String name, WarcFilePool warcFilePool, long baseWait) {
-      this.threadName = name;
-      this.warcFilePool = warcFilePool;
-      this.baseWait = baseWait;
-    }
+    WarcArtifactDataStore mockedStore = mock(WarcArtifactDataStore.class);
+    when(mockedStore.getBlockSize()).thenReturn(4096L);
+    when(mockedStore.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+    when(mockedStore.getBasePaths()).thenReturn(new Path[]{Paths.get("/lockss")});
 
-    @Override
-    public void run() {
+    WarcFilePool pool = spy(new WarcFilePool(mockedStore));
 
-      try {
-        for (int i = 0; i < 1000; i++) {
-          long bytesExpected = (long) (Math.random() * FileUtils.ONE_MB * 20.1f);
-          WarcFile warcFile = warcFilePool.findWarcFile(bytesExpected);
-//          log.info(String.format("%s: Got: %s: Length: %d", threadName, warcFile.getPath(), warcFile.getLength()));
-
-          warcFile.setLength(warcFile.getLength() + bytesExpected);
-//          log.info(String.format("%s: Wrote: %d bytes to %s", threadName, bytesExpected, warcFile.getPath()));
-
-          if (false) {
-            Thread.sleep((long) (Math.random() * 100f));
-          }
-
-          if (warcFile != null) {
-            if (Math.random() * 100 < 606) {
-              warcFilePool.returnWarcFile(warcFile);
-            } else {
-              log.info(String.format("%s: Not returning: %s", threadName, warcFile.getPath()));
-            }
-          }
-        }
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-
-    }
-
-    public Thread start() throws InterruptedException {
-      if (t == null) {
-        t = new Thread(this, threadName);
-        t.start();
-      }
-
-      return t;
-    }
+//    // Assert that an IllegalStateException is thrown if the data store returns null array of temporary WARC dirs
+//    when(mockedStore.getTmpWarcBasePaths()).thenReturn(null);
+//    assertThrows(IllegalStateException.class, () -> pool.createWarcFile());
+//
+//    // Assert that an IllegalStateException is thrown if the data store returns an empty array of temporary WARC dirs
+//    when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{});
+//    assertThrows(IllegalStateException.class, () -> pool.createWarcFile());
+//
+//    // Assert addWarc() is not called
+//    verify(pool, never()).addWarcFile(org.mockito.ArgumentMatchers.any(WarcFile.class));
+//
+//    // Setup temporary WARC base paths
+//    Path tmpWarcBasePath1 = Paths.get("/tmp1");
+//    Path tmpWarcBasePath2 = Paths.get("/tmp2");
+//    when(mockedStore.getFreeSpace(tmpWarcBasePath1)).thenReturn(0L);
+//    when(mockedStore.getFreeSpace(tmpWarcBasePath2)).thenReturn(1L);
+//
+//    // Assert we get back a WarcFile with one temporary WARC dir
+//    when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{tmpWarcBasePath1});
+//    warcFile = pool.createWarcFile();
+//    assertNotNull(warcFile);
+//    assertTrue(warcFile.getPath().startsWith(tmpWarcBasePath1));
+//    assertEquals(0L, warcFile.getLength());
+//    verify(pool).addWarcFile(warcFile);
+//
+//    // Assert we get back the expected WarcFile with two temporary WARC dirs
+//    when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{tmpWarcBasePath1, tmpWarcBasePath2});
+//    warcFile = pool.createWarcFile();
+//    assertNotNull(warcFile);
+//    assertTrue(warcFile.getPath().startsWith(tmpWarcBasePath2));
+//    assertEquals(0L, warcFile.getLength());
+//    verify(pool).addWarcFile(warcFile);
+//
+//    // Assert we get back the expected WarcFile when tmpWarcBasePath1 suddenly has more space than tmpWarcBasePath2
+//    when(mockedStore.getFreeSpace(tmpWarcBasePath1)).thenReturn(2L);
+//    warcFile = pool.createWarcFile();
+//    assertNotNull(warcFile);
+//    assertTrue(warcFile.getPath().startsWith(tmpWarcBasePath1));
+//    assertEquals(0L, warcFile.getLength());
+//    verify(pool).addWarcFile(warcFile);
   }
 
   @Test
-  void findWarcFile() throws Exception {
-    for (int i= 0 ; i< 10; i++) {
-      WarcFilePool pool = new WarcFilePool("/tmp");
-      List<Thread> threads = new ArrayList<>();
+  public void testGenerateTmpWarcFileName() throws Exception {
+    WarcFilePool pool = new WarcFilePool(null);
+    String tmpWarcFileName = pool.generateTmpWarcFileName();
 
-      for (int j = 0; j < 10; j++) {
-        RunnableDemo rd = new RunnableDemo("t"+String.valueOf(j), pool, 0);
-        Thread.sleep((long) (Math.random() * 250));
-        threads.add(rd.start());
-      }
+    // Assert generated file name is not null and ends with the WARC extension
+    assertNotNull(tmpWarcFileName);
+    assertTrue(tmpWarcFileName.endsWith(WarcArtifactDataStore.WARC_FILE_EXTENSION));
+  }
 
-      threads.forEach(t -> {
-        try {
-          t.join();
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-      });
+  @Test
+  public void testFindWarcFile() throws Exception {
+    WarcFile warcFile1;
 
-      log.info(String.format("Run %d:", i+1));
-      pool.dumpWarcFilesPoolInfo();
-    }
+    WarcArtifactDataStore mockedStore = mock(WarcArtifactDataStore.class);
+    when(mockedStore.getBlockSize()).thenReturn(4096L);
+    when(mockedStore.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+
+    Path tmpWarcPath = Paths.get("/tmp");
+    when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{tmpWarcPath});
+
+    WarcFilePool pool = spy(new WarcFilePool(mockedStore));
+
+    // Assert a new temporary WARC is created if there are no temporary WARCs in the pool
+    warcFile1 = pool.findWarcFile(tmpWarcPath, 0L);
+    verify(pool).createWarcFile(tmpWarcPath);
+    assertTrue(pool.isInPool(warcFile1));
+    assertTrue(pool.isInUse(warcFile1));
+
+    // Return WarcFile to pool
+    pool.returnWarcFile(warcFile1);
+    assertTrue(pool.isInPool(warcFile1));
+    assertFalse(pool.isInUse(warcFile1));
+
+    // Assert we get back the same WarcFile since it is available again
+    assertEquals(warcFile1, pool.findWarcFile(tmpWarcPath, 0L));
+
+    // Assert the next call results in a different WarcFile since the first WARC is in use
+    WarcFile warcFile2 = pool.findWarcFile(tmpWarcPath, 0L);
+    assertNotEquals(warcFile1, warcFile2);
+
+    // Return both WarcFiles
+    pool.returnWarcFile(warcFile1);
+    pool.returnWarcFile(warcFile2);
+
+    // Assert that if the available WarcFiles don't have enough space, a new WarcFile is created
+    WarcFile warcFile3 = pool.findWarcFile(tmpWarcPath, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE + 1);
+    assertNotEquals(warcFile1, warcFile3);
+    assertNotEquals(warcFile2, warcFile3);
+
+    // Assert findWarcFile() returns the WarcFile whose last block would be maximally filled by adding a record
+    warcFile2.setLength(1234L);
+    WarcFile warcFile4 = pool.findWarcFile(tmpWarcPath, 1000L);
+    assertEquals(warcFile2, warcFile4);
+  }
+
+  @Test
+  public void testReturnWarcFile() throws Exception {
+    WarcFilePool pool = spy(new WarcFilePool(null));
+
+    WarcFile warcFile = mock(WarcFile.class);
+    when(warcFile.getPath()).thenReturn(Paths.get("/tmp/foo.warc"));
+
+    // Verify adding an unknown WarcFile to the pool causes it to be added to the pool
+    pool.returnWarcFile(warcFile);
+    InOrder inOrder = Mockito.inOrder(pool);
+    inOrder.verify(pool).isInPool(warcFile);
+    inOrder.verify(pool).addWarcFile(warcFile);
+
+    // Assert no changes returning a WarcFile already not in use
+    pool.returnWarcFile(warcFile);
+    assertTrue(pool.isInPool(warcFile));
+    assertFalse(pool.isInUse(warcFile));
+
+    // Remove the file
+    pool.removeWarcFile(warcFile);
+    assertFalse(pool.isInPool(warcFile));
+    assertFalse(pool.isInUse(warcFile));
+
+    // Return the WarcFile
+    pool.returnWarcFile(warcFile);
+    assertTrue(pool.isInPool(warcFile));
+    assertFalse(pool.isInUse(warcFile));
+  }
+
+  @Test
+  public void testRemoveWarcFile() throws Exception {
+    // Mocks
+    WarcFilePool pool = mock(WarcFilePool.class);
+    WarcFile warcFile = mock(WarcFile.class);
+    Path warcPath = mock(Path.class);
+
+    // Inject mocks
+    pool.usedWarcs = mock(Set.class);
+    pool.allWarcs = mock(Set.class);
+
+    // Mock behavior
+    doCallRealMethod().when(pool).removeWarcFile(warcPath);
+    doCallRealMethod().when(pool).removeWarcFile(warcFile);
+
+    // Assert nothing is removed if not part of pool
+    when(pool.lookupWarcFile(warcPath)).thenReturn(null);
+    assertNull(pool.removeWarcFile(warcPath));
+    verify(pool, never()).removeWarcFile(ArgumentMatchers.any(WarcFile.class));
+    clearInvocations(pool);
+
+    // Assert WARC removed if in pool
+    when(pool.lookupWarcFile(warcPath)).thenReturn(warcFile);
+    assertEquals(warcFile, pool.removeWarcFile(warcPath));
+    verify(pool).removeWarcFile(warcFile);
+    verify(pool.usedWarcs).remove(warcFile);
+    verify(pool.allWarcs).remove(warcFile);
+    clearInvocations(pool);
   }
 }

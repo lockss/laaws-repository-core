@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2018-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,6 +38,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.LinkedHashMap;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.util.os.PlatformUtil;
+import org.lockss.util.storage.StorageInfo;
 import org.lockss.log.L4JLogger;
 
 /**
@@ -46,6 +48,9 @@ import org.lockss.log.L4JLogger;
  */
 public class LocalArtifactIndex extends VolatileArtifactIndex {
     private final static L4JLogger log = L4JLogger.getLogger();
+
+    /** Label to describe type of LocalArtifactIndex */
+    public static String ARTIFACT_INDEX_TYPE = "Java-persist";
 
     // The location of persisted index.
     private File persistedIndex = null;
@@ -65,6 +70,7 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         if (basePath != null && (!basePath.exists() || basePath.isDirectory())
             && persistedIndexName != null
             && !persistedIndexName.trim().isEmpty()) {
+
             // Yes: Get the location of the persisted index.
             persistedIndex = new File(basePath, persistedIndexName);
             log.info("Setup persistence of index to file " + persistedIndex);
@@ -74,6 +80,37 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         } else {
             log.info("Persistence of index is disabled");
         }
+    }
+
+    @Override
+    public void shutdownIndex() {
+        super.shutdownIndex();
+
+        // Persist index one last time
+        persist();
+    }
+
+    /**
+     * Returns information about the device the index is stored on: size,
+     * free space, etc.
+     * @return A {@code StorageInfo}
+     */
+    @Override
+    public StorageInfo getStorageInfo() {
+      if (persistedIndex == null) {
+	return super.getStorageInfo();
+      }
+      try {
+	// Mustn't use persistedIndex filename as it mightn't have been
+	// created yet.  The parent directory is required to already exist.
+	String parentDir = persistedIndex.getParent();
+	return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir))
+	  .setType(ARTIFACT_INDEX_TYPE)
+	  .setPath(persistedIndex.toString());
+      } catch (PlatformUtil.UnsupportedException e) {
+	throw new UnsupportedOperationException("Can't get index StorageInfo",
+						e);
+      }
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,48 +31,63 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * A volatile ("in-memory") implementation of WarcArtifactDataStore.
+ * A volatile (i.e., "in-memory") implementation of WarcArtifactDataStore.
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
-  private final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
-  private final static String DEFAULT_BASEPATH = "/";
 
-  protected final Map<String, ByteArrayOutputStream> warcs;
+  /** Label to describe type of VolatileWarcArtifactDataStore */
+  public static String ARTIFACT_DATASTORE_TYPE = "In-Memory";
+
+  public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
+
+  protected Map<Path, ByteArrayOutputStream> warcs;
+
+  // *******************************************************************************************************************
+  // * CONSTRUCTORS
+  // *******************************************************************************************************************
 
   /**
    * Constructor.
    */
   public VolatileWarcArtifactDataStore() {
-    this(new VolatileArtifactIndex(), DEFAULT_BASEPATH);
-  }
-
-  public VolatileWarcArtifactDataStore(ArtifactIndex index) {
-    this(index, DEFAULT_BASEPATH);
+    this(new VolatileArtifactIndex());
   }
 
   /**
    * For testing; this kind of data store ignores the base path.
    */
-  private VolatileWarcArtifactDataStore(ArtifactIndex index, String basePath) {
-    super(index, basePath);
+  public VolatileWarcArtifactDataStore(ArtifactIndex index) {
+    super(index);
 
+    this.basePaths = new Path[]{DEFAULT_BASEPATH};
+    this.tmpWarcPool = new WarcFilePool(this);
     this.warcs = new HashMap<>();
   }
 
-
+  // *******************************************************************************************************************
+  // * ABSTRACT METHOD IMPLEMENTATION
+  // *******************************************************************************************************************
 
   @Override
   public void initCollection(String collectionId) {
@@ -80,30 +95,41 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void initAu(String collectionId, String auid) {
-    // NOP
-  }
+  public List<Path> initAu(String collectionId, String auid) throws IOException {
+    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    List<Path> auPaths = auPathsMap.get(key);
 
-  @Override
-  public void initWarc(String path) throws IOException {
-    synchronized (warcs) {
-      warcs.putIfAbsent(path, new ByteArrayOutputStream());
+    if (auPaths == null) {
+      auPaths = new ArrayList<>();
+      auPaths.add(initAuDir(collectionId, auid));
+      auPathsMap.put(key, auPaths);
     }
 
-    writeWarcInfoRecord(path);
+    return auPaths;
   }
 
   @Override
-  public boolean removeWarc(String path) {
+  protected Path initAuDir(String collectionId, String auid) throws IOException {
+    return getAuPath(getBasePaths()[0], collectionId, auid);
+  }
+
+  @Override
+  public void initWarc(Path warcPath) throws IOException {
+    synchronized (warcs) {
+      warcs.putIfAbsent(warcPath, new ByteArrayOutputStream());
+    }
+
+    try (OutputStream output = getAppendableOutputStream(warcPath)) {
+      writeWarcInfoRecord(output);
+    }
+  }
+
+  @Override
+  public boolean removeWarc(Path path) {
     synchronized (warcs) {
       warcs.remove(path);
       return true;
     }
-  }
-
-  @Override
-  protected String getTmpWarcBasePath() {
-    return getAbsolutePath(DEFAULT_TMPWARCBASEPATH);
   }
 
   @Override
@@ -112,7 +138,21 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public long getWarcLength(String warcPath) {
+  protected long getFreeSpace(Path fsPath) {
+    return getFreeSpace(Runtime.getRuntime(), fsPath);
+//    return Runtime.getRuntime().freeMemory();
+  }
+
+  /**
+   * Only used for testing.
+   */
+  // FIXME: This is ugly.
+  protected long getFreeSpace(Runtime runtime, Path fsPath) {
+    return runtime.freeMemory();
+  }
+
+  @Override
+  public long getWarcLength(Path warcPath) {
     synchronized (warcs) {
       ByteArrayOutputStream warc = warcs.get(warcPath);
       if (warc != null) {
@@ -124,53 +164,52 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public String makeStorageUrl(String filePath, MultiValueMap<String, String> params) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + getBasePath() + filePath);
+  public URI makeStorageUrl(Path filePath, MultiValueMap<String, String> params) {
+    UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("volatile://" + filePath);
     uriBuilder.queryParams(params);
-
-    return uriBuilder.toUriString();
+    return uriBuilder.build().toUri();
   }
 
   @Override
-  public OutputStream getAppendableOutputStream(String path) {
+  public OutputStream getAppendableOutputStream(Path path) {
     synchronized (warcs) {
       return warcs.get(path);
     }
   }
 
   @Override
-  public InputStream getInputStreamAndSeek(String path, long seek) throws IOException {
+  public InputStream getInputStreamAndSeek(Path path, long seek) throws IOException {
     synchronized (warcs) {
       ByteArrayOutputStream warc = warcs.get(path);
 
       if (warc == null) {
         // Translate to FileNotFound exception if the WARC could not be found in the map
-        throw new FileNotFoundException(path);
+        throw new FileNotFoundException(path.toString());
       } else {
         InputStream is = warc.toInputStream();
         long skipped = is.skip(seek);
-        assert(skipped == seek);
+        assert (skipped == seek);
         return is;
       }
     }
   }
 
   @Override
-  public Collection<String> findWarcs(String basePath) {
+  public Collection<Path> findWarcs(Path basePath) {
     synchronized (warcs) {
       log.debug2("basePath = {}", basePath);
       log.debug2("warcs.keySet() = {}", warcs.keySet());
 
       return warcs.keySet().stream()
           .filter(path -> path.startsWith(basePath))
-          .filter(path -> path.endsWith(WARC_FILE_EXTENSION))
+          .filter(path -> FilenameUtils.getExtension(path.toString()).equalsIgnoreCase(WARC_FILE_EXTENSION))
           .collect(Collectors.toList());
     }
   }
 
   /**
    * Returns a boolean indicating whether this artifact store is ready.
-   *
+   * <p>
    * Always true in volatile implementation.
    *
    * @return {@code true}
@@ -180,10 +219,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     return dataStoreState == DataStoreState.INITIALIZED;
   }
 
+  /**
+   * Returns information about the storage size and free space
+   * @return A {@code StorageInfo}
+   */
   @Override
-  protected String getAbsolutePath(String path) {
-    // File only used here to merge paths
-    File pathDir = new File(getBasePath(), path);
-    return pathDir.toString();
+  public StorageInfo getStorageInfo() {
+    return StorageInfo.fromRuntime().setType(ARTIFACT_DATASTORE_TYPE);
   }
 }

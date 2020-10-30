@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,36 +28,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.lockss.laaws.rs.core;
+package org.lockss.laaws.rs.model;
 
-import java.io.IOException;
-import org.junit.jupiter.api.Test;
-import org.lockss.log.L4JLogger;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
-import org.lockss.laaws.rs.model.*;
-import org.lockss.util.storage.StorageInfo;
+import org.apache.commons.lang3.tuple.MutablePair;
 
-/**
- * Test class for {@code org.lockss.laaws.rs.core.VolatileLockssRepository}
- */
-public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
-    private final static L4JLogger log = L4JLogger.getLogger();
-
-    @Override
-    public LockssRepository makeLockssRepository() throws IOException {
-        return new VolatileLockssRepository();
-    }
-
-  @Test
-  public void testRepoInfo() throws Exception {
-    RepositoryInfo ri = repository.getRepositoryInfo();
-    log.debug("repoinfo: {}", ri);
-    StorageInfo ind = ri.getIndexInfo();
-    StorageInfo sto = ri.getStoreInfo();
-    assertEquals(VolatileArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
-    assertEquals(VolatileWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
-		 sto.getType());
+public class CollectionAuidPair extends MutablePair<String, String> {
+  public CollectionAuidPair(String collection, String auid) {
+    super(collection, auid);
   }
 
+  public String getCollection() {
+    return getLeft();
+  }
+
+  public String getAuid() {
+    return getRight();
+  }
+
+  public void setCollection(String collection) {
+    setLeft(collection);
+  }
+
+  public void setAuid(String auid) {
+    setRight(auid);
+  }
 }

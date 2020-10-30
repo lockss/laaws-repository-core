@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Board of Trustees of Leland Stanford Jr. University,
+ * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -30,32 +30,20 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.io.FileUtils;
 import org.lockss.log.L4JLogger;
 
+import java.nio.file.Path;
 import java.util.*;
 
 public class WarcFilePool {
   private static final L4JLogger log = L4JLogger.getLogger();
 
-  public static final long DEFAULT_THRESHOLD = FileUtils.ONE_GB;
-  public static final long DEFAULT_BLOCKSIZE = 128 * FileUtils.ONE_MB;
+  protected WarcArtifactDataStore store;
+  protected Set<WarcFile> allWarcs = new HashSet<>();
+  protected Set<WarcFile> usedWarcs = new HashSet<>(); // TODO: Map from WarcFile to WarcFile's state (enum)
 
-  private final String poolBasePath;
-  private final long blocksize;
-  private final long sizeThreshold;
-
-  private final Set<WarcFile> allWarcs = new HashSet<>();
-  private final Set<WarcFile> usedWarcs = new HashSet<>(); // TODO: Map from WarcFile to WarcFile's state (enum)
-
-  public WarcFilePool(String poolBasePath) {
-    this(poolBasePath, DEFAULT_BLOCKSIZE, DEFAULT_THRESHOLD);
-  }
-
-  public WarcFilePool(String poolBasePath, long blocksize, long sizeThreshold) {
-    this.poolBasePath = poolBasePath;
-    this.blocksize = blocksize;
-    this.sizeThreshold = sizeThreshold;
+  public WarcFilePool(WarcArtifactDataStore store) {
+    this.store = store;
   }
 
   /**
@@ -63,10 +51,15 @@ public class WarcFilePool {
    *
    * @return The new {@code WarcFile} instance.
    */
-  protected WarcFile createWarcFile() {
-    WarcFile warcFile = new WarcFile(poolBasePath + "/" + UUID.randomUUID().toString() + ".warc", 0);
+  protected WarcFile createWarcFile(Path basePath) {
+    Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
+    WarcFile warcFile = new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), 0);
     addWarcFile(warcFile);
     return warcFile;
+  }
+
+  protected String generateTmpWarcFileName() {
+    return String.format("%s.%s", UUID.randomUUID(), WarcArtifactDataStore.WARC_FILE_EXTENSION);
   }
 
   /**
@@ -87,7 +80,7 @@ public class WarcFilePool {
    * @param bytesExpected A {@code long} representing the number of bytes expected to be written.
    * @return A {@code WarcFile} from this pool.
    */
-  public WarcFile findWarcFile(long bytesExpected) {
+  public WarcFile findWarcFile(Path basePath, long bytesExpected) {
     if (bytesExpected < 0) {
       throw new IllegalArgumentException("bytesExpected must be a positive integer");
     }
@@ -100,16 +93,17 @@ public class WarcFilePool {
         availableWarcs.removeAll(usedWarcs);
 
         Optional<WarcFile> opt = availableWarcs.stream()
-            .filter(warc -> warc.getLength() + bytesExpected <= sizeThreshold)
+            .filter(usedWarc -> usedWarc.getPath().startsWith(basePath))
+            .filter(warc -> warc.getLength() + bytesExpected <= store.getThresholdWarcSize())
             .max((w1, w2) ->
                 (int) (
-                    getBytesUsedLastBlock(w2.getLength() + bytesExpected) -
-                    getBytesUsedLastBlock(w1.getLength() + bytesExpected)
+                    getBytesUsedLastBlock(w1.getLength() + bytesExpected) -
+                        getBytesUsedLastBlock(w2.getLength() + bytesExpected)
                 )
             );
 
         // Create a new WARC if no WarcFiles are available that can hold the expected number of bytes
-        WarcFile warcFile = opt.isPresent() ? opt.get() : createWarcFile();
+        WarcFile warcFile = opt.isPresent() ? opt.get() : createWarcFile(basePath);
 
         // Add this WarcFile to the set of WarcFiles currently in use
         usedWarcs.add(warcFile);
@@ -123,58 +117,19 @@ public class WarcFilePool {
   }
 
   /**
-   * Borrows a {@code WarcFile} from this pool by marking it as in-use before returning it.
-   *
-   * @param warcFile The {@code WarcFile} to borrow.
-   * @return A {@code boolean} indicating whether the borrow was successful or not.
-   */
-  public boolean borrowWarcFile(WarcFile warcFile) {
-    synchronized (usedWarcs) {
-      if (!isInUse(warcFile)) {
-        TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
-        usedWarcs.add(warcFile);
-        return true;
-      } else {
-        log.warn("Attempted to borrow an already borrowed WARC file! [warcFile: {}]", warcFile.getPath());
-      }
-
-      return false;
-    }
-  }
-
-  /**
-   * Borrows the {@code WarcFile} referenced by a WARC file path from this pool.
-   *
-   * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to borrow.
-   * @return A {@code boolean} indicating whether the borrow was successful or not.
-   */
-  public boolean borrowWarcFile(String warcFilePath) {
-    synchronized (allWarcs) {
-      WarcFile warcFile = lookupWarcFile(warcFilePath);
-
-      if (warcFile == null) {
-        return false;
-      }
-
-      return borrowWarcFile(warcFile);
-    }
-  }
-
-  /**
    * Computes the bytes used in the last block, assuming all previous blocks are maximally filled.
    *
    * @param size
    * @return
    */
   protected long getBytesUsedLastBlock(long size) {
-    return ((size - 1) % blocksize) + 1;
+    return ((size - 1) % store.getBlockSize()) + 1;
   }
 
   /**
-   * Makes an existing WarcFile available to this pool.
+   * Makes an existing {@link WarcFile} available to this pool.
    *
-   * @param warcFile
-   *          The {@code WarcFile} to add back to this pool.
+   * @param warcFile The {@link WarcFile} to add back to this pool.
    */
   public void returnWarcFile(WarcFile warcFile) {
     synchronized (allWarcs) {
@@ -213,7 +168,7 @@ public class WarcFilePool {
    * @param warcFilePath A {@code String} containing the path to a {@code WarcFile} object in this pool.
    * @return A {@code boolean} indicating whether the {@code WarcFile} is in use.
    */
-  public boolean isInUse(String warcFilePath) {
+  public boolean isInUse(Path warcFilePath) {
     synchronized (allWarcs) {
       WarcFile warcFile = lookupWarcFile(warcFilePath);
       return isInUse(warcFile);
@@ -238,7 +193,7 @@ public class WarcFilePool {
    * @param warcFilePath A {@code String} containing the path to a {@code WarcFile} object in this pool.
    * @return A {@code boolean} indicating whether the {@code WarcFile} is a member of this pool.
    */
-  public boolean isInPool(String warcFilePath) {
+  public boolean isInPool(Path warcFilePath) {
     synchronized (allWarcs) {
       WarcFile warcFile = lookupWarcFile(warcFilePath);
       return isInPool(warcFile);
@@ -252,7 +207,7 @@ public class WarcFilePool {
    * @param warcFilePath A {@code String} containing the path to the {@code WarcFile} to find.
    * @return The {@code WarcFile}, or {@code null} if one could not be found.
    */
-  public WarcFile lookupWarcFile(String warcFilePath) {
+  public WarcFile lookupWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
       return allWarcs.stream()
           .filter(x -> x.getPath().equals(warcFilePath))
@@ -263,13 +218,13 @@ public class WarcFilePool {
 
   /**
    * Removes the {@code WarcFile} matching the given path from this pool and returns it.
-   *
+   * <p>
    * May return {@code null} if none in the pool match.
    *
    * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to remove.
    * @return The {@code WarcFile} removed from this pool. May be {@code null} if not found.
    */
-  public WarcFile removeWarcFile(String warcFilePath) {
+  public WarcFile removeWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
       WarcFile warcFile = lookupWarcFile(warcFilePath);
 
@@ -284,23 +239,24 @@ public class WarcFilePool {
   }
 
   /**
-   * Removes an existing WarcFile from this pool.
+   * Removes an existing {@link WarcFile} from this pool.
    *
-   * @param warcFile
-   *          The instance of {@code WarcFile} to remove from this pool.
+   * @param warcFile The instance of {@link WarcFile} to remove from this pool.
    */
   protected void removeWarcFile(WarcFile warcFile) {
     synchronized (allWarcs) {
       synchronized (usedWarcs) {
-        if (usedWarcs.contains(warcFile)) {
+        if (isInUse(warcFile)) {
+          // Pay attention to this log message - it may indicate a problem with the code
+          log.warn("Forceful removal of WARC file from pool [warcFile: {}]", warcFile);
+
           // Q: What should we do if it's currently in use?
-          usedWarcs.remove(warcFile);
         }
+
+        usedWarcs.remove(warcFile);
       }
 
-      if (allWarcs.contains(warcFile)) {
-        allWarcs.remove(warcFile);
-      }
+      allWarcs.remove(warcFile);
     }
   }
 
@@ -315,7 +271,7 @@ public class WarcFilePool {
     // Iterate over WarcFiles in this pool
     synchronized (allWarcs) {
       for (WarcFile warcFile : allWarcs) {
-        long blocks = (long) Math.ceil(new Float(warcFile.getLength()) / new Float(blocksize));
+        long blocks = (long) Math.ceil(new Float(warcFile.getLength()) / new Float(store.getBlockSize()));
         totalBlocksAllocated += blocks;
         totalBytesUsed += warcFile.getLength();
 
@@ -335,10 +291,10 @@ public class WarcFilePool {
     // Log aggregate information about the pool of WarcFiles
     log.debug(String.format(
         "Summary: %d bytes allocated (%d blocks) using %d bytes (%.2f%%) in %d WARC files",
-        totalBlocksAllocated * blocksize,
+        totalBlocksAllocated * store.getBlockSize(),
         totalBlocksAllocated,
         totalBytesUsed,
-        100.0f * new Float(totalBytesUsed) / new Float(totalBlocksAllocated * blocksize),
+        100.0f * new Float(totalBytesUsed) / new Float(totalBlocksAllocated * store.getBlockSize()),
         numWarcFiles
     ));
   }

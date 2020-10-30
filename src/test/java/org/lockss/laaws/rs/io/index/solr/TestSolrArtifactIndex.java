@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
+import org.lockss.util.storage.StorageInfo;
 
 import java.io.*;
 import java.net.URL;
@@ -112,7 +113,7 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     // TODO May be faster to use one EmbeddedSolrServer from @BeforeAll then call client.getCoreContainer().reload(...);
     client = new EmbeddedSolrServer(tmpSolrHome.toPath(), TEST_SOLR_CORE_NAME);
 
-    return new SolrArtifactIndex(client);
+    return new SolrArtifactIndex(client, TEST_SOLR_CORE_NAME);
   }
 
   @AfterEach
@@ -146,5 +147,13 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   public void testWaitReady() throws Exception {
     removeSolrCollection();
     super.testWaitReady();
+  }
+
+  @Test
+  public void testStorageInfo() throws Exception {
+    StorageInfo si = index.getStorageInfo();
+    log.debug("storeinfo: {}", si);
+    assertEquals(SolrArtifactIndex.ARTIFACT_INDEX_TYPE, si.getType());
+    assertTrue(si.getSize() > 0);
   }
 }
