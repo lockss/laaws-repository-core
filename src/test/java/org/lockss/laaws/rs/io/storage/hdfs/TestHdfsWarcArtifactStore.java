@@ -398,7 +398,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     // List of file names
     String[] filenames = new String[]{
         "foo",
-        "bar.warc",
+        "bar.warc.gz",
         "xyzzy.txt"
     };
 
@@ -427,7 +427,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     when(fsBasePathStatus.isDirectory()).thenReturn(true);
     Collection<Path> result = ds.findWarcs(basePath);
     assertEquals(1, result.size());
-    assertTrue(result.contains(Paths.get("bar.warc")));
+    assertTrue(result.contains(Paths.get("bar.warc.gz")));
   }
 
   /**

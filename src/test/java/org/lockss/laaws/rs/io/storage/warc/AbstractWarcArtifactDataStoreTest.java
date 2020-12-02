@@ -81,8 +81,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import java.util.zip.GZIPOutputStream;
 
-import static org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.WARC_FILE_EXTENSION;
 import static org.mockito.Mockito.*;
 
 /**
@@ -1134,6 +1134,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     when(ds.getAuPath(basePath, aid.getCollection(), aid.getAuid())).thenReturn(auPath);
 
+    ds.useCompression = true;
+    doCallRealMethod().when(ds).getWarcFileExtension();
+
     doCallRealMethod().when(ds).getAuJournalPath(
         ArgumentMatchers.any(Path.class),
         ArgumentMatchers.anyString(),
@@ -1146,7 +1149,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path journalPath = ds.getAuJournalPath(basePath, aid.getCollection(), aid.getAuid(), journalName);
 
     // Assert expected path is resolved from auPath
-    String journalFile = String.format("%s.%s", journalName, WARC_FILE_EXTENSION);
+    String journalFile = String.format("%s.%s", journalName, WARCConstants.COMPRESSED_WARC_FILE_EXTENSION);
 //    verify(auPath).resolve(journalFile);
 //    verifyNoMoreInteractions(auPath);
     assertEquals(auPath.resolve(journalFile), journalPath);
@@ -1186,7 +1189,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(auPaths.size(), actualWarcPaths.length);
 
     Path[] expectedWarcPaths = auPaths.stream()
-        .map(auPath-> auPath.resolve(journalName + "." + WARC_FILE_EXTENSION))
+        .map(auPath-> auPath.resolve(journalName + WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION))
         .toArray(Path[]::new);
 
     // Assert we resolved expected paths
@@ -1336,7 +1339,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Expected active WARC file name
     String timestamp = zdt.format(WarcArtifactDataStore.FMT_TIMESTAMP);
     String auidHash = DigestUtils.md5Hex(auid);
-    String expectedName = String.format("artifacts_%s-%s_%s.warc", collectionId, auidHash, timestamp);
+    String expectedName = String.format("artifacts_%s-%s_%s", collectionId, auidHash, timestamp);
 
     // Assert generated active WARC file name matches expected file name
     assertEquals(expectedName, WarcArtifactDataStore.generateActiveWarcName(collectionId, auid, zdt));
@@ -1597,6 +1600,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Get an ArtifactData from the spec
     ArtifactData ad = spec.getArtifactData();
 
+    ad.setStorageUrl(new URI("test://artifacts.warc"));
+    assertNotNull(ad.getStorageUrl());
+
     // Add the artifact data
     Artifact storedArtifact = store.addArtifactData(ad);
     assertNotNull(storedArtifact);
@@ -1754,6 +1760,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(ds.markAndGetInputStream(tmpWarc)).thenReturn(
         new ByteArrayInputStream(warcFileContents.getBytes())
     );
+
+    when(tmpWarc.getFileName()).thenReturn(mock(Path.class));
+
+    doCallRealMethod()
+        .when(ds).getArchiveReader(ArgumentMatchers.any(Path.class), ArgumentMatchers.any(InputStream.class));
 
     // Assert if a record in the temporary WARC is *not* removable then the temporary WARC is not removable:
     when(ds.isTempWarcRecordRemovable(ArgumentMatchers.any(ArchiveRecord.class))).thenReturn(false);
@@ -2393,6 +2404,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Shutdown the data store
     store.shutdownDataStore();
 
+    log.info("Rebuilding index");
+
     //// Populate second index by rebuilding
     store = makeWarcArtifactDataStore(index2, store);
     assertEquals(index2, store.getArtifactIndex());
@@ -2431,15 +2444,26 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Generate an artifact then serialize into a WARC record
     ArtifactData artifactData = generateTestArtifactData("collection", "auid", "uri", 1, 1024L);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    WarcArtifactDataStore.writeArtifactData(artifactData, output);
+    GZIPOutputStream gzipOutputStream = new GZIPOutputStream(output);
+    WarcArtifactDataStore.writeArtifactData(artifactData, gzipOutputStream);
+    gzipOutputStream.flush();
+    gzipOutputStream.close();
+    output.close();
 
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIndex index = mock(ArtifactIndex.class);
+
     Path warcFile = mock(Path.class);
+    when(warcFile.toString()).thenReturn("test.warc.gz");
+    Path warcFileName = mock(Path.class);
+    when(warcFileName.toString()).thenReturn("test.warc.gz");
+    when(warcFile.getFileName()).thenReturn(warcFileName);
 
     // Call real method under test
     doCallRealMethod().when(ds).reindexArtifactsFromWarc(index, warcFile);
+    doCallRealMethod().when(ds).getArchiveReader(ArgumentMatchers.any(Path.class),
+        ArgumentMatchers.any(InputStream.class));
 
     // Assert the artifact is *not* indexed if it is already indexed
     when(ds.markAndGetInputStream(warcFile)).thenReturn(new BufferedInputStream(output.toInputStream()));
@@ -2597,29 +2621,51 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testReadAuJournalEntries() throws Exception {
     // Mocks
     WarcArtifactDataStore ds = spy(store);
+
     Path journalPath = mock(Path.class);
+    when(journalPath.toString()).thenReturn("test.warc.gz");
+    Path journalFileName = mock(Path.class);
+    when(journalFileName.toString()).thenReturn("test.warc.gz");
+    when(journalPath.getFileName()).thenReturn(journalFileName);
 
     // Generate two repository metadata records for the same artifact
     ArtifactIdentifier aid = new ArtifactIdentifier("artifact", "collection", "auid", "url", 1);
     ArtifactRepositoryState am1 = new ArtifactRepositoryState(aid);
     ArtifactRepositoryState am2 = new ArtifactRepositoryState(aid);
     am2.setCommitted(true);
+
     WARCRecordInfo r1 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am1);
     WARCRecordInfo r2 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am2);
 
     // Append both WARC metadata records to the journal (note order)
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    WarcArtifactDataStore.writeWarcRecord(r1, output);
-    WarcArtifactDataStore.writeWarcRecord(r2, output);
+
+    GZIPOutputStream gzipOutputStream1 = new GZIPOutputStream(output);
+    WarcArtifactDataStore.writeWarcRecord(r1, gzipOutputStream1);
+    gzipOutputStream1.flush();
+    gzipOutputStream1.close();
+
+    GZIPOutputStream gzipOutputStream2 = new GZIPOutputStream(output);
+    WarcArtifactDataStore.writeWarcRecord(r2, gzipOutputStream2);
+    gzipOutputStream2.flush();
+    gzipOutputStream2.close();
+
     output.flush();
     output.close();
 
+
     // Mock behavior
-    doReturn(new BufferedInputStream(output.toInputStream())).when(ds).markAndGetInputStream(journalPath);
+    doReturn(new BufferedInputStream(output.toInputStream()))
+        .when(ds).markAndGetInputStream(journalPath);
+
+    doCallRealMethod()
+        .when(ds).getArchiveReader(ArgumentMatchers.any(Path.class), ArgumentMatchers.any(InputStream.class));
 
     // Assert that we the JSON serialization of the repository metadata for this artifact matches the latest
     // (i.e., last) entry written to the journal
     List<ArtifactRepositoryState> journalEntries = ds.readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
+
+    log.debug2("journalEntries = {}", journalEntries);
 
     assertTrue(journalEntries.contains(am1));
     assertTrue(journalEntries.contains(am2));

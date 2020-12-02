@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.archive.format.warc.WARCConstants;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
@@ -39,7 +40,6 @@ import org.mockito.Mockito;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.Set;
 
 import static org.mockito.Mockito.*;
@@ -105,12 +105,15 @@ class TestWarcFilePool extends LockssTestCase5 {
 
   @Test
   public void testGenerateTmpWarcFileName() throws Exception {
-    WarcFilePool pool = new WarcFilePool(null);
+    WarcArtifactDataStore store = mock(WarcArtifactDataStore.class);
+    when(store.getWarcFileExtension()).thenReturn(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION);
+
+    WarcFilePool pool = new WarcFilePool(store);
     String tmpWarcFileName = pool.generateTmpWarcFileName();
 
     // Assert generated file name is not null and ends with the WARC extension
     assertNotNull(tmpWarcFileName);
-    assertTrue(tmpWarcFileName.endsWith(WarcArtifactDataStore.WARC_FILE_EXTENSION));
+    assertTrue(tmpWarcFileName.endsWith(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION));
   }
 
   @Test

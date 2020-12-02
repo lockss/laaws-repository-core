@@ -257,7 +257,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     // Setup set of files
     Path[] files = {
         basePath.resolve("foo"),
-        basePath.resolve("bar.warc"),
+        basePath.resolve("bar.warc.gz"),
         basePath.resolve("xyzyy.txt"),
     };
 
@@ -273,7 +273,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     log.trace("keySet = {}", ds.warcs.keySet());
     Collection<Path> result = ds.findWarcs(basePath);
     assertEquals(1, result.size());
-    assertTrue(result.contains(basePath.resolve("bar.warc")));
+    assertTrue(result.contains(basePath.resolve("bar.warc.gz")));
   }
 
   /**

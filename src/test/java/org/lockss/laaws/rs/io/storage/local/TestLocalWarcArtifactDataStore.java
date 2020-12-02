@@ -31,15 +31,13 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang.NotImplementedException;
+import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.hdfs.HdfsWarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 import org.mockito.ArgumentMatchers;
-import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +45,10 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Predicate;
 
 import static org.mockito.Mockito.*;
@@ -233,7 +234,9 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
 
     // Assert findWarcs() returns only WARCs
     assertTrue(paths.stream().map(Path::toString)
-        .allMatch(name -> FilenameUtils.getExtension(name).equalsIgnoreCase(WarcArtifactDataStore.WARC_FILE_EXTENSION))
+        .allMatch(name ->
+            FilenameUtils.getExtension(name).equalsIgnoreCase(WARCConstants.WARC_FILE_EXTENSION) ||
+            FilenameUtils.getExtension(name).equalsIgnoreCase(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION))
     );
   }
 
