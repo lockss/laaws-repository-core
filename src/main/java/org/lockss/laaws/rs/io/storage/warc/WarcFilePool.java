@@ -59,7 +59,7 @@ public class WarcFilePool {
   }
 
   protected String generateTmpWarcFileName() {
-    return String.format("%s.%s", UUID.randomUUID(), WarcArtifactDataStore.WARC_FILE_EXTENSION);
+    return UUID.randomUUID().toString() + store.getWarcFileExtension();
   }
 
   /**
