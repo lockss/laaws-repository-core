@@ -2395,7 +2395,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     log.trace("journalPath = {}", journalPath);
 
-    try (InputStream warcStream = markAndGetInputStream(journalPath)) {
+    try (InputStream warcStream = getInputStreamAndSeek(journalPath, 0)) {
       // FIXME: Move this to constructor
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

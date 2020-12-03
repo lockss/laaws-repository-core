@@ -2656,7 +2656,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Mock behavior
     doReturn(new BufferedInputStream(output.toInputStream()))
-        .when(ds).markAndGetInputStream(journalPath);
+        .when(ds).getInputStreamAndSeek(journalPath, 0);
 
     doCallRealMethod()
         .when(ds).getArchiveReader(ArgumentMatchers.any(Path.class), ArgumentMatchers.any(InputStream.class));
