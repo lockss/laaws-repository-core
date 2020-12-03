@@ -1519,7 +1519,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // ********************************
 
       // A DFOS is used here to determine the length of the record, for use in determining which temporary file to
-      // write to the record to (an attempt at a more optimal temporary file packing)
+      // write to the record to (an attempt at a slightly more optimal temporary file packing than first-fit)
       DeferredTempFileOutputStream dfos =
           new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "addArtifactData");
 
@@ -1791,19 +1791,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       long createdMilli = 0;
 
+      // TODO: Add stored date to index and replace with index query
       // Determine if the artifact is expired
       try (ArtifactData ad = getArtifactData(artifact)) {
         createdMilli = ad.getStoredDate();
-
       }
 
       Instant created = Instant.ofEpochMilli(createdMilli);
       Instant expiration = created.plus(getUncommittedArtifactExpiration(), ChronoUnit.MILLIS);
       boolean isExpired = Instant.now().isAfter(expiration);
-
-//      ad.release();
-//      TempWarcInUseTracker.INSTANCE
-//          .markUseEnd(Paths.get(new URI(artifact.getStorageUrl()).getPath()));
 
       // Determine what action to take based on the state of the artifact
       // FIXME: Potential for race condition? What if the state of the artifact changes?
@@ -1812,8 +1808,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         case NOT_INDEXED:
           // We have an artifact so this should be recoverable
           log.warn("Artifact missing from index; adding and continuing [artifactId: {}]", artifact.getId());
-          try (ArtifactData ad1 = getArtifactData(artifact)) {
-            artifactIndex.indexArtifact(ad1);
+          try (ArtifactData ad = getArtifactData(artifact)) {
+            artifactIndex.indexArtifact(ad);
           }
 
         case UNCOMMITTED:
