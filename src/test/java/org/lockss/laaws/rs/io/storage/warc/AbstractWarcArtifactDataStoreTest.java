@@ -34,6 +34,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
@@ -2078,9 +2079,23 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
-  public void testAddArtifactData_success() throws Exception {
-    // Assert variant state against data store
+  public void testAddArtifactData_variants() throws Exception {
     assertVariantState();
+  }
+
+  @Test
+  public void testAddArtifactData_uncompressed() throws Exception {
+    runTestAddArtifactData(false);
+  }
+
+  @Test
+  public void testAddArtifactData_compressed() throws Exception {
+    runTestAddArtifactData(true);
+  }
+
+  public void runTestAddArtifactData(boolean useCompression) throws Exception {
+    // Enable/disable compression
+    store.useCompression = useCompression;
 
     // Create a new artifact specification
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
@@ -2095,7 +2110,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     spec.setStorageUrl(URI.create(addedArtifact.getStorageUrl()));
 
     // Assert things about the artifact we got back
-    log.trace("addedArtifact = {}", addedArtifact);
     spec.assertArtifact(store, addedArtifact);
 
     // Assert newly added artifact is uncommitted
@@ -2113,8 +2127,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertFalse(storageUrl.isEmpty());
 
     Path artifactWarcPath = WarcArtifactDataStore.getPathFromStorageUrl(new URI(storageUrl));
-    log.debug("storageUrl = {}", storageUrl);
-    log.debug("artifactWarcPath = {}", artifactWarcPath);
     assertTrue(isFile(artifactWarcPath));
 
     assertNotNull(store.getTmpWarcBasePaths());
@@ -2491,18 +2503,27 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
-  public void testUpdateArtifactMetadata() throws Exception {
+  public void testUpdateRepositoryState_variants() throws Exception {
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       ArtifactRepositoryState metadata = store.getArtifactRepositoryState(spec.getArtifactIdentifier());
       assertEquals(spec.isCommitted(), metadata.isCommitted());
       assertEquals(spec.isDeleted(), metadata.isDeleted());
     }
+  }
 
-    ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "cx", "ax", "ux", 1);
+  @Test
+  public void testUpdateRepositoryState_uncompressed() throws Exception {
+    store.useCompression = false;
+    runTestUpdateArtifactMetadata(false, false);
+    runTestUpdateArtifactMetadata(false, true);
+    runTestUpdateArtifactMetadata(true, false);
+    runTestUpdateArtifactMetadata(true, true);
+  }
 
-//    assertFalse(isFile(store.getAuMetadataWarcPath(identifier, RepositoryArtifactMetadata.getMetadataId())));
-
+  @Test
+  public void testUpdateRepositoryState_compressed() throws Exception {
+    store.useCompression = true;
     runTestUpdateArtifactMetadata(false, false);
     runTestUpdateArtifactMetadata(false, true);
     runTestUpdateArtifactMetadata(true, false);
