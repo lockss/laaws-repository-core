@@ -616,6 +616,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
+   * Returns true if the file name ends with the compressed WARC file extension (.warc.gz).
+   *
+   * @param warcFile A {@link Path} containing the path to a WARC file.
+   * @return A {@code boolean} indicating whether the {@link Path} points to a compressed WARC file.
+   */
+  public boolean isCompressedWarcFile(Path warcFile) {
+    return warcFile.getFileName().toString()
+        .endsWith(WARCReaderFactory.DOT_COMPRESSED_WARC_FILE_EXTENSION);
+  }
+
+  /**
    * Returns the path to a journal of an AU across all the configured data store base paths.
    *
    * @param journalName A {@link String} containing the name of the journal.
@@ -1681,7 +1692,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Retrieves the {@link ArtifactData} of an artifact
+   * Retrieves the {@link ArtifactData} of an {@link Artifact} by resolving its storage URL.
    *
    * @param artifact An {@link Artifact} instance containing a reference to the artifact data to retrieve from storage.
    * @return The {@link ArtifactData} of the artifact.
@@ -2174,6 +2185,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected void reindexArtifactsFromWarc(ArtifactIndex index, Path warcFile) throws IOException {
     boolean isWarcInTemp = isTmpStorage(warcFile);
+    boolean isCompressed = isCompressedWarcFile(warcFile);
 
     try (InputStream warcStream = markAndGetInputStream(warcFile)) {
       // Get an ArchiveReader from the WARC file input stream
@@ -2203,7 +2215,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             long recordLength = record.getHeader().getLength() + 4L;
             long compressedRecordLength = 0;
 
-            if (useCompression) {
+            if (isCompressed) {
               // Read WARC record payload
               record.skip(record.getHeader().getContentLength());
 
@@ -2222,7 +2234,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
             // Set ArtifactData storage URL
             artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
-                useCompression ? compressedRecordLength : recordLength));
+                isCompressed ? compressedRecordLength : recordLength));
 
             // Default repository metadata for all ArtifactData objects to be indexed
             artifactData.setArtifactRepositoryState(new ArtifactRepositoryState(
@@ -2592,10 +2604,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     return isCompressedWarcFile(warcFile) ?
         new CompressedWARCReader(warcFile.getFileName().toString(), input) :
         new UncompressedWARCReader(warcFile.getFileName().toString(), input);
-  }
-
-  private boolean isCompressedWarcFile(Path warcFile) {
-    return warcFile.toString().endsWith(WARCReaderFactory.DOT_COMPRESSED_WARC_FILE_EXTENSION);
   }
 
   /**
