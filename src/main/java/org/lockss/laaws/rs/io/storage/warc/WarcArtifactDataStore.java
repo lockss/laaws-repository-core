@@ -1713,7 +1713,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Guard against deleted or non-existent artifact
       if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
-        log.debug("Artifact not found: [artifactId: {}]", artifactId);
+        log.debug("Artifact not found [artifactId: {}]", artifactId);
         return null;
       }
 
@@ -1764,11 +1764,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     } catch (URISyntaxException e) {
       // This should never happen since storage URLs are internal
-      log.error(String.format("Could not get artifact data [storageUrl: %s]", artifact.getStorageUrl()), e);
-      throw new IllegalArgumentException("Bad storage URL");
+      log.error("Malformed storage URL [storageUrl:  {}]", artifact.getStorageUrl());
+      throw new IllegalArgumentException("Malformed storage URL");
 
     } catch (Exception e) {
-      log.error(String.format("Could not get artifact data [storageUrl: %s]", artifact.getStorageUrl()), e);
+      log.error("Could not get artifact data [storageUrl: {}]", artifact.getStorageUrl(), e);
       log.trace("artifact = {}", artifact);
       log.trace("storageUrl = {}", artifact.getStorageUrl());
       throw e;
