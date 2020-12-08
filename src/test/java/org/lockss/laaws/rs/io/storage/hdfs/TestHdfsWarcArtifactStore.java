@@ -30,7 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -38,12 +37,10 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.local.LocalWarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
-import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
 import org.mockito.ArgumentMatchers;
 import org.springframework.util.MultiValueMap;
@@ -399,6 +396,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     String[] filenames = new String[]{
         "foo",
         "bar.warc.gz",
+        "bar.warc",
         "xyzzy.txt"
     };
 
@@ -427,7 +425,8 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     when(fsBasePathStatus.isDirectory()).thenReturn(true);
     Collection<Path> result = ds.findWarcs(basePath);
     assertEquals(1, result.size());
-    assertTrue(result.contains(Paths.get("bar.warc.gz")));
+    // Could use a more specific assert here for sets/iterators/etc
+    assertTrue(result.contains(ListUtil.list(Paths.get("bar.warc.gz"), Paths.get("bar.warc"))));
   }
 
   /**

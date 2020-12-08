@@ -30,7 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import org.apache.commons.io.FilenameUtils;
 import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
@@ -223,7 +222,7 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
         mockFile(true, false, "test"),
         mockFile(true, false, "test1"),
         mockFile(true, false, "test.warc"),
-        mockFile(true, false, "test2.warc"),
+        mockFile(true, false, "test.warc.gz"),
     };
 
     when(mockedFile.listFiles()).thenReturn(mockedFiles);
@@ -235,8 +234,11 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     // Assert findWarcs() returns only WARCs
     assertTrue(paths.stream().map(Path::toString)
         .allMatch(name ->
-            FilenameUtils.getExtension(name).equalsIgnoreCase(WARCConstants.WARC_FILE_EXTENSION) ||
-            FilenameUtils.getExtension(name).equalsIgnoreCase(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION))
+            name.endsWith(WARCConstants.DOT_WARC_FILE_EXTENSION) ||
+            name.endsWith(WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION)
+//            FilenameUtils.getExtension(name).equalsIgnoreCase(WARCConstants.WARC_FILE_EXTENSION) ||
+//            FilenameUtils.getExtension(name).equalsIgnoreCase(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION)
+        )
     );
   }
 

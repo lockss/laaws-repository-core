@@ -31,11 +31,10 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.lang.NotImplementedException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
 import org.mockito.ArgumentMatchers;
 import org.springframework.util.MultiValueMap;
 
@@ -258,6 +257,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     Path[] files = {
         basePath.resolve("foo"),
         basePath.resolve("bar.warc.gz"),
+        basePath.resolve("bar.warc"),
         basePath.resolve("xyzyy.txt"),
     };
 
@@ -267,13 +267,12 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Mock behavior
     doCallRealMethod().when(ds).findWarcs(basePath);
+    when(ds.warcs.keySet()).thenReturn(new HashSet<>(Arrays.asList(files)));
 
     // Assert only the WARCs are returned
-    when(ds.warcs.keySet()).thenReturn(new HashSet<>(Arrays.asList(files)));
-    log.trace("keySet = {}", ds.warcs.keySet());
     Collection<Path> result = ds.findWarcs(basePath);
-    assertEquals(1, result.size());
-    assertTrue(result.contains(basePath.resolve("bar.warc.gz")));
+    assertEquals(2, result.size());
+    assertIterableEquals(ListUtil.list(files[1], files[2]), result);
   }
 
   /**
