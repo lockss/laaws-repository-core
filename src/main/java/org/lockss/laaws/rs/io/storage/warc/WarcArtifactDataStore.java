@@ -2215,13 +2215,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             long compressedRecordLength = 0;
 
             if (isCompressed) {
-              // Read WARC record payload
-              record.skip(record.getHeader().getContentLength());
-
-              if (record.read() > -1) {
-                log.warn("Expected an EOF");
-              }
-
               // Set ArchiveReader to EOR
               CompressedWARCReader compressedReader = ((CompressedWARCReader) archiveReader);
               compressedReader.gotoEOR(record);
