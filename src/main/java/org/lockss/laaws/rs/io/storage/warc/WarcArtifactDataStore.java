@@ -1167,7 +1167,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   Map<String, URI> storageUrls = new HashMap<>();
 
   /**
-   * Returns a map from artifact ID to its storage URL.
+   * Returns a map from artifact IDs to storage URLs.
    *
    * @param collection A {@link String} containing the collection ID.
    * @param auid A {@link String} containing the Archival Unit ID (AUID).
@@ -1539,10 +1539,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       if (useCompression) {
         // Yes - wrap DFOS in GZIPOutputStream the write to it
-        GZIPOutputStream gzipOutput = new GZIPOutputStream(dfos);
-        recordLength = writeArtifactData(artifactData, gzipOutput);
-        gzipOutput.flush();
-        gzipOutput.close();
+        try (GZIPOutputStream gzipOutput = new GZIPOutputStream(dfos)) {
+          recordLength = writeArtifactData(artifactData, gzipOutput);
+        }
       } else {
         // No - write to DFOS directly
         recordLength = writeArtifactData(artifactData, dfos);
