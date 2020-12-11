@@ -2478,7 +2478,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         ArgumentMatchers.any(InputStream.class));
 
     // Assert the artifact is *not* indexed if it is already indexed
-    when(ds.markAndGetInputStream(warcFile)).thenReturn(new BufferedInputStream(output.toInputStream()));
+    when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new BufferedInputStream(output.toInputStream()));
     when(index.artifactExists(artifactData.getIdentifier().getId())).thenReturn(true);
     ds.reindexArtifactsFromWarc(index, warcFile);
     verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));

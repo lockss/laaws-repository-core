@@ -228,7 +228,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     );
 
     // TODO: Connect this to configuration
-    useCompression = true;
+    useCompression = false;
   }
 
   // *******************************************************************************************************************
@@ -1747,7 +1747,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil or ArtifactData
 
       // Save the underlying input stream so that it can be closed when needed.
-      artifactData.setClosableInputStream(warcRecord);
+      artifactData.setClosableInputStream(warcStream);
 
       // Set ArtifactData properties
       artifactData.setIdentifier(artifact.getIdentifier());
@@ -1805,6 +1805,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Determine if the artifact is expired
       try (ArtifactData ad = getArtifactData(artifact)) {
         createdMilli = ad.getStoredDate();
+        ad.close();
       }
 
       Instant created = Instant.ofEpochMilli(createdMilli);
@@ -1922,7 +1923,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // FIXME: Not clear why this needed - markAndGetInputStreamAndSeek() returns a
           //  CloseCallbackInputStream that should call this:
-          TempWarcInUseTracker.INSTANCE.markUseEnd(loc.getPath());
+//          TempWarcInUseTracker.INSTANCE.markUseEnd(loc.getPath());
 
           log.debug2("Copied artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is" +
                   " now {}",
@@ -2166,8 +2167,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   }
 
-  public static final String LOCKSS_METADATA_ARTIFACTID_KEY = "artifactId";
-
   /**
    * Rebuilds an artifact index from a collection of WARCs.
    *
@@ -2186,7 +2185,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     boolean isWarcInTemp = isTmpStorage(warcFile);
     boolean isCompressed = isCompressedWarcFile(warcFile);
 
-    try (InputStream warcStream = markAndGetInputStream(warcFile)) {
+    try (InputStream warcStream = getInputStreamAndSeek(warcFile, 0)) {
       // Get an ArchiveReader from the WARC file input stream
       ArchiveReader archiveReader = getArchiveReader(warcFile, warcStream);
 
@@ -2215,6 +2214,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             long compressedRecordLength = 0;
 
             if (isCompressed) {
+              // Read WARC record payload
+              record.skip(record.getHeader().getContentLength());
+
+              if (record.read() > -1) {
+                log.warn("Expected an EOF");
+              }
+
               // Set ArchiveReader to EOR
               CompressedWARCReader compressedReader = ((CompressedWARCReader) archiveReader);
               compressedReader.gotoEOR(record);
