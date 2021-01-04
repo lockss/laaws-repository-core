@@ -105,6 +105,7 @@ class TestWarcFilePool extends LockssTestCase5 {
 
   @Test
   public void testGenerateTmpWarcFileName() throws Exception {
+    // TODO Finish this
     WarcArtifactDataStore store = mock(WarcArtifactDataStore.class);
     when(store.getWarcFileExtension()).thenReturn(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION);
 

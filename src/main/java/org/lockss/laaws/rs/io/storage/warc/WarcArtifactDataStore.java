@@ -601,7 +601,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path} containing the path to the journal.
    */
   protected Path getAuJournalPath(Path basePath, String collection, String auid, String journalName) {
-    return getAuPath(basePath, collection, auid).resolve(journalName + getWarcFileExtension());
+    return getAuPath(basePath, collection, auid).resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION);
   }
 
   /**
@@ -634,7 +634,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected Path[] getAuJournalPaths(String collection, String auid, String journalName) throws IOException {
     return getAuPaths(collection, auid).stream()
-        .map(auPath -> auPath.resolve(journalName + getWarcFileExtension()))
+        .map(auPath -> auPath.resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION))
         .toArray(Path[]::new);
   }
 
@@ -1787,9 +1787,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact is null");
     }
 
-    log.trace("artifact = {}", artifact);
-
     String artifactId = artifact.getId();
+
+    log.debug("Committing artifact [artifactId: {}]", artifactId);
+    log.trace("artifact = {}", artifact);
 
     // Guard against deleted or non-existent artifact
     if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
@@ -1805,7 +1806,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Determine if the artifact is expired
       try (ArtifactData ad = getArtifactData(artifact)) {
         createdMilli = ad.getStoredDate();
-        ad.close();
+        ad.getClosableInputStream().close(); // WHY??
       }
 
       Instant created = Instant.ofEpochMilli(createdMilli);
@@ -2132,8 +2133,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Collection<Path> permanentWarcs = warcPaths
         .stream()
         .filter(path -> !isTmpStorage(path))
-        .filter(path -> !path.endsWith("lockss-repo" + WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION) &&
-                !path.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
+        .filter(path -> !path.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
         .collect(Collectors.toList());
 
     // Find WARCS in temporary storage
@@ -2156,8 +2156,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Get a collection of paths to WARCs containing repository journals
     Collection<Path> repoMetadataWarcFiles = warcPaths
         .stream()
-        .filter(file -> file.endsWith("lockss-repo" + WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION)
-            || file.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
+        .filter(file -> file.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
         .collect(Collectors.toList());
 
     // Load repository artifact metadata by "replaying" them
@@ -2187,7 +2186,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     try (InputStream warcStream = getInputStreamAndSeek(warcFile, 0)) {
       // Get an ArchiveReader from the WARC file input stream
-      ArchiveReader archiveReader = getArchiveReader(warcFile, warcStream);
+      ArchiveReader archiveReader = getArchiveReader(warcFile, new BufferedInputStream(warcStream));
 
       // Process each WARC record found by the ArchiveReader
       for (ArchiveRecord record : archiveReader) {
@@ -2299,19 +2298,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     initWarc(auJournalPath);
 
     try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
-      // Append WARC metadata record to the journal
-      WARCRecordInfo metadataRecord = createWarcMetadataRecord(artifactId.getId(), state);
+      // Append an entry (a WARC metadata record) to the journal
+      WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
 
-      if (useCompression) {
-        GZIPOutputStream gzipOutput = new GZIPOutputStream(output);
-        writeWarcRecord(metadataRecord, gzipOutput);
-        gzipOutput.flush();
-        gzipOutput.close();
-      } else {
-        writeWarcRecord(metadataRecord, output);
-      }
-
-      output.flush();
+      writeWarcRecord(journalRecord, output);
 
       artifactStates.put(artifactId.getId(), state);
     }
@@ -2406,7 +2396,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-      for (ArchiveRecord record : getArchiveReader(journalPath, warcStream)) {
+      for (ArchiveRecord record : getArchiveReader(journalPath, new BufferedInputStream(warcStream))) {
         // Determine WARC record type
         WARCRecordType warcRecordType =
             WARCRecordType.valueOf((String) record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE));
