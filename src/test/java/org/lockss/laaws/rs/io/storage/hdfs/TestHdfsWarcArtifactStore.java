@@ -40,7 +40,6 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
 import org.mockito.ArgumentMatchers;
 import org.springframework.util.MultiValueMap;

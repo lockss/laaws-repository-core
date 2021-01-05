@@ -1939,10 +1939,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         try (InputStream is = markAndGetInputStreamAndSeek(loc.getPath(), loc.getOffset())) {
           long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
-          // FIXME: Not clear why this needed - markAndGetInputStreamAndSeek() returns a
-          //  CloseCallbackInputStream that should call this:
-//          TempWarcInUseTracker.INSTANCE.markUseEnd(loc.getPath());
-
           log.debug2("Copied artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is" +
                   " now {}",
               artifact.getIdentifier().getId(),
