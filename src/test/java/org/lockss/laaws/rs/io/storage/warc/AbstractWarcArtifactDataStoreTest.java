@@ -298,9 +298,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         // Assert that we get back the expected artifact and artifact data from index and data store, respectively
         assertTrue(index.artifactExists(spec.getArtifactId()));
         Artifact indexedArtifact = index.getArtifact(spec.getArtifactId());
-        ArtifactData storedArtifactData = store.getArtifactData(spec.getArtifact());
         spec.assertArtifact(store, indexedArtifact);
-        spec.assertArtifactData(storedArtifactData);
+
+        try (ArtifactData storedArtifactData = store.getArtifactData(spec.getArtifact())) {
+          spec.assertArtifactData(storedArtifactData);
+        }
 
         // Assert the artifact is not marked deleted in the repository metadata journal
         assertFalse(store.isArtifactDeleted(spec.getArtifactIdentifier()));
@@ -2298,10 +2300,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     doCallRealMethod()
         .when(ds).getArtifactData(spec.getArtifact());
 
-    ArtifactData retrieved = ds.getArtifactData(spec.getArtifact());
-
-    // Assert the retrieved artifact data matches the spec
-    spec.assertArtifactData(retrieved);
+    try (ArtifactData retrieved = ds.getArtifactData(spec.getArtifact())) {
+      // Assert the retrieved artifact data matches the spec
+      spec.assertArtifactData(retrieved);
+    }
   }
 
   /**

@@ -582,10 +582,26 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         .collect(Collectors.toList());
   }
 
+  /**
+   * Returns the paths to WARC files containing artifacts in an AU.
+   *
+   * @param collectionId A {@link String} containing the collection ID of the AU.
+   * @param auid A {@link String} containing the AUID of the AU.
+   * @return A {@link List<Path>} containing the paths to the WARC files.
+   * @throws IOException
+   */
   protected List<Path> findAuArtifactWarcs(String collectionId, String auid) throws IOException {
     return findAuArtifactWarcsStream(collectionId, auid).collect(Collectors.toList());
   }
 
+  /**
+   * Returns the paths to WARC files containing artifacts in an AU.
+   *
+   * @param collectionId A {@link String} containing the collection ID of the AU.
+   * @param auid A {@link String} containing the AUID of the AU.
+   * @return A {@link List<Path>} containing the paths to the WARC files.
+   * @throws IOException
+   */
   protected Stream<Path> findAuArtifactWarcsStream(String collectionId, String auid) throws IOException {
     return getAuPaths(collectionId, auid).stream()
         .map(auPath -> findWarcsOrEmpty(auPath))
@@ -918,7 +934,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Determine whether this temporary WARC should be removed
     try {
-      // Mark the WARC as in-use by this GC thread
+      // Mark the WARC as in-use by this WARC GC thread
       TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcPath);
 
       if (isTempWarcRemovable(tmpWarcPath)) {
@@ -1586,6 +1602,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Write serialized artifact to temporary WARC file
       try (OutputStream warcOutput = getAppendableOutputStream(tmpWarcFilePath)) {
+//        TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcFilePath);
 
         // Get an InputStream containing the serialized artifact from the DFOS
         try (InputStream input = dfos.getDeleteOnCloseInputStream()) {
@@ -1631,6 +1648,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Always update the temporary WARC's stats and return it to the pool
         tmpWarcFile.setLength(offset + bytesWritten);
         tmpWarcPool.returnWarcFile(tmpWarcFile);
+//        TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarcFilePath);
       }
 
       // Update ArtifactData object with new properties
@@ -1806,7 +1824,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Determine if the artifact is expired
       try (ArtifactData ad = getArtifactData(artifact)) {
         createdMilli = ad.getStoredDate();
-        ad.getClosableInputStream().close(); // WHY??
       }
 
       Instant created = Instant.ofEpochMilli(createdMilli);
