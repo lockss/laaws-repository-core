@@ -1434,6 +1434,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
 
   /**
+   * Sets whether this WARC data store compresses WARCs files.
+   *
+   * @param useCompression A {@code boolean} indicating whether to compress WARC files.
+   */
+  public void setUseWarcCompression(boolean useCompression) {
+    log.trace("useCompression = {}", useCompression);
+    this.useCompression = useCompression;
+  }
+
+  /**
    * Returns the number of milliseconds after the creation date of an artifact, that an uncommitted artifact will be
    * marked expired.
    *
@@ -1572,6 +1582,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Record length in storage (compressed or uncompressed)
       long storedRecordLength = useCompression ? compressedRecordLength : recordLength;
+
 
       // Determine which base path to use based on which has the most available space
       Path basePath = Arrays.stream(basePaths)
