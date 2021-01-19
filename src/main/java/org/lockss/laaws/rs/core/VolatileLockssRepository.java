@@ -30,9 +30,9 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 
 import java.io.IOException;
 
@@ -45,8 +45,18 @@ public class VolatileLockssRepository extends BaseLockssRepository {
    * Constructor.
    */
   public VolatileLockssRepository() throws IOException {
-    index = new VolatileArtifactIndex();
-    store = new VolatileWarcArtifactDataStore(index);
+    this(false);
   }
 
+  /**
+   * Constructor.
+   *
+   * @param useWarcCompression A {@code boolean} indicating whether to use WARC compression.
+   * @throws IOException
+   */
+  public VolatileLockssRepository(boolean useWarcCompression) throws IOException {
+    index = new VolatileArtifactIndex();
+    store = new VolatileWarcArtifactDataStore(index);
+    ((WarcArtifactDataStore)store).setUseWarcCompression(useWarcCompression);
+  }
 }
