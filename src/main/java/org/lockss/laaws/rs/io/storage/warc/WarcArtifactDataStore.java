@@ -132,7 +132,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected long uncommittedArtifactExpiration;
 
   protected ArtifactIndex artifactIndex;
-  public static Path[] basePaths;
+  protected Path[] basePaths;
   protected WarcFilePool tmpWarcPool;
   protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap = new HashMap<>();
   protected Map<CollectionAuidPair, List<Path>> auPathsMap = new HashMap<>();
@@ -1582,7 +1582,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Record length in storage (compressed or uncompressed)
       long storedRecordLength = useCompression ? compressedRecordLength : recordLength;
-
 
       // Determine which base path to use based on which has the most available space
       Path basePath = Arrays.stream(basePaths)
