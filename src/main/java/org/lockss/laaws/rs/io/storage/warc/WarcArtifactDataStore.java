@@ -226,9 +226,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     setUncommittedArtifactExpiration(
         NumberUtils.toLong(System.getenv(ENV_UNCOMMITTED_ARTIFACT_EXPIRATION), DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION)
     );
-
-    // TODO: Connect this to configuration
-    useCompression = false;
   }
 
   // *******************************************************************************************************************
@@ -457,19 +454,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Returns an active WARC of an AU or initializes a new one, on the base path having the most free space.
    *
-   * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
-   * @param auid         A {@link String} containing the AUID of the AU.
-   * @param minSize      A {@code long} containing the minimum available space the underlying base path must have in bytes.
+   * @param collectionId   A {@link String} containing the name of the collection the AU belongs to.
+   * @param auid           A {@link String} containing the AUID of the AU.
+   * @param minSize        A {@code long} containing the minimum available space the underlying base path must have in bytes.
+   * @param compressedWarc A {@code boolean} indicating a compressed active WARC is needed.
    * @return A {@link Path} containing the path of the chosen active WARC.
    * @throws IOException
    */
-  public Path getAuActiveWarcPath(String collectionId, String auid, long minSize) throws IOException {
+  public Path getAuActiveWarcPath(String collectionId, String auid, long minSize, boolean compressedWarc) throws IOException {
     synchronized (auActiveWarcsMap) {
       // Get all the active WARCs of this AU
       List<Path> activeWarcs = getAuActiveWarcPaths(collectionId, auid);
 
+      // Filter active WARCs by compression
+      List<Path> fActiveWarcs = activeWarcs.stream()
+          .filter(p -> isCompressedWarcFile(p) == compressedWarc)
+          .collect(Collectors.toList());
+
       // If there are multiple active WARCs for this AU, pick the one under the base path with the most free space
-      Path activeWarc = getMinMaxFreeSpacePath(activeWarcs, minSize);
+      Path activeWarc = getMinMaxFreeSpacePath(fActiveWarcs, minSize);
 
       // Return the active WARC or initialize a new one if there were no active WARCs or no active WARC resides under a
       // base path with enough space
@@ -784,6 +787,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     if (auPath == null) {
       //// AU not initialized or no existing AU meets minimum space requirement
 
+
       // Have we exhausted all available base paths?
       if (auPaths.size() < basePaths.length) {
         // Create a new AU base directory (or get the existing one with the most available space)
@@ -908,7 +912,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected void garbageCollectTempWarc(Path tmpWarcPath) {
     WarcFile tmpWarcFile = null;
 
-    log.trace("Processing [tmpWarc = {}]", tmpWarcPath);
+    log.trace("tmpWarc = {}", tmpWarcPath);
 
     // Remove the temporary WARC from the pool if it is active there
     synchronized (tmpWarcPool) {
@@ -918,12 +922,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         return;
 
       } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
-        // Temporary WARC is a member of the pool but not currently in use - process it
+        // Temporary WARC is a member of the pool but not currently in use: Remove it from
+        // the pool and process it below
         tmpWarcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
 
         if (tmpWarcFile == null) {
           // This message is worth paying attention to if logged - it may indicate a problem with synchronization
-          log.error("Could not remove temporary WARC file [tmpWarc: {}]", tmpWarcPath);
+          log.error("Could not remove temporary WARC file from the pool [tmpWarc: {}]", tmpWarcPath);
           return;
         }
 
@@ -1175,7 +1180,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     } else {
       // WARC file still in use; add it to the temporary WARC pool
       long tmpWarcFileLen = getWarcLength(tmpWarc);
-      tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen));
+      tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen, isCompressedWarcFile(tmpWarc)));
     }
   }
 
@@ -1432,6 +1437,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
   // * GETTERS AND SETTERS
   // *******************************************************************************************************************
+
+  /**
+   * Returns a {@code boolean} indicating whether this WARC artifact data store compresses WARC
+   * records.
+   */
+  public boolean getUseWarcCompression() {
+    return useCompression;
+  }
 
   /**
    * Sets whether this WARC data store compresses WARCs files.
@@ -1935,8 +1948,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long recordOffset = loc.getOffset();
       long recordLength = loc.getLength();
 
+      // Used to match source and target WARC compression
+      boolean warcCompressionTarget = isCompressedWarcFile(loc.getPath());
+
       // Get an active WARC of this AU to append the artifact to
-      Path dst = getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), recordLength);
+      Path dst = getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), recordLength, warcCompressionTarget);
 
       // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
       long warcLength = getWarcLength(dst);

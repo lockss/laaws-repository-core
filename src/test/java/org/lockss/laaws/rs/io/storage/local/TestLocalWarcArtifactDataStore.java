@@ -127,14 +127,15 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
     long pendingArtifactSize = 1234L;
 
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), pendingArtifactSize, false);
+
     URI expectedStorageUrl = URI.create(String.format(
         "file://%s?offset=%d&length=%d",
-        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), pendingArtifactSize),
+        activeWarcPath,
         1234L,
         5678L
     ));
 
-    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), pendingArtifactSize);
     URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
 
     assertEquals(expectedStorageUrl, actualStorageUrl);

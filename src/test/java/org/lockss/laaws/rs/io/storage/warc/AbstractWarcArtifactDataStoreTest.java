@@ -66,6 +66,7 @@ import org.lockss.util.time.TimeUtil;
 import org.mockito.ArgumentMatchers;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriUtils;
 
 import java.io.*;
 import java.net.URI;
@@ -924,7 +925,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getAuActiveWarcPath(String, String, long)}.
+   * Test for {@link WarcArtifactDataStore#getAuActiveWarcPath(String, String, long, boolean)}.
    *
    * @throws Exception
    */
@@ -940,20 +941,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path activeWarc = mock(Path.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).getAuActiveWarcPath(collectionId, auid, minSize);
+    doCallRealMethod().when(ds).getAuActiveWarcPath(collectionId, auid, minSize, false);
 
     // Assert getAuActiveWarcPath() calls initAuActiveWarc() if there are no active WARCs for this AU
     when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.anyList(), ArgumentMatchers.anyLong()))
         .thenReturn(null);
     when(ds.initAuActiveWarc(collectionId, auid, minSize)).thenReturn(activeWarc);
-    assertEquals(activeWarc, ds.getAuActiveWarcPath(collectionId, auid, minSize));
+    assertEquals(activeWarc, ds.getAuActiveWarcPath(collectionId, auid, minSize, false));
     verify(ds).initAuActiveWarc(collectionId, auid, minSize);
     clearInvocations(ds);
 
     // Assert if active WARC path found, then it is returned
     when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.anyList(), ArgumentMatchers.anyLong()))
         .thenReturn(activeWarc);
-    assertEquals(activeWarc, ds.getAuActiveWarcPath(collectionId, auid, minSize));
+    assertEquals(activeWarc, ds.getAuActiveWarcPath(collectionId, auid, minSize, false));
     verify(ds, never()).initAuActiveWarc(collectionId, auid, minSize);
   }
 
@@ -1138,7 +1139,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     when(ds.getAuPath(basePath, aid.getCollection(), aid.getAuid())).thenReturn(auPath);
 
-    ds.useCompression = true;
+    ds.setUseWarcCompression(true);
     doCallRealMethod().when(ds).getWarcFileExtension();
 
     doCallRealMethod().when(ds).getAuJournalPath(
@@ -1364,6 +1365,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mock
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ds.auActiveWarcsMap = new HashMap<>();
+    ds.basePaths = new Path[]{mock(Path.class)};
     Path auPath1 = mock(Path.class);
     Path auPath2 = mock(Path.class);
     Path auActiveWarc1 = mock(Path.class);
@@ -1688,7 +1690,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     WADS reloadedStore = makeWarcArtifactDataStore(index, store);
     assertNotNull(reloadedStore);
     assertSame(store.getArtifactIndex(), reloadedStore.getArtifactIndex());
-    assertEquals(store.getBasePaths(), reloadedStore.getBasePaths());
+    assertArrayEquals(store.getBasePaths(), reloadedStore.getBasePaths());
 
     if (expire) {
       // Set the data store to expire artifacts immediately
@@ -2198,9 +2200,86 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     runTestAddArtifactData(true);
   }
 
+  @Test
+  public void testAddArtifactData_switchCompression() throws Exception {
+    // Create a new artifact specification
+    ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
+    spec.generateContent();
+
+    //// Disable compression
+    store.setUseWarcCompression(false);
+
+    // Add two artifacts
+    Artifact ref1 = addArtifactDataFromSpec(spec);
+    Artifact ref2 = addArtifactDataFromSpec(spec);
+
+    // Assert both artifacts were stored to an *uncompressed* temporary WARC
+    assertEquals(WARCConstants.WARC_FILE_EXTENSION, UriUtils.extractFileExtension(ref1.getStorageUrl()));
+    assertEquals(WARCConstants.WARC_FILE_EXTENSION, UriUtils.extractFileExtension(ref2.getStorageUrl()));
+
+    // Commit the first artifact and assert it is in an uncompressed permanent WARC
+    Future<Artifact> fcref1 = store.commitArtifactData(ref1);
+    Artifact cref1 = fcref1.get(10, TimeUnit.SECONDS);
+    assertEquals(WARCConstants.WARC_FILE_EXTENSION, UriUtils.extractFileExtension(cref1.getStorageUrl()));
+
+    //// Enable compression
+    store.setUseWarcCompression(true);
+
+    // Add two more artifacts
+    Artifact ref3 = addArtifactDataFromSpec(spec);
+    Artifact ref4 = addArtifactDataFromSpec(spec);
+
+    // Assert both artifacts were stored to a *compressed* temporary WARC
+    assertEquals(GZIP_FILE_EXTENSION, UriUtils.extractFileExtension(ref3.getStorageUrl()));
+    assertEquals(GZIP_FILE_EXTENSION, UriUtils.extractFileExtension(ref4.getStorageUrl()));
+
+    // Commit the third artifact and assert it is in a *compressed* permanent WARC
+    Future<Artifact> fcref3 = store.commitArtifactData(ref3);
+    Artifact cref3 = fcref3.get(10, TimeUnit.SECONDS);
+    assertEquals(GZIP_FILE_EXTENSION, UriUtils.extractFileExtension(cref3.getStorageUrl()));
+
+    // Commit the second artifact and assert it is in an *uncompressed* permanent WARC
+    Future<Artifact> fcref2 = store.commitArtifactData(ref2);
+    Artifact cref2 = fcref2.get(10, TimeUnit.SECONDS);
+    assertEquals(WARCConstants.WARC_FILE_EXTENSION, UriUtils.extractFileExtension(cref2.getStorageUrl()));
+
+    //// Disable compression
+    store.setUseWarcCompression(false);
+
+    // Add another (5th) artifact
+    Artifact ref5 = addArtifactDataFromSpec(spec);
+    assertEquals(WARCConstants.WARC_FILE_EXTENSION, UriUtils.extractFileExtension(ref5.getStorageUrl()));
+
+    // Commit the fourth artifact and assert it is in a *compressed* permanent WARC
+    Future<Artifact> fcref4 = store.commitArtifactData(ref4);
+    Artifact cref4 = fcref4.get(10, TimeUnit.SECONDS);
+    assertEquals(GZIP_FILE_EXTENSION, UriUtils.extractFileExtension(cref4.getStorageUrl()));
+
+    //// Enable compression
+    store.setUseWarcCompression(true);
+
+    // Add another (6th) artifact
+    Artifact ref6 = addArtifactDataFromSpec(spec);
+    assertEquals(GZIP_FILE_EXTENSION, UriUtils.extractFileExtension(ref6.getStorageUrl()));
+  }
+
+  static final String GZIP_FILE_EXTENSION = "gz";
+
+  private Artifact addArtifactDataFromSpec(ArtifactSpec spec) throws IOException {
+    spec.setArtifactId(UUID.randomUUID().toString());
+
+    // Add the artifact data
+    Artifact addedArtifactRef = store.addArtifactData(spec.getArtifactData());
+    assertNotNull(addedArtifactRef);
+
+    log.info("storageUrl = {}", addedArtifactRef.getStorageUrl());
+
+    return addedArtifactRef;
+  }
+
   public void runTestAddArtifactData(boolean useCompression) throws Exception {
     // Enable/disable compression
-    store.useCompression = useCompression;
+    store.setUseWarcCompression(useCompression);
 
     // Create a new artifact specification
     ArtifactSpec spec = ArtifactSpec.forCollAuUrl(COLL1, AUID1, URL1);
@@ -2716,7 +2795,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testUpdateRepositoryState_uncompressed() throws Exception {
-    store.useCompression = false;
+    store.setUseWarcCompression(false);
     runTestUpdateArtifactMetadata(false, false);
     runTestUpdateArtifactMetadata(false, true);
     runTestUpdateArtifactMetadata(true, false);
@@ -2725,7 +2804,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testUpdateRepositoryState_compressed() throws Exception {
-    store.useCompression = true;
+    store.setUseWarcCompression(true);
     runTestUpdateArtifactMetadata(false, false);
     runTestUpdateArtifactMetadata(false, true);
     runTestUpdateArtifactMetadata(true, false);
@@ -3162,7 +3241,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //      assertFalse(pathExists(activeWarcPath));
 //    }
 
-    Path activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid, minSize);
+    Path activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid, minSize, false);
     assertFalse(pathExists(activeWarcPath));
 
     // Generate and add an artifact
@@ -3179,7 +3258,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    for (Path activeWarcPath : store.getAuActiveWarcPaths(testCollection, testAuid)) {
 //      assertTrue(pathExists(activeWarcPath));
 //    }
-    activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid, minSize);
+    activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid, minSize, false);
     assertTrue(pathExists(activeWarcPath));
 
     // Seal the AU's active WARCs
@@ -3188,7 +3267,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Iterable<Path> warcsBefore = findWarcs(store.getAuPaths(artifact.getCollection(), artifact.getAuid()));
 
     // Get the next active WARC path for this AU and assert it does not exist in storage
-    Path nextActiveWarcPath = store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), minSize);
+    Path nextActiveWarcPath = store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), minSize, false);
     assertFalse(pathExists(nextActiveWarcPath));
 
     // Attempt to seal the AU's active WARC again
@@ -3208,7 +3287,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Thread.sleep(10);
 
     // Assert the next active WARC is unaffected
-    Path latestActiveWarcPath = store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), minSize);
+    Path latestActiveWarcPath = store.getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), minSize, false);
     assertEquals(nextActiveWarcPath, latestActiveWarcPath);
 
     // Assert the new active WARC for this artifact's AU does not exist
