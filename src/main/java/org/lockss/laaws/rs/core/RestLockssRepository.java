@@ -241,13 +241,11 @@ public class RestLockssRepository implements LockssRepository {
 
     // Prepare artifact multipart body
     Resource artifactPartResource =
-        new NamedInputStreamResource("content",
+        new NamedInputStreamResource("artifact", // Maps to "filename" in Content-Disposition header
             ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
 
-    // Add artifact multipart to multiparts list. The name of the part
-    // must be "file" because that is what the Swagger-generated code
-    // specifies.
-    parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
+    parts.add("artifact", // Maps to "name" in Content-Disposition header
+        new HttpEntity<>(artifactPartResource, contentPartHeaders));
 
     // POST body entity
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
