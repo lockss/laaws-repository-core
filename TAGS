@@ -1,0 +1,1954 @@
+
+src/main/java/org/lockss/laaws/rs/core/ArtifactCache.java,5117
+public class ArtifactCache 60,2567
+  private final static L4JLogger log ArtifactCache.log61,2596
+  int maxArtSize;ArtifactCache.maxArtSize63,2659
+  int maxArtDataSize;ArtifactCache.maxArtDataSize64,2677
+  LRUMap<ArtifactCache.LRUMap67,2730
+  LRUMap<String,Artifact> artMap;ArtifactCache.artMap67,2730
+  LRUMap<ArtifactCache.LRUMap68,2764
+  LRUMap<String,Artifact> artIterMap;ArtifactCache.artIterMap68,2764
+  LRUMap<ArtifactCache.LRUMap71,2836
+  LRUMap<String,ArtifactData> artDataMap;ArtifactCache.artDataMap71,2836
+  Stats stats ArtifactCache.stats73,2879
+  private boolean isInstrumented ArtifactCache.isInstrumented74,2908
+  public ArtifactCache(ArtifactCache.ArtifactCache77,2988
+  public synchronized ArtifactCache enable(ArtifactCache.enable87,3241
+  public boolean isEnabled(ArtifactCache.isEnabled106,3744
+  public void enableInstrumentation(ArtifactCache.enableInstrumentation112,3941
+  public boolean isInstrumented(ArtifactCache.isInstrumented116,4029
+  private synchronized Artifact get(ArtifactCache.get122,4183
+  public Artifact get(ArtifactCache.get149,4989
+  public Artifact getLatest(ArtifactCache.getLatest161,5314
+  public Artifact get(ArtifactCache.get173,5689
+  private synchronized Artifact put(ArtifactCache.put182,5948
+  public Artifact put(ArtifactCache.put204,6601
+  public synchronized Artifact putLatest(ArtifactCache.putLatest212,6776
+  public synchronized Artifact putIterLatest(ArtifactCache.putIterLatest232,7348
+  public synchronized void flush(ArtifactCache.flush253,8006
+  public enum InvalidateOp ArtifactCache.InvalidateOp260,8150
+  public enum InvalidateOp {Commit,ArtifactCache.InvalidateOp.Commit260,8150
+  public enum InvalidateOp {Commit, Delete}ArtifactCache.InvalidateOp.Delete260,8150
+  public synchronized void invalidate(ArtifactCache.invalidate267,8387
+  public Iterator<Artifact> cachingLatestIterator(ArtifactCache.cachingLatestIterator293,9483
+  public class CachingIterator ArtifactCache.CachingIterator299,9697
+    Iterator<Artifact> iter;ArtifactCache.CachingIterator.iter300,9760
+    boolean isLatestOnly;ArtifactCache.CachingIterator.isLatestOnly301,9789
+    public CachingIterator(ArtifactCache.CachingIterator.CachingIterator303,9816
+    public CachingIterator(ArtifactCache.CachingIterator.CachingIterator313,10152
+    public boolean hasNext(ArtifactCache.CachingIterator.hasNext318,10299
+    public Artifact next(ArtifactCache.CachingIterator.next322,10366
+  static class ArtifactDataReleasingLRUMapArtifactCache.ArtifactDataReleasingLRUMap333,10595
+    ArtifactDataReleasingLRUMap(ArtifactCache.ArtifactDataReleasingLRUMap.ArtifactDataReleasingLRUMap336,10682
+    protected boolean removeLRU(ArtifactCache.ArtifactDataReleasingLRUMap.removeLRU341,10772
+  public synchronized void setMaxSize(ArtifactCache.setMaxSize353,11101
+  public synchronized ArtifactData putArtifactData(ArtifactCache.putArtifactData388,12268
+  public synchronized ArtifactData getArtifactData(ArtifactCache.getArtifactData416,13203
+  private static String artifactDataKey(ArtifactCache.artifactDataKey438,13882
+  private boolean updateHist(ArtifactCache.updateHist450,14395
+  private void updateHist(ArtifactCache.updateHist469,14811
+  public Stats getStats(ArtifactCache.getStats477,15102
+  public static class Stats ArtifactCache.Stats481,15153
+    private int[] artHist;ArtifactCache.Stats.artHist489,15419
+    private int[] artIterHist;ArtifactCache.Stats.artIterHist490,15446
+    private int[] artDataHist;ArtifactCache.Stats.artDataHist497,15664
+    public void setSizes(ArtifactCache.Stats.setSizes499,15696
+    public void setArtSize(ArtifactCache.Stats.setArtSize504,15834
+    public void setArtDataSize(ArtifactCache.Stats.setArtDataSize510,16028
+    public int getCacheHits(ArtifactCache.Stats.getCacheHits515,16191
+    public int getCacheIterHits(ArtifactCache.Stats.getCacheIterHits519,16254
+    public int getCacheMisses(ArtifactCache.Stats.getCacheMisses523,16325
+    public int getCacheStores(ArtifactCache.Stats.getCacheStores527,16392
+    public int getCacheInvalidates(ArtifactCache.Stats.getCacheInvalidates531,16459
+    public int getCacheFlushes(ArtifactCache.Stats.getCacheFlushes535,16536
+    public int getDataCacheHits(ArtifactCache.Stats.getDataCacheHits539,16605
+    public int getDataCacheMisses(ArtifactCache.Stats.getDataCacheMisses543,16676
+    public int getDataCacheStores(ArtifactCache.Stats.getDataCacheStores547,16751
+    public int getRefetchedForContent(ArtifactCache.Stats.getRefetchedForContent551,16826
+    public int getMaxArtSize(ArtifactCache.Stats.getMaxArtSize555,16909
+    public int getMaxArtDataSize(ArtifactCache.Stats.getMaxArtDataSize559,16974
+    public int[] getArtHist(ArtifactCache.Stats.getArtHist563,17047
+    public int[] getArtIterHist(ArtifactCache.Stats.getArtIterHist567,17108
+    public int[] getArtDataHist(ArtifactCache.Stats.getArtDataHist571,17177
+  boolean containsKey(ArtifactCache.containsKey578,17271
+  boolean containsIterKey(ArtifactCache.containsIterKey582,17348
+
+src/main/java/org/lockss/laaws/rs/core/BaseLockssRepository.java,2849
+public class BaseLockssRepository 52,2300
+  private final static L4JLogger log BaseLockssRepository.log54,2392
+  protected ArtifactDataStore<BaseLockssRepository.ArtifactDataStore56,2455
+  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;BaseLockssRepository.store56,2455
+  protected ArtifactIndex index;BaseLockssRepository.index57,2551
+  protected JmsFactory jmsFact;BaseLockssRepository.jmsFact58,2584
+  public BaseLockssRepository(BaseLockssRepository.BaseLockssRepository66,2835
+  protected BaseLockssRepository(BaseLockssRepository.BaseLockssRepository76,3182
+  public void initRepository(BaseLockssRepository.initRepository80,3255
+  public void shutdownRepository(BaseLockssRepository.shutdownRepository87,3415
+  public void setJmsFactory(BaseLockssRepository.setJmsFactory99,3782
+  public JmsFactory getJmsFactory(BaseLockssRepository.getJmsFactory107,4003
+  public RepositoryInfo getRepositoryInfo(BaseLockssRepository.getRepositoryInfo118,4271
+  public Artifact addArtifact(BaseLockssRepository.addArtifact142,4942
+  public Artifact getArtifactFromId(BaseLockssRepository.getArtifactFromId185,6340
+  public ArtifactData getArtifactData(BaseLockssRepository.getArtifactData197,6754
+  public HttpHeaders getArtifactHeaders(BaseLockssRepository.getArtifactHeaders215,7367
+  public Artifact commitArtifact(BaseLockssRepository.commitArtifact230,8055
+  public void deleteArtifact(BaseLockssRepository.deleteArtifact262,9040
+  public Boolean isArtifactCommitted(BaseLockssRepository.isArtifactCommitted287,9834
+  public Iterable<String> getCollectionIds(BaseLockssRepository.getCollectionIds311,10563
+  public Iterable<String> getAuIds(BaseLockssRepository.getAuIds323,11003
+  public Iterable<Artifact> getArtifacts(BaseLockssRepository.getArtifacts340,11631
+  public Iterable<Artifact> getArtifactsAllVersions(BaseLockssRepository.getArtifactsAllVersions356,12293
+  public Iterable<Artifact> getArtifactsWithPrefix(BaseLockssRepository.getArtifactsWithPrefix375,13106
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(BaseLockssRepository.getArtifactsWithPrefixAllVersions394,13939
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(BaseLockssRepository.getArtifactsWithPrefixAllVersionsAllAus411,14683
+  public Iterable<Artifact> getArtifactsAllVersions(BaseLockssRepository.getArtifactsAllVersions429,15515
+  public Iterable<Artifact> getArtifactsAllVersionsAllAus(BaseLockssRepository.getArtifactsAllVersionsAllAus445,16225
+  public Artifact getArtifact(BaseLockssRepository.getArtifact463,16980
+  public Artifact getArtifactVersion(BaseLockssRepository.getArtifactVersion484,17891
+  public Long auSize(BaseLockssRepository.auSize501,18613
+  public boolean isReady(BaseLockssRepository.isReady517,19062
+
+src/main/java/org/lockss/laaws/rs/core/LocalLockssRepository.java,452
+public class LocalLockssRepository 44,1977
+  private final static L4JLogger log LocalLockssRepository.log45,2043
+  public LocalLockssRepository(LocalLockssRepository.LocalLockssRepository53,2412
+  public LocalLockssRepository(LocalLockssRepository.LocalLockssRepository67,3065
+  public LocalLockssRepository(LocalLockssRepository.LocalLockssRepository79,3683
+  public LocalLockssRepository(LocalLockssRepository.LocalLockssRepository90,4199
+
+src/main/java/org/lockss/laaws/rs/core/LockssNoSuchArtifactIdException.java,599
+public class LockssNoSuchArtifactIdException 32,1434
+  public LockssNoSuchArtifactIdException(LockssNoSuchArtifactIdException.LockssNoSuchArtifactIdException37,1540
+  public LockssNoSuchArtifactIdException(LockssNoSuchArtifactIdException.LockssNoSuchArtifactIdException47,1735
+  public LockssNoSuchArtifactIdException(LockssNoSuchArtifactIdException.LockssNoSuchArtifactIdException57,1948
+  public LockssNoSuchArtifactIdException(LockssNoSuchArtifactIdException.LockssNoSuchArtifactIdException69,2241
+  public String getShortMessage(LockssNoSuchArtifactIdException.getShortMessage73,2349
+
+src/main/java/org/lockss/laaws/rs/core/LockssRepository.java,1046
+public interface LockssRepository 49,2126
+  enum IncludeContent LockssRepository.IncludeContent56,2406
+    NEVER,LockssRepository.IncludeContent.NEVER57,2430
+    IF_SMALL,LockssRepository.IncludeContent.IF_SMALL58,2441
+    ALWAYSLockssRepository.IncludeContent.ALWAYS59,2455
+  default void initRepository(LockssRepository.initRepository62,2471
+  default void shutdownRepository(LockssRepository.shutdownRepository66,2540
+  default ArtifactData getArtifactData(LockssRepository.getArtifactData88,3262
+  default ArtifactData getArtifactData(LockssRepository.getArtifactData103,3950
+  default ArtifactData getArtifactData(LockssRepository.getArtifactData122,4849
+  default Artifact commitArtifact(LockssRepository.commitArtifact161,6494
+  default void deleteArtifact(LockssRepository.deleteArtifact181,7380
+  default Artifact getArtifactVersion(LockssRepository.getArtifactVersion345,14515
+  long DEFAULT_WAITREADY LockssRepository.DEFAULT_WAITREADY389,16293
+  default void waitReady(LockssRepository.waitReady392,16339
+
+src/main/java/org/lockss/laaws/rs/core/LockssRepositoryFactory.java,865
+public class LockssRepositoryFactory 48,2137
+    public static LockssRepository createVolatileRepository(LockssRepositoryFactory.createVolatileRepository54,2343
+    public static LockssRepository createLocalRepository(LockssRepositoryFactory.createLocalRepository68,2985
+    public static LockssRepository createLocalRepository(LockssRepositoryFactory.createLocalRepository81,3699
+    public static LockssRepository createLocalRepository(LockssRepositoryFactory.createLocalRepository93,4403
+    public static LockssRepository createLocalRepository(LockssRepositoryFactory.createLocalRepository106,5070
+    public static LockssRepository createLargeLockssRepository(LockssRepositoryFactory.createLargeLockssRepository122,5968
+    public static RestLockssRepository createRestLockssRepository(LockssRepositoryFactory.createRestLockssRepository146,7070
+
+src/main/java/org/lockss/laaws/rs/core/RestLockssRepository.java,6535
+public class RestLockssRepository 82,3710
+  private final static L4JLogger log RestLockssRepository.log83,3774
+  public static final int DEFAULT_MAX_ART_CACHE_SIZE RestLockssRepository.DEFAULT_MAX_ART_CACHE_SIZE85,3837
+  public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE RestLockssRepository.DEFAULT_MAX_ART_DATA_CACHE_SIZE86,3897
+  public static final String MULTIPART_ARTIFACT_REPO_PROPS RestLockssRepository.MULTIPART_ARTIFACT_REPO_PROPS88,3962
+  public static final String MULTIPART_ARTIFACT_HEADER RestLockssRepository.MULTIPART_ARTIFACT_HEADER89,4046
+  public static final String MULTIPART_ARTIFACT_HTTP_STATUS RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS90,4122
+  public static final String MULTIPART_ARTIFACT_CONTENT RestLockssRepository.MULTIPART_ARTIFACT_CONTENT91,4208
+  private RestTemplate restTemplate;RestLockssRepository.restTemplate93,4287
+  private URL repositoryUrl;RestLockssRepository.repositoryUrl94,4324
+  private String authHeaderValue RestLockssRepository.authHeaderValue98,4444
+  public RestLockssRepository(RestLockssRepository.RestLockssRepository111,5053
+  private RestLockssRepository(RestLockssRepository.RestLockssRepository129,5941
+  private URI artifactEndpoint(RestLockssRepository.artifactEndpoint158,7114
+  private URI artifactEndpoint(RestLockssRepository.artifactEndpoint171,7785
+  private void checkArtIdError(RestLockssRepository.checkArtIdError191,8623
+  public Artifact addArtifact(RestLockssRepository.addArtifact210,9425
+  public Artifact getArtifactFromId(RestLockssRepository.getArtifactFromId294,12647
+  public ArtifactData getArtifactData(RestLockssRepository.getArtifactData307,13163
+  public ArtifactData getArtifactData(RestLockssRepository.getArtifactData323,13941
+  public HttpHeaders getArtifactHeaders(RestLockssRepository.getArtifactHeaders380,15832
+  public Artifact commitArtifact(RestLockssRepository.commitArtifact407,16987
+  public void deleteArtifact(RestLockssRepository.deleteArtifact452,18717
+  public void deleteArtifact(RestLockssRepository.deleteArtifact466,19300
+  private Artifact updateArtifactProperties(RestLockssRepository.updateArtifactProperties504,20476
+  public Boolean isArtifactCommitted(RestLockssRepository.isArtifactCommitted542,21957
+  public Iterable<String> getCollectionIds(RestLockssRepository.getCollectionIds575,23177
+  public Iterable<String> getAuIds(RestLockssRepository.getAuIds609,24421
+  private Iterator<Artifact> getArtifacts(RestLockssRepository.getArtifacts626,25171
+  private Iterator<Artifact> getArtifacts(RestLockssRepository.getArtifacts637,25632
+  public Iterable<Artifact> getArtifacts(RestLockssRepository.getArtifacts678,27080
+  public Iterable<Artifact> getArtifactsAllVersions(RestLockssRepository.getArtifactsAllVersions697,28010
+  public Iterable<Artifact> getArtifactsWithPrefix(RestLockssRepository.getArtifactsWithPrefix719,29045
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(RestLockssRepository.getArtifactsWithPrefixAllVersions741,30130
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(RestLockssRepository.getArtifactsWithPrefixAllVersionsAllAus762,31121
+  public Iterable<Artifact> getArtifactsAllVersions(RestLockssRepository.getArtifactsAllVersions784,32181
+  public Iterable<Artifact> getArtifactsAllVersionsAllAus(RestLockssRepository.getArtifactsAllVersionsAllAus804,33142
+  public Artifact getArtifact(RestLockssRepository.getArtifact826,34129
+  public Artifact getArtifactVersion(RestLockssRepository.getArtifactVersion902,36906
+  public Long auSize(RestLockssRepository.auSize973,39325
+  public RepositoryInfo getRepositoryInfo(RestLockssRepository.getRepositoryInfo1009,40518
+  private void checkStatusOk(RestLockssRepository.checkStatusOk1040,41563
+  private void checkStatusOk(RestLockssRepository.checkStatusOk1044,41661
+  private boolean checkAlive(RestLockssRepository.checkAlive1055,41924
+  public boolean isReady(RestLockssRepository.isReady1066,42120
+  public static final String REST_ARTIFACT_CACHE_ID RestLockssRepository.REST_ARTIFACT_CACHE_ID1074,42274
+  public static final String REST_ARTIFACT_CACHE_TOPIC RestLockssRepository.REST_ARTIFACT_CACHE_TOPIC1075,42334
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION1076,42413
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE1077,42490
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_FLUSH RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION_FLUSH1079,42583
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_ECHO RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION_ECHO1080,42660
+  public static final String REST_ARTIFACT_CACHE_MSG_ACTION_ECHO_RESP RestLockssRepository.REST_ARTIFACT_CACHE_MSG_ACTION_ECHO_RESP1081,42735
+  public static final String REST_ARTIFACT_CACHE_MSG_OP RestLockssRepository.REST_ARTIFACT_CACHE_MSG_OP1083,42825
+  public static final String REST_ARTIFACT_CACHE_MSG_KEY RestLockssRepository.REST_ARTIFACT_CACHE_MSG_KEY1084,42899
+  private ArtifactCache artCache RestLockssRepository.artCache1088,43055
+  private JmsConsumer jmsConsumer;RestLockssRepository.jmsConsumer1092,43211
+  private JmsProducer jmsProducer;RestLockssRepository.jmsProducer1093,43246
+  boolean isEnablingCache RestLockssRepository.isEnablingCache1094,43281
+  boolean invalidateCheckCompleted RestLockssRepository.invalidateCheckCompleted1095,43316
+  Deadline invCheckDeadline;RestLockssRepository.invCheckDeadline1096,43360
+  public RestLockssRepository enableArtifactCache(RestLockssRepository.enableArtifactCache1106,43602
+  public boolean isArtifactCacheEnabled(RestLockssRepository.isArtifactCacheEnabled1124,44098
+  private void makeJmsConsumer(RestLockssRepository.makeJmsConsumer1128,44199
+  protected void sendPing(RestLockssRepository.sendPing1187,46496
+  public ArtifactCache getArtifactCache(RestLockssRepository.getArtifactCache1206,47029
+  public RestTemplate getRestTemplate(RestLockssRepository.getRestTemplate1210,47099
+  private class ArtifactCacheListener RestLockssRepository.ArtifactCacheListener1218,47311
+    public void onMessage(RestLockssRepository.ArtifactCacheListener.onMessage1220,47392
+  ArtifactCache.InvalidateOp msgOp(RestLockssRepository.msgOp1260,48909
+  private HttpHeaders getInitializedHttpHeaders(RestLockssRepository.getInitializedHttpHeaders1270,49219
+
+src/main/java/org/lockss/laaws/rs/core/RestLockssRepositoryArtifactIterator.java,1625
+public class RestLockssRepositoryArtifactIterator61,2618
+  private final static L4JLogger log RestLockssRepositoryArtifactIterator.log63,2700
+  private final RestTemplate restTemplate;RestLockssRepositoryArtifactIterator.restTemplate66,2795
+  private final UriComponentsBuilder builder;RestLockssRepositoryArtifactIterator.builder69,2874
+  private String authHeaderValue RestLockssRepositoryArtifactIterator.authHeaderValue73,3011
+  private List<Artifact> artifactBuffer RestLockssRepositoryArtifactIterator.artifactBuffer77,3149
+  private Iterator<Artifact> artifactBufferIterator RestLockssRepositoryArtifactIterator.artifactBufferIterator80,3239
+  private String continuationToken RestLockssRepositoryArtifactIterator.continuationToken83,3354
+  public RestLockssRepositoryArtifactIterator(RestLockssRepositoryArtifactIterator.RestLockssRepositoryArtifactIterator92,3667
+  public RestLockssRepositoryArtifactIterator(RestLockssRepositoryArtifactIterator.RestLockssRepositoryArtifactIterator106,4215
+  public RestLockssRepositoryArtifactIterator(RestLockssRepositoryArtifactIterator.RestLockssRepositoryArtifactIterator120,4788
+  public RestLockssRepositoryArtifactIterator(RestLockssRepositoryArtifactIterator.RestLockssRepositoryArtifactIterator136,5470
+  public boolean hasNext(RestLockssRepositoryArtifactIterator.hasNext174,6577
+  public Artifact next(RestLockssRepositoryArtifactIterator.next213,7850
+  private void fillArtifactBuffer(RestLockssRepositoryArtifactIterator.fillArtifactBuffer225,8142
+  private boolean isLastBatch(RestLockssRepositoryArtifactIterator.isLastBatch323,11622
+
+src/main/java/org/lockss/laaws/rs/core/RestLockssRepositoryAuidIterator.java,1500
+public class RestLockssRepositoryAuidIterator 60,2567
+  private final static L4JLogger log RestLockssRepositoryAuidIterator.log61,2643
+  private final RestTemplate restTemplate;RestLockssRepositoryAuidIterator.restTemplate64,2738
+  private final UriComponentsBuilder builder;RestLockssRepositoryAuidIterator.builder67,2817
+  private String authHeaderValue RestLockssRepositoryAuidIterator.authHeaderValue71,2954
+  private List<String> auidBuffer RestLockssRepositoryAuidIterator.auidBuffer75,3088
+  private Iterator<String> auidBufferIterator RestLockssRepositoryAuidIterator.auidBufferIterator78,3172
+  private String continuationToken RestLockssRepositoryAuidIterator.continuationToken81,3281
+  public RestLockssRepositoryAuidIterator(RestLockssRepositoryAuidIterator.RestLockssRepositoryAuidIterator90,3594
+  public RestLockssRepositoryAuidIterator(RestLockssRepositoryAuidIterator.RestLockssRepositoryAuidIterator104,4138
+  public RestLockssRepositoryAuidIterator(RestLockssRepositoryAuidIterator.RestLockssRepositoryAuidIterator118,4703
+  public RestLockssRepositoryAuidIterator(RestLockssRepositoryAuidIterator.RestLockssRepositoryAuidIterator134,5377
+  public boolean hasNext(RestLockssRepositoryAuidIterator.hasNext172,6468
+  public String next(RestLockssRepositoryAuidIterator.next211,7719
+  private void fillAuidBuffer(RestLockssRepositoryAuidIterator.fillAuidBuffer223,8001
+  private boolean isLastBatch(RestLockssRepositoryAuidIterator.isLastBatch321,11383
+
+src/main/java/org/lockss/laaws/rs/core/VolatileLockssRepository.java,140
+public class VolatileLockssRepository 42,1935
+  public VolatileLockssRepository(VolatileLockssRepository.VolatileLockssRepository47,2035
+
+src/main/java/org/lockss/laaws/rs/domain/RepositoryPage.java,56
+public interface RepositoryPage<RepositoryPage35,1672
+
+src/main/java/org/lockss/laaws/rs/domain/RepositoryPageImpl.java,174
+public class RepositoryPageImpl<RepositoryPageImpl33,1644
+    public boolean hasNext(RepositoryPageImpl.hasNext35,1724
+    public T next(RepositoryPageImpl.next40,1798
+
+src/main/java/org/lockss/laaws/rs/domain/RepositoryPageRequest.java,44
+public class RepositoryPageRequest 33,1644
+
+src/main/java/org/lockss/laaws/rs/domain/RepositoryPageable.java,45
+public interface RepositoryPageable 33,1644
+
+src/main/java/org/lockss/laaws/rs/io/StorageInfoSource.java,44
+public interface StorageInfoSource 34,1524
+
+src/main/java/org/lockss/laaws/rs/io/index/AbstractArtifactIndex.java,657
+public abstract class AbstractArtifactIndex 33,1646
+  protected ArtifactIndexState indexState AbstractArtifactIndex.indexState34,1717
+  public enum ArtifactIndexState AbstractArtifactIndex.ArtifactIndexState36,1796
+    UNINITIALIZED,AbstractArtifactIndex.ArtifactIndexState.UNINITIALIZED37,1831
+    INITIALIZED,AbstractArtifactIndex.ArtifactIndexState.INITIALIZED38,1850
+    READY,AbstractArtifactIndex.ArtifactIndexState.READY39,1867
+    SHUTDOWNAbstractArtifactIndex.ArtifactIndexState.SHUTDOWN40,1878
+  public ArtifactIndexState getState(AbstractArtifactIndex.getState43,1896
+  public void setState(AbstractArtifactIndex.setState47,1965
+
+src/main/java/org/lockss/laaws/rs/io/index/ArtifactIndex.java,710
+public interface ArtifactIndex 51,2059
+    default Artifact getArtifact(ArtifactIndex.getArtifact72,2763
+    default Iterable<Artifact> getArtifacts(ArtifactIndex.getArtifacts176,6697
+    default Iterable<Artifact> getArtifactsAllVersions(ArtifactIndex.getArtifactsAllVersions194,7566
+    default Artifact getArtifact(ArtifactIndex.getArtifact319,13270
+    default Artifact getArtifactVersion(ArtifactIndex.getArtifactVersion359,14900
+    long DEFAULT_WAITREADY ArtifactIndex.DEFAULT_WAITREADY401,16582
+    default void waitReady(ArtifactIndex.waitReady404,16632
+    default void initIndex(ArtifactIndex.initIndex429,17527
+    default void shutdownIndex(ArtifactIndex.shutdownIndex432,17581
+
+src/main/java/org/lockss/laaws/rs/io/index/ArtifactPredicateBuilder.java,848
+public class ArtifactPredicateBuilder 42,1834
+    private Set<Predicate<Artifact>> predicates ArtifactPredicateBuilder.predicates44,1918
+    public ArtifactPredicateBuilder filterByAuid(ArtifactPredicateBuilder.filterByAuid53,2213
+    public ArtifactPredicateBuilder filterByCommitStatus(ArtifactPredicateBuilder.filterByCommitStatus66,2616
+    public ArtifactPredicateBuilder filterByCollection(ArtifactPredicateBuilder.filterByCollection79,3081
+    public ArtifactPredicateBuilder filterByURIPrefix(ArtifactPredicateBuilder.filterByURIPrefix93,3546
+    public ArtifactPredicateBuilder filterByURIMatch(ArtifactPredicateBuilder.filterByURIMatch109,4026
+    public ArtifactPredicateBuilder filterByVersion(ArtifactPredicateBuilder.filterByVersion121,4380
+    public Predicate<Artifact> build(ArtifactPredicateBuilder.build133,4768
+
+src/main/java/org/lockss/laaws/rs/io/index/LocalArtifactIndex.java,915
+public class LocalArtifactIndex 49,2121
+    private final static L4JLogger log LocalArtifactIndex.log50,2185
+    public static String ARTIFACT_INDEX_TYPE LocalArtifactIndex.ARTIFACT_INDEX_TYPE53,2306
+    private File persistedIndex LocalArtifactIndex.persistedIndex56,2410
+    public LocalArtifactIndex(LocalArtifactIndex.LocalArtifactIndex66,2699
+    public void shutdownIndex(LocalArtifactIndex.shutdownIndex86,3472
+    public StorageInfo getStorageInfo(LocalArtifactIndex.getStorageInfo99,3768
+    protected synchronized void addToIndex(LocalArtifactIndex.addToIndex125,4623
+    protected synchronized Artifact removeFromIndex(LocalArtifactIndex.removeFromIndex141,5079
+    protected void populateFromPersistence(LocalArtifactIndex.populateFromPersistence152,5388
+    protected void persist(LocalArtifactIndex.persist195,6940
+    public String toString(LocalArtifactIndex.toString232,8077
+
+src/main/java/org/lockss/laaws/rs/io/index/VolatileArtifactIndex.java,3015
+public class VolatileArtifactIndex 51,2267
+    private final static L4JLogger log VolatileArtifactIndex.log52,2334
+    public static String ARTIFACT_INDEX_TYPE VolatileArtifactIndex.ARTIFACT_INDEX_TYPE55,2458
+    protected Map<VolatileArtifactIndex.Map58,2568
+    protected Map<String, Artifact> index VolatileArtifactIndex.index58,2568
+    protected List<Artifact> iterableArtifacts;VolatileArtifactIndex.iterableArtifacts61,2697
+    public void initIndex(VolatileArtifactIndex.initIndex64,2760
+    public void shutdownIndex(VolatileArtifactIndex.shutdownIndex69,2853
+    public StorageInfo getStorageInfo(VolatileArtifactIndex.getStorageInfo78,3071
+    public Artifact indexArtifact(VolatileArtifactIndex.indexArtifact90,3429
+    public Artifact getArtifact(VolatileArtifactIndex.getArtifact142,5094
+    public Artifact getArtifact(VolatileArtifactIndex.getArtifact161,5628
+    public Artifact commitArtifact(VolatileArtifactIndex.commitArtifact177,6103
+    public Artifact commitArtifact(VolatileArtifactIndex.commitArtifact203,6841
+    public boolean deleteArtifact(VolatileArtifactIndex.deleteArtifact220,7371
+    public boolean deleteArtifact(VolatileArtifactIndex.deleteArtifact245,8079
+    public boolean artifactExists(VolatileArtifactIndex.artifactExists263,8630
+    public Artifact updateStorageUrl(VolatileArtifactIndex.updateStorageUrl274,8920
+    public Iterable<String> getCollectionIds(VolatileArtifactIndex.getCollectionIds308,10107
+    public Iterable<String> getAuIds(VolatileArtifactIndex.getAuIds330,10947
+    public Iterable<Artifact> getArtifacts(VolatileArtifactIndex.getArtifacts355,11810
+    public Iterable<Artifact> getArtifactsAllVersions(VolatileArtifactIndex.getArtifactsAllVersions392,13494
+    public Iterable<Artifact> getArtifactsWithPrefix(VolatileArtifactIndex.getArtifactsWithPrefix421,14735
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(VolatileArtifactIndex.getArtifactsWithPrefixAllVersions455,16343
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(VolatileArtifactIndex.getArtifactsWithPrefixAllVersionsAllAus478,17394
+    public Iterable<Artifact> getArtifactsAllVersions(VolatileArtifactIndex.getArtifactsAllVersions507,18795
+    public Iterable<Artifact> getArtifactsAllVersionsAllAus(VolatileArtifactIndex.getArtifactsAllVersionsAllAus529,19811
+    public Artifact getArtifact(VolatileArtifactIndex.getArtifact558,21126
+    public Artifact getArtifactVersion(VolatileArtifactIndex.getArtifactVersion595,22533
+    public Long auSize(VolatileArtifactIndex.auSize634,23856
+    protected void addToIndex(VolatileArtifactIndex.addToIndex663,24840
+    protected Artifact removeFromIndex(VolatileArtifactIndex.removeFromIndex682,25388
+    private List<Artifact> getIterableArtifacts(VolatileArtifactIndex.getIterableArtifacts693,25677
+    public String toString(VolatileArtifactIndex.toString705,25965
+    public boolean isReady(VolatileArtifactIndex.isReady717,26271
+
+src/main/java/org/lockss/laaws/rs/io/index/solr/MetricsRequest.java,2475
+public abstract class MetricsRequest<MetricsRequest44,1982
+  private final static L4JLogger log MetricsRequest.log45,2071
+  public static final String METRICS_PARAM_GROUP MetricsRequest.METRICS_PARAM_GROUP50,2185
+  public static final String METRICS_PARAM_TYPE MetricsRequest.METRICS_PARAM_TYPE51,2245
+  public static final String METRICS_PARAM_PREFIX MetricsRequest.METRICS_PARAM_PREFIX52,2303
+  public static final String METRICS_PARAM_REGEX MetricsRequest.METRICS_PARAM_REGEX53,2365
+  public static final String METRICS_PARAM_PROPERTY MetricsRequest.METRICS_PARAM_PROPERTY54,2425
+  public static final String METRICS_PARAM_KEY MetricsRequest.METRICS_PARAM_KEY55,2491
+  public enum MetricsGroups MetricsRequest.MetricsGroups60,2631
+    all,MetricsRequest.MetricsGroups.all61,2661
+    jvm,MetricsRequest.MetricsGroups.jvm62,2670
+    jetty,MetricsRequest.MetricsGroups.jetty63,2679
+    node,MetricsRequest.MetricsGroups.node64,2690
+    coreMetricsRequest.MetricsGroups.core65,2700
+  public enum MetricsTypes MetricsRequest.MetricsTypes71,2796
+    all,MetricsRequest.MetricsTypes.all72,2825
+    counter,MetricsRequest.MetricsTypes.counter73,2834
+    gauge,MetricsRequest.MetricsTypes.gauge74,2847
+    histogram,MetricsRequest.MetricsTypes.histogram75,2858
+    meter,MetricsRequest.MetricsTypes.meter76,2873
+    timerMetricsRequest.MetricsTypes.timer77,2884
+  protected MetricsGroups group MetricsRequest.group83,2946
+  protected MetricsTypes type MetricsRequest.type84,2999
+  protected String prefix;MetricsRequest.prefix85,3049
+  protected String regex;MetricsRequest.regex86,3076
+  protected String property;MetricsRequest.property87,3102
+  protected String key;MetricsRequest.key88,3131
+  public MetricsRequest(MetricsRequest.MetricsRequest93,3227
+  public SolrParams getParams(MetricsRequest.getParams103,3476
+  public static class CoreMetricsRequest MetricsRequest.CoreMetricsRequest119,3975
+    public CoreMetricsRequest(MetricsRequest.CoreMetricsRequest.CoreMetricsRequest123,4114
+    protected MetricsResponse.CoreMetricsResponse createResponse(MetricsRequest.CoreMetricsRequest.createResponse135,4503
+  public static class NodeMetricsRequest MetricsRequest.NodeMetricsRequest143,4745
+    public NodeMetricsRequest(MetricsRequest.NodeMetricsRequest.NodeMetricsRequest147,4884
+    protected MetricsResponse.NodeMetricsResponse createResponse(MetricsRequest.NodeMetricsRequest.createResponse159,5273
+
+src/main/java/org/lockss/laaws/rs/io/index/solr/MetricsResponse.java,1517
+public class MetricsResponse 10,231
+  private final static L4JLogger log MetricsResponse.log11,287
+  private final static String SOLR_METRICS_KEY MetricsResponse.SOLR_METRICS_KEY13,350
+  public NamedList getMetrics(MetricsResponse.getMetrics20,581
+  public static class CoreMetricsResponse MetricsResponse.CoreMetricsResponse27,798
+    public static String getSolrCoreKey(MetricsResponse.CoreMetricsResponse.getSolrCoreKey36,1164
+    public CoreMetrics getCoreMetrics(MetricsResponse.CoreMetricsResponse.getCoreMetrics46,1532
+  public static class CoreMetrics MetricsResponse.CoreMetrics64,2020
+    public CoreMetrics(MetricsResponse.CoreMetrics.CoreMetrics70,2209
+    public long getTotalSpace(MetricsResponse.CoreMetrics.getTotalSpace79,2468
+    public long getUsableSpace(MetricsResponse.CoreMetrics.getUsableSpace88,2750
+    public long getIndexSizeInBytes(MetricsResponse.CoreMetrics.getIndexSizeInBytes97,2998
+    public String getIndexDir(MetricsResponse.CoreMetrics.getIndexDir106,3303
+  public static class NodeMetricsResponse MetricsResponse.NodeMetricsResponse114,3520
+    public NodeMetrics getNodeMetrics(MetricsResponse.NodeMetricsResponse.getNodeMetrics122,3781
+  public static class NodeMetrics MetricsResponse.NodeMetrics136,4126
+    public NodeMetrics(MetricsResponse.NodeMetrics.NodeMetrics142,4299
+    public long getTotalSpace(MetricsResponse.NodeMetrics.getTotalSpace155,4685
+    public long getUsableSpace(MetricsResponse.NodeMetrics.getUsableSpace164,4992
+
+src/main/java/org/lockss/laaws/rs/io/index/solr/SolrArtifactIndex.java,3846
+public class SolrArtifactIndex 61,2746
+  private final static L4JLogger log SolrArtifactIndex.log62,2809
+  private final static String DEFAULT_COLLECTION_NAME SolrArtifactIndex.DEFAULT_COLLECTION_NAME64,2872
+  private static final SolrQuery.SortClause SORTURI_ASC SolrArtifactIndex.SORTURI_ASC66,2944
+  private static final SolrQuery.SortClause VERSION_DESC SolrArtifactIndex.VERSION_DESC67,3060
+  private static final SolrQuery.SortClause AUID_ASC SolrArtifactIndex.AUID_ASC68,3178
+  public static String ARTIFACT_INDEX_TYPE SolrArtifactIndex.ARTIFACT_INDEX_TYPE71,3342
+  private static final Pattern SOLR_COLLECTION_ENDPOINT_PATTERN SolrArtifactIndex.SOLR_COLLECTION_ENDPOINT_PATTERN74,3448
+  private String solrCollection SolrArtifactIndex.solrCollection75,3566
+  private SolrClient solrClient;SolrArtifactIndex.solrClient77,3626
+  private boolean isInternalClient;SolrArtifactIndex.isInternalClient78,3659
+  public SolrArtifactIndex(SolrArtifactIndex.SolrArtifactIndex85,3917
+  public SolrArtifactIndex(SolrArtifactIndex.SolrArtifactIndex96,4320
+  public SolrArtifactIndex(SolrArtifactIndex.SolrArtifactIndex141,6084
+  public synchronized void initIndex(SolrArtifactIndex.initIndex151,6390
+  public StorageInfo getStorageInfo(SolrArtifactIndex.getStorageInfo168,6861
+  public String getSolrCollection(SolrArtifactIndex.getSolrCollection196,7921
+  public void setSolrCollection(SolrArtifactIndex.setSolrCollection200,7991
+  static <T extends SolrResponseBase> T handleSolrResponse(SolrArtifactIndex.handleSolrResponse216,8657
+  public void shutdownIndex(SolrArtifactIndex.shutdownIndex242,9501
+  private boolean checkAlive(SolrArtifactIndex.checkAlive259,9876
+  public boolean isReady(SolrArtifactIndex.isReady279,10527
+  public Artifact indexArtifact(SolrArtifactIndex.indexArtifact291,10902
+  public Artifact getArtifact(SolrArtifactIndex.getArtifact342,12663
+  public Artifact getArtifact(SolrArtifactIndex.getArtifact391,14398
+  public Artifact commitArtifact(SolrArtifactIndex.commitArtifact404,14872
+  public Artifact commitArtifact(SolrArtifactIndex.commitArtifact439,16195
+  public boolean deleteArtifact(SolrArtifactIndex.deleteArtifact452,16655
+  public boolean deleteArtifact(SolrArtifactIndex.deleteArtifact485,18019
+  public boolean artifactExists(SolrArtifactIndex.artifactExists500,18560
+  public Artifact updateStorageUrl(SolrArtifactIndex.updateStorageUrl505,18693
+  private boolean isEmptySolrIndex(SolrArtifactIndex.isEmptySolrIndex545,20178
+      throws SolrResponseErrorException, IOException,SolrArtifactIndex.IOException546,20215
+  public Iterable<String> getCollectionIds(SolrArtifactIndex.getCollectionIds565,20912
+  public Iterable<String> getAuIds(SolrArtifactIndex.getAuIds617,22637
+  public Iterable<Artifact> getArtifacts(SolrArtifactIndex.getArtifacts649,24051
+  public Iterable<Artifact> getArtifactsAllVersions(SolrArtifactIndex.getArtifactsAllVersions688,25703
+  public Iterable<Artifact> getArtifactsWithPrefix(SolrArtifactIndex.getArtifactsWithPrefix715,26837
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(SolrArtifactIndex.getArtifactsWithPrefixAllVersions753,28438
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(SolrArtifactIndex.getArtifactsWithPrefixAllVersionsAllAus775,29440
+  public Iterable<Artifact> getArtifactsAllVersions(SolrArtifactIndex.getArtifactsAllVersions802,30730
+  public Iterable<Artifact> getArtifactsAllVersionsAllAus(SolrArtifactIndex.getArtifactsAllVersionsAllAus823,31702
+  public Artifact getArtifact(SolrArtifactIndex.getArtifact848,32938
+  public Artifact getArtifactVersion(SolrArtifactIndex.getArtifactVersion905,35080
+  public Long auSize(SolrArtifactIndex.auSize941,36385
+  private boolean isEmptyResult(SolrArtifactIndex.isEmptyResult976,37613
+
+src/main/java/org/lockss/laaws/rs/io/index/solr/SolrQueryArtifactIterator.java,1251
+public class SolrQueryArtifactIterator 52,2149
+  private final static L4JLogger log SolrQueryArtifactIterator.log53,2220
+  private final SolrClient solrClient;SolrQueryArtifactIterator.solrClient56,2324
+  private final SolrQuery solrQuery;SolrQueryArtifactIterator.solrQuery59,2420
+  private final String solrCollection;SolrQueryArtifactIterator.solrCollection61,2458
+  private List<Artifact> artifactBuffer SolrQueryArtifactIterator.artifactBuffer64,2577
+  private Iterator<Artifact> artifactBufferIterator SolrQueryArtifactIterator.artifactBufferIterator67,2667
+  private String cursorMark SolrQueryArtifactIterator.cursorMark70,2762
+  boolean isLastBatch SolrQueryArtifactIterator.isLastBatch73,2905
+  public SolrQueryArtifactIterator(SolrQueryArtifactIterator.SolrQueryArtifactIterator81,3124
+  public SolrQueryArtifactIterator(SolrQueryArtifactIterator.SolrQueryArtifactIterator93,3559
+  public boolean hasNext(SolrQueryArtifactIterator.hasNext128,4665
+  public Artifact next(SolrQueryArtifactIterator.next168,5887
+  private void fillArtifactBuffer(SolrQueryArtifactIterator.fillArtifactBuffer183,6336
+      throws SolrResponseErrorException, SolrServerException,SolrQueryArtifactIterator.SolrServerException184,6372
+
+src/main/java/org/lockss/laaws/rs/io/index/solr/SolrResponseErrorException.java,787
+public class SolrResponseErrorException 42,1757
+  private int solrStatus SolrResponseErrorException.solrStatus45,1865
+  private String solrMessage SolrResponseErrorException.solrMessage48,1945
+  public SolrResponseErrorException(SolrResponseErrorException.SolrResponseErrorException56,2163
+  public SolrResponseErrorException(SolrResponseErrorException.SolrResponseErrorException69,2609
+  public int getSolrStatus(SolrResponseErrorException.getSolrStatus81,2978
+  private void setSolrStatus(SolrResponseErrorException.setSolrStatus90,3163
+  public String getSolrMessage(SolrResponseErrorException.getSolrMessage99,3362
+  private void setSolrMessage(SolrResponseErrorException.setSolrMessage108,3547
+  public String toString(SolrResponseErrorException.toString113,3652
+
+src/main/java/org/lockss/laaws/rs/io/index/solr/SolrRuntimeException.java,459
+public class SolrRuntimeException 39,1671
+  private static final long serialVersionUID SolrRuntimeException.serialVersionUID40,1732
+  public SolrRuntimeException(SolrRuntimeException.SolrRuntimeException45,1844
+  public SolrRuntimeException(SolrRuntimeException.SolrRuntimeException54,2003
+  public SolrRuntimeException(SolrRuntimeException.SolrRuntimeException64,2237
+  public SolrRuntimeException(SolrRuntimeException.SolrRuntimeException73,2438
+
+src/main/java/org/lockss/laaws/rs/io/storage/ArtifactDataStore.java,162
+public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends ArtifactRepositoryState> extends StorageInfoSource,59,2658
+
+src/main/java/org/lockss/laaws/rs/io/storage/hdfs/HdfsWarcArtifactDataStore.java,2304
+public class HdfsWarcArtifactDataStore 59,2586
+  private final static L4JLogger log HdfsWarcArtifactDataStore.log60,2657
+  public static String ARTIFACT_DATASTORE_TYPE HdfsWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE63,2781
+  public final static long DEFAULT_BLOCKSIZE HdfsWarcArtifactDataStore.DEFAULT_BLOCKSIZE65,2839
+  protected FileSystem fs;HdfsWarcArtifactDataStore.fs67,2911
+  public HdfsWarcArtifactDataStore(HdfsWarcArtifactDataStore.HdfsWarcArtifactDataStore79,3408
+  public HdfsWarcArtifactDataStore(HdfsWarcArtifactDataStore.HdfsWarcArtifactDataStore89,3807
+  public HdfsWarcArtifactDataStore(HdfsWarcArtifactDataStore.HdfsWarcArtifactDataStore99,4170
+  public HdfsWarcArtifactDataStore(HdfsWarcArtifactDataStore.HdfsWarcArtifactDataStore110,4577
+  public void mkdirs(HdfsWarcArtifactDataStore.mkdirs133,5586
+  public void mkdirs(HdfsWarcArtifactDataStore.mkdirs144,5940
+  private boolean checkAlive(HdfsWarcArtifactDataStore.checkAlive155,6164
+  protected void clearAuMaps(HdfsWarcArtifactDataStore.clearAuMaps171,6422
+  public boolean isReady(HdfsWarcArtifactDataStore.isReady189,6991
+  public Collection<Path> findWarcs(HdfsWarcArtifactDataStore.findWarcs201,7404
+  public long getWarcLength(HdfsWarcArtifactDataStore.getWarcLength235,8779
+  protected long getBlockSize(HdfsWarcArtifactDataStore.getBlockSize244,9025
+  protected long getFreeSpace(HdfsWarcArtifactDataStore.getFreeSpace249,9106
+  public URI makeStorageUrl(HdfsWarcArtifactDataStore.makeStorageUrl259,9367
+  public void initCollection(HdfsWarcArtifactDataStore.initCollection272,9845
+  public List<Path> initAu(HdfsWarcArtifactDataStore.initAu288,10374
+  protected Path initAuDir(HdfsWarcArtifactDataStore.initAuDir339,12125
+  protected org.apache.hadoop.fs.Path hdfsPathFromPath(HdfsWarcArtifactDataStore.hdfsPathFromPath366,13045
+  public void initWarc(HdfsWarcArtifactDataStore.initWarc377,13380
+  public OutputStream getAppendableOutputStream(HdfsWarcArtifactDataStore.getAppendableOutputStream390,13785
+  public InputStream getInputStreamAndSeek(HdfsWarcArtifactDataStore.getInputStreamAndSeek398,14084
+  public boolean removeWarc(HdfsWarcArtifactDataStore.removeWarc408,14437
+  public StorageInfo getStorageInfo(HdfsWarcArtifactDataStore.getStorageInfo413,14591
+
+src/main/java/org/lockss/laaws/rs/io/storage/local/LocalWarcArtifactDataStore.java,2160
+public class LocalWarcArtifactDataStore 55,2418
+  private final static L4JLogger log LocalWarcArtifactDataStore.log56,2490
+  public static String ARTIFACT_DATASTORE_TYPE LocalWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE59,2615
+  public final static long DEFAULT_BLOCKSIZE LocalWarcArtifactDataStore.DEFAULT_BLOCKSIZE61,2674
+  public LocalWarcArtifactDataStore(LocalWarcArtifactDataStore.LocalWarcArtifactDataStore67,3007
+  public LocalWarcArtifactDataStore(LocalWarcArtifactDataStore.LocalWarcArtifactDataStore71,3144
+  public LocalWarcArtifactDataStore(LocalWarcArtifactDataStore.LocalWarcArtifactDataStore75,3325
+  public LocalWarcArtifactDataStore(LocalWarcArtifactDataStore.LocalWarcArtifactDataStore82,3587
+  public void mkdirs(LocalWarcArtifactDataStore.mkdirs104,4375
+  public void mkdirs(LocalWarcArtifactDataStore.mkdirs117,4721
+  protected void clearAuMaps(LocalWarcArtifactDataStore.clearAuMaps129,4905
+  protected long getBlockSize(LocalWarcArtifactDataStore.getBlockSize142,5372
+  protected long getFreeSpace(LocalWarcArtifactDataStore.getFreeSpace147,5453
+  public void initCollection(LocalWarcArtifactDataStore.initCollection152,5558
+  public List<Path> initAu(LocalWarcArtifactDataStore.initAu168,6120
+  protected Path initAuDir(LocalWarcArtifactDataStore.initAuDir211,7675
+  public boolean isReady(LocalWarcArtifactDataStore.isReady242,8621
+  public Collection<Path> findWarcs(LocalWarcArtifactDataStore.findWarcs253,8956
+  public long getWarcLength(LocalWarcArtifactDataStore.getWarcLength301,10928
+  public URI makeStorageUrl(LocalWarcArtifactDataStore.makeStorageUrl306,11029
+  public OutputStream getAppendableOutputStream(LocalWarcArtifactDataStore.getAppendableOutputStream313,11329
+  public InputStream getInputStreamAndSeek(LocalWarcArtifactDataStore.getInputStreamAndSeek318,11488
+  public void initWarc(LocalWarcArtifactDataStore.initWarc329,11795
+  protected void initFile(LocalWarcArtifactDataStore.initFile343,12116
+  public boolean removeWarc(LocalWarcArtifactDataStore.removeWarc348,12218
+  public StorageInfo getStorageInfo(LocalWarcArtifactDataStore.getStorageInfo358,12434
+
+src/main/java/org/lockss/laaws/rs/io/storage/local/TestingWarcArtifactDataStore.java,831
+public class TestingWarcArtifactDataStore 44,1920
+  private final static L4JLogger log TestingWarcArtifactDataStore.log45,1999
+  private PatternIntMap freeSpacePatternMap;TestingWarcArtifactDataStore.freeSpacePatternMap46,2061
+  public TestingWarcArtifactDataStore(TestingWarcArtifactDataStore.TestingWarcArtifactDataStore48,2107
+  public TestingWarcArtifactDataStore(TestingWarcArtifactDataStore.TestingWarcArtifactDataStore52,2235
+  public TestingWarcArtifactDataStore(TestingWarcArtifactDataStore.TestingWarcArtifactDataStore57,2371
+  public TestingWarcArtifactDataStore(TestingWarcArtifactDataStore.TestingWarcArtifactDataStore62,2507
+  protected long getFreeSpace(TestingWarcArtifactDataStore.getFreeSpace68,2657
+  public void setTestingDiskSpaceMap(TestingWarcArtifactDataStore.setTestingDiskSpaceMap79,2972
+
+src/main/java/org/lockss/laaws/rs/io/storage/warc/TempWarcInUseTracker.java,3116
+public enum TempWarcInUseTracker 41,1845
+  INSTANCE;TempWarcInUseTracker.INSTANCE45,1935
+  private TempWarcInUseTracker.private47,1948
+  private final TempWarcInUseTracker.final47,1948
+  private final static TempWarcInUseTracker.static47,1948
+  private final static L4JLogger TempWarcInUseTracker.L4JLogger47,1948
+  private final static L4JLogger log TempWarcInUseTracker.log47,1948
+  private final static L4JLogger log = L4JLogger.TempWarcInUseTracker.L4JLogger47,1948
+  private final static L4JLogger log = L4JLogger.getLogger(TempWarcInUseTracker.getLogger47,1948
+  private TempWarcInUseTracker.private50,2043
+  private final TempWarcInUseTracker.final50,2043
+  private final Map<TempWarcInUseTracker.Map50,2043
+  private final Map<Path,TempWarcInUseTracker.Path50,2043
+  private final Map<Path, Integer>TempWarcInUseTracker.Integer50,2043
+  private final Map<Path, Integer> inUseMap TempWarcInUseTracker.inUseMap50,2043
+  private final Map<Path, Integer> inUseMap = new TempWarcInUseTracker.new50,2043
+  private final Map<Path, Integer> inUseMap = new HashMap<TempWarcInUseTracker.HashMap50,2043
+  public TempWarcInUseTracker.public60,2353
+  public synchronized TempWarcInUseTracker.synchronized60,2353
+  public synchronized long TempWarcInUseTracker.long60,2353
+  public synchronized long getUseCount(TempWarcInUseTracker.getUseCount60,2353
+  public synchronized long getUseCount(Path TempWarcInUseTracker.Path60,2353
+  public synchronized long getUseCount(Path path)TempWarcInUseTracker.path60,2353
+  public TempWarcInUseTracker.public70,2639
+  public synchronized TempWarcInUseTracker.synchronized70,2639
+  public synchronized void TempWarcInUseTracker.void70,2639
+  public synchronized void markUseStart(TempWarcInUseTracker.markUseStart70,2639
+  public synchronized void markUseStart(Path TempWarcInUseTracker.Path70,2639
+  public synchronized void markUseStart(Path path)TempWarcInUseTracker.path70,2639
+  public TempWarcInUseTracker.public86,3134
+  public synchronized TempWarcInUseTracker.synchronized86,3134
+  public synchronized void TempWarcInUseTracker.void86,3134
+  public synchronized void markUseEnd(TempWarcInUseTracker.markUseEnd86,3134
+  public synchronized void markUseEnd(Path TempWarcInUseTracker.Path86,3134
+  public synchronized void markUseEnd(Path path)TempWarcInUseTracker.path86,3134
+  public TempWarcInUseTracker.public114,4037
+  public synchronized TempWarcInUseTracker.synchronized114,4037
+  public synchronized boolean TempWarcInUseTracker.boolean114,4037
+  public synchronized boolean isInUse(TempWarcInUseTracker.isInUse114,4037
+  public synchronized boolean isInUse(Path TempWarcInUseTracker.Path114,4037
+  public synchronized boolean isInUse(Path path)TempWarcInUseTracker.path114,4037
+  @OverrideTempWarcInUseTracker.@Override122,4222
+  public TempWarcInUseTracker.public123,4234
+  public synchronized TempWarcInUseTracker.synchronized123,4234
+  public synchronized String TempWarcInUseTracker.String123,4234
+  public synchronized String toString(TempWarcInUseTracker.toString123,4234
+
+src/main/java/org/lockss/laaws/rs/io/storage/warc/VolatileWarcArtifactDataStore.java,1982
+public class VolatileWarcArtifactDataStore 56,2460
+  private final static L4JLogger log VolatileWarcArtifactDataStore.log57,2535
+  public static String ARTIFACT_DATASTORE_TYPE VolatileWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE60,2663
+  public final static long DEFAULT_BLOCKSIZE VolatileWarcArtifactDataStore.DEFAULT_BLOCKSIZE62,2726
+  protected Map<VolatileWarcArtifactDataStore.Map64,2792
+  protected Map<Path, ByteArrayOutputStream> warcs;VolatileWarcArtifactDataStore.warcs64,2792
+  public VolatileWarcArtifactDataStore(VolatileWarcArtifactDataStore.VolatileWarcArtifactDataStore73,3138
+  public VolatileWarcArtifactDataStore(VolatileWarcArtifactDataStore.VolatileWarcArtifactDataStore80,3302
+  public void initCollection(VolatileWarcArtifactDataStore.initCollection93,3813
+  public List<Path> initAu(VolatileWarcArtifactDataStore.initAu98,3893
+  protected Path initAuDir(VolatileWarcArtifactDataStore.initAuDir112,4287
+  public void initWarc(VolatileWarcArtifactDataStore.initWarc117,4447
+  public boolean removeWarc(VolatileWarcArtifactDataStore.removeWarc128,4732
+  protected long getBlockSize(VolatileWarcArtifactDataStore.getBlockSize136,4868
+  protected long getFreeSpace(VolatileWarcArtifactDataStore.getFreeSpace141,4949
+  protected long getFreeSpace(VolatileWarcArtifactDataStore.getFreeSpace150,5168
+  public long getWarcLength(VolatileWarcArtifactDataStore.getWarcLength155,5280
+  public URI makeStorageUrl(VolatileWarcArtifactDataStore.makeStorageUrl167,5509
+  public OutputStream getAppendableOutputStream(VolatileWarcArtifactDataStore.getAppendableOutputStream174,5784
+  public InputStream getInputStreamAndSeek(VolatileWarcArtifactDataStore.getInputStreamAndSeek181,5925
+  public Collection<Path> findWarcs(VolatileWarcArtifactDataStore.findWarcs198,6448
+  public boolean isReady(VolatileWarcArtifactDataStore.isReady220,7155
+  public StorageInfo getStorageInfo(VolatileWarcArtifactDataStore.getStorageInfo229,7368
+
+src/main/java/org/lockss/laaws/rs/io/storage/warc/WarcArtifactDataStore.java,15124
+public abstract class WarcArtifactDataStore 100,4383
+  private final static L4JLogger log WarcArtifactDataStore.log101,4532
+  protected static final DateTimeFormatter FMT_TIMESTAMP WarcArtifactDataStore.FMT_TIMESTAMP104,4724
+  protected static final String AU_DIR_PREFIX WarcArtifactDataStore.AU_DIR_PREFIX110,4972
+  protected static final String COLLECTIONS_DIR WarcArtifactDataStore.COLLECTIONS_DIR112,5028
+  protected static final String TMP_WARCS_DIR WarcArtifactDataStore.TMP_WARCS_DIR113,5093
+  protected static final String WARCID_SCHEME WarcArtifactDataStore.WARCID_SCHEME115,5155
+  protected static final String CRLF WarcArtifactDataStore.CRLF116,5215
+  protected static byte[] CRLF_BYTES;WarcArtifactDataStore.CRLF_BYTES117,5262
+  public static final Path DEFAULT_BASEPATH WarcArtifactDataStore.DEFAULT_BASEPATH119,5301
+  public final static String DEFAULT_TMPWARCBASEPATH WarcArtifactDataStore.DEFAULT_TMPWARCBASEPATH120,5369
+  private static final long DEFAULT_DFOS_THRESHOLD WarcArtifactDataStore.DEFAULT_DFOS_THRESHOLD122,5440
+  protected final static long MAX_AUACTIVEWARCS_RELOADED WarcArtifactDataStore.MAX_AUACTIVEWARCS_RELOADED124,5518
+  protected static final String ENV_THRESHOLD_WARC_SIZE WarcArtifactDataStore.ENV_THRESHOLD_WARC_SIZE126,5582
+  protected static final long DEFAULT_THRESHOLD_WARC_SIZE WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE127,5662
+  protected long thresholdWarcSize;WarcArtifactDataStore.thresholdWarcSize128,5745
+  protected static final String ENV_UNCOMMITTED_ARTIFACT_EXPIRATION WarcArtifactDataStore.ENV_UNCOMMITTED_ARTIFACT_EXPIRATION130,5782
+  protected static final long DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION131,5892
+  protected long uncommittedArtifactExpiration;WarcArtifactDataStore.uncommittedArtifactExpiration132,5979
+  protected ArtifactIndex artifactIndex;WarcArtifactDataStore.artifactIndex134,6028
+  public static Path[] basePaths;WarcArtifactDataStore.basePaths135,6069
+  protected WarcFilePool tmpWarcPool;WarcArtifactDataStore.tmpWarcPool136,6103
+  protected Map<WarcArtifactDataStore.Map137,6141
+  protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap WarcArtifactDataStore.auActiveWarcsMap137,6141
+  protected Map<WarcArtifactDataStore.Map138,6225
+  protected Map<CollectionAuidPair, List<Path>> auPathsMap WarcArtifactDataStore.auPathsMap138,6225
+  protected DataStoreState dataStoreState WarcArtifactDataStore.dataStoreState139,6303
+  protected boolean useCompression;WarcArtifactDataStore.useCompression141,6378
+  protected ScheduledExecutorService scheduledExecutor;WarcArtifactDataStore.scheduledExecutor143,6415
+  protected StripedExecutorService stripedExecutor;WarcArtifactDataStore.stripedExecutor144,6471
+  private ArtifactCache artifactCache;WarcArtifactDataStore.artifactCache145,6523
+  protected enum ArtifactState WarcArtifactDataStore.ArtifactState148,6600
+    UNKNOWN,WarcArtifactDataStore.ArtifactState.UNKNOWN149,6633
+    NOT_INDEXED,WarcArtifactDataStore.ArtifactState.NOT_INDEXED150,6646
+    UNCOMMITTED,WarcArtifactDataStore.ArtifactState.UNCOMMITTED151,6663
+    EXPIRED,WarcArtifactDataStore.ArtifactState.EXPIRED152,6680
+    COMMITTED,WarcArtifactDataStore.ArtifactState.COMMITTED153,6693
+    COPIED,WarcArtifactDataStore.ArtifactState.COPIED154,6708
+    DELETEDWarcArtifactDataStore.ArtifactState.DELETED155,6720
+  public enum DataStoreState WarcArtifactDataStore.DataStoreState158,6737
+    UNINITIALIZED,WarcArtifactDataStore.DataStoreState.UNINITIALIZED159,6768
+    INITIALIZED,WarcArtifactDataStore.DataStoreState.INITIALIZED160,6787
+    SHUTDOWNWarcArtifactDataStore.DataStoreState.SHUTDOWN161,6804
+  public WarcArtifactDataStore(WarcArtifactDataStore.WarcArtifactDataStore214,8804
+  public void initDataStore(WarcArtifactDataStore.initDataStore242,9852
+  public void shutdownDataStore(WarcArtifactDataStore.shutdownDataStore257,10147
+  public DataStoreState getDataStoreState(WarcArtifactDataStore.getDataStoreState279,10803
+  protected void setDataStoreState(WarcArtifactDataStore.setDataStoreState288,11013
+  protected void reloadDataStoreState(WarcArtifactDataStore.reloadDataStoreState295,11185
+  protected class ReloadDataStoreStateTask WarcArtifactDataStore.ReloadDataStoreStateTask299,11292
+    public void run(WarcArtifactDataStore.ReloadDataStoreStateTask.run301,11371
+  protected Path getBasePathFromStorageUrl(WarcArtifactDataStore.getBasePathFromStorageUrl334,12392
+  protected boolean isTmpStorage(WarcArtifactDataStore.isTmpStorage350,13034
+  public Path[] getBasePaths(WarcArtifactDataStore.getBasePaths361,13381
+  protected Path[] getTmpWarcBasePaths(WarcArtifactDataStore.getTmpWarcBasePaths370,13665
+  public Path getCollectionsBasePath(WarcArtifactDataStore.getCollectionsBasePath388,14274
+  public Path[] getCollectionsBasePaths(WarcArtifactDataStore.getCollectionsBasePaths397,14597
+  public Path getCollectionPath(WarcArtifactDataStore.getCollectionPath410,15155
+  public Path[] getCollectionPaths(WarcArtifactDataStore.getCollectionPaths420,15577
+  public Path getAuPath(WarcArtifactDataStore.getAuPath434,16267
+  public List<Path> getAuPaths(WarcArtifactDataStore.getAuPaths445,16764
+  public Path getAuActiveWarcPath(WarcArtifactDataStore.getAuActiveWarcPath466,17790
+  protected Path getMinMaxFreeSpacePath(WarcArtifactDataStore.getMinMaxFreeSpacePath489,18983
+  public List<Path> getAuActiveWarcPaths(WarcArtifactDataStore.getAuActiveWarcPaths508,19702
+  private class WarcSizeThresholdPredicate WarcArtifactDataStore.WarcSizeThresholdPredicate529,20431
+    public boolean test(WarcArtifactDataStore.WarcSizeThresholdPredicate.test531,20517
+  private class WarcLengthComparator WarcArtifactDataStore.WarcLengthComparator544,20847
+    public int compare(WarcArtifactDataStore.WarcLengthComparator.compare546,20928
+  private Collection<Path> findWarcsOrEmpty(WarcArtifactDataStore.findWarcsOrEmpty559,21270
+  protected List<Path> findAuActiveWarcs(WarcArtifactDataStore.findAuActiveWarcs577,21985
+  protected List<Path> findAuArtifactWarcs(WarcArtifactDataStore.findAuArtifactWarcs593,22650
+  protected Stream<Path> findAuArtifactWarcsStream(WarcArtifactDataStore.findAuArtifactWarcsStream605,23171
+  protected Path getAuJournalPath(WarcArtifactDataStore.getAuJournalPath619,23808
+  protected String getWarcFileExtension(WarcArtifactDataStore.getWarcFileExtension628,24202
+  public boolean isCompressedWarcFile(WarcArtifactDataStore.isCompressedWarcFile640,24667
+  protected Path[] getAuJournalPaths(WarcArtifactDataStore.getAuJournalPaths651,25150
+  public URI makeWarcRecordStorageUrl(WarcArtifactDataStore.makeWarcRecordStorageUrl670,26289
+  protected URI makeWarcRecordStorageUrl(WarcArtifactDataStore.makeWarcRecordStorageUrl683,26855
+  public static Path getPathFromStorageUrl(WarcArtifactDataStore.getPathFromStorageUrl698,27311
+  protected InputStream markAndGetInputStream(WarcArtifactDataStore.markAndGetInputStream713,27934
+  protected InputStream markAndGetInputStreamAndSeek(WarcArtifactDataStore.markAndGetInputStreamAndSeek725,28429
+  protected static String generateActiveWarcName(WarcArtifactDataStore.generateActiveWarcName751,29610
+  protected static String generateActiveWarcName(WarcArtifactDataStore.generateActiveWarcName756,29821
+  public Path initAuActiveWarc(WarcArtifactDataStore.initAuActiveWarc772,30674
+  public void sealActiveWarc(WarcArtifactDataStore.sealActiveWarc821,32647
+  protected void runGarbageCollector(WarcArtifactDataStore.runGarbageCollector850,33778
+  protected class GarbageCollectTempWarcsTask WarcArtifactDataStore.GarbageCollectTempWarcsTask854,33889
+    public void run(WarcArtifactDataStore.GarbageCollectTempWarcsTask.run856,33971
+  protected void garbageCollectTempWarcs(WarcArtifactDataStore.garbageCollectTempWarcs866,34174
+  protected void garbageCollectTempWarcs(WarcArtifactDataStore.garbageCollectTempWarcs878,34584
+  protected void garbageCollectTempWarc(WarcArtifactDataStore.garbageCollectTempWarc908,35622
+  public void reloadTemporaryWarcs(WarcArtifactDataStore.reloadTemporaryWarcs987,38670
+  protected void reloadTemporaryWarcs(WarcArtifactDataStore.reloadTemporaryWarcs1004,39440
+  protected void reloadOrRemoveTemporaryWarc(WarcArtifactDataStore.reloadOrRemoveTemporaryWarc1025,40232
+  Map<WarcArtifactDataStore.Map1183,46683
+  Map<String, URI> storageUrls WarcArtifactDataStore.storageUrls1183,46683
+  protected Map<WarcArtifactDataStore.Map1193,47064
+  protected Map<String, URI> getAuArtifactStorageUrls(WarcArtifactDataStore.getAuArtifactStorageUrls1193,47064
+  protected boolean isTempWarcRemovable(WarcArtifactDataStore.isTempWarcRemovable1240,49147
+  protected boolean isTempWarcRecordRemovable(WarcArtifactDataStore.isTempWarcRecordRemovable1267,50269
+  protected ArtifactState getArtifactState(WarcArtifactDataStore.getArtifactState1310,51660
+  protected boolean isArtifactExpired(WarcArtifactDataStore.isArtifactExpired1385,54151
+  protected boolean isArtifactDeleted(WarcArtifactDataStore.isArtifactDeleted1403,54982
+  protected boolean isArtifactCommitted(WarcArtifactDataStore.isArtifactCommitted1421,55620
+  public void setUseWarcCompression(WarcArtifactDataStore.setUseWarcCompression1441,56405
+  public long getUncommittedArtifactExpiration(WarcArtifactDataStore.getUncommittedArtifactExpiration1452,56751
+  public void setUncommittedArtifactExpiration(WarcArtifactDataStore.setUncommittedArtifactExpiration1462,57041
+  public long getThresholdWarcSize(WarcArtifactDataStore.getThresholdWarcSize1471,57232
+  public void setThresholdWarcSize(WarcArtifactDataStore.setThresholdWarcSize1485,57617
+  protected void setArtifactIndex(WarcArtifactDataStore.setArtifactIndex1500,58099
+  public ArtifactIndex getArtifactIndex(WarcArtifactDataStore.getArtifactIndex1517,58660
+  public Artifact addArtifactData(WarcArtifactDataStore.addArtifactData1535,59441
+  public ArtifactData getArtifactData(WarcArtifactDataStore.getArtifactData1730,66705
+  public Future<Artifact> commitArtifactData(WarcArtifactDataStore.commitArtifactData1814,70272
+  protected class CommitArtifactTask WarcArtifactDataStore.CommitArtifactTask1899,73744
+    protected Artifact artifact;WarcArtifactDataStore.CommitArtifactTask.artifact1900,73820
+    public CommitArtifactTask(WarcArtifactDataStore.CommitArtifactTask.CommitArtifactTask1907,74045
+    public Object getStripe(WarcArtifactDataStore.CommitArtifactTask.getStripe1921,74367
+    public Artifact call(WarcArtifactDataStore.CommitArtifactTask.call1933,74715
+  public void deleteArtifactData(WarcArtifactDataStore.deleteArtifactData2003,77420
+  protected InputStream getInputStreamFromStorageUrl(WarcArtifactDataStore.getInputStreamFromStorageUrl2062,79510
+  protected static class WarcRecordLocation WarcArtifactDataStore.WarcRecordLocation2072,80057
+    private Path path;WarcArtifactDataStore.WarcRecordLocation.path2073,80103
+    private long offset;WarcArtifactDataStore.WarcRecordLocation.offset2074,80126
+    private long length;WarcArtifactDataStore.WarcRecordLocation.length2075,80151
+    public WarcRecordLocation(WarcArtifactDataStore.WarcRecordLocation.WarcRecordLocation2077,80177
+    public Path getPath(WarcArtifactDataStore.WarcRecordLocation.getPath2083,80333
+    public long getOffset(WarcArtifactDataStore.WarcRecordLocation.getOffset2087,80392
+    public long getLength(WarcArtifactDataStore.WarcRecordLocation.getLength2091,80455
+    public static WarcRecordLocation fromStorageUrl(WarcArtifactDataStore.WarcRecordLocation.fromStorageUrl2095,80518
+    private static MultiValueMap<WarcArtifactDataStore.WarcRecordLocation.MultiValueMap2107,81002
+    private static MultiValueMap<String, String> parseQueryArgs(WarcArtifactDataStore.WarcRecordLocation.parseQueryArgs2107,81002
+  public void rebuildIndex(WarcArtifactDataStore.rebuildIndex2137,81984
+  public void rebuildIndex(WarcArtifactDataStore.rebuildIndex2149,82364
+  protected void reindexArtifactsFromWarcs(WarcArtifactDataStore.reindexArtifactsFromWarcs2200,84369
+  protected void reindexArtifactsFromWarc(WarcArtifactDataStore.reindexArtifactsFromWarc2207,84658
+  public synchronized ArtifactRepositoryState updateArtifactRepositoryState(WarcArtifactDataStore.updateArtifactRepositoryState2305,88862
+  protected void truncateAuJournalFile(WarcArtifactDataStore.truncateAuJournalFile2342,90162
+  Map<WarcArtifactDataStore.Map2361,90962
+  Map<String, ArtifactRepositoryState> artifactStates WarcArtifactDataStore.artifactStates2361,90962
+  protected ArtifactRepositoryState getArtifactRepositoryState(WarcArtifactDataStore.getArtifactRepositoryState2370,91254
+  protected synchronized <T> List<T> readAuJournalEntries(WarcArtifactDataStore.readAuJournalEntries2413,93267
+  protected void replayArtifactRepositoryStateJournal(WarcArtifactDataStore.replayArtifactRepositoryStateJournal2455,94786
+  public static long writeArtifactData(WarcArtifactDataStore.writeArtifactData2500,96610
+  protected ArchiveReader getArchiveReader(WarcArtifactDataStore.getArchiveReader2615,101476
+  public static class CompressedWARCReader WarcArtifactDataStore.CompressedWARCReader2631,102384
+    public CompressedWARCReader(WarcArtifactDataStore.CompressedWARCReader.CompressedWARCReader2632,102448
+    public long getCurrentMemberStart(WarcArtifactDataStore.CompressedWARCReader.getCurrentMemberStart2641,102717
+    public long getCurrentMemberEnd(WarcArtifactDataStore.CompressedWARCReader.getCurrentMemberEnd2645,102833
+    protected WARCRecord createArchiveRecord(WarcArtifactDataStore.CompressedWARCReader.createArchiveRecord2653,103087
+    public WARCRecord get(WarcArtifactDataStore.CompressedWARCReader.get2667,103599
+    public Iterator<ArchiveRecord> iterator(WarcArtifactDataStore.CompressedWARCReader.iterator2678,103901
+    protected void gotoEOR(WarcArtifactDataStore.CompressedWARCReader.gotoEOR2706,104838
+  public static class UncompressedWARCReader WarcArtifactDataStore.UncompressedWARCReader2721,105239
+    public UncompressedWARCReader(WarcArtifactDataStore.UncompressedWARCReader.UncompressedWARCReader2722,105305
+    protected WARCRecord createArchiveRecord(WarcArtifactDataStore.UncompressedWARCReader.createArchiveRecord2731,105592
+  public static WARCRecordInfo createWarcMetadataRecord(WarcArtifactDataStore.createWarcMetadataRecord2745,106273
+  public void writeWarcInfoRecord(WarcArtifactDataStore.writeWarcInfoRecord2772,107267
+  public static void writeWarcRecord(WarcArtifactDataStore.writeWarcRecord2798,108170
+  public static void writeWarcRecordHeader(WarcArtifactDataStore.writeWarcRecordHeader2821,108945
+  public static String formatWarcRecordId(WarcArtifactDataStore.formatWarcRecordId2835,109346
+  public static String createRecordHeader(WarcArtifactDataStore.createRecordHeader2845,109679
+  public static WARCRecordInfo createWarcInfoRecord(WarcArtifactDataStore.createWarcInfoRecord2888,111351
+
+src/main/java/org/lockss/laaws/rs/io/storage/warc/WarcFile.java,376
+public class WarcFile 36,1715
+  private final Path path;WarcFile.path37,1739
+  private long length WarcFile.length38,1766
+  public WarcFile(WarcFile.WarcFile40,1794
+  public Path getPath(WarcFile.getPath45,1891
+  public long getLength(WarcFile.getLength49,1939
+  public void setLength(WarcFile.setLength53,1991
+  public String toString(WarcFile.toString58,2073
+
+src/main/java/org/lockss/laaws/rs/io/storage/warc/WarcFilePool.java,1317
+public class WarcFilePool 38,1735
+  private static final L4JLogger log WarcFilePool.log39,1763
+  protected WarcArtifactDataStore store;WarcFilePool.store41,1826
+  protected Set<WarcFile> allWarcs WarcFilePool.allWarcs42,1867
+  protected Set<WarcFile> usedWarcs WarcFilePool.usedWarcs43,1921
+  public WarcFilePool(WarcFilePool.WarcFilePool45,2031
+  protected WarcFile createWarcFile(WarcFilePool.createWarcFile54,2240
+  protected String generateTmpWarcFileName(WarcFilePool.generateTmpWarcFileName61,2511
+  public void addWarcFile(WarcFilePool.addWarcFile70,2792
+  public WarcFile findWarcFile(WarcFilePool.findWarcFile83,3226
+  protected long getBytesUsedLastBlock(WarcFilePool.getBytesUsedLastBlock125,4685
+  public void returnWarcFile(WarcFilePool.returnWarcFile134,4943
+  public boolean isInUse(WarcFilePool.isInUse159,5868
+  public boolean isInUse(WarcFilePool.isInUse171,6306
+  public boolean isInPool(WarcFilePool.isInPool184,6719
+  public boolean isInPool(WarcFilePool.isInPool196,7142
+  public WarcFile lookupWarcFile(WarcFilePool.lookupWarcFile210,7640
+  public WarcFile removeWarcFile(WarcFilePool.removeWarcFile227,8241
+  protected void removeWarcFile(WarcFilePool.removeWarcFile246,8775
+  public void dumpWarcFilesPoolInfo(WarcFilePool.dumpWarcFilesPoolInfo266,9342
+
+src/main/java/org/lockss/laaws/rs/model/Artifact.java,2249
+public class Artifact 46,1967
+    private static final long serialVersionUID Artifact.serialVersionUID47,2015
+    private final static L4JLogger log Artifact.log48,2086
+    public Artifact(Artifact.Artifact88,2930
+    public Artifact(Artifact.Artifact92,2997
+    public Artifact(Artifact.Artifact102,3368
+    public ArtifactIdentifier getIdentifier(Artifact.getIdentifier150,5023
+    public String getCollection(Artifact.getCollection154,5153
+    public void setCollection(Artifact.setCollection158,5223
+    public String getAuid(Artifact.getAuid166,5476
+    public void setAuid(Artifact.setAuid170,5534
+    public String getUri(Artifact.getUri177,5736
+    public void setUri(Artifact.setUri181,5792
+    public String getSortUri(Artifact.getSortUri189,6040
+    public void setSortUri(Artifact.setSortUri196,6222
+    public Integer getVersion(Artifact.getVersion203,6442
+    public void setVersion(Artifact.setVersion207,6507
+    public String getId(Artifact.getId219,6868
+    public Boolean getCommitted(Artifact.getCommitted223,6922
+    public boolean isCommitted(Artifact.isCommitted227,6991
+    public void setCommitted(Artifact.setCommitted231,7070
+    public String getStorageUrl(Artifact.getStorageUrl238,7285
+    public void setStorageUrl(Artifact.setStorageUrl242,7355
+    public long getContentLength(Artifact.getContentLength250,7608
+    public void setContentLength(Artifact.setContentLength254,7682
+    public String getContentDigest(Artifact.getContentDigest258,7788
+    public void setContentDigest(Artifact.setContentDigest262,7864
+  public long getCollectionDate(Artifact.getCollectionDate272,8134
+  public void setCollectionDate(Artifact.setCollectionDate283,8390
+    public String toString(Artifact.toString288,8506
+    public boolean equals(Artifact.equals305,9170
+    public static String makeKey(Artifact.makeKey322,10004
+    public static String makeLatestKey(Artifact.makeLatestKey337,10438
+    public String makeKey(Artifact.makeKey343,10651
+    public String makeLatestKey(Artifact.makeLatestKey350,10876
+    static Pattern LATEST_VER_PATTERN Artifact.LATEST_VER_PATTERN355,11024
+    public static String makeLatestKey(Artifact.makeLatestKey359,11222
+
+src/main/java/org/lockss/laaws/rs/model/ArtifactData.java,5404
+public class ArtifactData 62,2619
+  private final static L4JLogger log ArtifactData.log63,2698
+  public static final String DEFAULT_DIGEST_ALGORITHM ArtifactData.DEFAULT_DIGEST_ALGORITHM64,2760
+  private ArtifactIdentifier identifier;ArtifactData.identifier67,2858
+  private InputStream artifactStream;ArtifactData.artifactStream70,2926
+  private CountingInputStream cis;ArtifactData.cis71,2964
+  private DigestInputStream dis;ArtifactData.dis72,2999
+  private EofRememberingInputStream eofis;ArtifactData.eofis73,3032
+  private boolean isComputeDigestOnRead ArtifactData.isComputeDigestOnRead74,3075
+  private InputStream closableInputStream;ArtifactData.closableInputStream78,3246
+  private HttpHeaders artifactMetadata;ArtifactData.artifactMetadata81,3320
+  private StatusLine httpStatus;ArtifactData.httpStatus82,3399
+  private InputStream origInputStream;ArtifactData.origInputStream83,3432
+  private boolean hadAnInputStream ArtifactData.hadAnInputStream84,3471
+  private long contentLength ArtifactData.contentLength85,3515
+  private String contentDigest;ArtifactData.contentDigest86,3550
+  private ArtifactRepositoryState artifactRepositoryState;ArtifactData.artifactRepositoryState89,3614
+  private URI storageUrl;ArtifactData.storageUrl90,3673
+  private long collectionDate ArtifactData.collectionDate93,3726
+  private long storedDate ArtifactData.storedDate94,3762
+  private boolean isReleased;ArtifactData.isReleased96,3795
+  private String openTrace;ArtifactData.openTrace98,3826
+  public ArtifactData(ArtifactData.ArtifactData103,3885
+  public ArtifactData(ArtifactData.ArtifactData114,4400
+  public ArtifactData(ArtifactData.ArtifactData127,5186
+  public ArtifactData(ArtifactData.ArtifactData144,6185
+  public HttpHeaders getMetadata(ArtifactData.getMetadata169,7030
+  public void setMetadata(ArtifactData.setMetadata173,7101
+  public boolean hasContentInputStream(ArtifactData.hasContentInputStream182,7321
+  public boolean hadAnInputStream(ArtifactData.hadAnInputStream190,7508
+  public void setComputeDigestOnRead(ArtifactData.setComputeDigestOnRead199,7789
+  public synchronized InputStream getInputStream(ArtifactData.getInputStream208,8052
+  public void setInputStream(ArtifactData.setInputStream254,9793
+  public StatusLine getHttpStatus(ArtifactData.getHttpStatus267,10177
+  public void setHttpStatus(ArtifactData.setHttpStatus271,10248
+  public ArtifactIdentifier getIdentifier(ArtifactData.getIdentifier280,10447
+  public ArtifactData setIdentifier(ArtifactData.setIdentifier290,10761
+  public ArtifactRepositoryState getArtifactRepositoryState(ArtifactData.getArtifactRepositoryState300,11091
+  public ArtifactData setArtifactRepositoryState(ArtifactData.setArtifactRepositoryState310,11414
+  public URI getStorageUrl(ArtifactData.getStorageUrl320,11744
+  public void setStorageUrl(ArtifactData.setStorageUrl329,11989
+  public int compareTo(ArtifactData.compareTo342,12477
+  public String getContentDigest(ArtifactData.getContentDigest346,12593
+  public void setContentDigest(ArtifactData.setContentDigest353,12769
+  public long getContentLength(ArtifactData.getContentLength357,12869
+  public void setContentLength(ArtifactData.setContentLength364,13039
+  public long getCollectionDate(ArtifactData.getCollectionDate374,13290
+  public void setCollectionDate(ArtifactData.setCollectionDate384,13544
+  public InputStream getClosableInputStream(ArtifactData.getClosableInputStream396,13851
+  public void setClosableInputStream(ArtifactData.setClosableInputStream406,14152
+  private boolean isAutoRelease ArtifactData.isAutoRelease411,14325
+  public void setAutoRelease(ArtifactData.setAutoRelease413,14367
+  public boolean isAutoRelease(ArtifactData.isAutoRelease417,14441
+  public synchronized void release(ArtifactData.release424,14549
+  public String toString(ArtifactData.toString435,14792
+  public long getBytesRead(ArtifactData.getBytesRead444,15205
+  public MessageDigest getMessageDigest(ArtifactData.getMessageDigest451,15380
+  public String stackTraceString(ArtifactData.stackTraceString461,15671
+  protected void finalize(ArtifactData.finalize472,15903
+  private void updateStats(ArtifactData.updateStats481,16102
+  public static Stats getStats(ArtifactData.getStats493,16360
+  static Stats stats ArtifactData.stats497,16418
+  public void close(ArtifactData.close500,16467
+  public long getStoredDate(ArtifactData.getStoredDate512,16732
+  public void setStoredDate(ArtifactData.setStoredDate516,16792
+  public static class Stats ArtifactData.Stats520,16878
+    private volatile long totalAllocated;ArtifactData.Stats.totalAllocated521,16908
+    private volatile long withContent;ArtifactData.Stats.withContent522,16950
+    private volatile long inputUsed;ArtifactData.Stats.inputUsed523,16990
+    private volatile long inputUnused;ArtifactData.Stats.inputUnused524,17027
+    private volatile long unreleased;ArtifactData.Stats.unreleased525,17066
+    public long getTotalAllocated(ArtifactData.Stats.getTotalAllocated527,17105
+    public long getWithContent(ArtifactData.Stats.getWithContent531,17179
+    public long getInputUsed(ArtifactData.Stats.getInputUsed535,17247
+    public long getInputUnused(ArtifactData.Stats.getInputUnused539,17311
+    public long getUnreleased(ArtifactData.Stats.getUnreleased543,17379
+
+src/main/java/org/lockss/laaws/rs/model/ArtifactIdentifier.java,1081
+public class ArtifactIdentifier 46,2098
+    private String artifactId;ArtifactIdentifier.artifactId47,2188
+    private String collection;ArtifactIdentifier.collection48,2219
+    private String auid;ArtifactIdentifier.auid49,2250
+    private String uri;ArtifactIdentifier.uri50,2275
+    private Integer version;ArtifactIdentifier.version51,2299
+    public ArtifactIdentifier(ArtifactIdentifier.ArtifactIdentifier53,2329
+    public ArtifactIdentifier(ArtifactIdentifier.ArtifactIdentifier57,2481
+    public String getCollection(ArtifactIdentifier.getCollection70,2868
+    public String getAuid(ArtifactIdentifier.getAuid79,3073
+    public String getUri(ArtifactIdentifier.getUri88,3248
+    public Integer getVersion(ArtifactIdentifier.getVersion97,3437
+    public String getId(ArtifactIdentifier.getId106,3646
+    public void setId(ArtifactIdentifier.setId115,3825
+    public int compareTo(ArtifactIdentifier.compareTo128,4405
+    public boolean equals(ArtifactIdentifier.equals140,4881
+    public String toString(ArtifactIdentifier.toString150,5094
+
+src/main/java/org/lockss/laaws/rs/model/ArtifactPageInfo.java,621
+public class ArtifactPageInfo 41,1689
+  private List<Artifact> artifacts ArtifactPageInfo.artifacts42,1721
+  private PageInfo pageInfo ArtifactPageInfo.pageInfo43,1777
+  public List<Artifact> getArtifacts(ArtifactPageInfo.getArtifacts50,1953
+  public void setArtifacts(ArtifactPageInfo.setArtifacts58,2160
+  public PageInfo getPageInfo(ArtifactPageInfo.getPageInfo67,2369
+  public void setPageInfo(ArtifactPageInfo.setPageInfo76,2551
+  public boolean equals(ArtifactPageInfo.equals81,2645
+  public int hashCode(ArtifactPageInfo.hashCode94,3032
+  public String toString(ArtifactPageInfo.toString99,3121
+
+src/main/java/org/lockss/laaws/rs/model/ArtifactRepositoryState.java,2012
+public class ArtifactRepositoryState 41,1828
+    public static String LOCKSS_JOURNAL_ID ArtifactRepositoryState.LOCKSS_JOURNAL_ID42,1893
+    public static final String REPOSITORY_COMMITTED_KEY ArtifactRepositoryState.REPOSITORY_COMMITTED_KEY44,1954
+    public static final String REPOSITORY_DELETED_KEY ArtifactRepositoryState.REPOSITORY_DELETED_KEY45,2025
+    private String artifactId;ArtifactRepositoryState.artifactId47,2093
+    private long entryDate;ArtifactRepositoryState.entryDate48,2124
+    private boolean committed;ArtifactRepositoryState.committed49,2152
+    private boolean deleted;ArtifactRepositoryState.deleted50,2183
+    public ArtifactRepositoryState(ArtifactRepositoryState.ArtifactRepositoryState52,2213
+    public ArtifactRepositoryState(ArtifactRepositoryState.ArtifactRepositoryState59,2371
+    public ArtifactRepositoryState(ArtifactRepositoryState.ArtifactRepositoryState63,2458
+    public static String getJournalId(ArtifactRepositoryState.getJournalId76,2893
+    public ArtifactRepositoryState(ArtifactRepositoryState.ArtifactRepositoryState86,3151
+    public ArtifactRepositoryState(ArtifactRepositoryState.ArtifactRepositoryState97,3542
+    public String getArtifactId(ArtifactRepositoryState.getArtifactId111,3948
+    public Instant getEntryDate(ArtifactRepositoryState.getEntryDate116,4032
+    public boolean isCommitted(ArtifactRepositoryState.isCommitted125,4267
+    public boolean getCommitted(ArtifactRepositoryState.getCommitted134,4477
+    public void setCommitted(ArtifactRepositoryState.setCommitted143,4723
+    public boolean isDeleted(ArtifactRepositoryState.isDeleted153,5017
+    public boolean getDeleted(ArtifactRepositoryState.getDeleted162,5223
+    public void setDeleted(ArtifactRepositoryState.setDeleted171,5459
+    public JSONObject toJson(ArtifactRepositoryState.toJson181,5744
+    public String toString(ArtifactRepositoryState.toString194,6085
+    public boolean equals(ArtifactRepositoryState.equals204,6386
+
+src/main/java/org/lockss/laaws/rs/model/AuJournalEntry.java,191
+public interface AuJournalEntry 5,63
+    String LOCKSS_MD_ARTIFACTID_KEY AuJournalEntry.LOCKSS_MD_ARTIFACTID_KEY6,97
+    String JOURNAL_ENTRY_DATE=AuJournalEntry.JOURNAL_ENTRY_DATE7,149
+
+src/main/java/org/lockss/laaws/rs/model/AuidPageInfo.java,554
+public class AuidPageInfo 41,1705
+  private List<String> auids AuidPageInfo.auids42,1733
+  private PageInfo pageInfo AuidPageInfo.pageInfo43,1783
+  public List<String> getAuids(AuidPageInfo.getAuids51,2002
+  public void setAuids(AuidPageInfo.setAuids61,2249
+  public PageInfo getPageInfo(AuidPageInfo.getPageInfo70,2440
+  public void setPageInfo(AuidPageInfo.setPageInfo79,2622
+  public boolean equals(AuidPageInfo.equals84,2716
+  public int hashCode(AuidPageInfo.hashCode97,3075
+  public String toString(AuidPageInfo.toString102,3160
+
+src/main/java/org/lockss/laaws/rs/model/CollectionAuidPair.java,376
+public class CollectionAuidPair 35,1695
+  public CollectionAuidPair(CollectionAuidPair.CollectionAuidPair36,1765
+  public String getCollection(CollectionAuidPair.getCollection40,1861
+  public String getAuid(CollectionAuidPair.getAuid44,1922
+  public void setCollection(CollectionAuidPair.setCollection48,1978
+  public void setAuid(CollectionAuidPair.setAuid52,2057
+
+src/main/java/org/lockss/laaws/rs/model/Error.java,526
+public class Error 46,2075
+  public Error code(Error.code53,2215
+  @ApiModelProperty(Error.@ApiModelProperty62,2340
+  public void setCode(Error.setCode70,2453
+  public Error message(Error.message74,2518
+  @ApiModelProperty(Error.@ApiModelProperty83,2660
+  public void setMessage(Error.setMessage91,2778
+  public boolean equals(Error.equals97,2867
+  public int hashCode(Error.hashCode110,3187
+  public String toString(Error.toString115,3270
+  private String toIndentedString(Error.toIndentedString129,3703
+
+src/main/java/org/lockss/laaws/rs/model/PageInfo.java,1123
+public class PageInfo 39,1660
+  private Integer totalCount PageInfo.totalCount40,1684
+  private Integer resultsPerPage PageInfo.resultsPerPage41,1721
+  private String continuationToken PageInfo.continuationToken42,1762
+  private String curLink PageInfo.curLink43,1805
+  private String nextLink PageInfo.nextLink44,1838
+  public Integer getTotalCount(PageInfo.getTotalCount51,1992
+  public void setTotalCount(PageInfo.setTotalCount60,2181
+  public Integer getResultsPerPage(PageInfo.getResultsPerPage69,2395
+  public void setResultsPerPage(PageInfo.setResultsPerPage78,2602
+  public String getContinuationToken(PageInfo.getContinuationToken87,2814
+  public void setContinuationToken(PageInfo.setContinuationToken96,3011
+  public String getCurLink(PageInfo.getCurLink105,3242
+  public void setCurLink(PageInfo.setCurLink114,3421
+  public String getNextLink(PageInfo.getNextLink123,3606
+  public void setNextLink(PageInfo.setNextLink132,3782
+  public boolean equals(PageInfo.equals137,3874
+  public int hashCode(PageInfo.hashCode153,4424
+  public String toString(PageInfo.toString159,4559
+
+src/main/java/org/lockss/laaws/rs/model/RemoteArtifactData.java,199
+public class RemoteArtifactData 44,1942
+    public RemoteArtifactData(RemoteArtifactData.RemoteArtifactData45,1997
+    public InputStream getInputStream(RemoteArtifactData.getInputStream50,2186
+
+src/main/java/org/lockss/laaws/rs/model/RepositoryInfo.java,623
+public class RepositoryInfo 37,1550
+  private StorageInfo storeInfo;RepositoryInfo.storeInfo38,1604
+  private StorageInfo indexInfo;RepositoryInfo.indexInfo39,1637
+  public RepositoryInfo(RepositoryInfo.RepositoryInfo44,1709
+  public RepositoryInfo(RepositoryInfo.RepositoryInfo47,1742
+  public StorageInfo getStoreInfo(RepositoryInfo.getStoreInfo52,1883
+  public void setStoreInfo(RepositoryInfo.setStoreInfo56,1948
+  public StorageInfo getIndexInfo(RepositoryInfo.getIndexInfo60,2037
+  public void setIndexInfo(RepositoryInfo.setIndexInfo64,2102
+  public String toString(RepositoryInfo.toString69,2203
+
+src/main/java/org/lockss/laaws/rs/util/ArtifactComparators.java,684
+public class ArtifactComparators 40,1688
+  public static final Comparator<Artifact> BY_URI ArtifactComparators.BY_URI42,1724
+  public static final Comparator<Artifact> BY_DECREASING_VERSION ArtifactComparators.BY_DECREASING_VERSION45,1860
+  public static final Comparator<Artifact> BY_DATE_BY_AUID_BY_DECREASING_VERSION ArtifactComparators.BY_DATE_BY_AUID_BY_DECREASING_VERSION48,2000
+  public static final Comparator<Artifact> BY_URI_BY_DECREASING_VERSION ArtifactComparators.BY_URI_BY_DECREASING_VERSION53,2280
+  public static final Comparator<Artifact> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION57,2521
+
+src/main/java/org/lockss/laaws/rs/util/ArtifactConstants.java,1128
+public class ArtifactConstants 36,1704
+    public static final String ARTIFACT_ID_KEY ArtifactConstants.ARTIFACT_ID_KEY38,1762
+    public static final String ARTIFACT_COLLECTION_KEY ArtifactConstants.ARTIFACT_COLLECTION_KEY39,1839
+    public static final String ARTIFACT_AUID_KEY ArtifactConstants.ARTIFACT_AUID_KEY40,1932
+    public static final String ARTIFACT_URI_KEY ArtifactConstants.ARTIFACT_URI_KEY41,2013
+    public static final String ARTIFACT_VERSION_KEY ArtifactConstants.ARTIFACT_VERSION_KEY42,2092
+    public static final String ARTIFACT_STATE_COMMITTED ArtifactConstants.ARTIFACT_STATE_COMMITTED45,2204
+    public static final String ARTIFACT_STATE_DELETED ArtifactConstants.ARTIFACT_STATE_DELETED46,2297
+    public static final String ARTIFACT_LENGTH_KEY ArtifactConstants.ARTIFACT_LENGTH_KEY49,2405
+    public static final String ARTIFACT_DIGEST_KEY ArtifactConstants.ARTIFACT_DIGEST_KEY50,2490
+    public static final String ARTIFACT_ORIGIN_KEY ArtifactConstants.ARTIFACT_ORIGIN_KEY53,2597
+    public static final String ARTIFACT_STORED_DATE ArtifactConstants.ARTIFACT_STORED_DATE54,2682
+
+src/main/java/org/lockss/laaws/rs/util/ArtifactDataFactory.java,1791
+public class ArtifactDataFactory 73,3244
+  private final static L4JLogger log ArtifactDataFactory.log74,3279
+  public static ArtifactData fromHttpResponseStream(ArtifactDataFactory.fromHttpResponseStream83,3732
+  public static ArtifactData fromHttpResponseStream(ArtifactDataFactory.fromHttpResponseStream101,4566
+  public static HttpResponse getHttpResponseFromStream(ArtifactDataFactory.getHttpResponseFromStream134,6016
+  public static ArtifactData fromHttpResponse(ArtifactDataFactory.fromHttpResponse159,7169
+  public static ArtifactIdentifier buildArtifactIdentifier(ArtifactDataFactory.buildArtifactIdentifier184,8023
+  public static ArtifactIdentifier buildArtifactIdentifier(ArtifactDataFactory.buildArtifactIdentifier208,8967
+  public static ArtifactIdentifier buildArtifactIdentifier(ArtifactDataFactory.buildArtifactIdentifier229,9856
+  private static String getHeaderValue(ArtifactDataFactory.getHeaderValue258,10919
+  private static HttpHeaders transformHeaderArrayToHttpHeaders(ArtifactDataFactory.transformHeaderArrayToHttpHeaders278,11617
+  public static ArtifactData fromResource(ArtifactDataFactory.fromResource293,12246
+  public static ArtifactData fromResourceStream(ArtifactDataFactory.fromResourceStream306,12813
+  public static ArtifactData fromResourceStream(ArtifactDataFactory.fromResourceStream326,13626
+  public static ArtifactData fromArchiveRecord(ArtifactDataFactory.fromArchiveRecord337,14163
+  public static ArtifactData fromTransportResponseEntity(ArtifactDataFactory.fromTransportResponseEntity428,18386
+  private static ArtifactRepositoryState buildRepositoryMetadata(ArtifactDataFactory.buildRepositoryMetadata515,22090
+  private static boolean getBooleanHeaderValue(ArtifactDataFactory.getBooleanHeaderValue523,22455
+
+src/main/java/org/lockss/laaws/rs/util/ArtifactDataUtil.java,1198
+public class ArtifactDataUtil 56,2486
+    private final static L4JLogger log ArtifactDataUtil.log57,2518
+    public static InputStream getHttpResponseStreamFromArtifactData(ArtifactDataUtil.getHttpResponseStreamFromArtifactData69,3002
+    public static HttpResponse getHttpResponseFromArtifactData(ArtifactDataUtil.getHttpResponseFromArtifactData93,3957
+    private static Header[] getArtifactIdentifierHeaders(ArtifactDataUtil.getArtifactIdentifierHeaders121,5154
+    private static Header[] getArtifactIdentifierHeaders(ArtifactDataUtil.getArtifactIdentifierHeaders133,5635
+    public static InputStream getHttpResponseStreamFromHttpResponse(ArtifactDataUtil.getHttpResponseStreamFromHttpResponse152,6621
+    public static byte[] getHttpResponseHeader(ArtifactDataUtil.getHttpResponseHeader160,6986
+    public static void writeHttpResponseStream(ArtifactDataUtil.writeHttpResponseStream186,7993
+    public static void writeHttpResponse(ArtifactDataUtil.writeHttpResponse201,8603
+    private static void writeHttpResponseHeader(ArtifactDataUtil.writeHttpResponseHeader221,9484
+    public static byte[] getHttpStatusByteArray(ArtifactDataUtil.getHttpStatusByteArray232,10045
+
+src/main/java/org/lockss/laaws/rs/util/CompletedFuture.java,563
+public class CompletedFuture<CompletedFuture43,1938
+  private T v;CompletedFuture.v44,1993
+  public CompletedFuture(CompletedFuture.CompletedFuture46,2009
+  public boolean cancel(CompletedFuture.cancel51,2074
+  public boolean isCancelled(CompletedFuture.isCancelled56,2166
+  public boolean isDone(CompletedFuture.isDone61,2234
+  public T get(CompletedFuture.get66,2296
+  public T get(CompletedFuture.get71,2394
+  public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,CompletedFuture.ExecutionException71,2394
+
+src/main/java/org/lockss/laaws/rs/util/JmsFactorySource.java,43
+public interface JmsFactorySource 31,1486
+
+src/main/java/org/lockss/laaws/rs/util/NamedByteArrayResource.java,349
+public class NamedByteArrayResource 42,2082
+    private String name;NamedByteArrayResource.name43,2146
+    public NamedByteArrayResource(NamedByteArrayResource.NamedByteArrayResource52,2375
+    public String getFilename(NamedByteArrayResource.getFilename63,2658
+    public String getDescription(NamedByteArrayResource.getDescription73,2884
+
+src/main/java/org/lockss/laaws/rs/util/NamedInputStreamResource.java,458
+public class NamedInputStreamResource 43,1981
+    private String name;NamedInputStreamResource.name44,2049
+    public NamedInputStreamResource(NamedInputStreamResource.NamedInputStreamResource54,2287
+    public NamedInputStreamResource(NamedInputStreamResource.NamedInputStreamResource69,2729
+    public String getFilename(NamedInputStreamResource.getFilename80,3046
+    public String getDescription(NamedInputStreamResource.getDescription90,3272
+
+src/main/java/org/lockss/laaws/rs/util/RFC3339DateFormat.java,103
+public class RFC3339DateFormat 43,1960
+  public StringBuffer format(RFC3339DateFormat.format57,2314
+
+src/main/java/org/lockss/laaws/rs/util/SimpleRepositionableStream.java,579
+public class SimpleRepositionableStream RFC3339DateFormat.SimpleRepositionableStream72,3274
+  protected long position;SimpleRepositionableStream.position74,3374
+  public SimpleRepositionableStream(SimpleRepositionableStream.SimpleRepositionableStream76,3404
+  public long position(SimpleRepositionableStream.position82,3529
+  public void position(SimpleRepositionableStream.position87,3613
+  public int read(SimpleRepositionableStream.read92,3720
+  public int read(SimpleRepositionableStream.read101,3867
+  public int read(SimpleRepositionableStream.read110,4034
+
+src/main/java/org/lockss/laaws/rs/util/StreamingHttpResponse.java,365
+public class StreamingHttpResponse 48,2138
+    public StreamingHttpResponse(StreamingHttpResponse.StreamingHttpResponse56,2461
+    public StreamingHttpResponse(StreamingHttpResponse.StreamingHttpResponse70,2990
+    public StreamingHttpResponse(StreamingHttpResponse.StreamingHttpResponse85,3560
+    public void writeTo(StreamingHttpResponse.writeTo97,3885
+
+src/test/java/org/lockss/laaws/rs/core/AbstractLockssRepositoryTest.java,6209
+public abstract class AbstractLockssRepositoryTest 66,2573
+  private final static L4JLogger log AbstractLockssRepositoryTest.log72,2834
+  static boolean AVOID_STREAM_CLOSED_BUG AbstractLockssRepositoryTest.AVOID_STREAM_CLOSED_BUG74,2897
+  protected static int MAX_RANDOM_FILE AbstractLockssRepositoryTest.MAX_RANDOM_FILE76,2948
+  protected static int MAX_INCR_FILE AbstractLockssRepositoryTest.MAX_INCR_FILE77,2996
+  protected static String COLL1 AbstractLockssRepositoryTest.COLL189,3281
+  protected static String COLL2 AbstractLockssRepositoryTest.COLL290,3324
+  protected static String AUID1 AbstractLockssRepositoryTest.AUID191,3367
+  protected static String AUID2 AbstractLockssRepositoryTest.AUID292,3410
+  protected static String ARTID1 AbstractLockssRepositoryTest.ARTID193,3453
+  protected static String URL1 AbstractLockssRepositoryTest.URL195,3501
+  protected static String URL2 AbstractLockssRepositoryTest.URL296,3559
+  protected static String URL3 AbstractLockssRepositoryTest.URL397,3618
+  protected static String PREFIX1 AbstractLockssRepositoryTest.PREFIX198,3677
+  protected static String CONTENT1 AbstractLockssRepositoryTest.CONTENT1100,3735
+  protected static HttpHeaders HEADERS1 AbstractLockssRepositoryTest.HEADERS1102,3793
+  protected static StatusLine STATUS_LINE_OK AbstractLockssRepositoryTest.STATUS_LINE_OK108,3938
+  protected static StatusLine STATUS_LINE_MOVED AbstractLockssRepositoryTest.STATUS_LINE_MOVED110,4055
+  protected static String NO_COLL=AbstractLockssRepositoryTest.NO_COLL114,4236
+  protected static String NO_AUID AbstractLockssRepositoryTest.NO_AUID115,4282
+  protected static String NO_URL AbstractLockssRepositoryTest.NO_URL116,4329
+  protected static String NO_ARTID AbstractLockssRepositoryTest.NO_ARTID117,4374
+  protected static String[] COLLS AbstractLockssRepositoryTest.COLLS121,4570
+  protected static String[] AUIDS AbstractLockssRepositoryTest.AUIDS122,4631
+  protected static String[] URLS AbstractLockssRepositoryTest.URLS123,4692
+  protected enum StdVariants AbstractLockssRepositoryTest.StdVariants126,4797
+    empty,AbstractLockssRepositoryTest.StdVariants.empty127,4828
+    empty, commit1,AbstractLockssRepositoryTest.StdVariants.commit1127,4828
+    empty, commit1, uncommit1,AbstractLockssRepositoryTest.StdVariants.uncommit1127,4828
+    empty, commit1, uncommit1, url3,AbstractLockssRepositoryTest.StdVariants.url3127,4828
+    empty, commit1, uncommit1, url3, url3unc,AbstractLockssRepositoryTest.StdVariants.url3unc127,4828
+    empty, commit1, uncommit1, url3, url3unc, disjoint,AbstractLockssRepositoryTest.StdVariants.disjoint127,4828
+    grid3x3x3,AbstractLockssRepositoryTest.StdVariants.grid3x3x3128,4884
+    grid3x3x3, grid3x3x3x3,AbstractLockssRepositoryTest.StdVariants.grid3x3x3x3128,4884
+  public List<ArtifactSpec> getVariantSpecs(AbstractLockssRepositoryTest.getVariantSpecs133,5011
+  private String variant AbstractLockssRepositoryTest.variant231,8760
+  protected LockssRepository repository;AbstractLockssRepositoryTest.repository233,8802
+  private VariantState variantState AbstractLockssRepositoryTest.variantState234,8843
+  public void beforeEach(AbstractLockssRepositoryTest.beforeEach239,8928
+  void setUpRepo(AbstractLockssRepositoryTest.setUpRepo246,9085
+  public void tearDownArtifactDataStore(AbstractLockssRepositoryTest.tearDownArtifactDataStore253,9263
+  void beforeVariant(AbstractLockssRepositoryTest.beforeVariant261,9555
+  void instantiateScenario(AbstractLockssRepositoryTest.instantiateScenario267,9770
+  protected void setUpVariant(AbstractLockssRepositoryTest.setUpVariant278,10087
+  public void testArtifactSizes(AbstractLockssRepositoryTest.testArtifactSizes287,10308
+  public void testArtifactSize(AbstractLockssRepositoryTest.testArtifactSize293,10464
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource302,10804
+  public void testArtifactSpecInputStream(AbstractLockssRepositoryTest.testArtifactSpecInputStream328,11776
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource344,12291
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource387,13816
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource409,14549
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource448,16016
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource542,20129
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource574,21203
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource605,22431
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource718,26914
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource766,28474
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource814,30072
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource855,31777
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource899,33383
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource939,35132
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource965,36333
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource1000,37904
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource1030,39240
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource1053,39953
+  @EnumSource(AbstractLockssRepositoryTest.@EnumSource1065,40324
+  public static <T> Predicate<T> distinctByKey(AbstractLockssRepositoryTest.distinctByKey1105,41771
+  Pair<AbstractLockssRepositoryTest.Pair1112,42058
+  Pair<String,String> collAuMismatch(AbstractLockssRepositoryTest.collAuMismatch1112,42058
+  Artifact getArtifact(AbstractLockssRepositoryTest.getArtifact1134,42800
+  Artifact getArtifactVersion(AbstractLockssRepositoryTest.getArtifactVersion1154,43410
+  Artifact addUncommitted(AbstractLockssRepositoryTest.addUncommitted1169,43883
+  Artifact commit(AbstractLockssRepositoryTest.commit1223,45492
+  InputStream stringInputStream(AbstractLockssRepositoryTest.stringInputStream1268,47091
+  protected ArtifactData[] nullPointerArtData AbstractLockssRepositoryTest.nullPointerArtData1273,47260
+  protected ArtifactSpec[] neverFoundArtifactSpecs AbstractLockssRepositoryTest.neverFoundArtifactSpecs1284,47756
+  protected List<ArtifactSpec> notFoundArtifactSpecs(AbstractLockssRepositoryTest.notFoundArtifactSpecs1292,48069
+
+src/test/java/org/lockss/laaws/rs/core/RepoUtil.java,307
+public class RepoUtil 37,1526
+  private final static L4JLogger log RepoUtil.log38,1550
+  public static HttpHeaders httpHeadersFromMap(RepoUtil.httpHeadersFromMap41,1667
+  public static Map<RepoUtil.Map51,1980
+  public static Map<String,String> mapFromHttpHeaders(RepoUtil.mapFromHttpHeaders51,1980
+
+src/test/java/org/lockss/laaws/rs/core/TestArtifactCache.java,1235
+public class TestArtifactCache 39,1638
+  private final static L4JLogger log TestArtifactCache.log40,1695
+  static String COLL1 TestArtifactCache.COLL142,1758
+  static String COLL2 TestArtifactCache.COLL243,1788
+  static String AUID1 TestArtifactCache.AUID144,1818
+  static String AUID2 TestArtifactCache.AUID245,1851
+  static String ARTID1 TestArtifactCache.ARTID146,1884
+  static String ARTID2 TestArtifactCache.ARTID247,1921
+  static String ARTID3 TestArtifactCache.ARTID348,1958
+  static String URL1 TestArtifactCache.URL150,1996
+  static String URL2 TestArtifactCache.URL251,2025
+  static String URL3 TestArtifactCache.URL352,2054
+  private ArtifactCache cache;TestArtifactCache.cache54,2084
+  public void setUp(TestArtifactCache.setUp57,2130
+  Artifact makeArt(TestArtifactCache.makeArt62,2254
+  public void testArtCache(TestArtifactCache.testArtCache68,2440
+  public void testFillArtCache(TestArtifactCache.testFillArtCache117,4529
+  public void testArtIterator(TestArtifactCache.testArtIterator179,6826
+  ArtifactData makeAD(TestArtifactCache.makeAD235,8940
+  ArtifactData makeAD(TestArtifactCache.makeAD239,9051
+  public void testArtDataCache(TestArtifactCache.testArtDataCache252,9434
+
+src/test/java/org/lockss/laaws/rs/core/TestBaseLockssRepository.java,228
+public class TestBaseLockssRepository 35,1676
+    private final static L4JLogger log TestBaseLockssRepository.log36,1753
+    public LockssRepository makeLockssRepository(TestBaseLockssRepository.makeLockssRepository39,1832
+
+src/test/java/org/lockss/laaws/rs/core/TestLocalLockssRepository.java,536
+public class TestLocalLockssRepository TestBaseLockssRepository.TestLocalLockssRepository47,2107
+    private final static L4JLogger log TestLocalLockssRepository.log48,2185
+    private File repoBaseDir TestLocalLockssRepository.repoBaseDir51,2294
+    public LockssRepository makeLockssRepository(TestLocalLockssRepository.makeLockssRepository54,2346
+    public void tearDownArtifactDataStore(TestLocalLockssRepository.tearDownArtifactDataStore64,2604
+  public void testRepoInfo(TestLocalLockssRepository.testRepoInfo75,3040
+
+src/test/java/org/lockss/laaws/rs/core/TestLocalLockssRepositoryPersist.java,527
+public class TestLocalLockssRepositoryPersist 47,2124
+    private final static L4JLogger log TestLocalLockssRepositoryPersist.log48,2209
+    private File repoBaseDir TestLocalLockssRepositoryPersist.repoBaseDir51,2318
+    public LockssRepository makeLockssRepository(TestLocalLockssRepositoryPersist.makeLockssRepository54,2370
+    public void tearDownArtifactDataStore(TestLocalLockssRepositoryPersist.tearDownArtifactDataStore64,2637
+  public void testRepoInfo(TestLocalLockssRepositoryPersist.testRepoInfo75,3073
+
+src/test/java/org/lockss/laaws/rs/core/TestRestLockssRepositoryArtifactIterator.java,1273
+public class TestRestLockssRepositoryArtifactIterator 54,2527
+  private final static String BASEURL TestRestLockssRepositoryArtifactIterator.BASEURL55,2607
+  private final static String collectionId TestRestLockssRepositoryArtifactIterator.collectionId56,2673
+  private final static String auId TestRestLockssRepositoryArtifactIterator.auId57,2728
+  private RestTemplate restTemplate;TestRestLockssRepositoryArtifactIterator.restTemplate58,2773
+  private MockRestServiceServer mockServer;TestRestLockssRepositoryArtifactIterator.mockServer59,2810
+  private String endpoint;TestRestLockssRepositoryArtifactIterator.endpoint60,2854
+  private UriComponentsBuilder builder;TestRestLockssRepositoryArtifactIterator.builder61,2881
+  private RestLockssRepositoryArtifactIterator repoIterator;TestRestLockssRepositoryArtifactIterator.repoIterator62,2921
+  public void makeRepoIterator(TestRestLockssRepositoryArtifactIterator.makeRepoIterator68,3050
+  public void testEmptyRepository(TestRestLockssRepositoryArtifactIterator.testEmptyRepository83,3492
+  public void testPopulatedRepository(TestRestLockssRepositoryArtifactIterator.testPopulatedRepository103,4093
+  public void testPagination(TestRestLockssRepositoryArtifactIterator.testPagination137,5301
+
+src/test/java/org/lockss/laaws/rs/core/TestRestLockssRepositoryAuidIterator.java,1130
+public class TestRestLockssRepositoryAuidIterator 53,2480
+  private final static String BASEURL TestRestLockssRepositoryAuidIterator.BASEURL54,2556
+  private final static String collectionId TestRestLockssRepositoryAuidIterator.collectionId55,2622
+  private RestTemplate restTemplate;TestRestLockssRepositoryAuidIterator.restTemplate56,2677
+  private MockRestServiceServer mockServer;TestRestLockssRepositoryAuidIterator.mockServer57,2714
+  private String endpoint;TestRestLockssRepositoryAuidIterator.endpoint58,2758
+  private UriComponentsBuilder builder;TestRestLockssRepositoryAuidIterator.builder59,2785
+  private RestLockssRepositoryAuidIterator repoIterator;TestRestLockssRepositoryAuidIterator.repoIterator60,2825
+  public void makeRepoIterator(TestRestLockssRepositoryAuidIterator.makeRepoIterator66,2950
+  public void testEmptyRepository(TestRestLockssRepositoryAuidIterator.testEmptyRepository80,3372
+  public void testPopulatedRepository(TestRestLockssRepositoryAuidIterator.testPopulatedRepository99,3963
+  public void testPagination(TestRestLockssRepositoryAuidIterator.testPagination125,4833
+
+src/test/java/org/lockss/laaws/rs/core/TestVolatileLockssRepository.java,318
+public class TestVolatileLockssRepository 44,2041
+    private final static L4JLogger log TestVolatileLockssRepository.log45,2122
+    public LockssRepository makeLockssRepository(TestVolatileLockssRepository.makeLockssRepository48,2201
+  public void testRepoInfo(TestVolatileLockssRepository.testRepoInfo53,2335
+
+src/test/java/org/lockss/laaws/rs/io/index/AbstractArtifactIndexTest.java,4127
+public abstract class AbstractArtifactIndexTest<AbstractArtifactIndexTest58,2497
+  private final static L4JLogger log AbstractArtifactIndexTest.log59,2597
+  protected AI index;AbstractArtifactIndexTest.index61,2660
+  public void setupCommon(AbstractArtifactIndexTest.setupCommon77,3402
+  protected VariantState variantState AbstractArtifactIndexTest.variantState90,3900
+  protected String variant AbstractArtifactIndexTest.variant91,3960
+  public enum TestIndexScenarios AbstractArtifactIndexTest.TestIndexScenarios93,4004
+    empty,AbstractArtifactIndexTest.TestIndexScenarios.empty94,4039
+    empty, commit1,AbstractArtifactIndexTest.TestIndexScenarios.commit194,4039
+    empty, commit1, delete1,AbstractArtifactIndexTest.TestIndexScenarios.delete194,4039
+    empty, commit1, delete1, double_delete,AbstractArtifactIndexTest.TestIndexScenarios.double_delete94,4039
+    empty, commit1, delete1, double_delete, double_commit,AbstractArtifactIndexTest.TestIndexScenarios.double_commit94,4039
+    empty, commit1, delete1, double_delete, double_commit, commit_delete_2x2AbstractArtifactIndexTest.TestIndexScenarios.commit_delete_2x294,4039
+  protected void setUpVariant(AbstractArtifactIndexTest.setUpVariant99,4207
+  protected void beforeVariant(AbstractArtifactIndexTest.beforeVariant104,4337
+  protected List<ArtifactSpec> getArtifactSpecsForVariant(AbstractArtifactIndexTest.getArtifactSpecsForVariant113,4665
+  protected void populateIndex(AbstractArtifactIndexTest.populateIndex155,5859
+  protected void indexArtifactSpec(AbstractArtifactIndexTest.indexArtifactSpec165,6198
+  protected void indexArtifactSpec(AbstractArtifactIndexTest.indexArtifactSpec169,6314
+  public void testWaitReady(AbstractArtifactIndexTest.testWaitReady223,8355
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource243,9152
+  public void testIndexArtfact_artifactRepoState(AbstractArtifactIndexTest.testIndexArtfact_artifactRepoState287,11069
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource314,11926
+  public void testGetArtifact_latestCommitted(AbstractArtifactIndexTest.testGetArtifact_latestCommitted360,13965
+  public void assertLatestArtifactVersion(AbstractArtifactIndexTest.assertLatestArtifactVersion427,16386
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource441,17068
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource460,17864
+  public void testGetArtifactsAllVersionsAllAus(AbstractArtifactIndexTest.testGetArtifactsAllVersionsAllAus485,18966
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource534,20792
+  public void testGetArtifactsWithPrefixAllVersionsAllAus(AbstractArtifactIndexTest.testGetArtifactsWithPrefixAllVersionsAllAus570,22298
+  private void assertGetArtifactsWithPrefixAllVersionsAllAus(AbstractArtifactIndexTest.assertGetArtifactsWithPrefixAllVersionsAllAus628,24769
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource642,25373
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource672,26506
+  private static final int MAXIMUM_URL_LENGTH AbstractArtifactIndexTest.MAXIMUM_URL_LENGTH708,28253
+  public void testLongUrls(AbstractArtifactIndexTest.testLongUrls711,28317
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource750,29684
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource769,30527
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource826,32758
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource870,34854
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource916,36829
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource950,38132
+  @EnumSource(AbstractArtifactIndexTest.@EnumSource988,39698
+  public static AbstractArtifactIndexTest.static1110,45431
+  public static <A, B> List<AbstractArtifactIndexTest.List1110,45431
+  public static <A, B> List<Pair<A, B>> zip(AbstractArtifactIndexTest.zip1110,45431
+  public static AbstractArtifactIndexTest.static1114,45548
+  public static <A, B> List<AbstractArtifactIndexTest.List1114,45548
+  public static <A, B> List<Pair<A, B>> zip(AbstractArtifactIndexTest.zip1114,45548
+  private static ArtifactSpec createArtifactSpec(AbstractArtifactIndexTest.createArtifactSpec1120,45772
+
+src/test/java/org/lockss/laaws/rs/io/index/TestArtifactPredicateBuilder.java,715
+public class TestArtifactPredicateBuilder 39,1812
+    public void setUp(TestArtifactPredicateBuilder.setUp43,1898
+    public void filterByAuid(TestArtifactPredicateBuilder.filterByAuid47,1958
+    public void filterByCommitStatus(TestArtifactPredicateBuilder.filterByCommitStatus51,2008
+    public void filterByCollection(TestArtifactPredicateBuilder.filterByCollection55,2066
+    public void filterByURIPrefix(TestArtifactPredicateBuilder.filterByURIPrefix59,2122
+    public void filterByURIMatch(TestArtifactPredicateBuilder.filterByURIMatch63,2177
+    public void filterByVersion(TestArtifactPredicateBuilder.filterByVersion67,2231
+    public void build(TestArtifactPredicateBuilder.build71,2284
+
+src/test/java/org/lockss/laaws/rs/io/index/TestLocalArtifactIndex.java,1175
+public class TestLocalArtifactIndex TestArtifactPredicateBuilder.TestLocalArtifactIndex46,2084
+    private final static L4JLogger log TestLocalArtifactIndex.log47,2176
+    private static final String PERSISTED_INDEX_NAME TestLocalArtifactIndex.PERSISTED_INDEX_NAME49,2241
+    private File testBaseDir;TestLocalArtifactIndex.testBaseDir50,2320
+    public LocalArtifactIndex makeArtifactIndex(TestLocalArtifactIndex.makeArtifactIndex56,2619
+    void tearDown(TestLocalArtifactIndex.tearDown64,2853
+    protected static void quietlyDeleteDir(TestLocalArtifactIndex.quietlyDeleteDir72,3189
+    private void compareArtifactIndexes(TestLocalArtifactIndex.compareArtifactIndexes81,3387
+    void addToIndexTest(TestLocalArtifactIndex.addToIndexTest119,5508
+    void removeFromIndexTest(TestLocalArtifactIndex.removeFromIndexTest141,6422
+    void populateFromPersistenceTest(TestLocalArtifactIndex.populateFromPersistenceTest146,6488
+    void persistTest(TestLocalArtifactIndex.persistTest151,6562
+    public void testInitIndex(TestLocalArtifactIndex.testInitIndex158,6648
+    public void testShutdownIndex(TestLocalArtifactIndex.testShutdownIndex165,6760
+
+src/test/java/org/lockss/laaws/rs/io/index/TestVolatileArtifactIndex.java,315
+public class TestVolatileArtifactIndex 37,1771
+  protected VolatileArtifactIndex makeArtifactIndex(TestVolatileArtifactIndex.makeArtifactIndex44,2148
+  public void testInitIndex(TestVolatileArtifactIndex.testInitIndex54,2549
+  public void testShutdownIndex(TestVolatileArtifactIndex.testShutdownIndex62,2726
+
+src/test/java/org/lockss/laaws/rs/io/index/solr/TestMetricsResponse.java,1873
+public class TestMetricsResponse 58,2571
+  private final static L4JLogger log TestMetricsResponse.log59,2630
+  private ClientAndServer mockServer;TestMetricsResponse.mockServer61,2693
+  public void startMockServer(TestMetricsResponse.startMockServer68,3017
+  public void stopMockServer(TestMetricsResponse.stopMockServer73,3110
+  public void testCoreMetrics(TestMetricsResponse.testCoreMetrics82,3435
+  public void testNodeMetrics(TestMetricsResponse.testNodeMetrics164,6479
+  public class TestCoreMetricsResponse TestMetricsResponse.TestCoreMetricsResponse232,9025
+    public void testSolrCoreKey(TestMetricsResponse.TestCoreMetricsResponse.testSolrCoreKey240,9209
+    public void testGetCoreMetrics(TestMetricsResponse.TestCoreMetricsResponse.testGetCoreMetrics251,9567
+  public class TestCoreMetrics TestMetricsResponse.TestCoreMetrics301,11729
+    public void testGetIndexDir(TestMetricsResponse.TestCoreMetrics.testGetIndexDir308,11886
+    public void testGetIndexSizeInBytes(TestMetricsResponse.TestCoreMetrics.testGetIndexSizeInBytes321,12339
+    public void testGetTotalSpace(TestMetricsResponse.TestCoreMetrics.testGetTotalSpace334,12812
+    public void testGetUsableSpace(TestMetricsResponse.TestCoreMetrics.testGetUsableSpace347,13269
+  public class TestNodeMetricsResponse TestMetricsResponse.TestNodeMetricsResponse359,13687
+    public void testGetNodeMetrics(TestMetricsResponse.TestNodeMetricsResponse.testGetNodeMetrics367,13864
+  public class TestNodeMetrics TestMetricsResponse.TestNodeMetrics405,15502
+    public void testNodeMetricsConstructor(TestMetricsResponse.TestNodeMetrics.testNodeMetricsConstructor407,15545
+    public void testGetTotalSpace(TestMetricsResponse.TestNodeMetrics.testGetTotalSpace428,16339
+    public void testGetUsableSpace(TestMetricsResponse.TestNodeMetrics.testGetUsableSpace441,16801
+
+src/test/java/org/lockss/laaws/rs/io/index/solr/TestSolrArtifactIndex.java,1070
+public class TestSolrArtifactIndex 46,2075
+  private final static L4JLogger log TestSolrArtifactIndex.log47,2165
+  private static final String TEST_SOLR_CORE_NAME TestSolrArtifactIndex.TEST_SOLR_CORE_NAME49,2228
+  private static final String TEST_SOLR_HOME_RESOURCES TestSolrArtifactIndex.TEST_SOLR_HOME_RESOURCES50,2288
+  private static EmbeddedSolrServer client;TestSolrArtifactIndex.client52,2365
+  private static File tmpSolrHome;TestSolrArtifactIndex.tmpSolrHome53,2409
+  private void copyResourcesForTests(TestSolrArtifactIndex.copyResourcesForTests79,3301
+  protected SolrArtifactIndex makeArtifactIndex(TestSolrArtifactIndex.makeArtifactIndex104,4146
+  public void removeSolrCollection(TestSolrArtifactIndex.removeSolrCollection120,4809
+  public void testInitIndex(TestSolrArtifactIndex.testInitIndex134,5315
+  public void testShutdownIndex(TestSolrArtifactIndex.testShutdownIndex141,5519
+  public void testWaitReady(TestSolrArtifactIndex.testWaitReady147,5668
+  public void testStorageInfo(TestSolrArtifactIndex.testStorageInfo153,5785
+
+src/test/java/org/lockss/laaws/rs/io/storage/hdfs/TestHdfsWarcArtifactStore.java,2961
+public class TestHdfsWarcArtifactStore 63,2747
+  private final static L4JLogger log TestHdfsWarcArtifactStore.log64,2857
+  private static MiniDFSCluster hdfsCluster;TestHdfsWarcArtifactStore.hdfsCluster66,2920
+  private java.nio.file.Path basePath;TestHdfsWarcArtifactStore.basePath67,2965
+  private final static class ProxyLockssTestCase5 TestHdfsWarcArtifactStore.ProxyLockssTestCase574,3296
+  private final static ProxyLockssTestCase5 proxyLockssTestCase5 TestHdfsWarcArtifactStore.proxyLockssTestCase578,3409
+  public static void startMiniDFSCluster(TestHdfsWarcArtifactStore.startMiniDFSCluster81,3518
+  public static void stopMiniDFSCluster(TestHdfsWarcArtifactStore.stopMiniDFSCluster105,4411
+  protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(TestHdfsWarcArtifactStore.makeWarcArtifactDataStore112,4543
+  protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(TestHdfsWarcArtifactStore.makeWarcArtifactDataStore127,4975
+  protected boolean pathExists(TestHdfsWarcArtifactStore.pathExists136,5529
+  protected boolean isDirectory(TestHdfsWarcArtifactStore.isDirectory142,5733
+  protected boolean isFile(TestHdfsWarcArtifactStore.isFile148,5959
+  protected java.nio.file.Path[] expected_getBasePaths(TestHdfsWarcArtifactStore.expected_getBasePaths161,6300
+  protected java.nio.file.Path[] expected_getTmpWarcBasePaths(TestHdfsWarcArtifactStore.expected_getTmpWarcBasePaths166,6440
+  public void testInitDataStoreImpl(TestHdfsWarcArtifactStore.testInitDataStoreImpl190,7497
+  public void testInitCollectionImpl(TestHdfsWarcArtifactStore.testInitCollectionImpl212,8094
+  public void testInitAuImpl(TestHdfsWarcArtifactStore.testInitAuImpl240,9088
+  public void testMakeStorageUrlImpl(TestHdfsWarcArtifactStore.testMakeStorageUrlImpl306,11929
+  public void testInitWarcImpl(TestHdfsWarcArtifactStore.testInitWarcImpl316,12201
+  public void testGetWarcLengthImpl(TestHdfsWarcArtifactStore.testGetWarcLengthImpl343,13072
+  public void testFindWarcsImpl(TestHdfsWarcArtifactStore.testFindWarcsImpl372,14108
+  class WrappedIteratorRemoteIterator<TestHdfsWarcArtifactStore.WrappedIteratorRemoteIterator436,16677
+    Iterator<T> inner;TestHdfsWarcArtifactStore.WrappedIteratorRemoteIterator.inner437,16749
+    public WrappedIteratorRemoteIterator(TestHdfsWarcArtifactStore.WrappedIteratorRemoteIterator.WrappedIteratorRemoteIterator439,16773
+    public boolean hasNext(TestHdfsWarcArtifactStore.WrappedIteratorRemoteIterator.hasNext444,16882
+    public T next(TestHdfsWarcArtifactStore.WrappedIteratorRemoteIterator.next449,16964
+  public void testRemoveWarcImpl(TestHdfsWarcArtifactStore.testRemoveWarcImpl460,17156
+  public void testGetBlockSizeImpl(TestHdfsWarcArtifactStore.testGetBlockSizeImpl483,17832
+  public void testGetFreeSpaceImpl(TestHdfsWarcArtifactStore.testGetFreeSpaceImpl495,18231
+  public void testInitAuDirImpl(TestHdfsWarcArtifactStore.testInitAuDirImpl521,19037
+
+src/test/java/org/lockss/laaws/rs/io/storage/local/TestLocalWarcArtifactDataStore.java,2154
+public class TestLocalWarcArtifactDataStore 59,2490
+  private final static L4JLogger log TestLocalWarcArtifactDataStore.log60,2606
+  private File testRepoBasePath;TestLocalWarcArtifactDataStore.testRepoBasePath61,2668
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(TestLocalWarcArtifactDataStore.makeWarcArtifactDataStore68,2970
+  protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(TestLocalWarcArtifactDataStore.makeWarcArtifactDataStore76,3243
+  protected boolean pathExists(TestLocalWarcArtifactDataStore.pathExists87,3775
+  protected boolean isDirectory(TestLocalWarcArtifactDataStore.isDirectory92,3890
+  protected boolean isFile(TestLocalWarcArtifactDataStore.isFile97,3992
+  protected Path[] expected_getTmpWarcBasePaths(TestLocalWarcArtifactDataStore.expected_getTmpWarcBasePaths104,4206
+  protected Path[] expected_getBasePaths(TestLocalWarcArtifactDataStore.expected_getBasePaths109,4380
+  public void testMakeStorageUrlImpl(TestLocalWarcArtifactDataStore.testMakeStorageUrlImpl126,5162
+  public void testInitWarcImpl(TestLocalWarcArtifactDataStore.testInitWarcImpl144,5857
+  public void testGetWarcLengthImpl(TestLocalWarcArtifactDataStore.testGetWarcLengthImpl170,6965
+  public void testFindWarcsImpl(TestLocalWarcArtifactDataStore.testFindWarcsImpl186,7471
+  private File mockFile(TestLocalWarcArtifactDataStore.mockFile245,9726
+  public void testRemoveWarcImpl(TestLocalWarcArtifactDataStore.testRemoveWarcImpl258,10140
+  public void testGetBlockSizeImpl(TestLocalWarcArtifactDataStore.testGetBlockSizeImpl274,10637
+  public void testGetFreeSpaceImpl(TestLocalWarcArtifactDataStore.testGetFreeSpaceImpl279,10796
+  public void testInitAuDirImpl(TestLocalWarcArtifactDataStore.testInitAuDirImpl300,11427
+  public void testInitDataStoreImpl(TestLocalWarcArtifactDataStore.testInitDataStoreImpl337,12894
+  public void testInitCollectionImpl(TestLocalWarcArtifactDataStore.testInitCollectionImpl346,13192
+  public void testInitAuImpl(TestLocalWarcArtifactDataStore.testInitAuImpl370,13914
+  private Path mockPathFile(TestLocalWarcArtifactDataStore.mockPathFile413,15718
+
+src/test/java/org/lockss/laaws/rs/io/storage/warc/AbstractWarcArtifactDataStoreTest.java,13679
+public abstract class AbstractWarcArtifactDataStoreTest<TestLocalWarcArtifactDataStore.AbstractWarcArtifactDataStoreTest95,3999
+  private final static L4JLogger log AbstractWarcArtifactDataStoreTest.log96,4117
+  protected WADS store;AbstractWarcArtifactDataStoreTest.store99,4221
+  public void setupTestContext(AbstractWarcArtifactDataStoreTest.setupTestContext106,4516
+  public void teardownDataStore(AbstractWarcArtifactDataStoreTest.teardownDataStore127,5148
+  protected VariantState variantState AbstractWarcArtifactDataStoreTest.variantState141,5703
+  protected String variant AbstractWarcArtifactDataStoreTest.variant142,5763
+  public enum TestRepoScenarios AbstractWarcArtifactDataStoreTest.TestRepoScenarios144,5807
+    empty,AbstractWarcArtifactDataStoreTest.TestRepoScenarios.empty145,5841
+    empty, commit1,AbstractWarcArtifactDataStoreTest.TestRepoScenarios.commit1145,5841
+    empty, commit1, delete1,AbstractWarcArtifactDataStoreTest.TestRepoScenarios.delete1145,5841
+    empty, commit1, delete1, double_delete,AbstractWarcArtifactDataStoreTest.TestRepoScenarios.double_delete145,5841
+    empty, commit1, delete1, double_delete, double_commit,AbstractWarcArtifactDataStoreTest.TestRepoScenarios.double_commit145,5841
+    empty, commit1, delete1, double_delete, double_commit, commit_delete_2x2,AbstractWarcArtifactDataStoreTest.TestRepoScenarios.commit_delete_2x2145,5841
+    empty, commit1, delete1, double_delete, double_commit, commit_delete_2x2, overlapAbstractWarcArtifactDataStoreTest.TestRepoScenarios.overlap145,5841
+  protected static String COLL1 AbstractWarcArtifactDataStoreTest.COLL1149,5985
+  protected static String COLL2 AbstractWarcArtifactDataStoreTest.COLL2150,6028
+  protected static String AUID1 AbstractWarcArtifactDataStoreTest.AUID1151,6071
+  protected static String AUID2 AbstractWarcArtifactDataStoreTest.AUID2152,6114
+  protected static String ARTID1 AbstractWarcArtifactDataStoreTest.ARTID1153,6157
+  protected static String URL1 AbstractWarcArtifactDataStoreTest.URL1155,6205
+  protected static String URL2 AbstractWarcArtifactDataStoreTest.URL2156,6263
+  protected static String NO_COLL AbstractWarcArtifactDataStoreTest.NO_COLL159,6380
+  protected static String NO_AUID AbstractWarcArtifactDataStoreTest.NO_AUID160,6427
+  protected static String NO_URL AbstractWarcArtifactDataStoreTest.NO_URL161,6474
+  protected static String NO_ARTID AbstractWarcArtifactDataStoreTest.NO_ARTID162,6519
+  protected ArtifactSpec[] neverFoundArtifactSpecs AbstractWarcArtifactDataStoreTest.neverFoundArtifactSpecs165,6646
+  protected List<ArtifactSpec> getArtifactSpecsForVariant(AbstractWarcArtifactDataStoreTest.getArtifactSpecsForVariant171,6872
+  protected void setUpVariant(AbstractWarcArtifactDataStoreTest.setUpVariant228,9003
+  protected void beforeVariant(AbstractWarcArtifactDataStoreTest.beforeVariant233,9133
+  protected void populateDataStore(AbstractWarcArtifactDataStoreTest.populateDataStore242,9417
+  private void assertVariantState(AbstractWarcArtifactDataStoreTest.assertVariantState277,10440
+  protected void deleteArtifactData(AbstractWarcArtifactDataStoreTest.deleteArtifactData340,13435
+  protected void commitArtifactData(AbstractWarcArtifactDataStoreTest.commitArtifactData366,14245
+  private Artifact addArtifactData(AbstractWarcArtifactDataStoreTest.addArtifactData437,16718
+  private ArtifactData generateTestArtifactData(AbstractWarcArtifactDataStoreTest.generateTestArtifactData528,20444
+  private Iterable<Path> findWarcs(AbstractWarcArtifactDataStoreTest.findWarcs553,21471
+  private Iterable<Path> findWarcs(AbstractWarcArtifactDataStoreTest.findWarcs557,21600
+  public void testStaticCode(AbstractWarcArtifactDataStoreTest.testStaticCode570,22084
+  public void testInitCollection(AbstractWarcArtifactDataStoreTest.testInitCollection580,22561
+  public void testInitAu(AbstractWarcArtifactDataStoreTest.testInitAu585,22658
+  public void testMakeStorageUrl(AbstractWarcArtifactDataStoreTest.testMakeStorageUrl594,23042
+  public void testInitWarc(AbstractWarcArtifactDataStoreTest.testInitWarc613,23606
+  public void testGetWarcLength(AbstractWarcArtifactDataStoreTest.testGetWarcLength620,23752
+  public void testFindWarcs(AbstractWarcArtifactDataStoreTest.testFindWarcs627,23913
+  public void testRemoveWarc(AbstractWarcArtifactDataStoreTest.testRemoveWarc634,24062
+  public void testGetBlockSize(AbstractWarcArtifactDataStoreTest.testGetBlockSize641,24214
+  public void testGetFreeSpace(AbstractWarcArtifactDataStoreTest.testGetFreeSpace648,24372
+  public void testInitAuDir(AbstractWarcArtifactDataStoreTest.testInitAuDir655,24530
+  public void testBaseConstructor(AbstractWarcArtifactDataStoreTest.testBaseConstructor666,24949
+  public void testInitDataStore(AbstractWarcArtifactDataStoreTest.testInitDataStore692,25978
+  public void testShutdownDataStore(AbstractWarcArtifactDataStoreTest.testShutdownDataStore718,26733
+  public void testShutdownDataStoreImpl(AbstractWarcArtifactDataStoreTest.testShutdownDataStoreImpl722,26828
+  public void testReloadDataStoreState(AbstractWarcArtifactDataStoreTest.testReloadDataStoreState740,27352
+  public void testGetBasePathFromStorageUrl(AbstractWarcArtifactDataStoreTest.testGetBasePathFromStorageUrl765,28295
+  public void testIsTmpStorage(AbstractWarcArtifactDataStoreTest.testIsTmpStorage791,29120
+  public void testGetBasePaths(AbstractWarcArtifactDataStoreTest.testGetBasePaths814,29816
+  public void testGetTmpWarcBasePaths(AbstractWarcArtifactDataStoreTest.testGetTmpWarcBasePaths824,30058
+  public void testGetCollectionsBasePath(AbstractWarcArtifactDataStoreTest.testGetCollectionsBasePath835,30376
+  public void testGetCollectionPath(AbstractWarcArtifactDataStoreTest.testGetCollectionPath849,30879
+  public void testGetAuPath(AbstractWarcArtifactDataStoreTest.testGetAuPath868,31603
+  public void testGetAuPaths(AbstractWarcArtifactDataStoreTest.testGetAuPaths899,32611
+  public void testGetAuActiveWarcPath(AbstractWarcArtifactDataStoreTest.testGetAuActiveWarcPath932,33831
+  public void testGetMinMaxFreeSpacePath(AbstractWarcArtifactDataStoreTest.testGetMinMaxFreeSpacePath966,35199
+  public void testGetAuActiveWarcPaths(AbstractWarcArtifactDataStoreTest.testGetAuActiveWarcPaths1026,37371
+  public void testFindAuActiveWarcs(AbstractWarcArtifactDataStoreTest.testFindAuActiveWarcs1061,38804
+  private Path makeTestAuWarcPath(AbstractWarcArtifactDataStoreTest.makeTestAuWarcPath1109,40737
+  public void testGetAuJournalPath(AbstractWarcArtifactDataStoreTest.testGetAuJournalPath1126,41279
+  public void testGetAuJournalPaths(AbstractWarcArtifactDataStoreTest.testGetAuJournalPaths1168,42712
+  public void testMakeWarcRecordStorageUrl(AbstractWarcArtifactDataStoreTest.testMakeWarcRecordStorageUrl1213,44556
+  public void testMakeWarcRecordStorageUrl_WarcRecordLocation(AbstractWarcArtifactDataStoreTest.testMakeWarcRecordStorageUrl_WarcRecordLocation1247,45652
+  public void testGetPathFromStorageUrl(AbstractWarcArtifactDataStoreTest.testGetPathFromStorageUrl1273,46513
+  public void testMarkAndGetInputStream(AbstractWarcArtifactDataStoreTest.testMarkAndGetInputStream1288,47103
+  public void testMarkAndGetInputStreamAndSeek(AbstractWarcArtifactDataStoreTest.testMarkAndGetInputStreamAndSeek1307,47674
+  public void testGenerateActiveWarcName(AbstractWarcArtifactDataStoreTest.testGenerateActiveWarcName1338,48828
+  public void testInitAuActiveWarc(AbstractWarcArtifactDataStoreTest.testInitAuActiveWarc1358,49588
+  public void testSealActiveWarc(AbstractWarcArtifactDataStoreTest.testSealActiveWarc1419,52512
+  public void testRunGarbageCollector(AbstractWarcArtifactDataStoreTest.testRunGarbageCollector1463,54136
+  public void testGarbageCollectTempWarcs(AbstractWarcArtifactDataStoreTest.testGarbageCollectTempWarcs1485,54869
+  public void testReloadTempWarcs_nullIndex(AbstractWarcArtifactDataStoreTest.testReloadTempWarcs_nullIndex1542,57235
+  public void testReloadTempWarcs(AbstractWarcArtifactDataStoreTest.testReloadTempWarcs1557,57745
+  private void runTestReloadTempWarcs(AbstractWarcArtifactDataStoreTest.runTestReloadTempWarcs1580,58703
+  public void testGetAuArtifactStorageUrls(AbstractWarcArtifactDataStoreTest.testGetAuArtifactStorageUrls1753,65508
+  public void runTestGetAuArtifactsStorageUrls(AbstractWarcArtifactDataStoreTest.runTestGetAuArtifactsStorageUrls1758,65666
+  public void testIsTempWarcRemovable_uncompressed(AbstractWarcArtifactDataStoreTest.testIsTempWarcRemovable_uncompressed1787,66459
+  public void testIsTempWarcRemovable_compressed(AbstractWarcArtifactDataStoreTest.testIsTempWarcRemovable_compressed1832,68262
+  public void testIsWarcRecordRemovable(AbstractWarcArtifactDataStoreTest.testIsWarcRecordRemovable1893,70189
+  public void testGetArtifactState(AbstractWarcArtifactDataStoreTest.testGetArtifactState1965,72834
+  private void runTestGetArtifactState(AbstractWarcArtifactDataStoreTest.runTestGetArtifactState1980,73187
+  public void testIsArtifactExpired(AbstractWarcArtifactDataStoreTest.testIsArtifactExpired2055,75575
+  public void testIsArtifactDeleted(AbstractWarcArtifactDataStoreTest.testIsArtifactDeleted2082,76586
+  public void testIsArtifactCommitted(AbstractWarcArtifactDataStoreTest.testIsArtifactCommitted2110,77648
+  public void testSetThresholdWarcSize(AbstractWarcArtifactDataStoreTest.testSetThresholdWarcSize2142,78985
+  public void testAddArtifactData_null(AbstractWarcArtifactDataStoreTest.testAddArtifactData_null2160,79769
+  @EnumSource(AbstractWarcArtifactDataStoreTest.@EnumSource2186,80633
+  public void testAddArtifactData_uncompressed(AbstractWarcArtifactDataStoreTest.testAddArtifactData_uncompressed2192,80775
+  public void testAddArtifactData_compressed(AbstractWarcArtifactDataStoreTest.testAddArtifactData_compressed2197,80891
+  public void runTestAddArtifactData(AbstractWarcArtifactDataStoreTest.runTestAddArtifactData2201,80996
+  @EnumSource(AbstractWarcArtifactDataStoreTest.@EnumSource2259,83015
+  public void testGetArtifactData(AbstractWarcArtifactDataStoreTest.testGetArtifactData2265,83157
+  public void runTestGetArtifactData(AbstractWarcArtifactDataStoreTest.runTestGetArtifactData2270,83286
+  public static byte[] createWarcFileFromSpecs(AbstractWarcArtifactDataStoreTest.createWarcFileFromSpecs2317,85255
+  public static byte[] createWarcFileFromWarcRecordInfo(AbstractWarcArtifactDataStoreTest.createWarcFileFromWarcRecordInfo2353,86529
+  @EnumSource(AbstractWarcArtifactDataStoreTest.@EnumSource2383,87508
+  @EnumSource(AbstractWarcArtifactDataStoreTest.@EnumSource2432,89310
+  @EnumSource(AbstractWarcArtifactDataStoreTest.@EnumSource2475,90768
+  public void testGetInputStreamFromStorageUrl(AbstractWarcArtifactDataStoreTest.testGetInputStreamFromStorageUrl2523,92663
+  public void testRebuildIndex(AbstractWarcArtifactDataStoreTest.testRebuildIndex2555,93998
+  public void testReindexArtifactsFromWarc(AbstractWarcArtifactDataStoreTest.testReindexArtifactsFromWarc2644,97420
+  public void runTestReindexArtifactsFromWarc(AbstractWarcArtifactDataStoreTest.runTestReindexArtifactsFromWarc2649,97576
+  @EnumSource(AbstractWarcArtifactDataStoreTest.@EnumSource2707,100138
+  public void testUpdateRepositoryState_uncompressed(AbstractWarcArtifactDataStoreTest.testUpdateRepositoryState_uncompressed2718,100587
+  public void testUpdateRepositoryState_compressed(AbstractWarcArtifactDataStoreTest.testUpdateRepositoryState_compressed2727,100900
+  private void runTestUpdateArtifactMetadata(AbstractWarcArtifactDataStoreTest.runTestUpdateArtifactMetadata2735,101202
+  public void testTruncateMetadataJournal(AbstractWarcArtifactDataStoreTest.testTruncateMetadataJournal2775,103115
+  public void testGetArtifactRepositoryState(AbstractWarcArtifactDataStoreTest.testGetArtifactRepositoryState2800,103919
+  public void testReadAuJournalEntries(AbstractWarcArtifactDataStoreTest.testReadAuJournalEntries2844,106122
+  public void runTestReadAuJournalEntries(AbstractWarcArtifactDataStoreTest.runTestReadAuJournalEntries2849,106266
+  public void testReplayArtifactRepositoryStateJournal(AbstractWarcArtifactDataStoreTest.testReplayArtifactRepositoryStateJournal2902,108441
+  public void testWriteArtifactData(AbstractWarcArtifactDataStoreTest.testWriteArtifactData2952,110623
+  public void testCreateWarcMetadataRecord(AbstractWarcArtifactDataStoreTest.testCreateWarcMetadataRecord3005,112913
+  public void testWriteWarcInfoRecord(AbstractWarcArtifactDataStoreTest.testWriteWarcInfoRecord3010,113002
+  public void testWriteWarcRecord(AbstractWarcArtifactDataStoreTest.testWriteWarcRecord3015,113086
+  public void testFormatWarcRecordId(AbstractWarcArtifactDataStoreTest.testFormatWarcRecordId3020,113166
+  public void testCreateRecordHeader(AbstractWarcArtifactDataStoreTest.testCreateRecordHeader3025,113249
+  public void testInputOutputStreams(AbstractWarcArtifactDataStoreTest.testInputOutputStreams3040,113772
+  public void testGetSetUncommittedArtifactExpiration(AbstractWarcArtifactDataStoreTest.testGetSetUncommittedArtifactExpiration3080,115135
+  public void testGetSetThresholdWarcSize(AbstractWarcArtifactDataStoreTest.testGetSetThresholdWarcSize3103,116098
+  public void testGetSetArtifactIndex(AbstractWarcArtifactDataStoreTest.testGetSetArtifactIndex3120,116753
+  public void testSealActiveWarc_deprecated(AbstractWarcArtifactDataStoreTest.testSealActiveWarc_deprecated3149,117798
+  protected static Iterable<URI> getURIsFromPaths(AbstractWarcArtifactDataStoreTest.getURIsFromPaths3221,121259
+
+src/test/java/org/lockss/laaws/rs/io/storage/warc/TestTempWarcInUseTracker.java,304
+public class TestTempWarcInUseTracker 43,1922
+  private final static L4JLogger log TestTempWarcInUseTracker.log44,1986
+  static final Path ONE TestTempWarcInUseTracker.ONE46,2049
+  static final Path TWO TestTempWarcInUseTracker.TWO47,2093
+  public void test(TestTempWarcInUseTracker.test50,2146
+
+src/test/java/org/lockss/laaws/rs/io/storage/warc/TestVolatileWarcArtifactStore.java,1888
+public class TestVolatileWarcArtifactStore 53,2224
+  private final static L4JLogger log TestVolatileWarcArtifactStore.log54,2342
+  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(TestVolatileWarcArtifactStore.makeWarcArtifactDataStore61,2673
+  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(TestVolatileWarcArtifactStore.makeWarcArtifactDataStore66,2853
+  protected Path[] expected_getBasePaths(TestVolatileWarcArtifactStore.expected_getBasePaths77,3457
+  protected Path[] expected_getTmpWarcBasePaths(TestVolatileWarcArtifactStore.expected_getTmpWarcBasePaths82,3590
+  protected boolean pathExists(TestVolatileWarcArtifactStore.pathExists87,3773
+  protected boolean isDirectory(TestVolatileWarcArtifactStore.isDirectory92,3880
+  protected boolean isFile(TestVolatileWarcArtifactStore.isFile97,4024
+  public void testInitDataStoreImpl(TestVolatileWarcArtifactStore.testInitDataStoreImpl111,4531
+  public void testInitCollectionImpl(TestVolatileWarcArtifactStore.testInitCollectionImpl133,5132
+  public void testInitAuImpl(TestVolatileWarcArtifactStore.testInitAuImpl143,5334
+  public void testMakeStorageUrlImpl(TestVolatileWarcArtifactStore.testMakeStorageUrlImpl178,6511
+  public void testInitWarcImpl(TestVolatileWarcArtifactStore.testInitWarcImpl200,7252
+  public void testGetWarcLengthImpl(TestVolatileWarcArtifactStore.testGetWarcLengthImpl227,8049
+  public void testFindWarcsImpl(TestVolatileWarcArtifactStore.testFindWarcsImpl253,8905
+  public void testRemoveWarcImpl(TestVolatileWarcArtifactStore.testRemoveWarcImpl284,9815
+  public void testGetBlockSizeImpl(TestVolatileWarcArtifactStore.testGetBlockSizeImpl306,10385
+  public void testGetFreeSpaceImpl(TestVolatileWarcArtifactStore.testGetFreeSpaceImpl320,10832
+  public void testInitAuDirImpl(TestVolatileWarcArtifactStore.testInitAuDirImpl341,11606
+
+src/test/java/org/lockss/laaws/rs/io/storage/warc/TestWarcFilePool.java,507
+class TestWarcFilePool 50,2070
+  private final static L4JLogger log TestWarcFilePool.log51,2119
+  public void testCreateWarcFile(TestWarcFilePool.testCreateWarcFile54,2190
+  public void testGenerateTmpWarcFileName(TestWarcFilePool.testGenerateTmpWarcFileName107,4832
+  public void testFindWarcFile(TestWarcFilePool.testFindWarcFile121,5413
+  public void testReturnWarcFile(TestWarcFilePool.testReturnWarcFile167,7332
+  public void testRemoveWarcFile(TestWarcFilePool.testRemoveWarcFile196,8299
+
+src/test/java/org/lockss/laaws/rs/io/util/TestNamedByteArrayResource.java,598
+public class TestNamedByteArrayResource TestWarcFilePool.TestNamedByteArrayResource41,2017
+    private static final String RESOURCE_NAME TestNamedByteArrayResource.RESOURCE_NAME42,2083
+    private static final String RESOURCE_BYTES TestNamedByteArrayResource.RESOURCE_BYTES43,2138
+    private NamedByteArrayResource namedBar;TestNamedByteArrayResource.namedBar45,2195
+    public void setUp(TestNamedByteArrayResource.setUp48,2257
+    public void getFilename(TestNamedByteArrayResource.getFilename53,2411
+    public void getDescription(TestNamedByteArrayResource.getDescription58,2538
+
+src/test/java/org/lockss/laaws/rs/model/ArtifactSpec.java,6438
+public class ArtifactSpec TestNamedByteArrayResource.ArtifactSpec69,2974
+  private final static L4JLogger log ArtifactSpec.log70,3032
+  static boolean AVOID_STREAM_CLOSED_BUG ArtifactSpec.AVOID_STREAM_CLOSED_BUG72,3095
+  protected static int MAX_RANDOM_FILE ArtifactSpec.MAX_RANDOM_FILE74,3146
+  protected static int MAX_INCR_FILE ArtifactSpec.MAX_INCR_FILE75,3194
+  protected static String COLL1 ArtifactSpec.COLL185,3411
+  protected static String AUID1 ArtifactSpec.AUID186,3454
+  protected static StatusLine STATUS_LINE_OK ArtifactSpec.STATUS_LINE_OK88,3498
+  protected static HttpHeaders HEADERS1 ArtifactSpec.HEADERS191,3618
+  static final Comparator<ArtifactSpec> artSpecComparator ArtifactSpec.artSpecComparator99,3798
+  String coll ArtifactSpec.coll107,4159
+  String auid ArtifactSpec.auid108,4182
+  String url;ArtifactSpec.url109,4205
+  int fixedVer ArtifactSpec.fixedVer110,4219
+  boolean toDelete ArtifactSpec.toDelete113,4303
+  boolean toCommit ArtifactSpec.toCommit114,4331
+  StatusLine statLine ArtifactSpec.statLine115,4359
+  Map<ArtifactSpec.Map116,4399
+  Map<String, String> headers ArtifactSpec.headers116,4399
+  String content;ArtifactSpec.content117,4470
+  Supplier<InputStream> contentGenerator;ArtifactSpec.contentGenerator118,4488
+  long len ArtifactSpec.len121,4552
+  int expVer ArtifactSpec.expVer122,4569
+  String contentDigest;ArtifactSpec.contentDigest123,4588
+  URI storageUrl;ArtifactSpec.storageUrl124,4612
+  long collectionDate ArtifactSpec.collectionDate125,4630
+  boolean isCommitted ArtifactSpec.isCommitted128,4670
+  boolean isDeleted;ArtifactSpec.isDeleted129,4701
+  String artId;ArtifactSpec.artId130,4722
+  public enum ArtifactDataStoreOperation ArtifactSpec.ArtifactDataStoreOperation132,4739
+    COMMIT,ArtifactSpec.ArtifactDataStoreOperation.COMMIT133,4782
+    DELETEArtifactSpec.ArtifactDataStoreOperation.DELETE134,4794
+  private List<ArtifactDataStoreOperation> dsops ArtifactSpec.dsops137,4810
+  public List<ArtifactDataStoreOperation> getDataStoreOperations(ArtifactSpec.getDataStoreOperations139,4881
+  public ArtifactSpec copy(ArtifactSpec.copy143,4973
+  public static ArtifactSpec forCollAuUrl(ArtifactSpec.forCollAuUrl151,5232
+  public static ArtifactSpec forCollAuUrlVer(ArtifactSpec.forCollAuUrlVer158,5423
+  public ArtifactSpec setUrl(ArtifactSpec.setUrl163,5641
+  public ArtifactSpec setExpVer(ArtifactSpec.setExpVer168,5726
+  public ArtifactSpec setCollection(ArtifactSpec.setCollection173,5814
+  public ArtifactSpec setAuid(ArtifactSpec.setAuid178,5909
+  public ArtifactSpec setContent(ArtifactSpec.setContent183,5998
+  public ArtifactSpec setContentGenerator(ArtifactSpec.setContentGenerator191,6295
+  public ArtifactSpec setVersion(ArtifactSpec.setVersion196,6423
+  public ArtifactSpec setArtifactId(ArtifactSpec.setArtifactId201,6522
+  public ArtifactSpec setContentLength(ArtifactSpec.setContentLength206,6614
+  public ArtifactSpec setContentDigest(ArtifactSpec.setContentDigest211,6707
+  public ArtifactSpec setStorageUrl(ArtifactSpec.setStorageUrl216,6832
+  public ArtifactSpec setHeaders(ArtifactSpec.setHeaders221,6942
+  public ArtifactSpec setStatusLine(ArtifactSpec.setStatusLine226,7056
+  public ArtifactSpec thenCommit(ArtifactSpec.thenCommit231,7167
+  public ArtifactSpec thenDelete(ArtifactSpec.thenDelete237,7296
+  public ArtifactSpec toCommit(ArtifactSpec.toCommit243,7425
+  public ArtifactSpec toDelete(ArtifactSpec.toDelete248,7528
+  public boolean isToCommit(ArtifactSpec.isToCommit253,7631
+  public boolean isToDelete(ArtifactSpec.isToDelete257,7689
+  public ArtifactSpec setCommitted(ArtifactSpec.setCommitted261,7747
+  public ArtifactSpec setDeleted(ArtifactSpec.setDeleted266,7859
+  public boolean isCommitted(ArtifactSpec.isCommitted271,7963
+  public boolean isDeleted(ArtifactSpec.isDeleted275,8025
+  public String getUrl(ArtifactSpec.getUrl279,8083
+  public String getCollection(ArtifactSpec.getCollection283,8131
+  public String getAuid(ArtifactSpec.getAuid287,8187
+  public int getVersion(ArtifactSpec.getVersion291,8237
+  public boolean hasVersion(ArtifactSpec.hasVersion295,8291
+  public int getExpVer(ArtifactSpec.getExpVer299,8354
+  public String getArtifactId(ArtifactSpec.getArtifactId303,8405
+  public boolean hasContent(ArtifactSpec.hasContent307,8462
+  public ArtifactSpec generateContent(ArtifactSpec.generateContent311,8555
+  public String getContent(ArtifactSpec.getContent329,9065
+  public long getContentLength(ArtifactSpec.getContentLength333,9121
+  public String getContentDigest(ArtifactSpec.getContentDigest352,9693
+  private MessageDigest makeDigest(ArtifactSpec.makeDigest388,10973
+  public URI getStorageUrl(ArtifactSpec.getStorageUrl401,11411
+  public Map<ArtifactSpec.Map405,11470
+  public Map<String, String> getHeaders(ArtifactSpec.getHeaders405,11470
+  public String getHeadersAsText(ArtifactSpec.getHeadersAsText409,11539
+  public StatusLine getStatusLine(ArtifactSpec.getStatusLine420,11819
+  public long getCollectionDate(ArtifactSpec.getCollectionDate424,11883
+  public ArtifactSpec setCollectionDate(ArtifactSpec.setCollectionDate432,12101
+  public HttpHeaders getMetadata(ArtifactSpec.getMetadata437,12199
+  public ArtifactIdentifier getArtifactIdentifier(ArtifactSpec.getArtifactIdentifier441,12290
+  public Artifact getArtifact(ArtifactSpec.getArtifact445,12422
+  public ArtifactData getArtifactData(ArtifactSpec.getArtifactData463,12805
+  public InputStream getInputStream(ArtifactSpec.getInputStream483,13248
+  public int compareTo(ArtifactSpec.compareTo497,13606
+  public String artButVerKey(ArtifactSpec.artButVerKey506,13802
+  public boolean sameArtButVer(ArtifactSpec.sameArtButVer514,14025
+  public boolean sameArtButVerAllAus(ArtifactSpec.sameArtButVerAllAus520,14254
+  public String artButVerKeyAllAus(ArtifactSpec.artButVerKeyAllAus525,14444
+  public void assertArtifact(ArtifactSpec.assertArtifact532,14601
+  public void assertArtifact(ArtifactSpec.assertArtifact557,15615
+  public void assertArtifactCommon(ArtifactSpec.assertArtifactCommon573,16319
+  public void assertEquals(ArtifactSpec.assertEquals596,17240
+  public void assertArtifactData(ArtifactSpec.assertArtifactData603,17440
+  public static void assertArtList(ArtifactSpec.assertArtList620,18164
+  public String toString(ArtifactSpec.toString633,18733
+
+src/test/java/org/lockss/laaws/rs/model/TestArtifact.java,295
+public class TestArtifact 40,1831
+  private final static L4JLogger log TestArtifact.log41,1883
+    public void testConstructor(TestArtifact.testConstructor44,1956
+    public void testSetters(TestArtifact.testSetters184,6815
+    public void testMakeKey(TestArtifact.testMakeKey299,10271
+
+src/test/java/org/lockss/laaws/rs/model/TestArtifactIdentifier.java,1239
+public class TestArtifactIdentifier 36,1721
+    private final static String ARTIFACT_COLLECTION TestArtifactIdentifier.ARTIFACT_COLLECTION37,1783
+    private final static String ARTIFACT_AUID TestArtifactIdentifier.ARTIFACT_AUID38,1854
+    private final static String ARTIFACT_URI TestArtifactIdentifier.ARTIFACT_URI39,1913
+    private final static Integer ARTIFACT_VERSION TestArtifactIdentifier.ARTIFACT_VERSION40,1970
+    private ArtifactIdentifier identifier;TestArtifactIdentifier.identifier42,2026
+    public void setUp(TestArtifactIdentifier.setUp45,2086
+    public void getCollection(TestArtifactIdentifier.getCollection56,2405
+    public void getAuid(TestArtifactIdentifier.getAuid61,2527
+    public void getUri(TestArtifactIdentifier.getUri66,2631
+    public void getVersion(TestArtifactIdentifier.getVersion71,2732
+    public void compareTo_equal(TestArtifactIdentifier.compareTo_equal76,2845
+    public void compareTo_greaterThan(TestArtifactIdentifier.compareTo_greaterThan97,3289
+    public void compareTo_lessThan(TestArtifactIdentifier.compareTo_lessThan116,3695
+  ArtifactIdentifier artId(TestArtifactIdentifier.artId135,4090
+  public void sortOrder(TestArtifactIdentifier.sortOrder140,4244
+
+src/test/java/org/lockss/laaws/rs/model/VariantState.java,4690
+public class VariantState 40,1809
+  private final static L4JLogger log VariantState.log41,1837
+  protected List<ArtifactSpec> addedSpecs VariantState.addedSpecs44,1965
+  Map<VariantState.Map47,2109
+  Map<String, ArtifactSpec> highestVerSpec VariantState.highestVerSpec47,2109
+  Map<VariantState.Map51,2291
+  Map<String, ArtifactSpec> highestCommittedVerSpec VariantState.highestCommittedVerSpec51,2291
+  protected static final Comparator<ArtifactSpec> BY_DATE_BY_AUID_BY_DECREASING_VERSION VariantState.BY_DATE_BY_AUID_BY_DECREASING_VERSION54,2412
+  protected static final Comparator<ArtifactSpec> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION VariantState.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION59,2699
+  public void add(VariantState.add65,3069
+  public void commit(VariantState.commit80,3554
+  private boolean artifactExists(VariantState.artifactExists94,4055
+  public void addAll(VariantState.addAll98,4177
+  public ArtifactSpec getArtifactSpec(VariantState.getArtifactSpec102,4275
+  public Iterable<? extends ArtifactSpec> getArtifactSpecs(VariantState.getArtifactSpecs109,4477
+  public Iterable<? extends ArtifactSpec> getDeletedSpecs(VariantState.getDeletedSpecs113,4568
+  public void logAdded(VariantState.logAdded119,4744
+  public long expectedVersions(VariantState.expectedVersions125,4858
+  public List<String> activeAuids(VariantState.activeAuids131,5006
+  public List<String> allAuids(VariantState.allAuids140,5278
+  public List<String> allAuids(VariantState.allAuids147,5442
+  public List<String> addedCommittedAuids(VariantState.addedCommittedAuids155,5688
+  public List<String> addedCommittedUrls(VariantState.addedCommittedUrls163,5907
+  public List<String> allCollections(VariantState.allCollections171,6124
+  public List<String> activeCollections(VariantState.activeCollections176,6253
+  public List<String> activeCommittedCollections(VariantState.activeCommittedCollections182,6428
+  Stream<String> collectionsOf(VariantState.collectionsOf188,6634
+  Stream<String> auidsOf(VariantState.auidsOf194,6790
+  public Stream<ArtifactSpec> addedSpecStream(VariantState.addedSpecStream201,7012
+  public Stream<ArtifactSpec> committedSpecStream(VariantState.committedSpecStream205,7099
+  public Stream<ArtifactSpec> deletedSpecStream(VariantState.deletedSpecStream209,7223
+  Stream<ArtifactSpec> uncommittedSpecStream(VariantState.uncommittedSpecStream213,7342
+  public Stream<ArtifactSpec> orderedAll(VariantState.orderedAll217,7462
+  public Stream<ArtifactSpec> orderedAllCommitted(VariantState.orderedAllCommitted222,7560
+  public Stream<ArtifactSpec> orderedAllCommittedAllAus(VariantState.orderedAllCommittedAllAus227,7671
+  public Stream<ArtifactSpec> orderedAllCollIncludeUncommitted(VariantState.orderedAllCollIncludeUncommitted232,7825
+  public Stream<ArtifactSpec> orderedAllColl(VariantState.orderedAllColl238,8009
+  public Stream<ArtifactSpec> orderedAllCollAllAus(VariantState.orderedAllCollAllAus244,8179
+  public Stream<ArtifactSpec> orderedAllAu(VariantState.orderedAllAu250,8399
+  public long auSize(VariantState.auSize257,8627
+  Stream<ArtifactSpec> orderedAllUrl(VariantState.orderedAllUrl261,8778
+  public ArtifactSpec anyCommittedSpec(VariantState.anyCommittedSpec269,9057
+  public ArtifactSpec anyDeletedSpec(VariantState.anyDeletedSpec273,9162
+  public ArtifactSpec anyUncommittedSpec(VariantState.anyUncommittedSpec277,9263
+  public ArtifactSpec anyUncommittedSpecButVer(VariantState.anyUncommittedSpecButVer284,9425
+  ArtifactSpec highestVer(VariantState.highestVer291,9697
+  public void delFromAll(VariantState.delFromAll300,10062
+  public Collection<ArtifactSpec> getHighestCommittedVerSpecs(VariantState.getHighestCommittedVerSpecs315,10606
+  public Collection<ArtifactSpec> getHighestVerSpecs(VariantState.getHighestVerSpecs319,10722
+  public ArtifactSpec getHighestCommittedVerSpec(VariantState.getHighestCommittedVerSpec323,10820
+  public ArtifactSpec getHighestVerSpec(VariantState.getHighestVerSpec327,10951
+  public void setHighestVerSpec(VariantState.setHighestVerSpec331,11064
+  public void setHighestCommittedVerSpec(VariantState.setHighestCommittedVerSpec335,11187
+  public boolean hasHighestCommittedVerSpec(VariantState.hasHighestCommittedVerSpec339,11328
+  public Stream<ArtifactSpec> getArtifactsAllVersions(VariantState.getArtifactsAllVersions343,11462
+  public List<Artifact> getArtifactsFrom(VariantState.getArtifactsFrom352,11834
+  public ArtifactSpec getLatestArtifactSpec(VariantState.getLatestArtifactSpec356,11993
+  public Stream<ArtifactSpec> getLatestArtifactSpecs(VariantState.getLatestArtifactSpecs362,12312
+
+src/test/java/org/lockss/laaws/rs/util/TestArtifactDataFactory.java,929
+public class TestArtifactDataFactory 57,2490
+    private final static L4JLogger log TestArtifactDataFactory.log58,2553
+    private static final String ARTIFACT_BYTES TestArtifactDataFactory.ARTIFACT_BYTES60,2618
+    private static final String ARTIFACT_HTTP_ENCODED TestArtifactDataFactory.ARTIFACT_HTTP_ENCODED63,2806
+    private static final String ARTIFACT_WARC_ENCODED TestArtifactDataFactory.ARTIFACT_WARC_ENCODED81,3600
+    public void setUp(TestArtifactDataFactory.setUp98,4466
+    public void fromHttpResponseStream(TestArtifactDataFactory.fromHttpResponseStream103,4527
+    public void fromHttpResponse(TestArtifactDataFactory.fromHttpResponse171,7566
+    public void fromResource(TestArtifactDataFactory.fromResource227,10087
+    public void fromResourceStream(TestArtifactDataFactory.fromResourceStream231,10137
+    public void fromArchiveRecord(TestArtifactDataFactory.fromArchiveRecord236,10261
+
+src/test/java/org/lockss/laaws/rs/util/TestArtifactDataUtil.java,709
+public class TestArtifactDataUtil 36,1720
+    public void setUp(TestArtifactDataUtil.setUp39,1797
+    public void getHttpResponseStreamFromArtifact(TestArtifactDataUtil.getHttpResponseStreamFromArtifact43,1857
+    public void getHttpResponseFromArtifact(TestArtifactDataUtil.getHttpResponseFromArtifact47,1928
+    public void getHttpResponseStreamFromHttpResponse(TestArtifactDataUtil.getHttpResponseStreamFromHttpResponse51,1993
+    public void writeHttpResponseStream(TestArtifactDataUtil.writeHttpResponseStream55,2068
+    public void writeHttpResponseHeader(TestArtifactDataUtil.writeHttpResponseHeader59,2129
+    public void writeHttpResponse(TestArtifactDataUtil.writeHttpResponse63,2190
+
+src/test/java/org/lockss/laaws/rs/util/TestNamedInputStreamResource.java,728
+public class TestNamedInputStreamResource TestArtifactDataUtil.TestNamedInputStreamResource41,1843
+    private static final String RESOURCE_BYTES TestNamedInputStreamResource.RESOURCE_BYTES42,1911
+    private static final String RESOURCE_NAME TestNamedInputStreamResource.RESOURCE_NAME43,1970
+    private static final String RESOURCE_DESC TestNamedInputStreamResource.RESOURCE_DESC44,2027
+    private NamedInputStreamResource namedResource;TestNamedInputStreamResource.namedResource46,2144
+    public void setUp(TestNamedInputStreamResource.setUp49,2213
+    public void getFilename(TestNamedInputStreamResource.getFilename54,2394
+    public void getDescription(TestNamedInputStreamResource.getDescription59,2509
+
+src/test/java/org/lockss/laaws/rs/util/TestSimpleRepositionableInputStream.java,202
+public class TestSimpleRepositionableInputStream TestNamedInputStreamResource.TestSimpleRepositionableInputStream42,1719
+  public void testUsage(TestSimpleRepositionableInputStream.testUsage45,1803
