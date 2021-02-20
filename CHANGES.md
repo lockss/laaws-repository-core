@@ -3,6 +3,7 @@
 ## Changes Since 2.0.14.0
 
 *   Switched to a 3-part version numbering scheme.
+*   Added support for uncompressed and GZIP compressed WARCs
 
 ## 2.0.14.0
 
