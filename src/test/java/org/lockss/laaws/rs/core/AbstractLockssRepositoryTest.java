@@ -1197,7 +1197,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertFalse(repository.isArtifactCommitted(spec.getCollection(),
 					       newArtId));
     assertFalse(newArt.getCommitted());
-    assertNotNull(repository.getArtifactData(spec.getCollection(), newArtId));
+
+    try (ArtifactData artifact = repository.getArtifactData(spec.getCollection(), newArtId)) {
+      assertNotNull(artifact);
+    }
 
     Artifact oldArt = getArtifact(repository, spec, false);
     if (expVers == 0) {

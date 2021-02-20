@@ -534,17 +534,19 @@ public class ArtifactSpec implements Comparable<Object> {
       assertArtifactCommon(art);
 
       // Test for getArtifactData(Artifact)
-      ArtifactData ad1 = repository.getArtifactData(art);
-      Assertions.assertEquals(art.getIdentifier(), ad1.getIdentifier());
-      Assertions.assertEquals(getContentLength(), ad1.getContentLength());
-      Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
-      assertArtifactData(ad1);
+      try (ArtifactData ad1 = repository.getArtifactData(art)) {
+        Assertions.assertEquals(art.getIdentifier(), ad1.getIdentifier());
+        Assertions.assertEquals(getContentLength(), ad1.getContentLength());
+        Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
+        assertArtifactData(ad1);
+      }
 
       // Test for getArtifactData(String, String)
-      ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId());
-      Assertions.assertEquals(getContentLength(), ad2.getContentLength());
-      Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
-      assertArtifactData(ad2);
+      try (ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId())) {
+        Assertions.assertEquals(getContentLength(), ad2.getContentLength());
+        Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
+        assertArtifactData(ad2);
+      }
     } catch (Exception e) {
       log.error("Caught exception asserting artifact spec: {}", this, e);
       log.error("art = {}", art);
@@ -553,11 +555,11 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public void assertArtifact(ArtifactDataStore store, Artifact artifact) throws IOException {
-    try {
-      assertArtifactCommon(artifact);
+    assertArtifactCommon(artifact);
+    try (ArtifactData ad1 = store.getArtifactData(artifact)) {
+      Assertions.assertNotNull(ad1);
 
       // Test for getArtifactData(Artifact)
-      ArtifactData ad1 = store.getArtifactData(artifact);
       Assertions.assertEquals(artifact.getIdentifier(), ad1.getIdentifier());
       Assertions.assertEquals(getContentLength(), ad1.getContentLength());
       Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());

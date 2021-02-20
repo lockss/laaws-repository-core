@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.storage.hdfs;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
+import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
@@ -215,8 +216,10 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         String fileName = status.getPath().getName();
 
         // Add file to set of WARC files if it is a WARC file
-        if (status.isFile() && fileName.toLowerCase().endsWith(WARC_FILE_EXTENSION)) {
-          warcFiles.add(Paths.get(status.getPath().toUri().getPath()));
+        if (status.isFile() &&
+            (fileName.toLowerCase().endsWith(WARCConstants.DOT_WARC_FILE_EXTENSION) ||
+                fileName.toLowerCase().endsWith(WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION))) {
+          warcFiles.add(Paths.get(status.getPath().toUri().getPath())); // what?
         }
       }
     } else if (fsBasePathExists && !fsBasePathIsDir) {

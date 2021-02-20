@@ -171,9 +171,7 @@ public class BaseLockssRepository implements LockssRepository,
       artifactData.setIdentifier(newId);
 
       // Add the artifact the data store and index
-      Artifact artifact = store.addArtifactData(artifactData);
-
-      return artifact;
+      return store.addArtifactData(artifactData);
     }
   }
 
@@ -210,9 +208,7 @@ public class BaseLockssRepository implements LockssRepository,
     }
 
     // Fetch artifact from data store
-    ArtifactData ad = store.getArtifactData(artifactRef);
-
-    return ad;
+    return store.getArtifactData(artifactRef);
   }
 
   @Override

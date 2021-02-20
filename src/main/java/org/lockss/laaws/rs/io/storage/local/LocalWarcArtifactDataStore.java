@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import org.apache.commons.io.FileUtils;
+import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
@@ -277,7 +278,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
       // Add WARC files from this directory
       warcFiles.addAll(
           Arrays.stream(dirObjs)
-              .filter(x -> x.isFile() && x.getName().toLowerCase().endsWith(WARC_FILE_EXTENSION))
+              .filter(x -> x.isFile() &&
+                  (x.getName().toLowerCase().endsWith(WARCConstants.DOT_WARC_FILE_EXTENSION) ||
+                      x.getName().toLowerCase().endsWith(WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION)))
               .map(x -> x.toPath())
               .collect(Collectors.toSet())
       );
