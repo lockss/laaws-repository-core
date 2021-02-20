@@ -2632,6 +2632,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testRebuildIndex() throws Exception {
+    runTestRebuildIndex(false);
+    runTestRebuildIndex(true);
+  }
+
+  public void runTestRebuildIndex(boolean useCompression) throws Exception {
     // Don't use provided data store, which provides an volatile index set
     teardownDataStore();
 
@@ -2641,6 +2646,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     //// Create and populate first index by adding and indexing new artifacts
     store = makeWarcArtifactDataStore(index1);
+    store.setUseWarcCompression(useCompression);
+
     assertEquals(index1, store.getArtifactIndex());
 
     // Add first artifact to the repository - don't commit
@@ -2657,6 +2664,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertNotNull(future);
     Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
     assertTrue(committed_a2.getCommitted());
+
+    // Add another artifact to the repository - commit
+    ArtifactData ad5 = generateTestArtifactData("collection1", "auid1", "uri2", 2, 1024);
+    Artifact a5 = store.addArtifactData(ad5);
+    assertNotNull(a5);
+    index1.commitArtifact(a5.getId());
+    future = store.commitArtifactData(a5);
+    assertNotNull(future);
+    Artifact committed_a5 = future.get(10, TimeUnit.SECONDS);
+    assertTrue(committed_a5.getCommitted());
 
     // Add third artifact to the repository - don't commit but immediately delete
     ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
@@ -2688,6 +2705,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     //// Populate second index by rebuilding
     store = makeWarcArtifactDataStore(index2, store);
+    store.setUseWarcCompression(useCompression);
     assertEquals(index2, store.getArtifactIndex());
     store.rebuildIndex(index2);
 
