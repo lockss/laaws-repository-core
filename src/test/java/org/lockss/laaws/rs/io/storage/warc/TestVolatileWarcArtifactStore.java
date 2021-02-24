@@ -30,7 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -211,7 +211,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     // Call method
     ds.initWarc(warcPath);
 
-    // Assert a ByteArrayOutputStream is in the map for this WARC path
+    // Assert a UnsynchronizedByteArrayOutputStream is in the map for this WARC path
     OutputStream output = ds.getAppendableOutputStream(warcPath);
     assertNotNull(output);
 
@@ -228,21 +228,27 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   public void testGetWarcLengthImpl() throws Exception {
     // Mocks
     VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
-    ds.warcs = mock(Map.class);
     Path warcPath = mock(Path.class);
-    ByteArrayOutputStream output = mock(ByteArrayOutputStream.class);
+
+    ds.warcs = new HashMap<>();
+    UnsynchronizedByteArrayOutputStream output = new UnsynchronizedByteArrayOutputStream();
+
+    // Write 123 bytes
+    for (int i = 0; i < 123; i++) {
+      output.write(i);
+    }
 
     // Mock behavior
     doCallRealMethod().when(ds).getWarcLength(warcPath);
-    when(output.size()).thenReturn(1234);
 
     // Assert WARC length is 0 if WARC is not found
-    when(ds.warcs.get(warcPath)).thenReturn(null);
     assertEquals(0L, ds.getWarcLength(warcPath));
 
+    // Add a WARC the map of internal WARCs
+    ds.warcs.put(warcPath, output);
+
     // Assert WARC length is the expected size if found
-    when(ds.warcs.get(warcPath)).thenReturn(output);
-    assertEquals(1234L, ds.getWarcLength(warcPath));
+    assertEquals(123L, ds.getWarcLength(warcPath));
   }
 
   /**

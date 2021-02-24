@@ -2641,7 +2641,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * {@link BufferedInputStream} causes problems because {@link ArchiveReader#positionForRecord(InputStream)} expects
    * either an {@link GZIPInputStream} or attempts to cast anything else as a {@link CountingInputStream}.
    *
-   * TODO: Does this issue only occur with {@link ByteArrayOutputStream#toInputStream()}?
+   * TODO: Does this issue only occur with {@link UnsynchronizedByteArrayOutputStream#toInputStream()}?
    */
   public static class CompressedWARCReader extends WARCReader {
     public CompressedWARCReader(final String f, final InputStream is) throws IOException {

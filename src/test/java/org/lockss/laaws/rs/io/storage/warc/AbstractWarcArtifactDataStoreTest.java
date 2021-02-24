@@ -35,7 +35,7 @@ import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.message.BasicStatusLine;
@@ -534,7 +534,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIdentifier id = new ArtifactIdentifier(UUID.randomUUID().toString(), collection, auid, uri, version);
 
     // Generate this artifact's data
-    try (ByteArrayOutputStream baos1 = new ByteArrayOutputStream((int) length)) {
+    try (UnsynchronizedByteArrayOutputStream baos1 = new UnsynchronizedByteArrayOutputStream((int) length)) {
       byte[] content = new byte[(int) length];
 //    Arrays.fill(content, (byte) 0);
       new Random().nextBytes(content);
@@ -1850,7 +1850,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         "\r\n";
 
     // Compress the WARC file content
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream baos = new UnsynchronizedByteArrayOutputStream();
 
     try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(baos)) {
       IOUtils.write(warcFileContents.getBytes(), gzipOutputStream);
@@ -2397,7 +2397,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       throws IOException {
 
     // Output stream to the WARC file
-    ByteArrayOutputStream warcOutput = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream warcOutput = new UnsynchronizedByteArrayOutputStream();
 
     for (ArtifactSpec spec: specs) {
       // Get artifact data from spec
@@ -2432,7 +2432,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public static byte[] createWarcFileFromWarcRecordInfo(boolean useCompression, List<WARCRecordInfo> warcRecordInfos)
       throws IOException {
     // Output stream to the WARC file
-    ByteArrayOutputStream warcOutput = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream warcOutput = new UnsynchronizedByteArrayOutputStream();
 
     for (WARCRecordInfo warcRecordInfo : warcRecordInfos) {
       // Append artifact as a WARC record to the WARC file output stream
@@ -2871,7 +2871,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testTruncateMetadataJournal() throws Exception {
     List<ArtifactRepositoryState> journal = new ArrayList<>();
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream output = new UnsynchronizedByteArrayOutputStream();
 
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -3054,7 +3054,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIdentifier ai = ad.getIdentifier();
     assertNotNull(ai);
 
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream baos = new UnsynchronizedByteArrayOutputStream();
 
     // Serialize artifact data to byte stream
     store.writeArtifactData(ad, baos);

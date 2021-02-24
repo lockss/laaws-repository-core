@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.common.util.JavaBinCodec;
 import org.apache.solr.common.util.NamedList;
@@ -44,8 +45,6 @@ import org.lockss.util.test.LockssTestCase5;
 import org.mockito.ArgumentMatchers;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.Header;
-
-import java.io.ByteArrayOutputStream;
 
 import static org.mockito.Mockito.*;
 import static org.mockserver.integration.ClientAndServer.startClientAndServer;
@@ -102,7 +101,7 @@ public class TestMetricsResponse extends LockssTestCase5 {
     // ******************************
 
     // Marshal test core metrics response data into javabin binary
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream os = new UnsynchronizedByteArrayOutputStream();
     new JavaBinCodec().marshal(coreMetricsResponseData, os);
 
     mockServer
@@ -181,7 +180,7 @@ public class TestMetricsResponse extends LockssTestCase5 {
     // ******************************
 
     // Marshal test core metrics response data into javabin binary
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    UnsynchronizedByteArrayOutputStream os = new UnsynchronizedByteArrayOutputStream();
     new JavaBinCodec().marshal(nodeMetricsResponseData, os);
 
     mockServer
