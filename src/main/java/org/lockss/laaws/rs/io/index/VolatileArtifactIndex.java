@@ -145,7 +145,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       }
 
       synchronized (index) {
-        return index.get(artifactId);
+        Artifact artifactRef = index.get(artifactId);
+
+        // Return *copy* of artifact, if found in the internal map
+        return artifactRef == null ? null : artifactRef.copyOf();
       }
     }
 

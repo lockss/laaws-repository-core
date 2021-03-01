@@ -400,7 +400,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       Artifact art = repository.getArtifact(highSpec.getCollection(),
 					    highSpec.getAuid(),
 					    highSpec.getUrl());
-      assertSame(art, repository.getArtifactFromId(art.getId()));
+
+      assertEquals(art, repository.getArtifactFromId(art.getId()));
     }
 
   }

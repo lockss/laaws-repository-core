@@ -364,4 +364,22 @@ public class Artifact implements Serializable {
 	return null;
     }
 
+  public Artifact copyOf() {
+
+    Artifact ret = new Artifact(
+        this.getId(),
+        this.getCollection(),
+        this.getAuid(),
+        this.getUri(),
+        this.getVersion(),
+        this.getCommitted(),
+        this.getStorageUrl(),
+        this.getContentLength(),
+        this.getContentDigest()
+    );
+
+    ret.setCollectionDate(this.getCollectionDate());
+
+    return ret;
+  }
 }
