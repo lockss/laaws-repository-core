@@ -601,7 +601,7 @@ public class ArtifactSpec implements Comparable<Object> {
    * Assert that the ArtifactData matches the ArtifactSpec
    */
   public void assertArtifactData(ArtifactData ad) {
-    Assertions.assertNotNull(ad, "Didn't find ArticleData for: " + this);
+    Assertions.assertNotNull(ad, "Didn't find ArtifactData for: " + this);
     assertEquals(getStatusLine(), ad.getHttpStatus());
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());

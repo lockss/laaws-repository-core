@@ -914,7 +914,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     log.trace("tmpWarc = {}", tmpWarcPath);
 
-    // Remove the temporary WARC from the pool if it is active there
+    //// Determine whether to skip processing of this temp WARC depending on its usage elsewhere
     synchronized (tmpWarcPool) {
       if (tmpWarcPool.isInUse(tmpWarcPath) || TempWarcInUseTracker.INSTANCE.isInUse(tmpWarcPath)) {
         // Temporary WARC is in use - skip it
@@ -937,7 +937,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     }
 
-    // Determine whether this temporary WARC should be removed
+    //// Process this temporary WARC and determine whether it to remove it
     try {
       // Mark the WARC as in-use by this WARC GC thread
       TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcPath);
@@ -953,6 +953,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           if (useCount == 1) {
             // Remove temporary WARC
+            log.info("Removing temporary WARC file [tmpWarcPath: {}]", tmpWarcPath);
             removeWarc(tmpWarcPath);
           } else if (useCount > 1) {
             // Temporary WARC still in use elsewhere
@@ -1172,7 +1173,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Q: Where else would it be in use?
     if (isWarcFileRemovable && !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
       try {
-        log.debug("Removing temporary WARC [tmpWarc: {}]", tmpWarc);
+        log.info("Removing temporary WARC file [tmpWarc: {}]", tmpWarc);
         removeWarc(tmpWarc);
       } catch (IOException e) {
         log.warn("Could not remove removable temporary WARC [tmpWarc: {}]", tmpWarc, e);
@@ -1869,11 +1870,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           artifactIndex.commitArtifact(artifact.getId());
           artifact.setCommitted(true);
 
-          // Record new committed state to artifact data repository metadata journal
+          Path basePath = getBasePathFromStorageUrl(new URI(artifact.getStorageUrl()));
+
+          // Record new committed state to artifact data repository journal
           ArtifactRepositoryState artifactRepoState =
               new ArtifactRepositoryState(artifact.getIdentifier(), true, false);
 
-          Path basePath = getBasePathFromStorageUrl(new URI(artifact.getStorageUrl()));
           updateArtifactRepositoryState(basePath, artifact.getIdentifier(), artifactRepoState);
 
         case COMMITTED:
@@ -1961,8 +1963,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Append WARC record to active WARC
       // *********************************
 
+      // 1. Mark temp WARC in use
+      // 2. Open InputStream and copy artifact
+      // 3. Update storage URL
+      // 4. Unmark
+
       try (OutputStream output = getAppendableOutputStream(dst)) {
         try (InputStream is = markAndGetInputStreamAndSeek(loc.getPath(), loc.getOffset())) {
+
+          // *************
+          // Copy artifact
+          // *************
+
           long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
           log.debug2("Copied artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is" +
@@ -2640,8 +2652,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * {@link InputStream#mark(int)} which {@link GZIPInputStream} does not support. Wrapping it in a
    * {@link BufferedInputStream} causes problems because {@link ArchiveReader#positionForRecord(InputStream)} expects
    * either an {@link GZIPInputStream} or attempts to cast anything else as a {@link CountingInputStream}.
-   *
-   * TODO: Does this issue only occur with {@link UnsynchronizedByteArrayOutputStream#toInputStream()}?
    */
   public static class CompressedWARCReader extends WARCReader {
     public CompressedWARCReader(final String f, final InputStream is) throws IOException {
