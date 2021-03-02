@@ -947,7 +947,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         log.debug("Removing temporary WARC file [tmpWarc: {}]", tmpWarcPath);
 
         // Synchronized because result from getUseCount(Path) is not thread-safe
-        synchronized (TempWarcInUseTracker.INSTANCE) {
+        synchronized (tmpWarcPool) {
           // Get temporary WARC use count
           long useCount = TempWarcInUseTracker.INSTANCE.getUseCount(tmpWarcPath);
 
@@ -1745,21 +1745,54 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact is null");
     }
 
+    String artifactId = artifact.getId();
+    Artifact indexedArtifact;
+    URI storageUrl;
+
+    Path warcFilePath = null;
+    InputStream warcStream = null;
+    boolean incrementedCounter = false;
+
     try {
-      String artifactId = artifact.getId();
-      URI storageUrl = new URI(artifact.getStorageUrl());
-      Path warcFilePath = getPathFromStorageUrl(storageUrl);
+      synchronized (tmpWarcPool) {
+        // Retrieve artifact reference from index
+        indexedArtifact = artifactIndex.getArtifact(artifactId);
+
+        if (indexedArtifact == null) {
+          // Yes: Artifact reference not found in index
+          // throw new LockssNoSuchArtifactIdException("Artifact not found");
+          log.debug("Artifact not found1 [artifactId: {}]", artifactId);
+          return null;
+        }
+
+        try {
+          // Get storage URL and WARC path of artifact's WARC record
+          storageUrl = new URI(indexedArtifact.getStorageUrl());
+          warcFilePath = getPathFromStorageUrl(storageUrl);
+        } catch (URISyntaxException e) {
+          // This should never happen since storage URLs are internal
+          log.error("Malformed storage URL [storageUrl:  {}]", indexedArtifact.getStorageUrl());
+          throw new IllegalArgumentException("Malformed storage URL");
+        }
+
+        if (isTmpStorage(warcFilePath)) {
+          // Yes: Increment usage counter of temp WARC
+          TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
+          incrementedCounter = true;
+        }
+      }
 
       log.debug2("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
 
       // Guard against deleted or non-existent artifact
-      if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(artifact.getIdentifier())) {
-        log.debug("Artifact not found [artifactId: {}]", artifactId);
+      if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(indexedArtifact.getIdentifier())) {
+        // FIXME: Artifact may be deleted after isArtifactDeleted call
+        log.debug("Artifact not found2 [artifactId: {}]", artifactId);
         return null;
       }
 
       // Open an InputStream from the WARC file and get the WARC record representing this artifact data
-      InputStream warcStream = getInputStreamFromStorageUrl(storageUrl);
+      warcStream = getInputStreamFromStorageUrl(storageUrl);
 
       if (isCompressedWarcFile(warcFilePath)) {
         GZIPInputStream gzipInputStream = new GZIPInputStream(warcStream);
@@ -1767,9 +1800,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       if (isTmpStorage(warcFilePath)) {
-        // Increment the counter of times that the file is in use.
-        TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
-
         // Wrap the stream with a CloseCallbackInputStream with a callback that will mark the end of the use of this file
         // when close() is called.
         warcStream = new CloseCallbackInputStream(
@@ -1792,26 +1822,28 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifactData.setClosableInputStream(warcStream);
 
       // Set ArtifactData properties
-      artifactData.setIdentifier(artifact.getIdentifier());
-      artifactData.setStorageUrl(URI.create(artifact.getStorageUrl()));
-      artifactData.setContentLength(artifact.getContentLength());
-      artifactData.setContentDigest(artifact.getContentDigest());
+      artifactData.setIdentifier(indexedArtifact.getIdentifier());
+      artifactData.setStorageUrl(URI.create(indexedArtifact.getStorageUrl()));
+      artifactData.setContentLength(indexedArtifact.getContentLength());
+      artifactData.setContentDigest(indexedArtifact.getContentDigest());
 
       // Set artifact's repository metadata state
-      artifactData.setArtifactRepositoryState(getArtifactRepositoryState(artifact.getIdentifier()));
+      artifactData.setArtifactRepositoryState(getArtifactRepositoryState(indexedArtifact.getIdentifier()));
 
       // Return an ArtifactData from the WARC record
       return artifactData;
-
-    } catch (URISyntaxException e) {
-      // This should never happen since storage URLs are internal
-      log.error("Malformed storage URL [storageUrl:  {}]", artifact.getStorageUrl());
-      throw new IllegalArgumentException("Malformed storage URL");
 
     } catch (Exception e) {
       log.error("Could not get artifact data [storageUrl: {}]", artifact.getStorageUrl(), e);
       log.trace("artifact = {}", artifact);
       log.trace("storageUrl = {}", artifact.getStorageUrl());
+
+      if (warcStream != null) {
+        IOUtils.closeQuietly(warcStream);
+      } else if (incrementedCounter) {
+        TempWarcInUseTracker.INSTANCE.markUseEnd(warcFilePath);
+      }
+
       throw e;
     }
   }
@@ -1986,25 +2018,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               dst,
               warcLength + recordLength
           );
+
+          // ******************
+          // Update storage URL
+          // ******************
+
+          // Set the artifact's new storage URL and update the index
+          artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
+          artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+
+          log.debug2("Updated storage URL [artifactId: {}, storageUrl: {}]",
+              artifact.getId(), artifact.getStorageUrl()
+          );
         }
       }
 
-      // Seal if we've gone over the size threshold
+      // Seal active permanent WARC if we've gone over the size threshold
       if (warcLength + recordLength >= getThresholdWarcSize()) {
         sealActiveWarc(artifact.getCollection(), artifact.getAuid(), dst);
       }
-
-      // ******************
-      // Update storage URL
-      // ******************
-
-      // Set the artifact's new storage URL and update the index
-      artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
-      artifactIndex.updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
-
-      log.debug2("Updated storage URL [artifactId: {}, storageUrl: {}]",
-          artifact.getId(), artifact.getStorageUrl()
-      );
 
       // *********************
       // Update artifact state

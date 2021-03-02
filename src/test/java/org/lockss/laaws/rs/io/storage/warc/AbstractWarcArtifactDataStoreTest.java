@@ -2363,10 +2363,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mock artifact data store and index
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ds.artifactIndex = mock(ArtifactIndex.class);
+    ds.tmpWarcPool = mock(WarcFilePool.class);
 
     // getArtifactData returns null if the artifact doesn't exist or is deleted - not very interesting to test?
     when(ds.artifactIndex.artifactExists(spec.getArtifactId())).thenReturn(true);
     when(ds.isArtifactDeleted(spec.getArtifactIdentifier())).thenReturn(false);
+    when(ds.artifactIndex.getArtifact(spec.getArtifactId())).thenReturn(spec.getArtifact());
 
     // Control whether getArtifactData handles the interprets the InputStream as a compressed/uncompressed WARC
     when(ds.isCompressedWarcFile(WarcArtifactDataStore.getPathFromStorageUrl(storageUrl))).thenReturn(useCompression);
