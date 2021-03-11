@@ -593,7 +593,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 // 						    commSpec.getArtifactId());});
       Artifact dupArt = repository.commitArtifact(commSpec.getCollection(),
 						  commSpec.getArtifactId());
-      assertEquals(commArt, dupArt);
+      assertTrue(commArt.equalsExceptStorageUrl(dupArt));
       commSpec.assertArtifact(repository, dupArt);
 
       // Get the same artifact when uncommitted may be included.

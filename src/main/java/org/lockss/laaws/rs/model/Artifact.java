@@ -303,12 +303,21 @@ public class Artifact implements Serializable {
 
     @Override
     public boolean equals(Object o) {
+      // Cast to Artifact is safe because equalsExceptStorageUrl has
+      // already checked instanceof
+      return equalsExceptStorageUrl(o)
+        && storageUrl.equalsIgnoreCase(((Artifact)o).getStorageUrl());
+    }
+
+    public boolean equalsExceptStorageUrl(Object o) {
+        if (!(o instanceof Artifact)) {
+          return false;
+        }
         Artifact other = (Artifact)o;
 
         return other != null
             && ((this.getIdentifier() == null && other.getIdentifier() == null)
         	|| (this.getIdentifier() != null && this.getIdentifier().equals(other.getIdentifier())))
-            && storageUrl.equalsIgnoreCase(other.getStorageUrl())
             && committed.equals(other.getCommitted())
             && getContentLength() == other.getContentLength()
             && ((contentDigest == null && other.getContentDigest() == null)
