@@ -199,6 +199,8 @@ public class BaseLockssRepository implements LockssRepository,
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
+    // Q: Change WarcArtifactDataStore#getArtifactData signal to take an artifactId?
+    //    As it is, we will need to perform multiple index lookups
     Artifact artifactRef = index.getArtifact(artifactId);
 
     if (artifactRef == null) {

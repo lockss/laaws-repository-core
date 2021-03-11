@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University
 # All rights reserved.

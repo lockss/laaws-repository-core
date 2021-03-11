@@ -31,7 +31,7 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
@@ -61,7 +61,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   public final static long DEFAULT_BLOCKSIZE = FileUtils.ONE_MB;
 
-  protected Map<Path, ByteArrayOutputStream> warcs;
+  protected Map<Path, UnsynchronizedByteArrayOutputStream> warcs;
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS
@@ -116,7 +116,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public void initWarc(Path warcPath) throws IOException {
     synchronized (warcs) {
-      warcs.putIfAbsent(warcPath, new ByteArrayOutputStream());
+      warcs.putIfAbsent(warcPath, new UnsynchronizedByteArrayOutputStream());
     }
 
     try (OutputStream output = getAppendableOutputStream(warcPath)) {
@@ -154,7 +154,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public long getWarcLength(Path warcPath) {
     synchronized (warcs) {
-      ByteArrayOutputStream warc = warcs.get(warcPath);
+      UnsynchronizedByteArrayOutputStream warc = warcs.get(warcPath);
       if (warc != null) {
         return warc.size();
       }
@@ -180,7 +180,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public InputStream getInputStreamAndSeek(Path path, long seek) throws IOException {
     synchronized (warcs) {
-      ByteArrayOutputStream warc = warcs.get(path);
+      UnsynchronizedByteArrayOutputStream warc = warcs.get(path);
 
       if (warc == null) {
         // Translate to FileNotFound exception if the WARC could not be found in the map

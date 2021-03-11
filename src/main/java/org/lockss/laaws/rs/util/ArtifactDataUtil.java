@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.util;
 
+import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
@@ -158,7 +159,7 @@ public class ArtifactDataUtil {
     }
 
     public static byte[] getHttpResponseHeader(HttpResponse response) throws IOException {
-        ByteArrayOutputStream headerStream = new ByteArrayOutputStream();
+        UnsynchronizedByteArrayOutputStream headerStream = new UnsynchronizedByteArrayOutputStream();
 
         // Create a new SessionOutputBuffer from the OutputStream
         SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
@@ -230,10 +231,10 @@ public class ArtifactDataUtil {
     }
 
     public static byte[] getHttpStatusByteArray(StatusLine httpStatus) throws IOException {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        UnsynchronizedByteArrayOutputStream output = new UnsynchronizedByteArrayOutputStream();
         CharArrayBuffer lineBuf = new CharArrayBuffer(128);
 
-        // Create a new SessionOutputBuffer and bind the ByteArrayOutputStream
+        // Create a new SessionOutputBuffer and bind the UnsynchronizedByteArrayOutputStream
         SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
         outputBuffer.bind(output);
 
@@ -242,7 +243,7 @@ public class ArtifactDataUtil {
         outputBuffer.writeLine(lineBuf);
         outputBuffer.flush();
 
-        // Flush and close ByteArrayOutputStream
+        // Flush and close UnsynchronizedByteArrayOutputStream
         output.flush();
         output.close();
 
