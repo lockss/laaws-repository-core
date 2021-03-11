@@ -401,7 +401,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 					    highSpec.getAuid(),
 					    highSpec.getUrl());
 
-      assertEquals(art, repository.getArtifactFromId(art.getId()));
+      assertTrue(art.equalsExceptStorageUrl(repository.getArtifactFromId(art.getId())));
     }
 
   }
