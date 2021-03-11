@@ -2430,29 +2430,34 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Read AU repository state journal files if needed
+
+    // artifactStatesLock may be held for a long time while reading
+    // journals - avoid synchronizing on it if entry is already in map
     if (!artifactStates.containsKey(aid.getId())) {
 
       synchronized (artifactStatesLock) {
-        for (Path journalPath :
-            getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
+        if (!artifactStates.containsKey(aid.getId())) {
+          for (Path journalPath :
+                 getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
 
-          // Get journal entries from file
-          List<ArtifactRepositoryState> journal = readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
+            // Get journal entries from file
+            List<ArtifactRepositoryState> journal = readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
 
-          for (ArtifactRepositoryState journalEntry : journal) {
+            for (ArtifactRepositoryState journalEntry : journal) {
 
-            // Get current state from map
-            ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
+              // Get current state from map
+              ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
 
-            // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
-            // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
-            //       fast machine. The effect of equals() here is, falling back to the order in which the journal
-            //       entries appear (appended) in a journal file and the order in which journal files are read.
-            if (state == null ||
-                journalEntry.getEntryDate().equals(state.getEntryDate()) ||
-                journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
+              // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
+              // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
+              //       fast machine. The effect of equals() here is, falling back to the order in which the journal
+              //       entries appear (appended) in a journal file and the order in which journal files are read.
+              if (state == null ||
+                  journalEntry.getEntryDate().equals(state.getEntryDate()) ||
+                  journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
 
-              artifactStates.put(journalEntry.getArtifactId(), journalEntry);
+                artifactStates.put(journalEntry.getArtifactId(), journalEntry);
+              }
             }
           }
         }
