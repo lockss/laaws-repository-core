@@ -2356,35 +2356,37 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   // TODO: Generalize this to arbitrary metadata
-  public synchronized ArtifactRepositoryState updateArtifactRepositoryState(
+  public ArtifactRepositoryState updateArtifactRepositoryState(
       Path basePath,
       ArtifactIdentifier artifactId,
       ArtifactRepositoryState state
   ) throws IOException {
 
-    Objects.requireNonNull(artifactId, "Artifact identifier is null");
-    Objects.requireNonNull(state, "Repository artifact metadata is null");
+    synchronized (artifactStatesLock) {
+      Objects.requireNonNull(artifactId, "Artifact identifier is null");
+      Objects.requireNonNull(state, "Repository artifact metadata is null");
 
-    Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
-        ArtifactRepositoryState.LOCKSS_JOURNAL_ID);
+      Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
+          ArtifactRepositoryState.LOCKSS_JOURNAL_ID);
 
-    log.trace("artifactId = {}", artifactId);
-    log.trace("auJournalPath = {}", auJournalPath);
-    log.trace("state = {}", state.toJson());
+      log.trace("artifactId = {}", artifactId);
+      log.trace("auJournalPath = {}", auJournalPath);
+      log.trace("state = {}", state.toJson());
 
-    // Initialize journal WARC file
-    initWarc(auJournalPath);
+      // Initialize journal WARC file
+      initWarc(auJournalPath);
 
-    try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
-      // Append an entry (a WARC metadata record) to the journal
-      WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
+      try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
+        // Append an entry (a WARC metadata record) to the journal
+        WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
 
-      writeWarcRecord(journalRecord, output);
+        writeWarcRecord(journalRecord, output);
 
-      artifactStates.put(artifactId.getId(), state);
+        artifactStates.put(artifactId.getId(), state);
+      }
+
+      return state;
     }
-
-    return state;
   }
 
   /**
@@ -2413,6 +2415,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   Map<String, ArtifactRepositoryState> artifactStates = Collections.synchronizedMap(new HashMap<>());
+  Object artifactStatesLock = new Object();
 
   /**
    * Reads an artifact's current repository state from storage.
@@ -2428,29 +2431,33 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Read AU repository state journal files if needed
     if (!artifactStates.containsKey(aid.getId())) {
-      for (Path journalPath :
-          getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
 
-        // Get journal entries from file
-        List<ArtifactRepositoryState> journal = readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
+      synchronized (artifactStatesLock) {
+        for (Path journalPath :
+            getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
 
-        for (ArtifactRepositoryState journalEntry : journal) {
+          // Get journal entries from file
+          List<ArtifactRepositoryState> journal = readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
 
-          // Get current state from map
-          ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
+          for (ArtifactRepositoryState journalEntry : journal) {
 
-          // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
-          // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
-          //       fast machine. The effect of equals() here is, falling back to the order in which the journal
-          //       entries appear (appended) in a journal file and the order in which journal files are read.
-          if (state == null ||
-              journalEntry.getEntryDate().equals(state.getEntryDate()) ||
-              journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
+            // Get current state from map
+            ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
 
-            artifactStates.put(journalEntry.getArtifactId(), journalEntry);
+            // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
+            // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
+            //       fast machine. The effect of equals() here is, falling back to the order in which the journal
+            //       entries appear (appended) in a journal file and the order in which journal files are read.
+            if (state == null ||
+                journalEntry.getEntryDate().equals(state.getEntryDate()) ||
+                journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
+
+              artifactStates.put(journalEntry.getArtifactId(), journalEntry);
+            }
           }
         }
       }
+
     }
 
     return artifactStates.get(aid.getId());
