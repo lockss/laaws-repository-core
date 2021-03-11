@@ -2908,6 +2908,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     doCallRealMethod().when(ds).getArtifactRepositoryState(aid);
     ds.artifactStates = new HashMap<>();
+    ds.artifactStatesLock = new Object();
 
     // Assert null return if no journals found
     when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(new Path[]{});
