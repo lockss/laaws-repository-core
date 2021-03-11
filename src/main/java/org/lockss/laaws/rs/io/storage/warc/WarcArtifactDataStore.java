@@ -1020,11 +1020,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       reloadOrRemoveTemporaryWarc(index, tmpWarc);
     }
 
-    // Reset maps
-    // FIXME Revisit - these have the potential of growing very large
-    storageUrls = new HashMap<>();
-    artifactStates = new HashMap<>();
-
     log.debug("Finished reloading temporary WARCs from {}", tmpWarcBasePath);
   }
 
@@ -2417,7 +2412,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
-  Map<String, ArtifactRepositoryState> artifactStates = new HashMap<>();
+  Map<String, ArtifactRepositoryState> artifactStates = Collections.synchronizedMap(new HashMap<>());
 
   /**
    * Reads an artifact's current repository state from storage.
