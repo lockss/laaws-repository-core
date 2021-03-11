@@ -1756,7 +1756,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         if (indexedArtifact == null) {
           // Yes: Artifact reference not found in index
           // throw new LockssNoSuchArtifactIdException("Artifact not found");
-          log.debug("Artifact not found1 [artifactId: {}]", artifactId);
+          log.debug("Artifact not found in index [artifactId: {}]", artifactId);
           return null;
         }
 
@@ -1782,7 +1782,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Guard against deleted or non-existent artifact
       if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(indexedArtifact.getIdentifier())) {
         // FIXME: Artifact may be deleted after isArtifactDeleted call
-        log.debug("Artifact not found2 [artifactId: {}]", artifactId);
+        log.debug("Artifact not found [artifactId: {}]", artifactId);
         return null;
       }
 
