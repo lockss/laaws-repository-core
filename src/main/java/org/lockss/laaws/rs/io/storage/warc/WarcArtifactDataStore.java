@@ -1884,6 +1884,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Determine what action to take based on the state of the artifact
       // FIXME: Potential for race condition? What if the state of the artifact changes?
       ArtifactState artifactState = getArtifactState(artifact.getIdentifier(), isExpired);
+
+      log.trace("artifactState = {}", artifactState);
+
       switch (artifactState) {
         case NOT_INDEXED:
           // We have an artifact so this should be recoverable
@@ -2369,9 +2372,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
           ArtifactRepositoryState.LOCKSS_JOURNAL_ID);
 
-      log.trace("artifactId = {}", artifactId);
       log.trace("auJournalPath = {}", auJournalPath);
-      log.trace("state = {}", state.toJson());
 
       // Initialize journal WARC file
       initWarc(auJournalPath);
@@ -2384,9 +2385,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         artifactStates.put(artifactId.getId(), state);
       }
-
-      return state;
     }
+
+    log.debug2("Updated artifact repository state [artifactId: {}, state: {}]", artifactId, state.toJson());
+
+    return state;
   }
 
   /**
