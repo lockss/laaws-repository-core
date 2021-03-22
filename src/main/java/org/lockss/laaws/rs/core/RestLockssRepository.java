@@ -140,6 +140,7 @@ public class RestLockssRepository implements LockssRepository {
 
     log.trace("authHeaderValue = {}", authHeaderValue);
 
+    // Install our custom ResponseErrorHandler in the RestTemplate used by this RestLockssRepository
     restTemplate.setErrorHandler(new LockssResponseErrorHandler(restTemplate.getMessageConverters()));
 
     // Add the multipart/form-data converter to the RestTemplate
