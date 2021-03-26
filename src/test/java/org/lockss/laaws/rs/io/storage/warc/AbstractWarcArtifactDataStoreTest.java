@@ -288,7 +288,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
         // Assert retrieving this artifact from the data store and index returns null
         assertNull(index.getArtifact(spec.getArtifactId()));
-        assertNull(store.getArtifactData(spec.getArtifact()));
+
+        assertThrows(
+            LockssNoSuchArtifactIdException.class,
+            () -> store.getArtifactData(spec.getArtifact()));
 
         // Data store should have recorded into the repository metadata journal that this artifact is removed
         assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
@@ -2479,7 +2482,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       log.debug("Generated content for bogus artifact [artifactId: {}]", spec.getArtifactId());
 
       // Assert that getArtifactData() returns null if it
-      assertNull(store.getArtifactData(spec.getArtifact()));
+      assertThrows(
+          LockssNoSuchArtifactIdException.class,
+          () -> store.getArtifactData(spec.getArtifact()));
     }
 
     // Get a handle to the data store's artifact index
@@ -2583,7 +2588,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store.deleteArtifactData(artifact);
 
     // Assert attempt to retrieve the deleted artifact data results in a null
-    assertNull(store.getArtifactData(artifact));
+    assertThrows(
+        LockssNoSuchArtifactIdException.class,
+        () -> store.getArtifactData(artifact));
 
     // Verify that the repository metadata journal and index reflect the artifact is deleted
     assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
