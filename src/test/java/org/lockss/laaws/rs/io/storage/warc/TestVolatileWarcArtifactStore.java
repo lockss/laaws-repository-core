@@ -30,7 +30,7 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
-import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -211,7 +211,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     // Call method
     ds.initWarc(warcPath);
 
-    // Assert a UnsynchronizedByteArrayOutputStream is in the map for this WARC path
+    // Assert a ByteArrayOutputStream is in the map for this WARC path
     OutputStream output = ds.getAppendableOutputStream(warcPath);
     assertNotNull(output);
 
@@ -231,7 +231,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     Path warcPath = mock(Path.class);
 
     ds.warcs = new HashMap<>();
-    UnsynchronizedByteArrayOutputStream output = new UnsynchronizedByteArrayOutputStream();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     // Write 123 bytes
     for (int i = 0; i < 123; i++) {
