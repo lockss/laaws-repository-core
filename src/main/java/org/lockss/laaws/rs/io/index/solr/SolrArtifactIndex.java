@@ -33,9 +33,23 @@ package org.lockss.laaws.rs.io.index.solr;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpException;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.AuthState;
+import org.apache.http.auth.Credentials;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpCoreContext;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.response.*;
@@ -83,7 +97,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @param solrBaseUrl A {@link String} containing the URL to a Solr collection or core.
    */
   public SolrArtifactIndex(String solrBaseUrl) {
-    this(solrBaseUrl, null);
+    this(solrBaseUrl, null, null);
+  }
+
+  public SolrArtifactIndex(String solrBaseUrl, List<String> solrCredentials) {
+    this(solrBaseUrl, null, solrCredentials);
   }
 
   /**
@@ -94,6 +112,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @param collection @ {@link String} containing the name of the Solr collection to use.
    */
   public SolrArtifactIndex(String solrBaseUrl, String collection) {
+    this(solrBaseUrl, collection, null);
+  }
+
+  public SolrArtifactIndex(String solrBaseUrl, String collection, List<String> solrCredentials) {
     // Convert provided Solr base URL to URI object
     URI baseUrl = URI.create(solrBaseUrl);
 
@@ -121,6 +143,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       }
     }
 
+    if (solrCredentials != null) {
+      // Add an HttpRequestInterceptor to preemptively include Solr authentication
+      HttpClientUtil.addRequestInterceptor(
+          new PreemptiveBasicAuthInterceptor(
+              /* Username */ solrCredentials.get(0),
+              /* Password */ solrCredentials.get(1)
+          ));
+    }
+
     // Resolve Solr base REST endpoint
     URI solrUrl = baseUrl.resolve("/solr");
 
@@ -130,6 +161,62 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         .build();
 
     this.isInternalClient = true;
+  }
+
+  /**
+   * Implementation of {@link HttpRequestInterceptor} which preemptively adds BasicAuth credentials to HTTP requests.
+   */
+  private static class PreemptiveBasicAuthInterceptor implements HttpRequestInterceptor {
+
+    private final String user;
+    private final String password;
+
+    public PreemptiveBasicAuthInterceptor(String user, String password) {
+      this.user = user;
+      this.password = password;
+    }
+
+    @Override
+    public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
+      AuthState authState =
+          (AuthState) context.getAttribute(HttpClientContext.TARGET_AUTH_STATE);
+
+      if (authState.getAuthScheme() == null) {
+        // Get HTTP context target host
+        HttpHost targetHost =
+            (HttpHost) context.getAttribute(HttpCoreContext.HTTP_TARGET_HOST);
+
+        // Use target host to create auth scope
+        AuthScope authScope = new AuthScope(targetHost.getHostName(), targetHost.getPort());
+
+        // Get the HTTP context's credentials provider
+        CredentialsProvider credsProvider =
+            (CredentialsProvider) context.getAttribute(HttpClientContext.CREDS_PROVIDER);
+
+        // Get the credentials for this auth scope
+        Credentials creds = credsProvider.getCredentials(authScope);
+
+        // Q: Is creds ever not null where getAuthScheme() == null?
+        if (creds == null) {
+          creds = getCredentials(authScope);
+        }
+
+        authState.update(new BasicScheme(), creds);
+      }
+    }
+
+    private Credentials getCredentials(AuthScope authScope) {
+      log.info("Creating BasicAuth credentials [user: {}]", user);
+
+      UsernamePasswordCredentials creds = new UsernamePasswordCredentials(user, password);
+
+      // Q: What is the purpose of BasicCredentialsProvider here?
+//      CredentialsProvider credsProvider = new BasicCredentialsProvider();
+//      credsProvider.setCredentials(authScope, creds);
+//      return credsProvider.getCredentials(authScope);
+
+      return creds;
+    }
   }
 
   /**
