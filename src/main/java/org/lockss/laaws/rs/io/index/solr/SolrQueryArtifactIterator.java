@@ -39,6 +39,7 @@ import java.util.NoSuchElementException;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.lockss.laaws.rs.model.Artifact;
@@ -54,6 +55,9 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
 
   // The Solr client used to query Solr.
   private final SolrClient solrClient;
+
+  // Solr BasicAuth credentials to use with Solr requests
+  private List<String> solrCredentials;
 
   // The Solr query used to obtain artifacts from Solr.
   private final SolrQuery solrQuery;
@@ -78,8 +82,9 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
    * @param solrClient A SolrClient used to query Solr.
    * @param solrQuery  A SolrQuery used to obtain artifacts from Solr.
    */
-  public SolrQueryArtifactIterator(String collection, SolrClient solrClient, SolrQuery solrQuery) {
-    this(collection, solrClient, solrQuery, 10);
+  public SolrQueryArtifactIterator(String collection, SolrClient solrClient,
+                                   List<String> solrCredentials, SolrQuery solrQuery) {
+    this(collection, solrClient, solrCredentials, solrQuery, 10);
   }
 
   /**
@@ -90,7 +95,8 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
    * @param batchSize  An int with the number of artifacts to request on each
    *                   Solr query.
    */
-  public SolrQueryArtifactIterator(String collection, SolrClient solrClient, SolrQuery solrQuery,
+  public SolrQueryArtifactIterator(String collection, SolrClient solrClient,
+                                   List<String> solrCredentials, SolrQuery solrQuery,
       int batchSize) {
     // Validation.
     if (solrClient == null) {
@@ -108,10 +114,11 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
     // Initialization.
     this.solrCollection = collection;
     this.solrClient = solrClient;
+    this.solrCredentials = solrCredentials;
     this.solrQuery = solrQuery;
     artifactBuffer = new ArrayList<>(batchSize);
     artifactBufferIterator = artifactBuffer.iterator();
-    
+
     // Set paging parameters.
     solrQuery.setRows(batchSize);
     solrQuery.addSort(SolrQuery.SortClause.asc("id"));
@@ -188,9 +195,21 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
     // Set the current position for the query.
     solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
 
+    // Wrap SolrQuery into a QueryRequest
+    QueryRequest request = new QueryRequest(solrQuery);
+
+    // Add Solr BasicAuth credentials if present
+    if (solrCredentials != null) {
+      request.setBasicAuthCredentials(
+          /* Username */ solrCredentials.get(0),
+          /* Password */ solrCredentials.get(1)
+      );
+    }
+
     // Make the query to Solr.
     QueryResponse response = SolrArtifactIndex.handleSolrResponse(
-	solrClient.query(solrCollection, solrQuery), "Problem performing Solr query");
+        request.process(solrClient, solrCollection),
+        "Problem performing Solr query");
 
     // Get the position for the next query.
     String nextCursorMark = response.getNextCursorMark();

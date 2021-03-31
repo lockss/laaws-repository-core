@@ -276,7 +276,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Cannot update storage URL: Null or empty artifact ID");
+        throw new IllegalArgumentException("Invalid artifact ID");
       }
 
       if (StringUtils.isEmpty(storageUrl)) {
