@@ -672,7 +672,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testUpdateStorageUrl() throws Exception {
     // Attempt to update the storage URL of a null artifact ID
-    assertThrowsMatch(IllegalArgumentException.class, "Cannot update storage URL", () -> index.updateStorageUrl(null, "xxx"));
+    assertThrowsMatch(IllegalArgumentException.class, "Invalid artifact ID", () -> index.updateStorageUrl(null, "xxx"));
 
     // Attempt to update the storage URL of an unknown artifact ID
     assertNull(index.updateStorageUrl("xyzzy", "xxx"));
