@@ -140,6 +140,7 @@ public class RestLockssRepository implements LockssRepository {
 
     log.trace("authHeaderValue = {}", authHeaderValue);
 
+    // Install our custom ResponseErrorHandler in the RestTemplate used by this RestLockssRepository
     restTemplate.setErrorHandler(new LockssResponseErrorHandler(restTemplate.getMessageConverters()));
 
     // Add the multipart/form-data converter to the RestTemplate
@@ -325,43 +326,46 @@ public class RestLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    // Q: Is this okay? I think so - we aren't opening a new InputStream
-    boolean includeCachedContent =
-        (includeContent == IncludeContent.IF_SMALL ||  includeContent == IncludeContent.ALWAYS);
+    // Cache policy: Include cache content unless IncludeContent.NEVER
+    boolean includeCachedContent = (includeContent != IncludeContent.NEVER);
 
+    // Get ArtifactData from cache
     ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeCachedContent);
 
     if (cached != null) {
+      // Cache hit: Return cached ArtifactData
       return cached;
     }
 
+    // Cache miss: Fetch ArtifactData from repository service
     try {
       URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
       // Set Accept header in request
       HttpHeaders requestHeaders = getInitializedHttpHeaders();
-      requestHeaders.setAccept(ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
+      requestHeaders.setAccept(
+          // Order matters! We expect a multipart response if success or JSON error message otherwise
+          ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
 
       // Make the request to the REST service and get its response
       ResponseEntity<MultipartMessage> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, requestHeaders),
+          new HttpEntity<>(requestHeaders),
           MultipartMessage.class,
-          "RestLockssRepository#getArtifactData"
+          "Call from RestLockssRepository#getArtifactData() failed"
       );
 
       checkStatusOk(response);
 
-      ArtifactData res = ArtifactDataFactory.fromTransportResponseEntity(response);
+      // Transform MultipartMessage to ArtifactData
+      ArtifactData result = ArtifactDataFactory.fromTransportResponseEntity(response);
 
       // Add to artifact data cache
-      if (res != null) {    // Q: possible?
-        artCache.putArtifactData(collection, artifactId, res);
-      }
+      artCache.putArtifactData(collection, artifactId, result);
 
-      return res;
+      return result;
 
     } catch (LockssRestHttpException e) {
       log.error("Could not get artifact data", e);

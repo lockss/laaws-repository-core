@@ -195,21 +195,19 @@ public class BaseLockssRepository implements LockssRepository,
    */
   @Override
   public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+    if (collection == null || artifactId == null) {
+      throw new IllegalArgumentException("Null collection ID or artifact ID");
     }
 
-    // Q: Change WarcArtifactDataStore#getArtifactData signal to take an artifactId?
-    //    As it is, we will need to perform multiple index lookups
+    // FIXME: Change WarcArtifactDataStore#getArtifactData signature to take an artifactId.
+    //    As it is, we end up perform multiple index lookups for the same artifact, which is slow.
     Artifact artifactRef = index.getArtifact(artifactId);
 
     if (artifactRef == null) {
-      // FIXME: Do we really want to do throw? Or should we return null?
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-          + artifactId);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact ID: " + artifactId);
     }
 
-    // Fetch artifact from data store
+    // Fetch and return artifact from data store
     return store.getArtifactData(artifactRef);
   }
 
