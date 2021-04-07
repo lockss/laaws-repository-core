@@ -375,6 +375,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Create an UpdateRequest to add the Solr input document
       UpdateRequest req = new UpdateRequest();
       req.add(doc);
+      addSolrCredentials(req);
       req.setCommitWithin(-1);
 
       handleSolrResponse(req.process(solrClient, solrCollection),
