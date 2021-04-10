@@ -306,7 +306,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         // Schedule temporary WARC garbage collection
         // TODO: Parameterize interval
-        scheduledExecutor.scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 0, 1, TimeUnit.DAYS);
+        scheduledExecutor.scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 1, 1, TimeUnit.DAYS);
 
         log.info("Scheduled temporary WARC garbage collector");
 
