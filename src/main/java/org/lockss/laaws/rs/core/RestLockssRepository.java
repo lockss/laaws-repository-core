@@ -41,6 +41,7 @@ import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
+import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.auth.*;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
@@ -609,14 +610,22 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<String> getAuIds(String collection) throws IOException {
-    if ((collection == null))
+    if (collection == null) {
       throw new IllegalArgumentException("Null collection id");
+    }
+
     String endpoint = String.format("%s/collections/%s/aus", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
-    return IteratorUtils.asIterable(
-        new RestLockssRepositoryAuidIterator(restTemplate, builder,
-            authHeaderValue));
+
+    try {
+      return IteratorUtils.asIterable(
+          new RestLockssRepositoryAuidIterator(restTemplate, builder, authHeaderValue));
+
+    } catch (LockssUncheckedIOException e) {
+      // Re-throw wrapped checked IOException
+      throw e.getIOCause();
+    }
   }
 
   /**
