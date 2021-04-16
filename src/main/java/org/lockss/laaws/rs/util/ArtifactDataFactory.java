@@ -275,7 +275,8 @@ public class ArtifactDataFactory {
    * @param headerArray An array of {@code Header} objects to reorganize.
    * @return A Spring {@code HttpHeaders} object representing the array of Apache {@code Header} objects.
    */
-  private static HttpHeaders transformHeaderArrayToHttpHeaders(Header[] headerArray) {
+  // TODO: Move this to lockss-util?
+  public static HttpHeaders transformHeaderArrayToHttpHeaders(Header[] headerArray) {
     HttpHeaders headers = new HttpHeaders();
     Arrays.stream(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
 
