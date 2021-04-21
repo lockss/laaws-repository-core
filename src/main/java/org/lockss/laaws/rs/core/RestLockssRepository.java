@@ -981,33 +981,29 @@ public class RestLockssRepository implements LockssRepository {
    * @return A {@code Long} with the total size of the specified AU in bytes.
    */
   @Override
-  public Long auSize(String collection, String auid) {
-    if ((collection == null) || (auid == null))
+  public Long auSize(String collection, String auid) throws IOException {
+    if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
+    }
+
     String endpoint = String.format("%s/collections/%s/aus/%s/size", repositoryUrl, collection, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
 
-    try {
-      ResponseEntity<String> response =
-          RestUtil.callRestService(restTemplate,
-              builder.build().encode().toUri(),
-              HttpMethod.GET,
-              new HttpEntity<>(null,
-                  getInitializedHttpHeaders()),
-              String.class,
-              "auSize");
+    ResponseEntity<String> response =
+        RestUtil.callRestService(restTemplate,
+            builder.build().encode().toUri(),
+            HttpMethod.GET,
+            new HttpEntity<>(null,
+                getInitializedHttpHeaders()),
+            String.class,
+            "auSize");
 
-      checkStatusOk(response);
+    checkStatusOk(response);
 
-      ObjectMapper objectMapper = new ObjectMapper();
-      return objectMapper.readValue(response.getBody(), Long.class);
-    } catch (IOException e) {
-      log.error("Could not determine AU size", e);
-      return new Long(0);
-    }
-
+    ObjectMapper objectMapper = new ObjectMapper();
+    return objectMapper.readValue(response.getBody(), Long.class);
   }
 
   /**
