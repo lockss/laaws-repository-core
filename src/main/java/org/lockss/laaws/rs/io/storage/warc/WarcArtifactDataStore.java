@@ -1023,6 +1023,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.debug("Finished reloading temporary WARCs from {}", tmpWarcBasePath);
   }
 
+  /**
+   * Used to workaround an issue in webarchive-commons: Prevents a double close() on a
+   * compressed WARC input stream.
+   */
+  private static class IgnoreCloseInputStream extends FilterInputStream {
+    public IgnoreCloseInputStream(InputStream stream) {
+      super(stream);
+    }
+
+    public void close() throws IOException {
+    }
+  }
+
   protected void reloadOrRemoveTemporaryWarc(ArtifactIndex index, Path tmpWarc) throws IOException {
     log.trace("tmpWarc = {}", tmpWarc);
 
@@ -1042,7 +1055,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
 
       // Get an ArchiveReader (an implementation of Iterable) over ArchiveRecord objects
-      ArchiveReader archiveReader = getArchiveReader(tmpWarc, warcStream);
+      ArchiveReader archiveReader =
+          getArchiveReader(tmpWarc, new IgnoreCloseInputStream(warcStream));
+
+      // Do not perform digest calculations
       archiveReader.setDigest(false);
 
       // Iterate over the WARC records
