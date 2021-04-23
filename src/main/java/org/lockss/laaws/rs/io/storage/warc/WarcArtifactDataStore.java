@@ -1358,7 +1358,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifact = artifactIndex.getArtifact(aid);
 
       // Add it to the artifact cache if available
-      if (artifactCache != null) {
+      if (artifactCache != null && artifact != null) {
         artifactCache.put(artifact);
       }
     }
