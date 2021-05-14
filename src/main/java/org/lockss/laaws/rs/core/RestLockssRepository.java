@@ -194,7 +194,6 @@ public class RestLockssRepository implements LockssRepository {
                                String msg)
       throws LockssNoSuchArtifactIdException {
     if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-      log.warn(msg, e);
       throw new LockssNoSuchArtifactIdException(msg + ": " + artifactId, e);
     }
   }
@@ -369,8 +368,8 @@ public class RestLockssRepository implements LockssRepository {
       return result;
 
     } catch (LockssRestHttpException e) {
-      log.error("Could not get artifact data", e);
       checkArtIdError(e, artifactId, "Artifact not found");
+      log.error("Could not get artifact data", e);
       throw e;
 
     } catch (LockssRestException e) {
