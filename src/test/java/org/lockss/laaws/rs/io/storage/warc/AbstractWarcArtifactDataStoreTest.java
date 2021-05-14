@@ -49,6 +49,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -378,7 +379,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert current state matches spec
     assertEquals(spec.isCommitted(), artifact.getCommitted());
-    assertEquals(spec.isCommitted(), store.isArtifactCommitted(artifact.getIdentifier()));
+    if (!spec.isDeleted()) {
+      assertEquals(spec.isCommitted(), store.isArtifactCommitted(artifact.getIdentifier()));
+    } else {
+      assertThrows(LockssNoSuchArtifactIdException.class, () -> store.isArtifactCommitted(artifact.getIdentifier()));
+    }
 
     // Get a handle to the data store's index
     ArtifactIndex index = store.getArtifactIndex();
@@ -2088,22 +2093,29 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
-    ArtifactRepositoryState metadata = mock(ArtifactRepositoryState.class);
 
     doCallRealMethod().when(ds).isArtifactDeleted(aid);
 
-    // Assert if there is no journal entry for this artifact it is assumed to be deleted
-    when(ds.getArtifactRepositoryState(aid)).thenReturn(null);
-    assertThrows(LockssNoSuchArtifactIdException.class, () -> ds.isArtifactDeleted(aid));
-
-    // Setup journal entry return
-    when(ds.getArtifactRepositoryState(aid)).thenReturn(metadata);
-
-    // Assert return from isArtifactDeleted() matches journal
-    when(metadata.isDeleted()).thenReturn(false);
+    // Assert if artifact is indexed then it is not deleted
+    ds.artifactIndex = mock(ArtifactIndex.class);
+    when(ds.artifactIndex.getArtifact(aid)).thenReturn(mock(Artifact.class));
     assertFalse(ds.isArtifactDeleted(aid));
-    when(metadata.isDeleted()).thenReturn(true);
+
+    // Assert if the artifact is not indexed then it falls back to the journal
+    when(ds.artifactIndex.getArtifact(aid)).thenReturn(null);
+
+    // Assert LockssNoSuchArtifactIdException is thrown if the journal doesn't contain an entry
+    assertThrows(LockssNoSuchArtifactIdException.class, (Executable) () -> ds.isArtifactDeleted(aid));
+
+    // Assert deleted state matches latest journal entry
+    ArtifactRepositoryState state = mock(ArtifactRepositoryState.class);
+    when(ds.getArtifactRepositoryState(aid)).thenReturn(state);
+
+    when(state.isDeleted()).thenReturn(true);
     assertTrue(ds.isArtifactDeleted(aid));
+
+    when(state.isDeleted()).thenReturn(false);
+    assertFalse(ds.isArtifactDeleted(aid));
   }
 
   /**
@@ -2116,22 +2128,24 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
-    ArtifactRepositoryState metadata = mock(ArtifactRepositoryState.class);
+    ds.artifactIndex = mock(ArtifactIndex.class);
+    Artifact artifact = mock(Artifact.class);
 
     doCallRealMethod().when(ds).isArtifactCommitted(aid);
 
-    // Assert if there is no journal entry for this artifact, isArtifactCommitted is false
-    when(ds.getArtifactRepositoryState(aid)).thenReturn(null);
-    assertThrows(LockssNoSuchArtifactIdException.class, () -> ds.isArtifactCommitted(aid));
+    // Assert LockssNoSuchArtifactIdException thrown if artifact is not in the index
+    when(ds.artifactIndex.getArtifact(aid)).thenReturn(null);
+    assertThrows(LockssNoSuchArtifactIdException.class,
+        (Executable) () -> ds.isArtifactCommitted(aid));
 
-    // Setup journal entry return
-    when(ds.getArtifactRepositoryState(aid)).thenReturn(metadata);
+    // Assert return from isArtifactCommitted matches artifact's committed status
+    when(ds.artifactIndex.getArtifact(aid)).thenReturn(artifact);
 
-    // Assert return from isArtifactCommitted() matches journal
-    when(metadata.isCommitted()).thenReturn(false);
-    assertFalse(ds.isArtifactCommitted(aid));
-    when(metadata.isCommitted()).thenReturn(true);
+    when(artifact.isCommitted()).thenReturn(true);
     assertTrue(ds.isArtifactCommitted(aid));
+
+    when(artifact.isCommitted()).thenReturn(false);
+    assertFalse(ds.isArtifactCommitted(aid));
   }
 
   // *******************************************************************************************************************
@@ -2814,9 +2828,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testUpdateRepositoryState_variants() throws Exception {
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
-      ArtifactRepositoryState metadata = store.getArtifactRepositoryState(spec.getArtifactIdentifier());
-      assertEquals(spec.isCommitted(), metadata.isCommitted());
-      assertEquals(spec.isDeleted(), metadata.isDeleted());
+      if (!spec.isDeleted()) {
+        // Get artifact's repository state
+        ArtifactData ad = store.getArtifactData(spec.getArtifact());
+        ArtifactRepositoryState state = ad.getArtifactRepositoryState();
+
+        // Assert it matches the artifact spec
+        assertEquals(spec.isCommitted(), state.isCommitted());
+        assertEquals(spec.isDeleted(), state.isDeleted());
+      } else {
+        assertThrows(LockssNoSuchArtifactIdException.class,
+            () -> store.getArtifactData(spec.getArtifact()));
+      }
     }
   }
 
@@ -2841,22 +2864,29 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   private void runTestUpdateArtifactMetadata(boolean committed, boolean deleted) throws Exception {
     // Create an ArtifactIdentifier to test with
     ArtifactIdentifier identifier = new ArtifactIdentifier("aid", "c", "a", "u", 1);
-    ArtifactRepositoryState metadata = new ArtifactRepositoryState(identifier, committed, deleted);
+    ArtifactRepositoryState state = new ArtifactRepositoryState(identifier, committed, deleted);
 
     Path basePath = store.getBasePaths()[0];
 
-    // Write metadata
-    store.updateArtifactRepositoryState(basePath, identifier, metadata);
+    // Write state to repository state journal
+    store.updateArtifactRepositoryState(basePath, identifier, state);
 
-    // Assert metadata file exists
-    assertTrue(isFile(store.getAuJournalPath(basePath, identifier.getCollection(), identifier.getAuid(),
-        ArtifactRepositoryState.getJournalId())));
+    Path journalPath = store.getAuJournalPath(basePath, identifier.getCollection(), identifier.getAuid(),
+        ArtifactRepositoryState.getJournalId());
 
-    // Read and assert metadata
-    ArtifactRepositoryState storedMetadata = store.getArtifactRepositoryState(identifier);
-    assertEquals(metadata.getArtifactId(), storedMetadata.getArtifactId());
-    assertEquals(metadata.getCommitted(), storedMetadata.getCommitted());
-    assertEquals(metadata.getDeleted(), storedMetadata.getDeleted());
+    // Assert journal file exists
+    assertTrue(isFile(journalPath));
+
+    // Read and assert state
+    List<ArtifactRepositoryState> journalEntries =
+        store.readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
+
+    // Get last entry in journal
+    ArtifactRepositoryState latest = journalEntries.get(journalEntries.size() - 1);
+
+    assertEquals(state.getArtifactId(), latest.getArtifactId());
+    assertEquals(state.getCommitted(), latest.getCommitted());
+    assertEquals(state.getDeleted(), latest.getDeleted());
   }
 
   /**

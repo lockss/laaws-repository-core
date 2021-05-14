@@ -53,6 +53,7 @@ import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
 import org.archive.util.zip.GZIPMembersInputStream;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
+import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
@@ -1401,6 +1402,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected boolean isArtifactDeleted(ArtifactIdentifier aid) throws IOException {
+    Artifact artifact = artifactIndex.getArtifact(aid);
+
+    if (artifact != null) {
+      return false;
+    }
+
     ArtifactRepositoryState state = getArtifactRepositoryState(aid);
 
     if (state != null) {
@@ -1419,11 +1426,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected boolean isArtifactCommitted(ArtifactIdentifier aid) throws IOException {
-    ArtifactRepositoryState state = getArtifactRepositoryState(aid);
+    synchronized (artifactIndex) {
+      Artifact artifact = artifactIndex.getArtifact(aid);
 
-    if (state != null) {
-      // YES: Repository metadata journal entry found for this artifact
-      return state.isCommitted();
+      if (artifact != null) {
+        return artifact.isCommitted();
+      }
     }
 
     throw new LockssNoSuchArtifactIdException();
@@ -1556,7 +1564,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Artifact data has null identifier");
     }
 
-    log.debug("Adding artifact [artifactId: {}]", artifactId);
+    log.debug2("Adding artifact [artifactId: {}]", artifactId);
 
     try {
       // ********************************
@@ -1775,7 +1783,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       }
 
-      log.debug2("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
+      log.debug("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
 
       // Guard against deleted or non-existent artifact
       if (!artifactIndex.artifactExists(artifactId) || isArtifactDeleted(indexedArtifact.getIdentifier())) {
@@ -1820,8 +1828,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifactData.setContentLength(indexedArtifact.getContentLength());
       artifactData.setContentDigest(indexedArtifact.getContentDigest());
 
-      // Set artifact's repository metadata state
-      artifactData.setArtifactRepositoryState(getArtifactRepositoryState(indexedArtifact.getIdentifier()));
+      // Set artifact's repository state state
+      ArtifactRepositoryState state = new ArtifactRepositoryState();
+      state.setDeleted(isArtifactDeleted(indexedArtifact.getIdentifier()));
+      state.setCommitted(isArtifactCommitted(indexedArtifact.getIdentifier()));
+      artifactData.setArtifactRepositoryState(state);
 
       // Return an ArtifactData from the WARC record
       return artifactData;
@@ -2068,13 +2079,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     try {
       // Retrieve artifact data from current WARC file
-      ArtifactRepositoryState state = getArtifactRepositoryState(artifact.getIdentifier());
-
-      if (!state.isDeleted()) {
-        // Set deleted flag
+      if (!isArtifactDeleted(artifact.getIdentifier())) {
+        ArtifactRepositoryState state = new ArtifactRepositoryState(artifact.getIdentifier());
+        state.setCommitted(isArtifactCommitted(artifact.getIdentifier()));
         state.setDeleted(true);
 
-        // Write new state to artifact data repository metadata journal
+        // Write new state to repository state journal
         updateArtifactRepositoryState(
             getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
             artifact.getIdentifier(),
@@ -2087,7 +2097,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // TODO: Remove artifact from storage - cutting and splicing WARC files is expensive so we just leave the
         //       artifact in place for now.
       } else {
-        log.warn("Artifact is already deleted [artifact: {}]", artifact);
+        log.debug("Artifact is missing or already deleted [artifact: {}]", artifact);
       }
     } catch (URISyntaxException e) {
       // This should never happen since storage URLs are internal and always valid
@@ -2312,7 +2322,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
                 isCompressed ? compressedRecordLength : recordLength));
 
-            // Default repository metadata for all ArtifactData objects to be indexed
+            // Default repository state for all ArtifactData objects to be indexed
             artifactData.setArtifactRepositoryState(new ArtifactRepositoryState(
                 artifactData.getIdentifier(),
                 !isWarcInTemp,
@@ -2346,8 +2356,33 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // * JOURNAL OPERATIONS
   // *******************************************************************************************************************
 
+  private SemaphoreMap<ArchivalUnitStem> auLocks = new SemaphoreMap<>();
+
+  private static class ArchivalUnitStem {
+    private final String collection;
+    private final String auid;
+
+    public ArchivalUnitStem(String collection, String auid) {
+      this.collection = collection;
+      this.auid = auid;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      ArchivalUnitStem that = (ArchivalUnitStem) o;
+      return collection.equals(that.collection) && auid.equals(that.auid);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(collection, auid);
+    }
+  }
+
   /**
-   * Updates the repository metadata of artifact by appending an entry to the repository metadata journal in the
+   * Updates the repository state of artifact by appending an entry to the repository state journal in the
    * artifact's AU.
    *
    * @param basePath         A {@link Path} containing the base path of the artifact.
@@ -2363,25 +2398,33 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ArtifactRepositoryState state
   ) throws IOException {
 
-    synchronized (artifactStatesLock) {
-      Objects.requireNonNull(artifactId, "Artifact identifier is null");
-      Objects.requireNonNull(state, "Repository artifact metadata is null");
+    Objects.requireNonNull(artifactId, "Artifact identifier is null");
+    Objects.requireNonNull(state, "Repository artifact metadata is null");
 
-      Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
-          ArtifactRepositoryState.LOCKSS_JOURNAL_ID);
+    ArchivalUnitStem stem = new ArchivalUnitStem(artifactId.getCollection(), artifactId.getAuid());
+
+    try {
+      auLocks.getLock(stem);
+    } catch (InterruptedException e) {
+      throw new InterruptedIOException("Interrupted while waiting to acquire AU lock");
+    }
+
+    Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
+        ArtifactRepositoryState.LOCKSS_JOURNAL_ID);
 
     log.trace("auJournalPath = {}", auJournalPath);
 
+    try {
       // Initialize journal WARC file
       initWarc(auJournalPath);
 
+      // Append an entry (a WARC metadata record) to the journal
       try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
-        // Append an entry (a WARC metadata record) to the journal
         WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
         writeWarcRecord(journalRecord, output);
-
-        artifactStates.put(artifactId.getId(), state);
       }
+    } finally {
+      auLocks.releaseLock(stem);
     }
 
     log.debug2("Updated artifact repository state [artifactId: {}, state: {}]", artifactId, state.toJson());
@@ -2512,23 +2555,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Reads and replays repository metadata to a given artifact index.
+   * Reads and replays repository state to a given artifact index.
    *
-   * @param index        An {@code ArtifactIndex} to replay repository metadata to.
-   * @param journalPath A {@code String} containing the path to a repository metadata journal WARC file.
+   * @param index        An {@code ArtifactIndex} to replay repository state to.
+   * @param journalPath A {@code String} containing the path to a repository state journal WARC file.
    * @throws IOException
    */
   protected void replayArtifactRepositoryStateJournal(ArtifactIndex index, Path journalPath) throws IOException {
     for (ArtifactRepositoryState state : readAuJournalEntries(journalPath, ArtifactRepositoryState.class)) {
-      // Get the artifact ID of this repository metadata
+      // Get the artifact ID of this repository state
       String artifactId = state.getArtifactId();
 
       log.trace("artifactState = {}", state.toJson());
 
-      log.debug("Replaying repository metadata for artifact {} from repository metadata file {}",
+      log.debug("Replaying repository state for artifact {} from repository state file {}",
           artifactId,
           journalPath
       );
+
+      log.debug("state = {}", state);
 
       // Replay to artifact index
       if (index.artifactExists(artifactId)) {
