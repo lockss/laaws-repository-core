@@ -31,20 +31,18 @@
 package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.*;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
-import org.lockss.laaws.rs.model.RepositoryInfo;
-import org.lockss.laaws.rs.util.*;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.JmsFactorySource;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
-import org.lockss.log.L4JLogger;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
-import java.util.*;
+import java.io.InterruptedIOException;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -132,6 +130,39 @@ public class BaseLockssRepository implements LockssRepository,
   }
 
   /**
+   * Map from artifact stem to semaphore. Used for artifact version locking.
+   */
+  private SemaphoreMap<ArtifactStem> versionLock = new SemaphoreMap<>();
+
+  /**
+   * Struct representing a tuple of collection ID, AUID, and URL. Used for artifact version locking.
+   */
+  private static class ArtifactStem {
+    private final String collection;
+    private final String auid;
+    private final String uri;
+
+    public ArtifactStem(String collection, String auid, String uri) {
+      this.collection = collection;
+      this.auid = auid;
+      this.uri = uri;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      ArtifactStem that = (ArtifactStem) o;
+      return collection.equals(that.collection) && auid.equals(that.auid) && uri.equals(that.uri);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(collection, auid, uri);
+    }
+  }
+
+  /**
    * Adds an artifact to this LOCKSS repository.
    *
    * @param artifactData {@code ArtifactData} instance to add to this LOCKSS repository.
@@ -145,9 +176,16 @@ public class BaseLockssRepository implements LockssRepository,
     }
 
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
+    ArtifactStem stem = new ArtifactStem(artifactId.getCollection(), artifactId.getAuid(), artifactId.getUri());
 
-    //// Determine the next artifact version
-    synchronized (index) {
+    // Acquire the lock for this artifact stem
+    try {
+      versionLock.getLock(stem);
+    } catch (InterruptedException e) {
+      throw new InterruptedIOException("Interrupted while waiting to acquire artifact version lock");
+    }
+
+    try {
       // Retrieve latest version in this URL lineage
       Artifact latestVersion = index.getArtifact(
           artifactId.getCollection(),
@@ -172,6 +210,9 @@ public class BaseLockssRepository implements LockssRepository,
 
       // Add the artifact the data store and index
       return store.addArtifactData(artifactData);
+    } finally {
+      // Release the lock for the artifact stem
+      versionLock.releaseLock(stem);
     }
   }
 
