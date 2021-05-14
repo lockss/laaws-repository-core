@@ -52,7 +52,6 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
 import org.archive.util.zip.GZIPMembersInputStream;
-import org.lockss.laaws.rs.core.ArtifactCache;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -142,7 +141,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected ScheduledExecutorService scheduledExecutor;
   protected StripedExecutorService stripedExecutor;
-  private ArtifactCache artifactCache;
 
   // The Artifact life cycle states.
   protected enum ArtifactState {
@@ -1342,26 +1340,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return ArtifactState.UNKNOWN;
     }
 
-    // ********************************
-    // Get artifact from cache or index
-    // ********************************
+    // ***********************
+    // Get artifact from index
+    // ***********************
 
-    Artifact artifact = null;
-
-    // Check the artifact cache if one is available
-    if (artifactCache != null) {
-      artifact = artifactCache.get(aid.getCollection(), aid.getAuid(), aid.getUri(), aid.getVersion());
-    }
-
-    if (artifact == null) {
-      // No artifact cache or cache miss: Retrieve artifact from the index
-      artifact = artifactIndex.getArtifact(aid);
-
-      // Add it to the artifact cache if available
-      if (artifactCache != null && artifact != null) {
-        artifactCache.put(artifact);
-      }
-    }
+    Artifact artifact = artifactIndex.getArtifact(aid);
 
     // ************************
     // Determine artifact state
@@ -1772,7 +1755,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         if (indexedArtifact == null) {
           // Yes: Artifact reference not found in index
           log.debug("Artifact not found in index [artifactId: {}]", artifactId);
-           throw new LockssNoSuchArtifactIdException("Artifact not found");
+          throw new LockssNoSuchArtifactIdException("Artifact not found");
         }
 
         try {
@@ -2387,7 +2370,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
           ArtifactRepositoryState.LOCKSS_JOURNAL_ID);
 
-      log.trace("auJournalPath = {}", auJournalPath);
+    log.trace("auJournalPath = {}", auJournalPath);
 
       // Initialize journal WARC file
       initWarc(auJournalPath);
@@ -2395,7 +2378,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
         // Append an entry (a WARC metadata record) to the journal
         WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
-
         writeWarcRecord(journalRecord, output);
 
         artifactStates.put(artifactId.getId(), state);
