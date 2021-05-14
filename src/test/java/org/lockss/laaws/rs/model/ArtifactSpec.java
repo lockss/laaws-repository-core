@@ -450,7 +450,7 @@ public class ArtifactSpec implements Comparable<Object> {
         getUrl(),
         getVersion(),
         isCommitted(),
-        getStorageUrl().toString(),
+        getStorageUrl() == null ? null : getStorageUrl().toString(),
         getContentLength(),
         getContentDigest()
     );
