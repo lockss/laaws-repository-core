@@ -130,39 +130,6 @@ public class BaseLockssRepository implements LockssRepository,
   }
 
   /**
-   * Map from artifact stem to semaphore. Used for artifact version locking.
-   */
-  private SemaphoreMap<ArtifactStem> versionLock = new SemaphoreMap<>();
-
-  /**
-   * Struct representing a tuple of collection ID, AUID, and URL. Used for artifact version locking.
-   */
-  private static class ArtifactStem {
-    private final String collection;
-    private final String auid;
-    private final String uri;
-
-    public ArtifactStem(String collection, String auid, String uri) {
-      this.collection = collection;
-      this.auid = auid;
-      this.uri = uri;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      ArtifactStem that = (ArtifactStem) o;
-      return collection.equals(that.collection) && auid.equals(that.auid) && uri.equals(that.uri);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(collection, auid, uri);
-    }
-  }
-
-  /**
    * Adds an artifact to this LOCKSS repository.
    *
    * @param artifactData {@code ArtifactData} instance to add to this LOCKSS repository.
@@ -176,14 +143,8 @@ public class BaseLockssRepository implements LockssRepository,
     }
 
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
-    ArtifactStem stem = new ArtifactStem(artifactId.getCollection(), artifactId.getAuid(), artifactId.getUri());
 
-    // Acquire the lock for this artifact stem
-    try {
-      versionLock.getLock(stem);
-    } catch (InterruptedException e) {
-      throw new InterruptedIOException("Interrupted while waiting to acquire artifact version lock");
-    }
+    index.acquireVersionLock(artifactId.getArtifactStem());
 
     try {
       // Retrieve latest version in this URL lineage
@@ -211,8 +172,7 @@ public class BaseLockssRepository implements LockssRepository,
       // Add the artifact the data store and index
       return store.addArtifactData(artifactData);
     } finally {
-      // Release the lock for the artifact stem
-      versionLock.releaseLock(stem);
+      index.releaseVersionLock(artifactId.getArtifactStem());
     }
   }
 

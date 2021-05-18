@@ -33,11 +33,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.io.index;
 
 import org.lockss.laaws.rs.io.StorageInfoSource;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
-import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
@@ -49,6 +49,23 @@ import java.util.concurrent.TimeoutException;
  * Interface of the artifact index.
  */
 public interface ArtifactIndex extends StorageInfoSource, Ready {
+
+    /**
+     * Acquires the artifact version lock for an artifact stem. See
+     * {@link ArtifactIdentifier.ArtifactStem}.
+     *
+     * @param stem The {@link ArtifactIdentifier.ArtifactStem} to acquire the lock of.
+     * @throws IOException
+     */
+    void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem) throws IOException;
+
+    /**
+     * Releases the artifact version lock for an artifact stem. See
+     * {@link org.lockss.laaws.rs.model.ArtifactIdentifier.ArtifactStem}.
+     *
+     * @param stem
+     */
+    void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem);
 
     /**
      * Adds an artifact to the index.

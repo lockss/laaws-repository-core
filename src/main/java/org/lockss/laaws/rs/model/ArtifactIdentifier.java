@@ -33,6 +33,8 @@ package org.lockss.laaws.rs.model;
 import com.google.common.collect.ComparisonChain;
 
 import java.io.Serializable;
+import java.util.Objects;
+
 import org.lockss.util.PreOrderComparator;
 
 /**
@@ -157,4 +159,41 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
                 '}';
     }
 
+    /**
+     * Returns the artifact stem of this artifact identifier, which represents a tuple
+     * containing the collection ID, AUID, and URL.
+     *
+     * @return A {@link ArtifactStem} containing the artifact stem of this artifact identifier.
+     */
+    public ArtifactStem getArtifactStem() {
+        return new ArtifactStem(getCollection(), getAuid(), getUri());
+    }
+
+    /**
+     * Struct representing a tuple of collection ID, AUID, and URL. Used for artifact version locking.
+     */
+    public static class ArtifactStem {
+        private final String collection;
+        private final String auid;
+        private final String uri;
+
+        public ArtifactStem(String collection, String auid, String uri) {
+            this.collection = collection;
+            this.auid = auid;
+            this.uri = uri;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            ArtifactStem that = (ArtifactStem) o;
+            return collection.equals(that.collection) && auid.equals(that.auid) && uri.equals(that.uri);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(collection, auid, uri);
+        }
+    }
 }

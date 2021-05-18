@@ -44,6 +44,7 @@ import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
+import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
@@ -53,6 +54,7 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -98,6 +100,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * with a provided Solr URL.
    */
   private final boolean isInternalClient;
+
+  /**
+   * Map from artifact stem to semaphore. Used for artifact version locking.
+   */
+  private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
 
   /**
    * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr collection endpoint.
@@ -331,6 +338,23 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public boolean isReady() {
     return getState() == ArtifactIndexState.READY
         || getState() == ArtifactIndexState.INITIALIZED && checkAlive();
+  }
+
+  @Override
+  public void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem) throws IOException {
+    // Acquire the lock for this artifact stem
+    try {
+      versionLock.getLock(stem);
+    } catch (InterruptedException e) {
+      throw new InterruptedIOException("Interrupted while waiting to acquire artifact version lock");
+    }
+
+  }
+
+  @Override
+  public void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem) {
+    // Release the lock for the artifact stem
+    versionLock.releaseLock(stem);
   }
 
   /**
