@@ -52,6 +52,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
+import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.ArtifactState;
@@ -782,7 +783,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // No match
     when(ds.getBasePaths()).thenReturn(new Path[]{Paths.get("/a"), Paths.get("/b")});
-    assertNull(ds.getBasePathFromStorageUrl(storageUrl));
+    assertThrows(IllegalArgumentException.class,
+        () -> ds.getBasePathFromStorageUrl(storageUrl),
+        "Storage URL has no common base path");
 
     // Match
     // TODO revisit
@@ -1755,40 +1758,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getAuArtifactStorageUrls(String, String)}.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testGetAuArtifactStorageUrls() throws Exception {
-    runTestGetAuArtifactsStorageUrls(false);
-    runTestGetAuArtifactsStorageUrls(true);
-  }
-
-  public void runTestGetAuArtifactsStorageUrls(boolean useCompression) throws Exception {
-    // Create artifact spec
-    URI storageUrl = new URI("storageUrl");
-
-    ArtifactSpec spec = new ArtifactSpec()
-        .setArtifactId("artifactId")
-        .setUrl("artifactUrl")
-        .setStorageUrl(storageUrl);
-
-    spec.generateContent();
-
-    // Get WARC file byte array containing artifact data from spec
-    byte[] warcFile = createWarcFileFromSpecs(useCompression, spec);
-
-    // Mocks
-    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-
-    // Mock behavior
-
-    // TODO FINISH
-    ds.getAuArtifactStorageUrls(spec.getCollection(), spec.getAuid());
-  }
-
-  /**
    * Test for {@link WarcArtifactDataStore#isTempWarcRemovable(Path)}.
    *
    * @throws Exception
@@ -2581,9 +2550,34 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     for (ArtifactSpec spec : neverFoundArtifactSpecs) { // FIXME
       spec.setArtifactId(UUID.randomUUID().toString());
       spec.generateContent();
-      spec.setStorageUrl(URI.create("bad"));
 
+      // Assert null storage URL results in an IllegalArgument exception being thrown
+      assertThrows(IllegalArgumentException.class,
+          () -> store.deleteArtifactData(spec.getArtifact()));
+
+      // Assert a bad storage URL results in an IllegalArgument exception being thrown
+      spec.setStorageUrl(URI.create("bad"));
+      assertThrows(IllegalArgumentException.class,
+          () -> store.deleteArtifactData(spec.getArtifact()));
+
+//      assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
+//      assertFalse(store.artifactIndex.artifactExists(spec.getArtifactId()));
+//      assertNull(store.getArtifactRepositoryState(spec.getArtifactIdentifier()));
+
+      // Delete artifact with a storage URL under valid base URL
+      Path storageUrl = store.getBasePaths()[0].resolve("artifact");
+      spec.setStorageUrl(storageUrl.toUri());
       store.deleteArtifactData(spec.getArtifact());
+
+      // Assert artifact is deleted in the data store
+      assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
+
+      // Assert the artifact reference is removed from the index
+      assertFalse(store.artifactIndex.artifactExists(spec.getArtifactId()));
+
+      // Assert artifact marked deleted in AU artifact state journal
+      ArtifactRepositoryState state = store.getArtifactRepositoryState(spec.getArtifactIdentifier());
+      assertTrue(state.isDeleted());
     }
 
     // Assert variant state
@@ -2944,8 +2938,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path[] journalPaths = new Path[]{j1Path, j2Path};
 
     doCallRealMethod().when(ds).getArtifactRepositoryState(aid);
-    ds.artifactStates = new HashMap<>();
-    ds.artifactStatesLock = new Object();
+    ds.auLocks = new SemaphoreMap<>();
 
     // Assert null return if no journals found
     when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(new Path[]{});
