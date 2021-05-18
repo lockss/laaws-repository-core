@@ -1,5 +1,7 @@
 package org.lockss.laaws.rs.core;
 
+import org.lockss.log.L4JLogger;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
@@ -10,6 +12,7 @@ import java.util.concurrent.Semaphore;
  * @param <T> The class type of the keys.
  */
 public class SemaphoreMap<T> {
+  private final static L4JLogger log = L4JLogger.getLogger();
 
   /**
    * Map from key to semaphore and its usage count.
@@ -104,10 +107,19 @@ public class SemaphoreMap<T> {
     synchronized (locks) {
       // Release the semaphore lock
       SemaphoreAndCount snc = getSemaphoreAndCount(key);
+
+      if (snc.count < 1) {
+        log.warn("Releasing semaphore with usage counter less than one [key: {}]", key);
+      }
+
       snc.getSemaphore().release();
 
       // Decrement the usage count; remove the semaphore from map if no longer in use
       if (snc.decrementCounter() < 1) {
+        if (snc.getSemaphore().hasQueuedThreads()) {
+          log.warn("Semaphore still has queued threads [key: {}]", key);
+        }
+
         locks.remove(key);
       }
     }
@@ -117,10 +129,19 @@ public class SemaphoreMap<T> {
    * Returns an estimate of the usage count of a semaphore. Only intended to be used in testing.
    *
    * @param key The key of the semaphore.
-   * @return A {@code long} containing the usage count of the semaphore.
+   * @return A {@link Long} containing the usage count of the semaphore.
    */
-  public long getCount(T key) {
+  public Long getCount(T key) {
     SemaphoreAndCount snc = locks.get(key);
-    return (snc == null) ? 0 : snc.count;
+    return (snc == null) ? null : snc.count;
+  }
+
+  /**
+   * Returns the number of semaphores in the map. Only intended to be used in testing.
+   *
+   * @return A {@code long} containing the number of semaphores in the internal map.
+   */
+  public long getSize() {
+    return locks.size();
   }
 }
