@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ComparisonChain;
 
 import java.io.Serializable;
@@ -165,6 +166,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
      *
      * @return A {@link ArtifactStem} containing the artifact stem of this artifact identifier.
      */
+    @JsonIgnore
     public ArtifactStem getArtifactStem() {
         return new ArtifactStem(getCollection(), getAuid(), getUri());
     }
