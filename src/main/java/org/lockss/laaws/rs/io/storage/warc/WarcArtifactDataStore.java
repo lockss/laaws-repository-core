@@ -36,6 +36,7 @@ import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.collections4.map.LRUMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -2329,10 +2330,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Objects.requireNonNull(artifactId, "Artifact identifier is null");
     Objects.requireNonNull(state, "Repository artifact metadata is null");
 
-    ArchivalUnitStem stem = new ArchivalUnitStem(artifactId.getCollection(), artifactId.getAuid());
+    ArchivalUnitStem auStem = new ArchivalUnitStem(artifactId.getCollection(), artifactId.getAuid());
 
     try {
-      auLocks.getLock(stem);
+      auLocks.getLock(auStem);
     } catch (InterruptedException e) {
       throw new InterruptedIOException("Interrupted while waiting to acquire AU lock");
     }
@@ -2352,7 +2353,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         writeWarcRecord(journalRecord, output);
       }
     } finally {
-      auLocks.releaseLock(stem);
+      auLocks.releaseLock(auStem);
+    }
+
+    // Update LRU if present
+    if (states != null) {
+      Map<String, ArtifactRepositoryState> stateMap = states.get(auStem);
+
+      // Update artifact state if the artifact states of an AU are in the LRU
+      if (stateMap != null) {
+        stateMap.replace(artifactId.getId(), state);
+      }
     }
 
     log.debug2("Updated artifact repository state [artifactId: {}, state: {}]", artifactId, state.toJson());
@@ -2385,6 +2396,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
+  // LRU to hold the artifact state maps for the most recently accessed AUs
+  private LRUMap<ArchivalUnitStem, Map<String, ArtifactRepositoryState>> states;
+
   /**
    * Reads an artifact's current repository state from storage.
    *
@@ -2397,19 +2411,36 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalArgumentException("Null artifact identifier");
     }
 
-    Map<String, ArtifactRepositoryState> artifactStates = new HashMap<>();
-
-    // Read AU's artifact state journal files
+    // AU key into LRU map
     ArchivalUnitStem auStem = new ArchivalUnitStem(aid.getCollection(), aid.getAuid());
 
-    // Acquire semaphore for the AU
-    try {
-      auLocks.getLock(auStem);
-    } catch (InterruptedException e) {
-      throw new InterruptedIOException("Interrupted while waiting to acquire AU lock");
+    //// Return artifact state from LRU if present
+    if (states == null) {
+      states = new LRUMap<>(10);
     }
 
-    try {
+    // Retrieve AU's artifact state map
+    Map<String, ArtifactRepositoryState> artifactStates = states.getOrDefault(auStem, new HashMap<>());
+
+    if (artifactStates != null) {
+      // AU is cached in LRU; return artifact's repository state if available
+      ArtifactRepositoryState state = artifactStates.get(aid.getId());
+
+      if (state != null) {
+        return state;
+      }
+    }
+
+    //// Read artifact state from journal
+
+//    // Acquire semaphore for the AU
+//    try {
+//      auLocks.getLock(auStem);
+//    } catch (InterruptedException e) {
+//      throw new InterruptedIOException("Interrupted while waiting to acquire AU lock");
+//    }
+
+//    try {
       for (Path journalPath :
           getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
 
@@ -2433,9 +2464,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           }
         }
       }
-    } finally {
-      auLocks.releaseLock(auStem);
-    }
+//    } finally {
+//      auLocks.releaseLock(auStem);
+//    }
+
+    // Update LRU
+    states.put(auStem, artifactStates);
 
     return artifactStates.get(aid.getId());
   }
