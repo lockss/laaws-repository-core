@@ -2067,13 +2067,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert if artifact is indexed then it is not deleted
     ds.artifactIndex = mock(ArtifactIndex.class);
-    when(ds.artifactIndex.getArtifact(aid)).thenReturn(mock(Artifact.class));
+    when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(true);
     assertFalse(ds.isArtifactDeleted(aid));
 
     // Assert if the artifact is not indexed then it falls back to the journal
     when(ds.artifactIndex.getArtifact(aid)).thenReturn(null);
 
     // Assert LockssNoSuchArtifactIdException is thrown if the journal doesn't contain an entry
+    when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(false);
     assertThrows(LockssNoSuchArtifactIdException.class, (Executable) () -> ds.isArtifactDeleted(aid));
 
     // Assert deleted state matches latest journal entry
@@ -2932,6 +2933,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
     when(aid.getId()).thenReturn("test");
+    when(aid.getCollection()).thenReturn("collection");
+    when(aid.getAuid()).thenReturn("auid");
 
     Path j1Path = mock(Path.class);
     Path j2Path = mock(Path.class);
