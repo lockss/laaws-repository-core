@@ -1338,10 +1338,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected boolean isArtifactDeleted(ArtifactIdentifier aid) throws IOException {
-    // Check whether the artifact is referenced by the index
-    Artifact artifact = artifactIndex.getArtifact(aid);
-
-    if (artifact != null) {
+    // Check whether the artifact indexed
+    if (artifactIndex.artifactExists(aid.getId())) {
       return false;
     }
 
@@ -1722,12 +1720,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       log.debug("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
-
-      // Artifact must exist in the index to continue
-      if (!artifactIndex.artifactExists(artifactId)) {
-        log.debug("Artifact not found [artifactId: {}]", artifactId);
-        throw new LockssNoSuchArtifactIdException("Artifact not found");
-      }
 
       // Open an InputStream from the WARC file and get the WARC record representing this artifact data
       warcStream = getInputStreamFromStorageUrl(storageUrl);
