@@ -1722,8 +1722,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     switch (artifactState) {
       case NOT_INDEXED:
-      case UNCOMMITTED:
-      case COMMITTED:
+      case INDEXED:
+      case PENDING_COMMIT:
         // The temporary WARC containing this artifact should NOT have been removed
         log.debug("storageUrl = {}", WarcArtifactDataStore.getPathFromStorageUrl(new URI(indexedRef.getStorageUrl())));
         log.debug("tmpWarcBasePath = {}", tmpWarcBasePath);
@@ -1737,7 +1737,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         assertEquals(0, tmpWarcs.size());
         break;
 
-      case COPIED:
+      case COMMITTED:
         // The temporary WARC containing only this artifact should have been removed
         assertEquals(0, tmpWarcs.size());
 
@@ -1917,13 +1917,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         // Assert expected return based on artifact state
         switch (state) {
           case EXPIRED:
-          case COPIED:
+          case COMMITTED:
           case DELETED:
             assertTrue(ds.isTempWarcRecordRemovable(record));
             continue;
           case NOT_INDEXED:
-          case COMMITTED:
-          case UNCOMMITTED:
+          case PENDING_COMMIT:
+          case INDEXED:
           default:
             assertFalse(ds.isTempWarcRecordRemovable(record));
         }
@@ -1991,19 +1991,19 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         store.setArtifactIndex(new VolatileArtifactIndex());
         break;
 
-      case UNCOMMITTED:
+      case INDEXED:
         break;
 
       case EXPIRED:
         isExpired = true;
         break;
 
-      case COMMITTED:
+      case PENDING_COMMIT:
         index.commitArtifact(artifact.getId());
         // TODO Mark as committed in journal?
         break;
 
-      case COPIED:
+      case COMMITTED:
         Future<Artifact> future = store.commitArtifactData(artifact);
         artifact = future.get(10, TimeUnit.SECONDS);
         break;
