@@ -40,8 +40,6 @@ import org.lockss.util.storage.StorageInfo;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
