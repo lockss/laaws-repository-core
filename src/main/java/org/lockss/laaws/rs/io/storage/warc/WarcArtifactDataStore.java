@@ -1844,8 +1844,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           ArtifactRepositoryState artifactRepoState =
               new ArtifactRepositoryState(artifact.getIdentifier(), true, false);
 
-          Path basePath = getBasePathFromStorageUrl(new URI(artifact.getStorageUrl()));
-          updateArtifactRepositoryState(basePath, artifact.getIdentifier(), artifactRepoState);
+          // Write new state to journal
+          updateArtifactRepositoryState(
+              getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
+              artifact.getIdentifier(),
+              artifactRepoState
+          );
 
           // Fall-through...
 
@@ -1982,10 +1986,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Update artifact state
       // *********************
 
-      Path basePath = getBasePathFromStorageUrl(new URI(artifact.getStorageUrl()));
       ArtifactRepositoryState state = new ArtifactRepositoryState(artifact.getIdentifier(), true, false);
-      updateArtifactRepositoryState(basePath, artifact.getIdentifier(), state);
 
+      // Write new state to journal
+      updateArtifactRepositoryState(
+          getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
+          artifact.getIdentifier(),
+          state
+      );
+
+      // Set committed bit on artifact
       artifact.setCommitted(true);
 
       return artifact;
