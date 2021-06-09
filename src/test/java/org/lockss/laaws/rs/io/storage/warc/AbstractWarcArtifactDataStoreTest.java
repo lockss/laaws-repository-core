@@ -1910,12 +1910,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
         // Assert expected return based on artifact state
         switch (state) {
-          case EXPIRED:
+          case NOT_INDEXED:
           case COMMITTED:
+          case EXPIRED:
           case DELETED:
             assertTrue(ds.isTempWarcRecordRemovable(record));
             continue;
-          case NOT_INDEXED:
           case PENDING_COMMIT:
           case INDEXED:
           default:
@@ -1982,11 +1982,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         artifact = new Artifact("unknown", "collection", "auid", "uri", 1, false, "storageurl", 1, "digest");
         break;
 
-      case NOT_INDEXED:
-        // Set data store's index to new index
-        store.setArtifactIndex(new VolatileArtifactIndex());
-        break;
-
       case INDEXED:
         break;
 
@@ -2003,6 +1998,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         Future<Artifact> future = store.commitArtifactData(artifact);
         artifact = future.get(10, TimeUnit.SECONDS);
         break;
+
+      case NOT_INDEXED:
+        // Artifacts missing from the index are treated as deleted
+        expectedState = ArtifactState.DELETED;
 
       case DELETED:
         // Remove artifact
@@ -2060,29 +2059,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
 
     doCallRealMethod().when(ds).isArtifactDeleted(aid);
-
-    // Assert if artifact is indexed then it is not deleted
     ds.artifactIndex = mock(ArtifactIndex.class);
 
     when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(true);
     assertFalse(ds.isArtifactDeleted(aid));
 
-    // Assert if the artifact is not indexed then it falls back to the journal
-    when(ds.artifactIndex.getArtifact(aid)).thenReturn(null);
-
-    // Assert LockssNoSuchArtifactIdException is thrown if the journal doesn't contain an entry
     when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(false);
-    assertThrows(LockssNoSuchArtifactIdException.class, (Executable) () -> ds.isArtifactDeleted(aid));
-
-    // Assert deleted state matches latest journal entry
-    ArtifactRepositoryState state = mock(ArtifactRepositoryState.class);
-    when(ds.getArtifactRepositoryState(aid)).thenReturn(state);
-
-    when(state.isDeleted()).thenReturn(true);
     assertTrue(ds.isArtifactDeleted(aid));
-
-    when(state.isDeleted()).thenReturn(false);
-    assertFalse(ds.isArtifactDeleted(aid));
   }
 
   /**
@@ -2574,8 +2557,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertFalse(store.artifactIndex.artifactExists(spec.getArtifactId()));
 
       // Assert artifact marked deleted in AU artifact state journal
-      ArtifactRepositoryState state = store.getArtifactRepositoryState(spec.getArtifactIdentifier());
-      assertTrue(state.isDeleted());
+//      ArtifactRepositoryState state = store.getArtifactRepositoryStateFromJournal(spec.getArtifactIdentifier());
+//      assertTrue(state.isDeleted());
     }
 
     // Assert variant state

@@ -1064,31 +1064,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         // Resume artifact lifecycle based on the artifact's state
         switch (artifactState) {
-          case NOT_INDEXED:
-            // An artifact was found in a temporary WARC that is not indexed for some reason - index the artifact now
-            log.debug("Artifact missing from index; indexing now [artifactId: {}]", aid.getId());
-
-            // Construct an ArtifactData from reading the WARC record
-            ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
-
-            // Note: ArchiveRecordHeader#getLength() does not account for the pair of CRLFs at the end of every WARC
-            // record. We correct that here:
-            long recordLength = record.getHeader().getLength() + 4L;
-
-            // Set the artifact's storage URL to the temporary WARC record we read it from:
-            artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarc, record.getHeader().getOffset(), recordLength));
-
-            // Artifact state implied by NOT_INDEXED (would be COMMITTED or DELETED otherwise)
-            ArtifactRepositoryState state = new ArtifactRepositoryState(aid, false, false);
-
-            // Set artifact data's repository state (from AU journal)
-            artifactData.setArtifactRepositoryState(state);
-
-            // Index the artifact
-            index.indexArtifact(artifactData);
-
-            // Fall-through to COMMITTED...
-
           case PENDING_COMMIT:
             // Requeue the copy of this artifact from temporary to permanent storage
             try {
@@ -1122,7 +1097,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               log.warn("Removed artifact from index [artifactId: {}]", aid.getId());
             }
 
-            // Fall-through to COPIED
+            // Fall-through to next case
+
+          case NOT_INDEXED:
+            // If this artifact in temporary storage was not indexed then it was interrupted
+            // and did not succeed being added to the repository: Treat it as removable.
 
           case COMMITTED:
             log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
@@ -1221,15 +1200,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       case resource:
         try {
           switch (getArtifactState(aid, isArtifactExpired(record))) {
+            case NOT_INDEXED:
+            case COMMITTED:
             case EXPIRED:
             case DELETED:
-            case COMMITTED:
               return true;
 
             case UNKNOWN:
-            case NOT_INDEXED:
-            case PENDING_COMMIT:
             case INDEXED:
+            case PENDING_COMMIT:
             default:
               return false;
           }
@@ -1332,19 +1311,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected boolean isArtifactDeleted(ArtifactIdentifier aid) throws IOException {
     // Check whether the artifact indexed
-    if (artifactIndex.artifactExists(aid.getId())) {
-      return false;
-    }
-
-    // Fallback to reading the deleted state from journal
-    ArtifactRepositoryState state = getArtifactRepositoryState(aid);
-
-    if (state != null) {
-      return state.isDeleted();
-    }
-
-    // Throw if additionally no journal entry was found
-    throw new LockssNoSuchArtifactIdException();
+    return !artifactIndex.artifactExists(aid.getId());
   }
 
   /**
@@ -1818,15 +1785,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // FIXME: Potential for race condition? What if the state of the artifact changes?
       switch (artifactState) {
-        case NOT_INDEXED:
-          // We have an artifact so this should be recoverable
-          log.warn("Artifact missing from index; adding and continuing [artifactId: {}]", artifact.getId());
-          try (ArtifactData ad = getArtifactData(artifact)) {
-            artifactIndex.indexArtifact(ad);
-          }
-
-          // Fall-through...
-
         case INDEXED:
           // Mark artifact as committed in the index
           artifactIndex.commitArtifact(artifact.getId());
@@ -1854,6 +1812,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           // This artifact is already marked committed and is in permanent storage. Wrap in Future and return it.
           return new CompletedFuture<>(artifact);
 
+        case NOT_INDEXED:
         case EXPIRED:
         case DELETED:
           log.warn("Cannot commit deleted or expired artifact [artifactId: {}, state: {}]", artifact.getId(), artifactState.toString());
