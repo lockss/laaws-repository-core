@@ -2737,6 +2737,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIndex index = mock(ArtifactIndex.class);
+    ArtifactRepositoryState state = mock(ArtifactRepositoryState.class);
 
     // Mock behavior
     String filename = useCompression ? "test.warc.gz" : "test.warc";
@@ -2758,11 +2759,22 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
-    // Assert the artifact *is* indexed if it is not indexed
+    when(ds.getArtifactRepositoryStateFromJournal(spec.getArtifactIdentifier())).thenReturn(state);
+
+    // Assert the artifact *is* reindexed if it is not indexed and not recorded as deleted in the journal
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactId())).thenReturn(false);
+    when(state.isDeleted()).thenReturn(false);
     ds.reindexArtifactsFromWarc(index, warcFile);
     verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+    clearInvocations(index);
+
+    // Assert the artifact *is not* reindexed if it is not indexed and recorded as deleted in the journal
+    when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
+    when(index.artifactExists(spec.getArtifactId())).thenReturn(false);
+    when(state.isDeleted()).thenReturn(true);
+    ds.reindexArtifactsFromWarc(index, warcFile);
+    verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
     // TODO Actually index the artifact data and assert that it matches the spec?
