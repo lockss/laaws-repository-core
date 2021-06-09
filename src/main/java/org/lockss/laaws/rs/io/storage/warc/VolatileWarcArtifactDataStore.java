@@ -218,7 +218,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    return dataStoreState == DataStoreState.INITIALIZED;
+    return dataStoreState != DataStoreState.STOPPED;
   }
 
   /**

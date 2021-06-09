@@ -340,7 +340,7 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
         .map(this::isDirectory)
         .allMatch(Predicate.isEqual(true)));
 
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    assertNotEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
   }
 
   @Override

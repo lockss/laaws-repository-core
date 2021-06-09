@@ -200,7 +200,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     // FIXME: Method access not permissive enough (protected) - why?
 //    verify(ds).reloadDataStoreState();
 
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    assertNotEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
   }
 
   /**

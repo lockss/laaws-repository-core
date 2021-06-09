@@ -137,7 +137,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected WarcFilePool tmpWarcPool;
   protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap = new HashMap<>();
   protected Map<CollectionAuidPair, List<Path>> auPathsMap = new HashMap<>();
-  protected DataStoreState dataStoreState = DataStoreState.UNINITIALIZED;
+
+  protected DataStoreState dataStoreState = DataStoreState.STOPPED;
 
   protected boolean useCompression;
 
@@ -156,9 +157,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   public enum DataStoreState {
-    UNINITIALIZED,
-    INITIALIZED,
-    SHUTDOWN
+    INITIALIZING,
+    RUNNING,
+    STOPPED
   }
 
   // *******************************************************************************************************************
@@ -258,7 +259,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   @Override
   public void shutdownDataStore() throws InterruptedException {
-    if (dataStoreState != DataStoreState.SHUTDOWN) {
+    if (dataStoreState != DataStoreState.STOPPED) {
       scheduledExecutor.shutdown();
       stripedExecutor.shutdown();
 
@@ -266,7 +267,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       scheduledExecutor.awaitTermination(1, TimeUnit.MINUTES);
       stripedExecutor.awaitTermination(1, TimeUnit.MINUTES);
 
-      setDataStoreState(DataStoreState.SHUTDOWN);
+      setDataStoreState(DataStoreState.STOPPED);
 
       log.info("Finished shutdown of data store");
     } else {
@@ -298,7 +299,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public class ReloadDataStoreStateTask implements Runnable {
     @Override
     public void run() {
-
       try {
         //// Reload temporary WARCs
         for (Path tmpBasePath : getTmpWarcBasePaths()) {
@@ -868,7 +868,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.debug("Starting garbage collection of all temporary WARCs");
 
     Path[] tmpWarcBasePaths = getTmpWarcBasePaths();
-    Arrays.stream(tmpWarcBasePaths).forEach(this::garbageCollectTempWarcs);
+
+    Arrays.stream(tmpWarcBasePaths)
+        .forEach(this::garbageCollectTempWarcs);
   }
 
   /**
@@ -2490,6 +2492,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     return artifactStates.get(aid.getId());
   }
+
 
   /**
    * Reads the journal for a class of artifact metadata from a WARC file at a given path, and builds a map from artifact

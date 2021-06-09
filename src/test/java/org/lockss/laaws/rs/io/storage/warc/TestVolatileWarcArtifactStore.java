@@ -109,19 +109,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
    */
   @Override
   public void testInitDataStoreImpl() throws Exception {
-    // Mocks
-    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-
-    // Mock behavior
-    doCallRealMethod().when(ds).initDataStore();
-
-    // Initialize data store
-    ds.initDataStore();
-
-    // FIXME: Method access not permissive enough (protected) - why?
-//    verify(ds).reloadDataStoreState();
-
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    assertNotEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
   }
 
   /**

@@ -120,7 +120,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Initialize data store and assert state
     store.initDataStore();
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZING, store.getDataStoreState());
 
     // Setup variant
     beforeVariant();
@@ -713,8 +713,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Sanity check: Assert data store is using our provided index
     assertSame(index, store.getArtifactIndex());
 
+    assertEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
+
     // Initialize the data store
     store.initDataStore();
+
+    WarcArtifactDataStore.DataStoreState state = store.getDataStoreState();
+
+    assertTrue(state == WarcArtifactDataStore.DataStoreState.INITIALIZING ||
+               state == WarcArtifactDataStore.DataStoreState.RUNNING);
 
     // Run implementation-specific post-initArtifactDataStore() tests
     testInitDataStoreImpl();
@@ -738,7 +745,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(store.stripedExecutor.isShutdown());
     assertTrue(store.stripedExecutor.isTerminated());
 
-    assertEquals(WarcArtifactDataStore.DataStoreState.SHUTDOWN, store.getDataStoreState());
+    assertEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
   }
 
   /**
@@ -1604,8 +1611,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(1, store.getTmpWarcBasePaths().length);
     Path tmpWarcBasePath = store.getTmpWarcBasePaths()[0];
 
-    // Assert that the data store is in an uninitialized state
-    assertEquals(WarcArtifactDataStore.DataStoreState.UNINITIALIZED, store.getDataStoreState());
+    // Assert that the data store is in a stopped state
+    assertEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
 
     // Assert the temporary WARCs directory is empty
     assertEmpty(store.findWarcs(tmpWarcBasePath));
@@ -2067,6 +2074,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert if artifact is indexed then it is not deleted
     ds.artifactIndex = mock(ArtifactIndex.class);
+
     when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(true);
     assertFalse(ds.isArtifactDeleted(aid));
 

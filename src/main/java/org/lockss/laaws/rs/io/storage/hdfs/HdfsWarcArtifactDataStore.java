@@ -187,7 +187,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    return dataStoreState == DataStoreState.INITIALIZED && checkAlive();
+    return dataStoreState != DataStoreState.STOPPED && checkAlive();
   }
 
   @Override
