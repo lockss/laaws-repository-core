@@ -36,7 +36,6 @@ import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.collections4.map.LRUMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -2375,16 +2374,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       auLocks.releaseLock(auStem);
     }
 
-    // Update LRU if present
-    if (states != null) {
-      Map<String, ArtifactRepositoryState> stateMap = states.get(auStem);
-
-      // Update artifact state if the artifact states of an AU are in the LRU
-      if (stateMap != null) {
-        stateMap.replace(artifactId.getId(), state);
-      }
-    }
-
     log.debug2("Updated artifact repository state [artifactId: {}, state: {}]", artifactId, state.toJson());
 
     return state;
@@ -2414,9 +2403,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     }
   }
-
-  // LRU to hold the artifact state maps for the most recently accessed AUs
-  private LRUMap<ArchivalUnitStem, Map<String, ArtifactRepositoryState>> states;
 
   /**
    * Reads an artifact's current repository state from storage.
