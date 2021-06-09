@@ -2116,7 +2116,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param basePath A {@code String} containing the base path of this WARC artifact data store.
    * @throws IOException
    */
-  public void rebuildIndex(ArtifactIndex index, Path basePath) throws IOException {
+  protected void rebuildIndex(ArtifactIndex index, Path basePath) throws IOException {
 //    if (isInitialized()) {
 //      throw new IllegalStateException("Index rebuild only allowed while the data store is offline");
 //    }
