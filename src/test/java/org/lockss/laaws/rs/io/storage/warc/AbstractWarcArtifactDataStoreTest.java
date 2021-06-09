@@ -1964,6 +1964,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * @throws Exception
    */
   private void runTestGetArtifactState(ArtifactState expectedState) throws Exception {
+    log.debug("Running test for artifact state: {}", expectedState);
+
     // Assert IllegalArgumentException is thrown if a null artifact identifier is passed
     assertThrows(IllegalArgumentException.class, () -> store.getArtifactState(null, true));
     assertThrows(IllegalArgumentException.class, () -> store.getArtifactState(null, false));
@@ -2800,7 +2802,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     doCallRealMethod().when(ds).getArchiveReader(ArgumentMatchers.any(Path.class),
         ArgumentMatchers.any(InputStream.class));
 
-    // Assert the artifact is *not* indexed if it is already indexed
+    // Assert the artifact *is not* reindexed if it is already indexed
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactId())).thenReturn(true);
     ds.reindexArtifactsFromWarc(index, warcFile);

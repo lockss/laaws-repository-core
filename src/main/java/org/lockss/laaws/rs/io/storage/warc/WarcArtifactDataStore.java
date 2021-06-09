@@ -174,7 +174,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       CRLF_BYTES = CRLF.getBytes(DEFAULT_ENCODING);
     } catch (UnsupportedEncodingException e) {
-      e.printStackTrace();
+      // This should never happen
+      throw new RuntimeException(e);
     }
   }
 
@@ -891,9 +892,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       log.debug2("Found {} temporary WARCs [tmpWarcBasePath: {}]", tmpWarcs.size(), tmpWarcBasePath);
       log.trace("tmpWarcs = {}", tmpWarcs);
 
-      for (Path tmpWarc : tmpWarcs) {
-        garbageCollectTempWarc(tmpWarc);
-      }
+      tmpWarcs.forEach(this::garbageCollectTempWarc);
 
     } catch (IOException e) {
       log.error(
@@ -1130,7 +1129,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           case DELETED:
             // Remove artifact reference from index if it exists
             if (index.deleteArtifact(aid.getId())) {
-              log.debug2("Removed artifact from index [artifactId: {}]", aid.getId());
+              // This would be noteworthy since we only get DELETED if the artifact is not indexed
+              log.warn("Removed artifact from index [artifactId: {}]", aid.getId());
             }
 
             // Fall-through to COPIED
@@ -1139,7 +1139,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
                 record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
 
-            // Mark this WARC record as removable
+            // Mark this temporary WARC record as removable
             isRecordRemovable = true;
             break;
 
@@ -1260,7 +1260,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
 
   /**
-   * Returns the {@link ArtifactState} of an artifact.
+   * Returns the {@link ArtifactState} of an artifact in this data store.
    */
   protected ArtifactState getArtifactState(ArtifactIdentifier aid, boolean isExpired) throws IOException {
     if (aid == null) {
@@ -1823,11 +1823,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       boolean isExpired = Instant.now().isAfter(expiration);
 
       // Determine what action to take based on the state of the artifact
-      // FIXME: Potential for race condition? What if the state of the artifact changes?
       ArtifactState artifactState = getArtifactState(artifact.getIdentifier(), isExpired);
 
       log.trace("artifactState = {}", artifactState);
 
+      // FIXME: Potential for race condition? What if the state of the artifact changes?
       switch (artifactState) {
         case NOT_INDEXED:
           // We have an artifact so this should be recoverable
@@ -2560,40 +2560,29 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     //// Read artifact state from journal
     Map<String, ArtifactRepositoryState> artifactStates = new HashMap<>();
 
-//    // Acquire semaphore for the AU
-//    try {
-//      auLocks.getLock(auStem);
-//    } catch (InterruptedException e) {
-//      throw new InterruptedIOException("Interrupted while waiting to acquire AU lock");
-//    }
+    for (Path journalPath :
+        getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
 
-//    try {
-      for (Path journalPath :
-          getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)) {
+      // Get journal entries from file
+      List<ArtifactRepositoryState> journal = readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
 
-        // Get journal entries from file
-        List<ArtifactRepositoryState> journal = readAuJournalEntries(journalPath, ArtifactRepositoryState.class);
+      for (ArtifactRepositoryState journalEntry : journal) {
 
-        for (ArtifactRepositoryState journalEntry : journal) {
+        // Get current state from map
+        ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
 
-          // Get current state from map
-          ArtifactRepositoryState state = artifactStates.get(journalEntry.getArtifactId());
+        // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
+        // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
+        //       fast machine. The effect of equals() here is, falling back to the order in which the journal
+        //       entries appear (appended) in a journal file and the order in which journal files are read.
+        if (state == null ||
+            journalEntry.getEntryDate().equals(state.getEntryDate()) ||
+            journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
 
-          // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
-          // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
-          //       fast machine. The effect of equals() here is, falling back to the order in which the journal
-          //       entries appear (appended) in a journal file and the order in which journal files are read.
-          if (state == null ||
-              journalEntry.getEntryDate().equals(state.getEntryDate()) ||
-              journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
-
-            artifactStates.put(journalEntry.getArtifactId(), journalEntry);
-          }
+          artifactStates.put(journalEntry.getArtifactId(), journalEntry);
         }
       }
-//    } finally {
-//      auLocks.releaseLock(auStem);
-//    }
+    }
 
     // Update the MapDB HashMap
     if (flagsMap != null) {
