@@ -237,12 +237,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   @Override
   public void initDataStore() {
-    log.debug2("Initializing data store");
+    // Set data store state to initializing
+    log.debug("Initializing data store");
+    setDataStoreState(DataStoreState.INITIALIZING);
 
-    reloadDataStoreState();
-    setDataStoreState(DataStoreState.INITIALIZED);
+    // Schedule temporary WARC garbage collection
+    scheduleGarbageCollector();
+  }
 
-    log.info("Initialized data store");
+  // TODO: Parameterize
+  protected void scheduleGarbageCollector() {
+    log.debug("Scheduling temorary WARC garbage collection");
+    scheduledExecutor.scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 1, 1, TimeUnit.DAYS);
   }
 
   /**
@@ -287,32 +293,23 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Schedules an asynchronous reload of the data store state.
+   * Asynchronous data store reload tasks for non-volatile storage implementations.
    */
-  protected void reloadDataStoreState() {
-    stripedExecutor.submit(new ReloadDataStoreStateTask());
-  }
-
-  protected class ReloadDataStoreStateTask implements Runnable {
+  public class ReloadDataStoreStateTask implements Runnable {
     @Override
     public void run() {
 
       try {
-        // Reload temporary WARCs
-        reloadTemporaryWarcs();
+        //// Reload temporary WARCs
+        for (Path tmpBasePath : getTmpWarcBasePaths()) {
+          reloadTemporaryWarcs(artifactIndex, tmpBasePath);
+        }
 
-        // TODO: Reload active WARCs
+        //// TODO: Reload active WARCs
         // reloadActiveWarcs();
-
-        // Schedule temporary WARC garbage collection
-        // TODO: Parameterize interval
-        scheduledExecutor.scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 1, 1, TimeUnit.DAYS);
-
-        log.info("Scheduled temporary WARC garbage collector");
-
       } catch (Exception e) {
-        log.error("Could not reload data store state: {}", e);
-        throw new IllegalStateException(e);
+        log.error("Could not complete asynchronous data store reload", e);
+        throw new IllegalStateException("Could not complete asynchronous reload", e);
       }
     }
   }
@@ -858,7 +855,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected class GarbageCollectTempWarcsTask implements Runnable {
     @Override
     public void run() {
-      garbageCollectTempWarcs();
+        garbageCollectTempWarcs();
     }
   }
 
