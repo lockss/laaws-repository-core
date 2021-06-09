@@ -748,27 +748,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
   }
 
-  /**
-   * Test for {@link WarcArtifactDataStore#reloadDataStoreState()}.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testReloadDataStoreState() throws Exception {
-    // Mocks
-    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    ds.stripedExecutor = mock(StripedExecutorService.class);
-
-    // Mock behavior
-    doCallRealMethod().when(ds).reloadDataStoreState();
-
-    // Call method
-    ds.reloadDataStoreState();
-
-    // Verify an instance of ReloadDataStoreStateTask is submitted to the StripedExecutor
-    verify(ds.stripedExecutor).submit(ArgumentMatchers.any(WarcArtifactDataStore.ReloadDataStoreStateTask.class));
-  }
-
   // *******************************************************************************************************************
   // * TESTS: INTERNAL PATH METHODS
   // *******************************************************************************************************************
