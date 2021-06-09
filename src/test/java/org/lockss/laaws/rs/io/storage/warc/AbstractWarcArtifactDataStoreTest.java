@@ -2931,7 +2931,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getArtifactRepositoryState(ArtifactIdentifier)}.
+   * Test for {@link WarcArtifactDataStore#getArtifactRepositoryStateFromJournal(ArtifactIdentifier)}.
    *
    * @throws Exception
    */
@@ -2948,23 +2948,32 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path j2Path = mock(Path.class);
     Path[] journalPaths = new Path[]{j1Path, j2Path};
 
-    doCallRealMethod().when(ds).getArtifactRepositoryState(aid);
+    doCallRealMethod().when(ds).enableRepoDB();
+    doCallRealMethod().when(ds).disableRepoDB();
+    doCallRealMethod().when(ds).getArtifactRepositoryStateFromJournal(aid);
+
     ds.auLocks = new SemaphoreMap<>();
+
+    // Enable usage of MapDB for duration of this test
+    ds.enableRepoDB();
 
     // Assert null return if no journals found
     when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(new Path[]{});
-    assertNull(ds.getArtifactRepositoryState(aid));
+    assertNull(ds.getArtifactRepositoryStateFromJournal(aid));
 
     // Assert null return if journals do not contain an entry for this artifact
     when(ds.getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactRepositoryState.LOCKSS_JOURNAL_ID)).thenReturn(journalPaths);
-    assertNull(ds.getArtifactRepositoryState(aid));
+    assertNull(ds.getArtifactRepositoryStateFromJournal(aid));
 
     // Assert expected entry returned
     List<ArtifactRepositoryState> journal1 = new ArrayList<>();
     JSONObject entry1 = new JSONObject("{artifactId: \"test\", entryDate: 1234, committed: \"false\", deleted: \"false\"}");
     journal1.add(new ArtifactRepositoryState(entry1));
     when(ds.readAuJournalEntries(j1Path, ArtifactRepositoryState.class)).thenReturn(journal1);
-    assertEquals(new ArtifactRepositoryState(entry1), ds.getArtifactRepositoryState(aid));
+    assertEquals(new ArtifactRepositoryState(entry1), ds.getArtifactRepositoryStateFromJournal(aid));
+
+    // Disable MapDB usage
+    ds.disableRepoDB();
 
     // TODO: Right now getRepositoryMetadata() returns the first journal entry it comes across in the first journal file
     //       it come across. It would be robust if it compared by some sort of version or timestamp. Test that here:

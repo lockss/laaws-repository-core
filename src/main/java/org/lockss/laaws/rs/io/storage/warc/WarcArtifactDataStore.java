@@ -64,8 +64,13 @@ import org.lockss.util.Constants;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.io.DeferredTempFileOutputStream;
+import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
 import org.lockss.util.time.TimeUtil;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.HTreeMap;
+import org.mapdb.Serializer;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -2146,9 +2151,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   public void rebuildIndex(ArtifactIndex index) throws IOException {
+    // Enable usage of MapDB for large structures
+    enableRepoDB();
+
     for (Path basePath : getBasePaths()) {
       rebuildIndex(index, basePath);
     }
+
+    // Disable MapDB
+    disableRepoDB();
   }
 
   /**
@@ -2240,6 +2251,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             if (index.artifactExists(artifactData.getIdentifier().getId())) {
               log.debug("Artifact is already indexed [artifactId: {}]", artifactData.getIdentifier().getId());
               continue;
+            }
+
+            // Determine whether this artifact is recorded as deleted in the journal
+            ArtifactRepositoryState state = getArtifactRepositoryStateFromJournal(artifactData.getIdentifier());
+
+            // Do not reindex artifact if it is marked as deleted
+            if (state.isDeleted()) {
+              return;
             }
 
             // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
@@ -2380,6 +2399,121 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
+   * Positions of flags in the artifact state bit-vector.
+   */
+  private static int INDEX_DELETED   = 0;
+  private static int INDEX_COMMITTED = 1;
+
+  /**
+   * Name of MapDB map from artifact ID to bit-encoded {@link ArtifactRepositoryState}.
+   */
+  private static String ARTIFACT_REPOSTATES_MAP_NAME = "artifact-repostates";
+
+  /**
+   * Handle to MapDB instance.
+   */
+  private DB repodb;
+
+  /**
+   * Handle to the MapDB {@link HTreeMap} map from artifact ID to a bit-encoded {@link ArtifactRepositoryState}.
+   */
+  HTreeMap<String, long[]> flagsMap;
+
+  /**
+   * Enables use of a MapDB instance for potentially large structures, by creating a new one backed by temporary
+   * files.
+   */
+  protected void enableRepoDB() throws IOException {
+    if (repodb != null) {
+      log.warn("Already using MapDB");
+      return;
+    }
+
+    // Location of MapDB instance in temporary storage
+    File tmpMapDBBaseDir = FileUtil.createTempDir("tmpMapDB", null);
+    File tmpMapDB = new File(tmpMapDBBaseDir, "mapdb");
+
+    // Create a DB instance from DBMaker
+    repodb = (DBMaker.fileDB(tmpMapDB).fileDeleteAfterClose()).make();
+
+    // Create a MapDB hash map from artifact ID to bit-encoded artifact repository state
+    flagsMap = repodb.hashMap(ARTIFACT_REPOSTATES_MAP_NAME)
+        .keySerializer(Serializer.STRING)
+        .valueSerializer(Serializer.LONG_ARRAY)
+        .create();
+  }
+
+  /**
+   * Disables using a MapDB instance for potentially large structures.
+   */
+  protected void disableRepoDB() {
+    // Close MapDB hash map
+    if (flagsMap != null) {
+      flagsMap.close();
+      flagsMap = null;
+    }
+
+    // Close MapDB
+    if (repodb != null) {
+      repodb.close();
+      repodb = null;
+    }
+  }
+
+  /**
+   * Adds an entry to the MapDB hash map from an artifact ID to that artifact's {@link ArtifactRepositoryState}.
+   *
+   * @param state
+   */
+  private void addArtifactStateToMap(ArtifactRepositoryState state) {
+    if (flagsMap == null) {
+      throw new IllegalStateException("MapDB not enabled");
+    }
+
+    // Encode artifact repository state as a bit vector
+    BitSet flags = new BitSet();
+
+    if (state.isDeleted())
+      flags.set(INDEX_DELETED);
+
+    if (state.isCommitted())
+      flags.set(INDEX_COMMITTED);
+
+    // Encode the bit vector as a long array and put it on the map
+    flagsMap.put(state.getArtifactId(), flags.toLongArray());
+  }
+
+  /**
+   * Returns the {@link ArtifactRepositoryState} of an artifact from the MapDB instance.
+   *
+   * @param artifactId
+   * @return
+   */
+  private ArtifactRepositoryState getArtifactStateFromMap(ArtifactIdentifier artifactId) {
+    if (flagsMap == null) {
+      throw new IllegalStateException("MapDB not enabled");
+    }
+
+    // The long array representing the bit vector
+    long[] encodedFlags = flagsMap.get(artifactId.getId());
+
+    if (encodedFlags == null)
+      return null;
+
+    log.trace("encodedFlags = {}", encodedFlags);
+
+    // Convert long array to BitSet
+    BitSet flags = BitSet.valueOf(encodedFlags);
+
+    // Create a new ArtifactRepositoryState from BitSet
+    ArtifactRepositoryState state = new ArtifactRepositoryState(artifactId);
+    state.setDeleted(flags.get(INDEX_DELETED));
+    state.setCommitted(flags.get(INDEX_COMMITTED));
+
+    return state;
+  }
+
+  /**
    * Truncates a journal by rewriting it with only its most recent entry per artifact ID.
    *
    * @param journalPath A {@link Path} containing the path to the data store journal to truncate.
@@ -2411,32 +2545,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return The {@link ArtifactRepositoryState} of the artifact.
    * @throws IOException
    */
-  protected ArtifactRepositoryState getArtifactRepositoryState(ArtifactIdentifier aid) throws IOException {
+  protected ArtifactRepositoryState getArtifactRepositoryStateFromJournal(ArtifactIdentifier aid) throws IOException {
     if (aid == null) {
       throw new IllegalArgumentException("Null artifact identifier");
     }
 
-    // AU key into LRU map
-    ArchivalUnitStem auStem = new ArchivalUnitStem(aid.getCollection(), aid.getAuid());
+    //// Return artifact state from repository database (if enabled)
+    ArtifactRepositoryState result = getArtifactStateFromMap(aid);
 
-    //// Return artifact state from LRU if present
-    if (states == null) {
-      states = new LRUMap<>(10);
-    }
-
-    // Retrieve AU's artifact state map
-    Map<String, ArtifactRepositoryState> artifactStates = states.getOrDefault(auStem, new HashMap<>());
-
-    if (artifactStates != null) {
-      // AU is cached in LRU; return artifact's repository state if available
-      ArtifactRepositoryState state = artifactStates.get(aid.getId());
-
-      if (state != null) {
-        return state;
-      }
+    if (result != null) {
+      return result;
     }
 
     //// Read artifact state from journal
+    Map<String, ArtifactRepositoryState> artifactStates = new HashMap<>();
 
 //    // Acquire semaphore for the AU
 //    try {
@@ -2473,8 +2595,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 //      auLocks.releaseLock(auStem);
 //    }
 
-    // Update LRU
-    states.put(auStem, artifactStates);
+    // Update the MapDB HashMap
+    if (flagsMap != null) {
+      artifactStates.values()
+          .forEach(state -> addArtifactStateToMap(state));
+    }
 
     return artifactStates.get(aid.getId());
   }
