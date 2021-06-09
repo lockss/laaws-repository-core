@@ -1958,7 +1958,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     switch (expectedState) {
       case UNKNOWN:
-        artifact = new Artifact("unknown", "collection", "auid", "uri", 1, false, "storageurl", 1, "digest");
+        // Setup conditions that would cause an UNKNOWN state by mocking
+        // index.artifactExists() to throw an IOException
+        store.setArtifactIndex(mock(ArtifactIndex.class));
+        when(store.artifactIndex.artifactExists(artifact.getId()))
+            .thenThrow(IOException.class);
+
         break;
 
       case INDEXED:
