@@ -1554,21 +1554,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Asserts that an IllegalStateException is thrown when attempting to reload temporary WARCs with a null index.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testReloadTempWarcs_nullIndex() throws Exception {
-    // Cannot use the provided data store for this test
-    teardownDataStore();
-
-    // Assert that an IllegalStateException is thrown when attempting to reload temporary WARCs with a null index
-    store = makeWarcArtifactDataStore(null);
-    assertThrows(IllegalStateException.class, () -> store.reloadTemporaryWarcs());
-  }
-
-  /**
    * Test for {@link WarcArtifactDataStore#reloadTemporaryWarcs()}.
    *
    * @throws Exception
@@ -1717,7 +1702,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
 
     // Reload temporary WARCs
-    reloadedStore.reloadTemporaryWarcs();
+    for (Path tmpBasePath : store.getTmpWarcBasePaths()) {
+      reloadedStore.reloadTemporaryWarcs(store.getArtifactIndex(), tmpBasePath);
+    }
 
     // Scan directories for temporary WARC files and assert its state
     Collection<Path> tmpWarcs = reloadedStore.findWarcs(tmpWarcBasePath);

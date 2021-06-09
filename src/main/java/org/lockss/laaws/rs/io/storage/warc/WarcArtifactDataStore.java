@@ -988,28 +988,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Reloads the temporary WARCs under all the base paths configured in this data store.
-   *
-   * @throws IOException
-   */
-  public void reloadTemporaryWarcs() throws IOException {
-    if (artifactIndex == null) {
-      throw new IllegalStateException("Cannot reload data store state from temporary WARCs without an artifact index");
-    }
-
-    for (Path tmpWarcBasePath : getTmpWarcBasePaths()) {
-      reloadTemporaryWarcs(artifactIndex, tmpWarcBasePath);
-    }
-  }
-
-  /**
    * Reads and reloads state from temporary WARCs, including the requeuing of copy tasks of committed artifacts from
    * temporary to permanent storage. Removes temporary WARCs if eligible:
    * <p>
    * A temporary WARC may be removed if all the records contained within it are the serializations of artifacts that are
    * either uncommitted-but-expired, committed-and-moved-to-permanent-storage, or deleted.
    */
-  protected void reloadTemporaryWarcs(ArtifactIndex index, Path tmpWarcBasePath) throws IOException {
+  public void reloadTemporaryWarcs(ArtifactIndex index, Path tmpWarcBasePath) throws IOException {
+    if (index == null) {
+      throw new IllegalArgumentException("Null artifact index");
+    }
+
     log.info("Reloading temporary WARCs from {}", tmpWarcBasePath);
 
     Collection<Path> tmpWarcs = findWarcs(tmpWarcBasePath);
