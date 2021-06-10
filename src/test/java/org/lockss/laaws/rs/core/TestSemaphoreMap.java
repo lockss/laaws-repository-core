@@ -43,7 +43,7 @@ public class TestSemaphoreMap extends LockssTestCase5 {
     }
 
     // Assert only one thread acquires the semaphore at a time
-    for (int i = 0; i < 2*MAX_THREADS; i++) {
+    for (int i = 0; i < 3*MAX_THREADS; i++) {
       assertEquals(0, queue.take());
     }
 
@@ -72,6 +72,7 @@ public class TestSemaphoreMap extends LockssTestCase5 {
       } finally {
         queue.offer(--counter);
         locks.releaseLock(TEST_KEY);
+        queue.offer(0); // good enough for test code
       }
     }
   }
