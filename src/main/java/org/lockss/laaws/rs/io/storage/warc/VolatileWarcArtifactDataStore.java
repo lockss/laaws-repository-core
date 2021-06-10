@@ -221,6 +221,16 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     return dataStoreState != DataStoreState.STOPPED;
   }
 
+  @Override
+  public void initDataStore() {
+    // Sets the data store state to INITIALIZING and schedules
+    // the temporary WARC garbage collector
+    super.initDataStore();
+
+    // Set state to RUNNING
+    setDataStoreState(DataStoreState.RUNNING);
+  }
+
   /**
    * Returns information about the storage size and free space
    * @return A {@code StorageInfo}
