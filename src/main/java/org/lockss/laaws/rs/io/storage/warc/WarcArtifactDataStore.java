@@ -312,6 +312,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         //// TODO: Reload active WARCs
         // reloadActiveWarcs();
+
+        // Reached the end of reload - set data store state to RUNNING
+        setDataStoreState(DataStoreState.RUNNING);
       } catch (Exception e) {
         log.error("Could not complete asynchronous data store reload", e);
         throw new IllegalStateException("Could not complete asynchronous reload", e);
