@@ -120,7 +120,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Initialize data store and assert state
     store.initDataStore();
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZING, store.getDataStoreState());
+    assertNotEquals(WarcArtifactDataStore.DataStoreState.STOPPED,
+        store.getDataStoreState());
 
     // Setup variant
     beforeVariant();
