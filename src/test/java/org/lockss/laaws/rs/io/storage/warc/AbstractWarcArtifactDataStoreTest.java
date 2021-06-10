@@ -2509,6 +2509,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @VariantTest
   @EnumSource(TestRepoScenarios.class)
   public void testDeleteArtifactData() throws Exception {
+    // Enable MapDB for the duration of this test
+    store.enableRepoDB();
+
     // Attempt to delete with a null artifact; assert we get back an IllegalArgumentException
     assertThrows(IllegalArgumentException.class, () -> store.deleteArtifactData(null));
 
@@ -2542,8 +2545,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertFalse(store.artifactIndex.artifactExists(spec.getArtifactId()));
 
       // Assert artifact marked deleted in AU artifact state journal
-//      ArtifactRepositoryState state = store.getArtifactRepositoryStateFromJournal(spec.getArtifactIdentifier());
-//      assertTrue(state.isDeleted());
+      ArtifactRepositoryState state = store.getArtifactRepositoryStateFromJournal(spec.getArtifactIdentifier());
+      assertTrue(state.isDeleted());
     }
 
     // Assert variant state
@@ -2569,6 +2572,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Verify that the repository metadata journal and index reflect the artifact is deleted
     assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
     assertNull(store.getArtifactIndex().getArtifact(artifact.getId()));
+
+    // Disable MapDB
+    store.disableRepoDB();
   }
 
   /**
