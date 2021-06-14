@@ -986,8 +986,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     q.addSort(SORTURI_ASC);
-    q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
+    q.addSort(VERSION_DESC);
 
     return IteratorUtils.asIterable(
         new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q));
@@ -1038,8 +1038,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
     q.addSort(SORTURI_ASC);
-    q.addSort(VERSION_DESC);
     q.addSort(AUID_ASC);
+    q.addSort(VERSION_DESC);
 
     return IteratorUtils.asIterable(
         new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q));

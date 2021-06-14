@@ -515,7 +515,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
 	// Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
 	return IteratorUtils.asIterable(getIterableArtifacts().stream().filter(query.build())
-            .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+            .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
     }
 
     /**
@@ -563,7 +563,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         return IteratorUtils.asIterable(
             getIterableArtifacts().stream()
                 .filter(query.build())
-                .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+                .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
     }
 
     /**
