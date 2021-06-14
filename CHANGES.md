@@ -1,9 +1,11 @@
 # `laaws-repository-core` Release Notes
 
-## Changes Since 2.14.0 
+## Changes Since 2.0.14.0
 
 ### Features
 
+*   Switched to a 3-part version numbering scheme.
+*   Added support for uncompressed and GZIP compressed WARCs
 *   Added the ability to supply and use Solr credentials in SolrJ calls made by the 
     RestLockssRepository client.
 
@@ -16,11 +18,6 @@
 *   Fixed several race conditions e.g., through the introduction of SemaphoreMap
     and artifact version locking support in artifact index implementations.
 *   Numerous other small bug fixes and improvements.
-
-## Changes Since 2.0.14.0
-
-*   Switched to a 3-part version numbering scheme.
-*   Added support for uncompressed and GZIP compressed WARCs
 
 ## 2.0.14.0
 
