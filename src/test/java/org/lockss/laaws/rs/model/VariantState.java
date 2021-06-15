@@ -56,9 +56,8 @@ public class VariantState {
           .thenComparing(ArtifactSpec::getAuid)
           .thenComparing(Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
-  protected static final Comparator<ArtifactSpec> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
+  protected static final Comparator<ArtifactSpec> BY_URI_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
-          .thenComparing(ArtifactSpec::getCollectionDate)
           .thenComparing(ArtifactSpec::getAuid)
           .thenComparing(Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
@@ -244,7 +243,7 @@ public class VariantState {
   public Stream<ArtifactSpec> orderedAllCollAllAus(String coll) {
     return committedSpecStream()
         .filter(s -> s.getCollection().equals(coll))
-        .sorted(BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION);
+        .sorted(BY_URI_BY_AUID_BY_DECREASING_VERSION);
   }
 
   public Stream<ArtifactSpec> orderedAllAu(String coll, String auid) {

@@ -633,7 +633,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param builder A {@code UriComponentsBuilder} containing a REST endpoint that returns artifacts.
    * @return An {@code Iterator<Artifact>} containing artifacts.
    */
-  private Iterator<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
+  private Iterator<Artifact> getArtifactIterator(UriComponentsBuilder builder) throws IOException {
     return new RestLockssRepositoryArtifactIterator(restTemplate, builder,
         authHeaderValue);
   }
@@ -693,7 +693,7 @@ public class RestLockssRepository implements LockssRepository {
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "latest");
 
-    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifacts(builder)));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -712,7 +712,7 @@ public class RestLockssRepository implements LockssRepository {
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
@@ -734,7 +734,7 @@ public class RestLockssRepository implements LockssRepository {
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifacts(builder)));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -757,7 +757,7 @@ public class RestLockssRepository implements LockssRepository {
         .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
@@ -770,15 +770,16 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
-    if (collection == null || prefix == null)
+    if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");
+    }
+
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -800,7 +801,7 @@ public class RestLockssRepository implements LockssRepository {
         .queryParam("url", url)
         .queryParam("version", "all");
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
@@ -812,15 +813,16 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
-    if (collection == null || url == null)
+    if (collection == null || url == null) {
       throw new IllegalArgumentException("Null collection id or url");
+    }
+
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("url", url)
-        .queryParam("version", "all");
+        .queryParam("url", url);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
