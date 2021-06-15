@@ -770,15 +770,16 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
-    if (collection == null || prefix == null)
+    if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");
+    }
+
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -812,15 +813,16 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
-    if (collection == null || url == null)
+    if (collection == null || url == null) {
       throw new IllegalArgumentException("Null collection id or url");
+    }
+
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("url", url)
-        .queryParam("version", "all");
+        .queryParam("url", url);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
