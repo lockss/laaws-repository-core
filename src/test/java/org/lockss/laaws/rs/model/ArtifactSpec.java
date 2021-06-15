@@ -96,10 +96,17 @@ public class ArtifactSpec implements Comparable<Object> {
     HEADERS1.add("key2", "val1");
   }
 
-  static final Comparator<ArtifactSpec> artSpecComparator =
+  public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR =
       Comparator.comparing(ArtifactSpec::getCollection)
       .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+      .thenComparing(
+	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
+
+  public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR_BY_URL =
+      Comparator.comparing(ArtifactSpec::getCollection)
+      .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+      .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(
 	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
@@ -497,7 +504,7 @@ public class ArtifactSpec implements Comparable<Object> {
   public int compareTo(Object o) {
     ArtifactSpec s = (ArtifactSpec) o;
 
-    return artSpecComparator.compare(this, s);
+    return ART_SPEC_COMPARATOR.compare(this, s);
   }
 
   /**
@@ -575,8 +582,8 @@ public class ArtifactSpec implements Comparable<Object> {
 
 //    Assertions.assertEquals(getArtifactId(), art.getId());
     Assertions.assertEquals(getCollection(), art.getCollection(), "Collection");
-    Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
     Assertions.assertEquals(getUrl(), art.getUri(), "URL");
+    Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
     Assertions.assertEquals(isCommitted(), art.getCommitted(),
 			    "Committed state");
 
