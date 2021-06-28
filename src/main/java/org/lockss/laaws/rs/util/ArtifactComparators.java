@@ -54,6 +54,11 @@ public class ArtifactComparators {
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
   
+  public static final Comparator<Artifact> BY_URI_BY_AUID_BY_DECREASING_VERSION =
+      Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
+                .thenComparing(Artifact::getAuid)
+                .thenComparing(Comparator.comparingInt(Artifact::getVersion).reversed());
+
   public static final Comparator<Artifact> BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION =
       Comparator.comparing(Artifact::getUri, PreOrderComparator.INSTANCE)
                 .thenComparing(Artifact::getCollectionDate)

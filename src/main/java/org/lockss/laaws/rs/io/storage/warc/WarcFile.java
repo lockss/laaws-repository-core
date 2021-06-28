@@ -36,10 +36,20 @@ import java.nio.file.Path;
 public class WarcFile {
   private final Path path;
   private long length = 0;
+  private boolean isCompressed = false;
 
-  public WarcFile(Path path, long length) {
+  public boolean isCompressed() {
+    return isCompressed;
+  }
+
+  public void setCompressed(boolean compressed) {
+    isCompressed = compressed;
+  }
+
+  public WarcFile(Path path, long length, boolean isCompressed) {
     this.path = path;
     this.length = length;
+    this.isCompressed = isCompressed;
   }
 
   public Path getPath() {
@@ -59,6 +69,7 @@ public class WarcFile {
     return "WarcFile{" +
         "path=" + path +
         ", length=" + length +
+        ", isCompressed=" + isCompressed +
         '}';
   }
 }

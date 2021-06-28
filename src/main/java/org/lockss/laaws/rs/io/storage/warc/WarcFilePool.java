@@ -53,13 +53,16 @@ public class WarcFilePool {
    */
   protected WarcFile createWarcFile(Path basePath) {
     Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
-    WarcFile warcFile = new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), 0);
+
+    WarcFile warcFile =
+        new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), 0, store.getUseWarcCompression());
+
     addWarcFile(warcFile);
     return warcFile;
   }
 
   protected String generateTmpWarcFileName() {
-    return String.format("%s.%s", UUID.randomUUID(), WarcArtifactDataStore.WARC_FILE_EXTENSION);
+    return UUID.randomUUID().toString() + store.getWarcFileExtension();
   }
 
   /**
@@ -93,7 +96,8 @@ public class WarcFilePool {
         availableWarcs.removeAll(usedWarcs);
 
         Optional<WarcFile> opt = availableWarcs.stream()
-            .filter(usedWarc -> usedWarc.getPath().startsWith(basePath))
+            .filter(warc -> warc.getPath().startsWith(basePath))
+            .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
             .filter(warc -> warc.getLength() + bytesExpected <= store.getThresholdWarcSize())
             .max((w1, w2) ->
                 (int) (

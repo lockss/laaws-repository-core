@@ -31,20 +31,16 @@
 package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.storage.*;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
-import org.lockss.laaws.rs.model.RepositoryInfo;
-import org.lockss.laaws.rs.util.*;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.JmsFactorySource;
+import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
-import org.lockss.log.L4JLogger;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.UUID;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -146,8 +142,9 @@ public class BaseLockssRepository implements LockssRepository,
 
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-    //// Determine the next artifact version
-    synchronized (index) {
+    index.acquireVersionLock(artifactId.getArtifactStem());
+
+    try {
       // Retrieve latest version in this URL lineage
       Artifact latestVersion = index.getArtifact(
           artifactId.getCollection(),
@@ -171,9 +168,9 @@ public class BaseLockssRepository implements LockssRepository,
       artifactData.setIdentifier(newId);
 
       // Add the artifact the data store and index
-      Artifact artifact = store.addArtifactData(artifactData);
-
-      return artifact;
+      return store.addArtifactData(artifactData);
+    } finally {
+      index.releaseVersionLock(artifactId.getArtifactStem());
     }
   }
 
@@ -197,22 +194,20 @@ public class BaseLockssRepository implements LockssRepository,
    */
   @Override
   public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+    if (collection == null || artifactId == null) {
+      throw new IllegalArgumentException("Null collection ID or artifact ID");
     }
 
+    // FIXME: Change WarcArtifactDataStore#getArtifactData signature to take an artifactId.
+    //    As it is, we end up perform multiple index lookups for the same artifact, which is slow.
     Artifact artifactRef = index.getArtifact(artifactId);
 
     if (artifactRef == null) {
-      // FIXME: Do we really want to do throw? Or should we return null?
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-          + artifactId);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact ID: " + artifactId);
     }
 
-    // Fetch artifact from data store
-    ArtifactData ad = store.getArtifactData(artifactRef);
-
-    return ad;
+    // Fetch and return artifact from data store
+    return store.getArtifactData(artifactRef);
   }
 
   @Override

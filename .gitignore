@@ -431,3 +431,8 @@ lib/run-props
 /target/
 /pom.xml.versionsBackup
 /logs
+
+/pom.xml.bak
+/*/pom.xml.bak
+/.surefire-*
+/TAGS

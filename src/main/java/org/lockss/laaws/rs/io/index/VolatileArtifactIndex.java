@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.index;
 
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -41,6 +42,7 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,6 +61,11 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
     // Unmodifiable snapshot of Artifact list, for iterators
     protected List<Artifact> iterableArtifacts;
+
+    /**
+     * Map from artifact stem to semaphore. Used for artifact version locking.
+     */
+    private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
 
     @Override
     public void initIndex() {
@@ -79,7 +86,24 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       return StorageInfo.fromRuntime().setType(ARTIFACT_INDEX_TYPE);
     }
 
-    /**
+  @Override
+  public void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem) throws IOException {
+    // Acquire the lock for this artifact stem
+    try {
+      versionLock.getLock(stem);
+    } catch (InterruptedException e) {
+      throw new InterruptedIOException("Interrupted while waiting to acquire artifact version lock");
+    }
+
+  }
+
+  @Override
+  public void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem) {
+    // Release the lock for the artifact stem
+    versionLock.releaseLock(stem);
+  }
+
+  /**
      * Adds an artifact to the index.
      * 
      * @param artifactData
@@ -145,7 +169,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       }
 
       synchronized (index) {
-        return index.get(artifactId);
+        Artifact artifactRef = index.get(artifactId);
+
+        // Return *copy* of artifact, if found in the internal map
+        return artifactRef == null ? null : artifactRef.copyOf();
       }
     }
 
@@ -273,7 +300,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Artifact updateStorageUrl(String artifactId, String storageUrl) {
       if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Cannot update storage URL: Null or empty artifact ID");
+        throw new IllegalArgumentException("Invalid artifact ID");
       }
 
       if (StringUtils.isEmpty(storageUrl)) {
@@ -488,7 +515,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
 	// Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
 	return IteratorUtils.asIterable(getIterableArtifacts().stream().filter(query.build())
-            .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+            .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
     }
 
     /**
@@ -536,7 +563,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         return IteratorUtils.asIterable(
             getIterableArtifacts().stream()
                 .filter(query.build())
-                .sorted(ArtifactComparators.BY_URI_BY_DATE_BY_AUID_BY_DECREASING_VERSION).iterator());
+                .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
     }
 
     /**

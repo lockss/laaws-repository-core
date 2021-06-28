@@ -31,8 +31,8 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.model.CollectionAuidPair;
@@ -202,7 +202,9 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
       return warcs.keySet().stream()
           .filter(path -> path.startsWith(basePath))
-          .filter(path -> FilenameUtils.getExtension(path.toString()).equalsIgnoreCase(WARC_FILE_EXTENSION))
+          .filter(path ->
+              path.toString().endsWith(WARCConstants.DOT_WARC_FILE_EXTENSION) ||
+                  path.toString().endsWith(WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION))
           .collect(Collectors.toList());
     }
   }
@@ -216,7 +218,17 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    return dataStoreState == DataStoreState.INITIALIZED;
+    return dataStoreState != DataStoreState.STOPPED;
+  }
+
+  @Override
+  public void initDataStore() {
+    // Sets the data store state to INITIALIZING and schedules
+    // the temporary WARC garbage collector
+    super.initDataStore();
+
+    // Set state to RUNNING
+    setDataStoreState(DataStoreState.RUNNING);
   }
 
   /**

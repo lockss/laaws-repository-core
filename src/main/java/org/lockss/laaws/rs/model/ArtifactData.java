@@ -502,6 +502,11 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
       origInputStream.close();
       origInputStream = null;
     }
+
+    if (closableInputStream != null) {
+      closableInputStream.close();
+      closableInputStream = null;
+    }
   }
 
   public long getStoredDate() {

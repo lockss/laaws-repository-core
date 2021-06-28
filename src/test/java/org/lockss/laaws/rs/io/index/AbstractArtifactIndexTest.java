@@ -472,13 +472,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     assertEmpty(index.getArtifactsAllVersions("d", "a", "u"));
 
-    assertIterableEquals(ListUtil.list(specs.get(5).getArtifact()), index.getArtifactsAllVersions("d", "a", "v"));
+    assertIterableEquals(artList(specs, 5), index.getArtifactsAllVersions("d", "a", "v"));
 
     index.commitArtifact(specs.get(4).getArtifactId());
     variantState.commit(specs.get(4).getArtifactId());
 
     log.debug("result = {}", ListUtil.fromIterable(index.getArtifactsAllVersions("d", "a", "v")));
-    assertIterableEquals(ListUtil.list(specs.get(5).getArtifact(), specs.get(4).getArtifact()), index.getArtifactsAllVersions("d", "a", "v"));
+    assertIterableEquals(artList(specs, 5, 4), index.getArtifactsAllVersions("d", "a", "v"));
   }
 
   @Test
@@ -490,6 +490,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     specs.add(createArtifactSpec("d", "a", "v", 1, true));
     specs.add(createArtifactSpec("d", "b", "u", 1, false));
     specs.add(createArtifactSpec("d", "b", "v", 1, true));
+    specs.add(createArtifactSpec("d", "a", "u", 3, false));
+    specs.add(createArtifactSpec("d", "b", "u", 2, false));
 
     populateIndex(index, specs);
 
@@ -500,28 +502,34 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     //// Demonstrate committing an artifact affects the result
     assertIterableEquals(
-        ListUtil.list(specs.get(0).getArtifact(), specs.get(1).getArtifact()),
+        artList(specs, 0, 1),
         index.getArtifactsAllVersionsAllAus("d", "u")
     );
 
-    index.commitArtifact(specs.get(3).getArtifactId());
-    variantState.commit(specs.get(3).getArtifactId());
+    // Commit all uncommitted artifacts
+    for (ArtifactSpec spec : specs) {
+      if (!spec.isCommitted()) {
+        index.commitArtifact(spec.getArtifactId());
+        variantState.commit(spec.getArtifactId());
+      }
+    }
 
+    // Verify proper order
     assertIterableEquals(
-        ListUtil.list(specs.get(0).getArtifact(), specs.get(1).getArtifact(), specs.get(3).getArtifact()),
+        artList(specs, 5, 0, 1, 6, 3),
         index.getArtifactsAllVersionsAllAus("d", "u")
     );
 
     //// Demonstrate deleting an artifact affects the result
     assertIterableEquals(
-        ListUtil.list(specs.get(2).getArtifact(), specs.get(4).getArtifact()),
+        artList(specs, 2, 4),
         index.getArtifactsAllVersionsAllAus("d", "v")
     );
 
     index.deleteArtifact(specs.get(2).getArtifactId());
 
     assertIterableEquals(
-        ListUtil.list(specs.get(4).getArtifact()),
+        artList(specs, 4),
         index.getArtifactsAllVersionsAllAus("d", "v")
     );
 
@@ -580,6 +588,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     specs.add(createArtifactSpec("d", "a", "v", 1, true));
     specs.add(createArtifactSpec("d", "b", "u", 1, false));
     specs.add(createArtifactSpec("d", "b", "v", 1, true));
+    specs.add(createArtifactSpec("d", "a", "u", 3, false));
+    specs.add(createArtifactSpec("d", "b", "u", 2, false));
 
     populateIndex(index, specs);
 
@@ -598,21 +608,31 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     //// Assert affect of committing an artifact on result
     assertIterableEquals(
-        ListUtil.list(specs.get(5).getArtifact()),
+        artList(specs, 5),
         index.getArtifactsWithPrefixAllVersionsAllAus("d", "u2")
     );
 
-    index.commitArtifact(specs.get(6).getArtifactId());
-    variantState.commit(specs.get(6).getArtifactId());
+    // Commit all uncommitted artifacts
+    for (ArtifactSpec spec : specs) {
+      if (!spec.isCommitted()) {
+        index.commitArtifact(spec.getArtifactId());
+        variantState.commit(spec.getArtifactId());
+      }
+    }
+
+    // Verify proper order
+    assertIterableEquals(
+        artList(specs, 10, 0, 1, 11, 8, 2, 3, 4, 5, 6),
+        index.getArtifactsWithPrefixAllVersionsAllAus("d", "u")
+    );
 
     assertIterableEquals(
-        ListUtil.list(specs.get(5).getArtifact(), specs.get(6).getArtifact()),
-        index.getArtifactsWithPrefixAllVersionsAllAus("d", "u2")
-    );
+        artList(specs, 5, 6),
+        index.getArtifactsWithPrefixAllVersionsAllAus("d", "u2"));
 
     //// Assert affect of deleting an artifact on result
     assertIterableEquals(
-        ListUtil.list(specs.get(2).getArtifact(), specs.get(3).getArtifact(), specs.get(4).getArtifact()),
+        artList(specs, 2, 3, 4),
         index.getArtifactsWithPrefixAllVersionsAllAus("d", "u1")
     );
 
@@ -620,7 +640,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     variantState.delFromAll(specs.get(3));
 
     assertIterableEquals(
-        ListUtil.list(specs.get(2).getArtifact(), specs.get(4).getArtifact()),
+        artList(specs, 2, 4),
         index.getArtifactsWithPrefixAllVersionsAllAus("d", "u1")
     );
   }
@@ -672,7 +692,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testUpdateStorageUrl() throws Exception {
     // Attempt to update the storage URL of a null artifact ID
-    assertThrowsMatch(IllegalArgumentException.class, "Cannot update storage URL", () -> index.updateStorageUrl(null, "xxx"));
+    assertThrowsMatch(IllegalArgumentException.class, "Invalid artifact ID", () -> index.updateStorageUrl(null, "xxx"));
 
     // Attempt to update the storage URL of an unknown artifact ID
     assertNull(index.updateStorageUrl("xyzzy", "xxx"));
@@ -1129,4 +1149,16 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     return spec;
   }
+
+  /** Return list of Artifacts correcponding to the selected elements of
+   * the spec list */
+  private static List<Artifact> artList(List<ArtifactSpec> specs,
+                                        int... indices) {
+      List<Artifact> res = new ArrayList<>();
+      for (int ix : indices) {
+        res.add(specs.get(ix).getArtifact());
+      }
+      return res;
+    }
+
 }

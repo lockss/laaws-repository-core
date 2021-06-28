@@ -41,6 +41,7 @@ import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
+import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.auth.*;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
@@ -140,6 +141,7 @@ public class RestLockssRepository implements LockssRepository {
 
     log.trace("authHeaderValue = {}", authHeaderValue);
 
+    // Install our custom ResponseErrorHandler in the RestTemplate used by this RestLockssRepository
     restTemplate.setErrorHandler(new LockssResponseErrorHandler(restTemplate.getMessageConverters()));
 
     // Add the multipart/form-data converter to the RestTemplate
@@ -192,7 +194,6 @@ public class RestLockssRepository implements LockssRepository {
                                String msg)
       throws LockssNoSuchArtifactIdException {
     if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-      log.warn(msg, e);
       throw new LockssNoSuchArtifactIdException(msg + ": " + artifactId, e);
     }
   }
@@ -241,13 +242,11 @@ public class RestLockssRepository implements LockssRepository {
 
     // Prepare artifact multipart body
     Resource artifactPartResource =
-        new NamedInputStreamResource("content",
+        new NamedInputStreamResource("artifact", // Maps to "filename" in Content-Disposition header
             ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
 
-    // Add artifact multipart to multiparts list. The name of the part
-    // must be "file" because that is what the Swagger-generated code
-    // specifies.
-    parts.add("file", new HttpEntity<>(artifactPartResource, contentPartHeaders));
+    parts.add("artifact", // Maps to "name" in Content-Disposition header
+        new HttpEntity<>(artifactPartResource, contentPartHeaders));
 
     // POST body entity
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
@@ -327,47 +326,50 @@ public class RestLockssRepository implements LockssRepository {
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    // Q: Is this okay? I think so - we aren't opening a new InputStream
-    boolean includeCachedContent =
-        (includeContent == IncludeContent.IF_SMALL ||  includeContent == IncludeContent.ALWAYS);
+    // Cache policy: Include cache content unless IncludeContent.NEVER
+    boolean includeCachedContent = (includeContent != IncludeContent.NEVER);
 
+    // Get ArtifactData from cache
     ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeCachedContent);
 
     if (cached != null) {
+      // Cache hit: Return cached ArtifactData
       return cached;
     }
 
+    // Cache miss: Fetch ArtifactData from repository service
     try {
       URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
 
       // Set Accept header in request
       HttpHeaders requestHeaders = getInitializedHttpHeaders();
-      requestHeaders.setAccept(ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
+      requestHeaders.setAccept(
+          // Order matters! We expect a multipart response if success or JSON error message otherwise
+          ListUtil.list(MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON));
 
       // Make the request to the REST service and get its response
       ResponseEntity<MultipartMessage> response = RestUtil.callRestService(
           restTemplate,
           artifactEndpoint,
           HttpMethod.GET,
-          new HttpEntity<>(null, requestHeaders),
+          new HttpEntity<>(requestHeaders),
           MultipartMessage.class,
-          "RestLockssRepository#getArtifactData"
+          "Call from RestLockssRepository#getArtifactData() failed"
       );
 
       checkStatusOk(response);
 
-      ArtifactData res = ArtifactDataFactory.fromTransportResponseEntity(response);
+      // Transform MultipartMessage to ArtifactData
+      ArtifactData result = ArtifactDataFactory.fromTransportResponseEntity(response);
 
       // Add to artifact data cache
-      if (res != null) {    // Q: possible?
-        artCache.putArtifactData(collection, artifactId, res);
-      }
+      artCache.putArtifactData(collection, artifactId, result);
 
-      return res;
+      return result;
 
     } catch (LockssRestHttpException e) {
-      log.error("Could not get artifact data", e);
       checkArtIdError(e, artifactId, "Artifact not found");
+      log.error("Could not get artifact data", e);
       throw e;
 
     } catch (LockssRestException e) {
@@ -607,14 +609,22 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<String> getAuIds(String collection) throws IOException {
-    if ((collection == null))
+    if (collection == null) {
       throw new IllegalArgumentException("Null collection id");
+    }
+
     String endpoint = String.format("%s/collections/%s/aus", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
-    return IteratorUtils.asIterable(
-        new RestLockssRepositoryAuidIterator(restTemplate, builder,
-            authHeaderValue));
+
+    try {
+      return IteratorUtils.asIterable(
+          new RestLockssRepositoryAuidIterator(restTemplate, builder, authHeaderValue));
+
+    } catch (LockssUncheckedIOException e) {
+      // Re-throw wrapped checked IOException
+      throw e.getIOCause();
+    }
   }
 
   /**
@@ -623,7 +633,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param builder A {@code UriComponentsBuilder} containing a REST endpoint that returns artifacts.
    * @return An {@code Iterator<Artifact>} containing artifacts.
    */
-  private Iterator<Artifact> getArtifacts(UriComponentsBuilder builder) throws IOException {
+  private Iterator<Artifact> getArtifactIterator(UriComponentsBuilder builder) throws IOException {
     return new RestLockssRepositoryArtifactIterator(restTemplate, builder,
         authHeaderValue);
   }
@@ -683,7 +693,7 @@ public class RestLockssRepository implements LockssRepository {
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "latest");
 
-    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifacts(builder)));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -702,7 +712,7 @@ public class RestLockssRepository implements LockssRepository {
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
@@ -724,7 +734,7 @@ public class RestLockssRepository implements LockssRepository {
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifacts(builder)));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -747,7 +757,7 @@ public class RestLockssRepository implements LockssRepository {
         .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
@@ -760,15 +770,16 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
-    if (collection == null || prefix == null)
+    if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");
+    }
+
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -790,7 +801,7 @@ public class RestLockssRepository implements LockssRepository {
         .queryParam("url", url)
         .queryParam("version", "all");
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
@@ -802,15 +813,16 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
-    if (collection == null || url == null)
+    if (collection == null || url == null) {
       throw new IllegalArgumentException("Null collection id or url");
+    }
+
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("url", url)
-        .queryParam("version", "all");
+        .queryParam("url", url);
 
-    return IteratorUtils.asIterable(getArtifacts(builder));
+    return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
@@ -970,33 +982,29 @@ public class RestLockssRepository implements LockssRepository {
    * @return A {@code Long} with the total size of the specified AU in bytes.
    */
   @Override
-  public Long auSize(String collection, String auid) {
-    if ((collection == null) || (auid == null))
+  public Long auSize(String collection, String auid) throws IOException {
+    if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
+    }
+
     String endpoint = String.format("%s/collections/%s/aus/%s/size", repositoryUrl, collection, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
 
-    try {
-      ResponseEntity<String> response =
-          RestUtil.callRestService(restTemplate,
-              builder.build().encode().toUri(),
-              HttpMethod.GET,
-              new HttpEntity<>(null,
-                  getInitializedHttpHeaders()),
-              String.class,
-              "auSize");
+    ResponseEntity<String> response =
+        RestUtil.callRestService(restTemplate,
+            builder.build().encode().toUri(),
+            HttpMethod.GET,
+            new HttpEntity<>(null,
+                getInitializedHttpHeaders()),
+            String.class,
+            "auSize");
 
-      checkStatusOk(response);
+    checkStatusOk(response);
 
-      ObjectMapper objectMapper = new ObjectMapper();
-      return objectMapper.readValue(response.getBody(), Long.class);
-    } catch (IOException e) {
-      log.error("Could not determine AU size", e);
-      return new Long(0);
-    }
-
+    ObjectMapper objectMapper = new ObjectMapper();
+    return objectMapper.readValue(response.getBody(), Long.class);
   }
 
   /**

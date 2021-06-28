@@ -400,7 +400,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       Artifact art = repository.getArtifact(highSpec.getCollection(),
 					    highSpec.getAuid(),
 					    highSpec.getUrl());
-      assertSame(art, repository.getArtifactFromId(art.getId()));
+
+      assertTrue(art.equalsExceptStorageUrl(repository.getArtifactFromId(art.getId())));
     }
 
   }
@@ -592,12 +593,12 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 // 						    commSpec.getArtifactId());});
       Artifact dupArt = repository.commitArtifact(commSpec.getCollection(),
 						  commSpec.getArtifactId());
-      assertEquals(commArt, dupArt);
+      assertTrue(commArt.equalsExceptStorageUrl(dupArt));
       commSpec.assertArtifact(repository, dupArt);
 
       // Get the same artifact when uncommitted may be included.
       commArt = getArtifact(repository, commSpec, true);
-      assertEquals(commArt, dupArt);
+      commSpec.assertArtifact(repository, commArt);
     }
   }
 
@@ -1197,7 +1198,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertFalse(repository.isArtifactCommitted(spec.getCollection(),
 					       newArtId));
     assertFalse(newArt.getCommitted());
-    assertNotNull(repository.getArtifactData(spec.getCollection(), newArtId));
+
+    try (ArtifactData artifact = repository.getArtifactData(spec.getCollection(), newArtId)) {
+      assertNotNull(artifact);
+    }
 
     Artifact oldArt = getArtifact(repository, spec, false);
     if (expVers == 0) {

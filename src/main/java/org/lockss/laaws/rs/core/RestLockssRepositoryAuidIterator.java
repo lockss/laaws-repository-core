@@ -133,6 +133,7 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
    */
   public RestLockssRepositoryAuidIterator(RestTemplate restTemplate,
       UriComponentsBuilder builder, String authHeaderValue, Integer limit) {
+
     // Validation.
     if (restTemplate == null) {
       throw new IllegalArgumentException(
@@ -250,17 +251,21 @@ public class RestLockssRepositoryAuidIterator implements Iterator<String> {
     try {
       // Make the request and get the response.
       response = RestUtil.callRestService(restTemplate, uri, HttpMethod.GET,
-	  httpEntity, String.class, "fillAuidBuffer");
+          httpEntity, String.class, "fillAuidBuffer");
     } catch (LockssRestHttpException e) {
       if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-	log.trace("Could not fetch auids: Exception caught", e);
-	auidBuffer = new ArrayList<String>();
-	continuationToken = null;
-	auidBufferIterator = auidBuffer.iterator();
-	log.debug2("Done");
-	return;
+        log.trace("Could not fetch auids: Exception caught", e);
+        auidBuffer = new ArrayList<String>();
+        continuationToken = null;
+        auidBufferIterator = auidBuffer.iterator();
+        log.debug2("Done");
+
+        // Q: Should this throw a LRSE instead?
+        return;
       }
+
       log.error("Could not fetch auids: Exception caught", e);
+
       throw new LockssUncheckedIOException(e);
     } catch (LockssRestException e) {
       log.error("Could not fetch auids: Exception caught", e);

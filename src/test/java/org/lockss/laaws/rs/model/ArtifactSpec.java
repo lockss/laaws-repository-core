@@ -96,10 +96,17 @@ public class ArtifactSpec implements Comparable<Object> {
     HEADERS1.add("key2", "val1");
   }
 
-  static final Comparator<ArtifactSpec> artSpecComparator =
+  public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR =
       Comparator.comparing(ArtifactSpec::getCollection)
       .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+      .thenComparing(
+	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
+
+  public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR_BY_URL =
+      Comparator.comparing(ArtifactSpec::getCollection)
+      .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
+      .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(
 	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
@@ -450,7 +457,7 @@ public class ArtifactSpec implements Comparable<Object> {
         getUrl(),
         getVersion(),
         isCommitted(),
-        getStorageUrl().toString(),
+        getStorageUrl() == null ? null : getStorageUrl().toString(),
         getContentLength(),
         getContentDigest()
     );
@@ -497,7 +504,7 @@ public class ArtifactSpec implements Comparable<Object> {
   public int compareTo(Object o) {
     ArtifactSpec s = (ArtifactSpec) o;
 
-    return artSpecComparator.compare(this, s);
+    return ART_SPEC_COMPARATOR.compare(this, s);
   }
 
   /**
@@ -534,17 +541,19 @@ public class ArtifactSpec implements Comparable<Object> {
       assertArtifactCommon(art);
 
       // Test for getArtifactData(Artifact)
-      ArtifactData ad1 = repository.getArtifactData(art);
-      Assertions.assertEquals(art.getIdentifier(), ad1.getIdentifier());
-      Assertions.assertEquals(getContentLength(), ad1.getContentLength());
-      Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
-      assertArtifactData(ad1);
+      try (ArtifactData ad1 = repository.getArtifactData(art)) {
+        Assertions.assertEquals(art.getIdentifier(), ad1.getIdentifier());
+        Assertions.assertEquals(getContentLength(), ad1.getContentLength());
+        Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
+        assertArtifactData(ad1);
+      }
 
       // Test for getArtifactData(String, String)
-      ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId());
-      Assertions.assertEquals(getContentLength(), ad2.getContentLength());
-      Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
-      assertArtifactData(ad2);
+      try (ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId())) {
+        Assertions.assertEquals(getContentLength(), ad2.getContentLength());
+        Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
+        assertArtifactData(ad2);
+      }
     } catch (Exception e) {
       log.error("Caught exception asserting artifact spec: {}", this, e);
       log.error("art = {}", art);
@@ -553,11 +562,11 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public void assertArtifact(ArtifactDataStore store, Artifact artifact) throws IOException {
-    try {
-      assertArtifactCommon(artifact);
+    assertArtifactCommon(artifact);
+    try (ArtifactData ad1 = store.getArtifactData(artifact)) {
+      Assertions.assertNotNull(ad1);
 
       // Test for getArtifactData(Artifact)
-      ArtifactData ad1 = store.getArtifactData(artifact);
       Assertions.assertEquals(artifact.getIdentifier(), ad1.getIdentifier());
       Assertions.assertEquals(getContentLength(), ad1.getContentLength());
       Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
@@ -573,8 +582,8 @@ public class ArtifactSpec implements Comparable<Object> {
 
 //    Assertions.assertEquals(getArtifactId(), art.getId());
     Assertions.assertEquals(getCollection(), art.getCollection(), "Collection");
-    Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
     Assertions.assertEquals(getUrl(), art.getUri(), "URL");
+    Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
     Assertions.assertEquals(isCommitted(), art.getCommitted(),
 			    "Committed state");
 
@@ -599,7 +608,7 @@ public class ArtifactSpec implements Comparable<Object> {
    * Assert that the ArtifactData matches the ArtifactSpec
    */
   public void assertArtifactData(ArtifactData ad) {
-    Assertions.assertNotNull(ad, "Didn't find ArticleData for: " + this);
+    Assertions.assertNotNull(ad, "Didn't find ArtifactData for: " + this);
     assertEquals(getStatusLine(), ad.getHttpStatus());
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());

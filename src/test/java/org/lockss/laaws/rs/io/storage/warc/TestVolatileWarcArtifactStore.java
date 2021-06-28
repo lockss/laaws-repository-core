@@ -31,11 +31,10 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.lang.NotImplementedException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.ListUtil;
 import org.mockito.ArgumentMatchers;
 import org.springframework.util.MultiValueMap;
 
@@ -110,19 +109,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
    */
   @Override
   public void testInitDataStoreImpl() throws Exception {
-    // Mocks
-    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-
-    // Mock behavior
-    doCallRealMethod().when(ds).initDataStore();
-
-    // Initialize data store
-    ds.initDataStore();
-
-    // FIXME: Method access not permissive enough (protected) - why?
-//    verify(ds).reloadDataStoreState();
-
-    assertEquals(WarcArtifactDataStore.DataStoreState.INITIALIZED, store.getDataStoreState());
+    assertNotEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
   }
 
   /**
@@ -179,14 +166,15 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   public void testMakeStorageUrlImpl() throws Exception {
     ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
 
+    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L, false);
+
     URI expectedStorageUrl = URI.create(String.format(
         "volatile://%s?offset=%d&length=%d",
-        store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L),
+        activeWarcPath,
         1234L,
         5678L
     ));
 
-    Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L);
     URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
 
     assertEquals(expectedStorageUrl, actualStorageUrl);
@@ -228,21 +216,27 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   public void testGetWarcLengthImpl() throws Exception {
     // Mocks
     VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
-    ds.warcs = mock(Map.class);
     Path warcPath = mock(Path.class);
-    ByteArrayOutputStream output = mock(ByteArrayOutputStream.class);
+
+    ds.warcs = new HashMap<>();
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    // Write 123 bytes
+    for (int i = 0; i < 123; i++) {
+      output.write(i);
+    }
 
     // Mock behavior
     doCallRealMethod().when(ds).getWarcLength(warcPath);
-    when(output.size()).thenReturn(1234);
 
     // Assert WARC length is 0 if WARC is not found
-    when(ds.warcs.get(warcPath)).thenReturn(null);
     assertEquals(0L, ds.getWarcLength(warcPath));
 
+    // Add a WARC the map of internal WARCs
+    ds.warcs.put(warcPath, output);
+
     // Assert WARC length is the expected size if found
-    when(ds.warcs.get(warcPath)).thenReturn(output);
-    assertEquals(1234L, ds.getWarcLength(warcPath));
+    assertEquals(123L, ds.getWarcLength(warcPath));
   }
 
   /**
@@ -257,6 +251,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     // Setup set of files
     Path[] files = {
         basePath.resolve("foo"),
+        basePath.resolve("bar.warc.gz"),
         basePath.resolve("bar.warc"),
         basePath.resolve("xyzyy.txt"),
     };
@@ -267,13 +262,12 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Mock behavior
     doCallRealMethod().when(ds).findWarcs(basePath);
+    when(ds.warcs.keySet()).thenReturn(new HashSet<>(Arrays.asList(files)));
 
     // Assert only the WARCs are returned
-    when(ds.warcs.keySet()).thenReturn(new HashSet<>(Arrays.asList(files)));
-    log.trace("keySet = {}", ds.warcs.keySet());
     Collection<Path> result = ds.findWarcs(basePath);
-    assertEquals(1, result.size());
-    assertTrue(result.contains(basePath.resolve("bar.warc")));
+    assertEquals(2, result.size());
+    assertIterableEquals(ListUtil.list(files[1], files[2]), result);
   }
 
   /**
