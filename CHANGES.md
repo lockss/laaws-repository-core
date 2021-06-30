@@ -1,5 +1,12 @@
 # `laaws-repository-core` Release Notes
 
+## Changes Since 2.15.0
+
+### Features
+
+*   Upgraded Hadoop client libraries to version 3.3.1
+*   Upgraded Solr client libraries to version 8.9.0
+
 ## Changes Since 2.0.14.0
 
 ### Features
