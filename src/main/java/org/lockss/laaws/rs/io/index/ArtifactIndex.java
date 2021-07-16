@@ -36,6 +36,7 @@ import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactVersions;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.util.lang.Ready;
@@ -282,12 +283,19 @@ public interface ArtifactIndex extends StorageInfoSource, Ready {
      *          A String with the collection identifier.
      * @param prefix
      *          A String with the URL prefix.
+     * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+     *                   versions of an artifact.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix.
      */
-    Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection,
-                                                               String prefix)
+    Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection,
+                                                           String prefix,
+                                                           ArtifactVersions versions)
         throws IOException;
+
+    default Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix) throws IOException {
+        return getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.ALL) ;
+    }
 
     /**
      * Returns the artifacts of all committed versions of a given URL, from a specified Archival Unit and collection.
@@ -315,11 +323,18 @@ public interface ArtifactIndex extends StorageInfoSource, Ready {
      *          A {@code String} with the collection identifier.
      * @param url
      *          A {@code String} with the URL to be matched.
+     * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+     *                   versions of an artifact.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
-    Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection,
-                                                     String url)
+    Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection,
+                                                     String url,
+                                                     ArtifactVersions versions)
         throws IOException;
+
+    default Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url) throws IOException {
+        return getArtifactsWithUrlFromAllAus(collection, url, ArtifactVersions.ALL);
+    }
 
     /**
      * Returns the artifact of the latest committed version of given URL, from a specified Archival Unit and collection.

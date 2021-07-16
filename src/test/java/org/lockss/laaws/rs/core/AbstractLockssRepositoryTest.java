@@ -942,22 +942,22 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null collection id or prefix",
-		      () -> {repository.getArtifactsWithPrefixAllVersionsAllAus(null, null);});
+		      () -> {repository.getArtifactsWithUrlPrefixFromAllAus(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "prefix",
-		      () -> {repository.getArtifactsWithPrefixAllVersionsAllAus(COLL1, null);});
+		      () -> {repository.getArtifactsWithUrlPrefixFromAllAus(COLL1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "collection",
-		      () -> {repository.getArtifactsWithPrefixAllVersionsAllAus(null, PREFIX1);});
+		      () -> {repository.getArtifactsWithUrlPrefixFromAllAus(null, PREFIX1);});
 
     // Non-existent collection
-    assertEmpty(repository.getArtifactsWithPrefixAllVersionsAllAus(NO_COLL, PREFIX1));
+    assertEmpty(repository.getArtifactsWithUrlPrefixFromAllAus(NO_COLL, PREFIX1));
     // Compare with all URLs matching prefix
     for (String coll : variantState.activeCollections()) {
       ArtifactSpec.assertArtList(repository, (variantState.orderedAllCollAllAus(coll)
 		  .filter(spec -> spec.getUrl().startsWith(PREFIX1))),
-		  repository.getArtifactsWithPrefixAllVersionsAllAus(coll, PREFIX1));
-      assertEmpty(repository.getArtifactsWithPrefixAllVersionsAllAus(coll,
+		  repository.getArtifactsWithUrlPrefixFromAllAus(coll, PREFIX1));
+      assertEmpty(repository.getArtifactsWithUrlPrefixFromAllAus(coll,
 								     PREFIX1 + "notpath"));
     }
   }
@@ -1003,17 +1003,17 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null collection id or url",
-		      () -> {repository.getArtifactsAllVersionsAllAus(null, null);});
+		      () -> {repository.getArtifactsWithUrlFromAllAus(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "url",
-		      () -> {repository.getArtifactsAllVersionsAllAus(COLL1, null);});
+		      () -> {repository.getArtifactsWithUrlFromAllAus(COLL1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "coll",
-		      () -> {repository.getArtifactsAllVersionsAllAus(null, URL1);});
+		      () -> {repository.getArtifactsWithUrlFromAllAus(null, URL1);});
 
     // Non-existent collection or url
-    assertEmpty(repository.getArtifactsAllVersionsAllAus(NO_COLL, URL1));
-    assertEmpty(repository.getArtifactsAllVersionsAllAus(COLL1, NO_URL));
+    assertEmpty(repository.getArtifactsWithUrlFromAllAus(NO_COLL, URL1));
+    assertEmpty(repository.getArtifactsWithUrlFromAllAus(COLL1, NO_URL));
 
     // For each ArtButVer in the repository, enumerate all its versions and
     // compare with expected
@@ -1022,7 +1022,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     for (ArtifactSpec urlSpec : (Iterable<ArtifactSpec>)s::iterator) {
       ArtifactSpec.assertArtList(repository, variantState.orderedAllCommittedAllAus()
 		    .filter(spec -> spec.sameArtButVerAllAus(urlSpec)),
-		    repository.getArtifactsAllVersionsAllAus(urlSpec.getCollection(),
+		    repository.getArtifactsWithUrlFromAllAus(urlSpec.getCollection(),
 						             urlSpec.getUrl()));
     }
   }

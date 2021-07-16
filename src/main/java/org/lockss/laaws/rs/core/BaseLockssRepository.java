@@ -403,16 +403,20 @@ public class BaseLockssRepository implements LockssRepository,
    *
    * @param collection A String with the collection identifier.
    * @param prefix     A String with the URL prefix.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix,
+                                                                ArtifactVersions versions) throws IOException {
+
     if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");
     }
 
-    return index.getArtifactsWithPrefixAllVersionsAllAus(collection, prefix);
+    return index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, versions);
   }
 
   /**
@@ -438,15 +442,19 @@ public class BaseLockssRepository implements LockssRepository,
    *
    * @param collection A {@code String} with the collection identifier.
    * @param url        A {@code String} with the URL to be matched.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions)
+      throws IOException {
+
     if (collection == null || url == null) {
       throw new IllegalArgumentException("Null collection id or url");
     }
 
-    return index.getArtifactsAllVersionsAllAus(collection, url);
+    return index.getArtifactsWithUrlFromAllAus(collection, url, versions);
   }
 
   /**

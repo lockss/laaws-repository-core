@@ -33,10 +33,7 @@ package org.lockss.laaws.rs.io.index;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.core.SemaphoreMap;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -496,26 +493,49 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *
      * @param collection
      *          A String with the collection identifier.
-     * @param prefix
+     * @param urlPrefix
      *          A String with the URL prefix.
+     * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+     *                   versions of an artifact.
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix.
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) {
+    public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String urlPrefix,
+                                                                  ArtifactVersions versions) {
+
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
 
         // Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter, we
         //    return all the committed artifacts in a collection. Is that useful?
-        if (prefix != null) {
-          query.filterByURIPrefix(prefix);
+        if (urlPrefix != null) {
+          query.filterByURIPrefix(urlPrefix);
         }
 
-	// Apply filter then sort the resulting Artifacts by URL, date, AUID and descending version
-	return IteratorUtils.asIterable(getIterableArtifacts().stream().filter(query.build())
-            .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
+      synchronized (index) {
+        // Apply predicates filter to Artifact stream
+        Stream<Artifact> allVersions = index.values().stream().filter(query.build());
+
+        if (versions == ArtifactVersions.LATEST) {
+          Stream<Artifact> latestVersions = allVersions
+              // Group the Artifacts by URL then pick the Artifact with highest version from each group
+              .collect(Collectors.groupingBy(
+                  Artifact::getUri,
+                  Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+              .values()
+              .stream()
+              .filter(Optional::isPresent)
+              .map(Optional::get);
+
+          return IteratorUtils.asIterable(
+              latestVersions.sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
+        }
+
+        return IteratorUtils.asIterable(
+            allVersions.sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
+      }
     }
 
     /**
@@ -550,20 +570,39 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *          A {@code String} with the collection identifier.
      * @param url
      *          A {@code String} with the URL to be matched.
+     * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+     *                   versions of an artifact.
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
     @Override
-    public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) {
+    public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByURIMatch(url);
 
-        // Apply filter then sort the resulting Artifacts by date, AUID and descending version
+      synchronized (index) {
+        // Apply predicates filter to Artifact stream
+        Stream<Artifact> allVersions = index.values().stream().filter(query.build());
+
+        if (versions == ArtifactVersions.LATEST) {
+          Stream<Artifact> latestVersions = allVersions
+              // Group the Artifacts by URL then pick the Artifact with highest version from each group
+              .collect(Collectors.groupingBy(
+                  Artifact::getUri,
+                  Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+              .values()
+              .stream()
+              .filter(Optional::isPresent)
+              .map(Optional::get);
+
+          return IteratorUtils.asIterable(
+              latestVersions.sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
+        }
+
         return IteratorUtils.asIterable(
-            getIterableArtifacts().stream()
-                .filter(query.build())
-                .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
+            allVersions.sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION).iterator());
+      }
     }
 
     /**

@@ -46,10 +46,7 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
@@ -965,12 +962,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified collection.
    *
    * @param collection A String with the collection identifier.
-   * @param prefix     A String with the URL prefix.
+   * @param urlPrefix     A String with the URL prefix.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String urlPrefix,
+                                                                ArtifactVersions versions) throws IOException {
 
     SolrQuery q = new SolrQuery();
 
@@ -981,8 +981,23 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
 // Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter,
 //  we return all the committed artifacts in a collection. Is that useful?
-    if (prefix != null) {
-      q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+    if (urlPrefix != null) {
+      q.addFilterQuery(String.format("{!prefix f=uri}%s", urlPrefix));
+    }
+
+    if (versions == ArtifactVersions.LATEST) {
+      // Ensure the result is not empty for the collapse filter query
+      if (isEmptyResult(q)) {
+        log.debug2(
+            "Solr returned null result set after filtering by [collection: {}, uriPrefix: {}, committed: {}]",
+            collection, urlPrefix, true
+        );
+
+        return null;
+      }
+
+      // Perform a collapse filter query (must have documents in result set to operate on)
+      q.addFilterQuery("{!collapse field=uri max=version}");
     }
 
     q.addSort(SORTURI_ASC);
@@ -1025,10 +1040,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param collection A {@code String} with the collection identifier.
    * @param url        A {@code String} with the URL to be matched.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions)
+      throws IOException {
+
     SolrQuery q = new SolrQuery();
 
     q.setQuery("*:*");
@@ -1036,6 +1055,21 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("committed:%s", true));
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
+
+    if (versions == ArtifactVersions.LATEST) {
+      // Ensure the result is not empty for the collapse filter query
+      if (isEmptyResult(q)) {
+        log.debug2(
+            "Solr returned null result set after filtering by [collection: {}, uri: {}, committed: {}]",
+            collection, url, true
+        );
+
+        return null;
+      }
+
+      // Perform a collapse filter query (must have documents in result set to operate on)
+      q.addFilterQuery("{!collapse field=uri max=version}");
+    }
 
     q.addSort(SORTURI_ASC);
     q.addSort(AUID_ASC);
