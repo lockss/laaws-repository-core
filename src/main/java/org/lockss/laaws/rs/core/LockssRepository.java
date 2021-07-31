@@ -287,10 +287,6 @@ public interface LockssRepository extends Ready {
                                                          ArtifactVersions versions)
       throws IOException;
 
-  default Iterable getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix) throws IOException {
-    return getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.ALL);
-  }
-
   /**
    * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
    *
@@ -318,10 +314,6 @@ public interface LockssRepository extends Ready {
                                                    String url,
                                                    ArtifactVersions versions)
       throws IOException;
-
-  default Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url) throws IOException {
-    return getArtifactsWithUrlFromAllAus(collection, url, ArtifactVersions.ALL);
-  }
 
   /**
    * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.

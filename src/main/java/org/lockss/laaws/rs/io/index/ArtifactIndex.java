@@ -293,10 +293,6 @@ public interface ArtifactIndex extends StorageInfoSource, Ready {
                                                            ArtifactVersions versions)
         throws IOException;
 
-    default Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix) throws IOException {
-        return getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.ALL) ;
-    }
-
     /**
      * Returns the artifacts of all committed versions of a given URL, from a specified Archival Unit and collection.
      * Returns artifacts ordered with version numbers in decreasing order.
@@ -331,10 +327,6 @@ public interface ArtifactIndex extends StorageInfoSource, Ready {
                                                      String url,
                                                      ArtifactVersions versions)
         throws IOException;
-
-    default Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url) throws IOException {
-        return getArtifactsWithUrlFromAllAus(collection, url, ArtifactVersions.ALL);
-    }
 
     /**
      * Returns the artifact of the latest committed version of given URL, from a specified Archival Unit and collection.
