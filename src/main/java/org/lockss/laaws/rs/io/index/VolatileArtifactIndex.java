@@ -504,15 +504,22 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String urlPrefix,
                                                                   ArtifactVersions versions) {
 
-        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-        query.filterByCommitStatus(true);
-        query.filterByCollection(collection);
+      if (!(versions == ArtifactVersions.ALL ||
+            versions == ArtifactVersions.LATEST)) {
+        throw new IllegalArgumentException("Versions must be ALL or LATEST");
+      }
 
-        // Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter, we
-        //    return all the committed artifacts in a collection. Is that useful?
-        if (urlPrefix != null) {
-          query.filterByURIPrefix(urlPrefix);
-        }
+      if (collection == null) {
+        throw new IllegalArgumentException("Collection is null");
+      }
+
+      ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+      query.filterByCommitStatus(true);
+      query.filterByCollection(collection);
+
+      if (urlPrefix != null) {
+        query.filterByURIPrefix(urlPrefix);
+      }
 
       synchronized (index) {
         // Apply predicates filter to Artifact stream
@@ -522,7 +529,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
           Stream<Artifact> latestVersions = allVersions
               // Group the Artifacts by URL then pick the Artifact with highest version from each group
               .collect(Collectors.groupingBy(
-                  Artifact::getUri,
+                  artifact -> artifact.getIdentifier().getArtifactStem(),
                   Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
               .values()
               .stream()
@@ -576,7 +583,16 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      */
     @Override
     public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions) {
-        ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
+      if (!(versions == ArtifactVersions.ALL ||
+          versions == ArtifactVersions.LATEST)) {
+        throw new IllegalArgumentException("Versions must be ALL or LATEST");
+      }
+
+      if (collection == null || url == null) {
+        throw new IllegalArgumentException("Collection or URL is null");
+      }
+
+      ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
         query.filterByCollection(collection);
         query.filterByURIMatch(url);
@@ -589,7 +605,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
           Stream<Artifact> latestVersions = allVersions
               // Group the Artifacts by URL then pick the Artifact with highest version from each group
               .collect(Collectors.groupingBy(
-                  Artifact::getUri,
+                  artifact -> artifact.getIdentifier().getArtifactStem(),
                   Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
               .values()
               .stream()

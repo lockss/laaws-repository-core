@@ -47,6 +47,7 @@ import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
@@ -56,6 +57,9 @@ import java.net.URI;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * An Apache Solr implementation of ArtifactIndex.
@@ -972,6 +976,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String urlPrefix,
                                                                 ArtifactVersions versions) throws IOException {
 
+    if (!(versions == ArtifactVersions.ALL ||
+        versions == ArtifactVersions.LATEST)) {
+      throw new IllegalArgumentException("Versions must be ALL or LATEST");
+    }
+
+    if (collection == null) {
+      throw new IllegalArgumentException("Collection is null");
+    }
+
     SolrQuery q = new SolrQuery();
 
     q.setQuery("*:*");
@@ -979,33 +992,48 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("committed:%s", true));
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
 
-// Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter,
-//  we return all the committed artifacts in a collection. Is that useful?
     if (urlPrefix != null) {
       q.addFilterQuery(String.format("{!prefix f=uri}%s", urlPrefix));
     }
 
-    if (versions == ArtifactVersions.LATEST) {
-      // Ensure the result is not empty for the collapse filter query
-      if (isEmptyResult(q)) {
-        log.debug2(
-            "Solr returned null result set after filtering by [collection: {}, uriPrefix: {}, committed: {}]",
-            collection, urlPrefix, true
-        );
-
-        return null;
-      }
-
-      // Perform a collapse filter query (must have documents in result set to operate on)
-      q.addFilterQuery("{!collapse field=uri max=version}");
-    }
+//    // This gives us the right results but does not work with CursorMark-based
+//    // pagination despite group.main=true. It is left here as a reminder that
+//    // we already tried this approach.
+//    q.set("group", true);
+//    q.set("group.func", "concat(collection,auid,uri)");
+//    q.set("group.sort", "version desc");
+//    q.set("group.limit", 1);
+//    q.set("group.main", true);
 
     q.addSort(SORTURI_ASC);
     q.addSort(AUID_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(
-        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q));
+    Iterator<Artifact> allVersionsIterator =
+        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q);
+
+    if (versions == ArtifactVersions.LATEST) {
+      // Convert Iterator<Artifact> to Stream<Artifact>
+      Stream<Artifact> allVersions = StreamSupport.stream(
+          Spliterators.spliteratorUnknownSize(allVersionsIterator, Spliterator.ORDERED), false);
+
+      // Group by (Collection, AUID, URL) then pick highest version from each group
+      Stream<Artifact> latestVersions = allVersions
+          .collect(Collectors.groupingBy(
+              artifact -> artifact.getIdentifier().getArtifactStem(),
+              Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+          .values()
+          .stream()
+          .filter(Optional::isPresent)
+          .map(Optional::get);
+
+      // Sort artifacts and return as Iterable<Artifact>
+      return IteratorUtils.asIterable(latestVersions
+          .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION)
+          .iterator());
+    }
+
+    return IteratorUtils.asIterable(allVersionsIterator);
   }
 
   /**
@@ -1048,6 +1076,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions)
       throws IOException {
 
+    if (!(versions == ArtifactVersions.ALL ||
+        versions == ArtifactVersions.LATEST)) {
+      throw new IllegalArgumentException("Versions must be ALL or LATEST");
+    }
+
+    if (collection == null || url == null) {
+      throw new IllegalArgumentException("Collection or URL is null");
+    }
+
     SolrQuery q = new SolrQuery();
 
     q.setQuery("*:*");
@@ -1056,27 +1093,44 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
-    if (versions == ArtifactVersions.LATEST) {
-      // Ensure the result is not empty for the collapse filter query
-      if (isEmptyResult(q)) {
-        log.debug2(
-            "Solr returned null result set after filtering by [collection: {}, uri: {}, committed: {}]",
-            collection, url, true
-        );
-
-        return null;
-      }
-
-      // Perform a collapse filter query (must have documents in result set to operate on)
-      q.addFilterQuery("{!collapse field=uri max=version}");
-    }
+//    // This gives us the right results but does not work with CursorMark-based
+//    // pagination despite group.main=true. It is left here as a reminder that
+//    // we already tried this approach.
+//    q.set("group", true);
+//    q.set("group.func", "concat(collection,auid,uri)");
+//    q.set("group.sort", "version desc");
+//    q.set("group.limit", 1);
+//    q.set("group.main", true);
 
     q.addSort(SORTURI_ASC);
     q.addSort(AUID_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(
-        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q));
+    Iterator<Artifact> allVersionsIterator =
+        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q);
+
+    if (versions == ArtifactVersions.LATEST) {
+      // Convert Iterator<Artifact> to Stream<Artifact>
+      Stream<Artifact> allVersions = StreamSupport.stream(
+          Spliterators.spliteratorUnknownSize(allVersionsIterator, Spliterator.ORDERED), false);
+
+      // Group by (Collection, AUID, URL) then pick highest version from each group
+      Stream<Artifact> latestVersions = allVersions
+          .collect(Collectors.groupingBy(
+              artifact -> artifact.getIdentifier().getArtifactStem(),
+              Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+          .values()
+          .stream()
+          .filter(Optional::isPresent)
+          .map(Optional::get);
+
+      // Sort artifacts and return as Iterable<Artifact>
+      return IteratorUtils.asIterable(latestVersions
+          .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION)
+          .iterator());
+    }
+
+    return IteratorUtils.asIterable(allVersionsIterator);
   }
 
   /**
