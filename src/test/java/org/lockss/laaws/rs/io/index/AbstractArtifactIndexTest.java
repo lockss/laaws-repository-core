@@ -47,10 +47,7 @@ import org.lockss.util.time.Deadline;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -482,28 +479,104 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   }
 
   @Test
-  public void testGetArtifactsAllVersionsAllAus() throws Exception {
+  public void testGetArtifactsAllAus() throws Exception {
+    //// ArtifactSpecs for this test
     List<ArtifactSpec> specs = new ArrayList<>();
 
-    specs.add(createArtifactSpec("d", "a", "u", 2, true));
-    specs.add(createArtifactSpec("d", "a", "u", 1, true));
-    specs.add(createArtifactSpec("d", "a", "v", 1, true));
-    specs.add(createArtifactSpec("d", "b", "u", 1, false));
-    specs.add(createArtifactSpec("d", "b", "v", 1, true));
-    specs.add(createArtifactSpec("d", "a", "u", 3, false));
-    specs.add(createArtifactSpec("d", "b", "u", 2, false));
+    /* 0 */ specs.add(createArtifactSpec("d", "a", "u", 2, true));
+    /* 1 */ specs.add(createArtifactSpec("d", "a", "u", 1, true));
+    /* 2 */ specs.add(createArtifactSpec("d", "a", "v", 1, true));
+    /* 3 */ specs.add(createArtifactSpec("d", "b", "u", 1, false));
+    /* 4 */ specs.add(createArtifactSpec("d", "b", "v", 1, true));
+    /* 5 */ specs.add(createArtifactSpec("d", "a", "u", 3, false));
+    /* 6 */ specs.add(createArtifactSpec("d", "b", "u", 2, false));
+    /* 7 */ specs.add(createArtifactSpec("d", "a", "v", 2, false));
+    /* 8 */ specs.add(createArtifactSpec("d", "a", "v", 3, true));
+    /* 9 */ specs.add(createArtifactSpec("d", "a", "v", 4, false));
 
+    //// Populate artifact index from ArtifactSpecs
     populateIndex(index, specs);
 
     //// Assert unknown or null collections and URLs result in an empty set
-    assertEmpty(index.getArtifactsWithUrlFromAllAus(null, null));
-    assertEmpty(index.getArtifactsWithUrlFromAllAus("d", null));
-    assertEmpty(index.getArtifactsWithUrlFromAllAus(null, "u"));
+    for (ArtifactVersions versions : ArtifactVersions.values()) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> index.getArtifactsWithUrlFromAllAus(null, null, versions),
+          "Collection or URL is null");
+
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> index.getArtifactsWithUrlFromAllAus("d", null, versions),
+          "Collection or URL is null");
+
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> index.getArtifactsWithUrlFromAllAus(null, "u", versions),
+          "Collection or URL is null");
+    }
+
+    //// Demonstrate deleting an artifact affects the result
+
+    assertIterableEquals(
+        artList(specs, 8, 2, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 8, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
+    );
+
+    index.commitArtifact(specs.get(7).getArtifactId());
+    variantState.commit(specs.get(7).getArtifactId());
+
+    assertIterableEquals(
+        artList(specs, 8, 7, 2, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 8, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
+    );
+
+    index.deleteArtifact(specs.get(7).getArtifactId());
+
+    /// ...result should not change...
+
+    assertIterableEquals(
+        artList(specs, 8, 2, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 8, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
+    );
+
+    index.deleteArtifact(specs.get(9).getArtifactId());
+
+    /// ...result should not change...
+
+    assertIterableEquals(
+        artList(specs, 8, 2, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 8, 4),
+        index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
+    );
 
     //// Demonstrate committing an artifact affects the result
     assertIterableEquals(
         artList(specs, 0, 1),
-        index.getArtifactsWithUrlFromAllAus("d", "u")
+        index.getArtifactsWithUrlFromAllAus("d", "u", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 0),
+        index.getArtifactsWithUrlFromAllAus("d", "u", ArtifactVersions.LATEST)
     );
 
     // Commit all uncommitted artifacts
@@ -517,25 +590,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Verify proper order
     assertIterableEquals(
         artList(specs, 5, 0, 1, 6, 3),
-        index.getArtifactsWithUrlFromAllAus("d", "u")
+        index.getArtifactsWithUrlFromAllAus("d", "u", ArtifactVersions.ALL)
     );
-
-    //// Demonstrate deleting an artifact affects the result
-    assertIterableEquals(
-        artList(specs, 2, 4),
-        index.getArtifactsWithUrlFromAllAus("d", "v")
-    );
-
-    index.deleteArtifact(specs.get(2).getArtifactId());
 
     assertIterableEquals(
-        artList(specs, 4),
-        index.getArtifactsWithUrlFromAllAus("d", "v")
+        artList(specs, 5, 6),
+        index.getArtifactsWithUrlFromAllAus("d", "u", ArtifactVersions.LATEST)
     );
-
-    index.deleteArtifact(specs.get(4).getArtifactId());
-
-    assertEmpty(index.getArtifactsWithUrlFromAllAus("d", "v"));
   }
 
   @VariantTest
@@ -576,40 +637,65 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
   @Test
   public void testGetArtifactsWithPrefixAllVersionsAllAus() throws Exception {
+    //// ArtifactSpecs for this test
     List<ArtifactSpec> specs = new ArrayList<>();
 
-    specs.add(createArtifactSpec("d", "a", "u", 2, true));
-    specs.add(createArtifactSpec("d", "a", "u", 1, true));
-    specs.add(createArtifactSpec("d", "a", "u1", 3, true));
-    specs.add(createArtifactSpec("d", "a", "u1", 2, true));
-    specs.add(createArtifactSpec("d", "a", "u1", 1, true));
-    specs.add(createArtifactSpec("d", "a", "u2", 2, true));
-    specs.add(createArtifactSpec("d", "a", "u2", 1, false));
-    specs.add(createArtifactSpec("d", "a", "v", 1, true));
-    specs.add(createArtifactSpec("d", "b", "u", 1, false));
-    specs.add(createArtifactSpec("d", "b", "v", 1, true));
-    specs.add(createArtifactSpec("d", "a", "u", 3, false));
-    specs.add(createArtifactSpec("d", "b", "u", 2, false));
+    /* 00 */ specs.add(createArtifactSpec("d", "a", "u", 2, true));
+    /* 01 */ specs.add(createArtifactSpec("d", "a", "u", 1, true));
+    /* 02 */ specs.add(createArtifactSpec("d", "a", "u1", 3, true));
+    /* 03 */ specs.add(createArtifactSpec("d", "a", "u1", 2, true));
+    /* 04 */ specs.add(createArtifactSpec("d", "a", "u1", 1, true));
+    /* 05 */ specs.add(createArtifactSpec("d", "a", "u2", 2, true));
+    /* 06 */ specs.add(createArtifactSpec("d", "a", "u2", 1, false));
+    /* 07 */ specs.add(createArtifactSpec("d", "a", "v", 1, true));
+    /* 08 */ specs.add(createArtifactSpec("d", "b", "u", 1, false));
+    /* 09 */ specs.add(createArtifactSpec("d", "b", "v", 1, true));
+    /* 10 */ specs.add(createArtifactSpec("d", "a", "u", 3, false));
+    /* 11 */ specs.add(createArtifactSpec("d", "b", "u", 2, false));
 
+    //// Populate artifact index from ArtifactSpecs
     populateIndex(index, specs);
 
     //// Assert unknown or null collections and URLs result in an empty set
-    assertEmpty(index.getArtifactsWithUrlPrefixFromAllAus(null, null));
-    assertEmpty(index.getArtifactsWithUrlPrefixFromAllAus(null, "u"));
+    for (ArtifactVersions versions : ArtifactVersions.values()) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> index.getArtifactsWithUrlPrefixFromAllAus(null, null, versions),
+          "Collection or URL is null");
+
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> index.getArtifactsWithUrlPrefixFromAllAus(null, "u", versions),
+          "Collection or URL is null");
+    }
 
     // Assert a null prefix returns all the committed artifacts in the collection
     assertIterableEquals(
-        specs.stream().filter(ArtifactSpec::isCommitted).map(ArtifactSpec::getArtifact).collect(Collectors.toList()),
-        index.getArtifactsWithUrlPrefixFromAllAus("d", null)
+        specs.stream()
+            .filter(ArtifactSpec::isCommitted)
+            .map(ArtifactSpec::getArtifact)
+            .collect(Collectors.toList()),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", null, ArtifactVersions.ALL)
     );
 
-    assertGetArtifactsWithPrefixAllVersionsAllAus(specs, "d", "u");
-    assertGetArtifactsWithPrefixAllVersionsAllAus(specs, "d", "u1");
+    // Assert a null prefix returns all the committed artifacts in the collection
+    assertIterableEquals(
+        artList(specs, 0, 2, 5, 7, 9),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", null, ArtifactVersions.LATEST)
+    );
+
+    assertGetArtifactsWithUrlPrefixFromAllAus(specs, "d", "u");
+    assertGetArtifactsWithUrlPrefixFromAllAus(specs, "d", "u1");
 
     //// Assert affect of committing an artifact on result
     assertIterableEquals(
         artList(specs, 5),
-        index.getArtifactsWithUrlPrefixFromAllAus("d", "u2")
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u2", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 5),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u2", ArtifactVersions.LATEST)
     );
 
     // Commit all uncommitted artifacts
@@ -623,17 +709,31 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Verify proper order
     assertIterableEquals(
         artList(specs, 10, 0, 1, 11, 8, 2, 3, 4, 5, 6),
-        index.getArtifactsWithUrlPrefixFromAllAus("d", "u")
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 10, 11, 2, 5),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u", ArtifactVersions.LATEST)
     );
 
     assertIterableEquals(
         artList(specs, 5, 6),
-        index.getArtifactsWithUrlPrefixFromAllAus("d", "u2"));
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u2", ArtifactVersions.ALL));
+
+    assertIterableEquals(
+        artList(specs, 5),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u2", ArtifactVersions.LATEST));
 
     //// Assert affect of deleting an artifact on result
     assertIterableEquals(
         artList(specs, 2, 3, 4),
-        index.getArtifactsWithUrlPrefixFromAllAus("d", "u1")
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u1", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 2),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u1", ArtifactVersions.LATEST)
     );
 
     index.deleteArtifact(specs.get(3).getArtifactId());
@@ -641,11 +741,16 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     assertIterableEquals(
         artList(specs, 2, 4),
-        index.getArtifactsWithUrlPrefixFromAllAus("d", "u1")
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u1", ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        artList(specs, 2),
+        index.getArtifactsWithUrlPrefixFromAllAus("d", "u1", ArtifactVersions.LATEST)
     );
   }
 
-  private void assertGetArtifactsWithPrefixAllVersionsAllAus(List<ArtifactSpec> specs, String collection, String prefix) throws IOException {
+  private void assertGetArtifactsWithUrlPrefixFromAllAus(List<ArtifactSpec> specs, String collection, String prefix) throws IOException {
     assertIterableEquals(
         specs.stream()
             .filter(spec -> !spec.isDeleted())
@@ -654,7 +759,27 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
             .filter(spec -> spec.getUrl().startsWith(prefix))
             .map(ArtifactSpec::getArtifact)
             .collect(Collectors.toList()),
-        index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix)
+        index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.ALL)
+    );
+
+    assertIterableEquals(
+        specs.stream()
+            .filter(spec -> !spec.isDeleted())
+            .filter(ArtifactSpec::isCommitted)
+            .filter(spec -> spec.getCollection().equals(collection))
+            .filter(spec -> spec.getUrl().startsWith(prefix))
+            .map(ArtifactSpec::getArtifact)
+
+            .collect(Collectors.groupingBy(
+                artifact -> artifact.getIdentifier().getArtifactStem(),
+                Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+            .values()
+            .stream()
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+
+            .collect(Collectors.toList()),
+        index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.LATEST)
     );
   }
 
