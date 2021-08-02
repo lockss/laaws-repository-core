@@ -331,14 +331,12 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Iterable<String> getCollectionIds() {
       synchronized (index) {
-        Stream<Artifact> artifactStream = index.values().stream();
-        Map<String, List<Artifact>> collections = artifactStream.collect(Collectors.groupingBy(Artifact::getCollection));
-
-        // Sort the collection IDs for return
-        List<String> collectionIds = new ArrayList<String>(collections.keySet());
-        Collections.sort(collectionIds);
-
-	return collectionIds;
+	List<String> res = index.values().stream()
+	  .map(x -> x.getCollection())
+          .distinct()
+	  .sorted()
+	  .collect(Collectors.toList());
+	return res;
       }
     }
 
