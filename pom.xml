@@ -305,6 +305,11 @@ POSSIBILITY OF SUCH DAMAGE.
       <version>3.0.8</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+      <version>1.4</version>
+    </dependency>
   </dependencies>
 
   <build>
