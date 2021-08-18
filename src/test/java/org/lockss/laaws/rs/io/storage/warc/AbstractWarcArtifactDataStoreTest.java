@@ -60,7 +60,6 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
-import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.TimeBase;
@@ -2615,7 +2614,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link WarcArtifactDataStore#rebuildIndex(ArtifactIndex)}.
+   * Test for {@link WarcArtifactDataStore#rebuildIndexIfNeeded(ArtifactIndex)}.
    *
    * @throws Exception
    */
@@ -2696,7 +2695,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store = makeWarcArtifactDataStore(index2, store);
     store.setUseWarcCompression(useCompression);
     assertEquals(index2, store.getArtifactIndex());
-    store.rebuildIndex(index2);
+    store.rebuildIndexIfNeeded(index2);
 
     //// Compare and assert contents of indexes
 
@@ -2760,14 +2759,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Call real method under test
     doCallRealMethod().when(ds).isCompressedWarcFile(warcFile);
-    doCallRealMethod().when(ds).reindexArtifactsFromWarc(index, warcFile);
+    doCallRealMethod().when(ds).indexArtifactsFromWarc(index, warcFile);
     doCallRealMethod().when(ds).getArchiveReader(ArgumentMatchers.any(Path.class),
         ArgumentMatchers.any(InputStream.class));
 
     // Assert the artifact *is not* reindexed if it is already indexed
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactId())).thenReturn(true);
-    ds.reindexArtifactsFromWarc(index, warcFile);
+    ds.indexArtifactsFromWarc(index, warcFile);
     verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
@@ -2777,7 +2776,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactId())).thenReturn(false);
     when(state.isDeleted()).thenReturn(false);
-    ds.reindexArtifactsFromWarc(index, warcFile);
+    ds.indexArtifactsFromWarc(index, warcFile);
     verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
@@ -2785,7 +2784,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactId())).thenReturn(false);
     when(state.isDeleted()).thenReturn(true);
-    ds.reindexArtifactsFromWarc(index, warcFile);
+    ds.indexArtifactsFromWarc(index, warcFile);
     verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
