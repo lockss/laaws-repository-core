@@ -157,6 +157,11 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     clearInvocations(ds);
   }
 
+  @Override
+  protected void touchFile(Path path) throws IOException {
+    store.initFile(path);
+  }
+
   /**
    * Test for {@link VolatileWarcArtifactDataStore#makeStorageUrl(Path, MultiValueMap)}.
    *
@@ -194,6 +199,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Mock behavior
     doCallRealMethod().when(ds).initWarc(warcPath);
+    doCallRealMethod().when(ds).initFile(warcPath);
     doCallRealMethod().when(ds).getAppendableOutputStream(warcPath);
 
     // Call method

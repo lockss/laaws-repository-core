@@ -80,9 +80,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import java.util.zip.GZIPOutputStream;
@@ -527,6 +525,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public abstract void testInitCollectionImpl() throws Exception;
   public abstract void testInitAuImpl() throws Exception;
 
+  // Implementation-specific utility methods
+  protected abstract void touchFile(Path path) throws IOException;
   protected abstract boolean pathExists(Path path) throws IOException;
   protected abstract boolean isDirectory(Path path) throws IOException;
   protected abstract boolean isFile(Path path) throws IOException;
@@ -1533,7 +1533,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#reloadTemporaryWarcs()}.
+   * Test for {@link WarcArtifactDataStore#reloadTemporaryWarcs(ArtifactIndex, Path)}.
    *
    * @throws Exception
    */
@@ -2613,125 +2613,238 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * INDEX REBUILD FROM DATA STORE
   // *******************************************************************************************************************
 
+  @Disabled
+  @VariantTest
+  @EnumSource(TestRepoScenarios.class)
+  public void testRebuildIndex_variants() throws Exception {
+    runTestRebuildIndexIfNeeded_variant();
+  }
+
+  public void runTestRebuildIndexIfNeeded_variant() throws Exception {
+    // Instances of artifact index
+    ArtifactIndex index1 = store.getArtifactIndex();
+    ArtifactIndex index2 = new VolatileArtifactIndex();
+
+    // Shutdown the data store
+    store.shutdownDataStore();
+
+    // Trigger reindex
+    for (Path basePath : store.getBasePaths()) {
+      Path reindexStatePath = basePath.resolve("state/reindex");
+      touchFile(reindexStatePath);
+    }
+
+    log.info("Rebuilding index");
+
+    //// Reindex into new artifact index
+    boolean useCompression = store.getUseWarcCompression();
+    store = makeWarcArtifactDataStore(index2, store);
+//    store.setArtifactIndex(index2);
+    store.setUseWarcCompression(useCompression);
+    store.rebuildIndexIfNeeded(index2);
+
+    //// Compare and assert contents of indexes
+    assertArtifactIndexEquals(index1, index2);
+  }
+
   /**
    * Test for {@link WarcArtifactDataStore#rebuildIndexIfNeeded(ArtifactIndex)}.
+   *
+   * Checks that rebuildIndex() is called only for the data store's WARC caches
+   * that have a reindex state file.
    *
    * @throws Exception
    */
   @Test
-  public void testRebuildIndex() throws Exception {
-    runTestRebuildIndex(false);
-    runTestRebuildIndex(true);
+  public void testRebuildIndexIfNeeded() throws Exception {
+    // Mock artifact index and data store
+    ArtifactIndex index = mock(ArtifactIndex.class);
+    store = (WADS) mock(WarcArtifactDataStore.class);
+
+    // Emulate one WARC cache
+    Path cache0 = Paths.get("/lockss0");
+    Path reindexStatePath = cache0.resolve("state/reindex");
+    Path[] basePaths = new Path[]{cache0};
+
+    // Setup common mock behavior
+    when(store.getBasePaths()).thenReturn(basePaths);
+    doCallRealMethod().when(store)
+        .rebuildIndexIfNeeded(ArgumentMatchers.any(ArtifactIndex.class));
+
+    // Assert rebuildIndex() is invoked if the reindex state file exists
+    when(store.fileExists(reindexStatePath)).thenReturn(true);
+    store.rebuildIndexIfNeeded(index);
+    verify(store).rebuildIndex(index, cache0);
+
+    clearInvocations(store);
+
+    // Assert rebuildIndex() is not invoked if the reindex state file does not exist
+    when(store.fileExists(reindexStatePath)).thenReturn(false);
+    store.rebuildIndexIfNeeded(index);
+    verify(store, never()).rebuildIndex(index, cache0);
   }
 
-  public void runTestRebuildIndex(boolean useCompression) throws Exception {
+  /**
+   * Test for {@link WarcArtifactDataStore#rebuildIndex(ArtifactIndex, Path)}.
+   * @throws Exception
+   */
+  @Test
+  public void testRebuildIndex() throws Exception {
+    runTestRebuildIndex(true, index -> {
+      // Add first artifact to the repository - don't commit
+      ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
+      Artifact a1 = store.addArtifactData(ad1);
+      assertNotNull(a1);
+    });
+    
+    runTestRebuildIndex(true, index -> {
+      // Add first artifact to the repository - don't commit
+      ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
+      Artifact a1 = store.addArtifactData(ad1);
+      assertNotNull(a1);
+
+      // Add second artifact to the repository - commit
+      ArtifactData ad2 = generateTestArtifactData("collection1", "auid1", "uri2", 1, 1024);
+      Artifact a2 = store.addArtifactData(ad2);
+      assertNotNull(a2);
+      index.commitArtifact(a2.getId());
+      Future<Artifact> future = store.commitArtifactData(a2);
+      assertNotNull(future);
+      Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
+      assertTrue(committed_a2.getCommitted());
+
+      // Add another artifact to the repository - commit
+      ArtifactData ad5 = generateTestArtifactData("collection1", "auid1", "uri2", 2, 1024);
+      Artifact a5 = store.addArtifactData(ad5);
+      assertNotNull(a5);
+      index.commitArtifact(a5.getId());
+      future = store.commitArtifactData(a5);
+      assertNotNull(future);
+      Artifact committed_a5 = future.get(10, TimeUnit.SECONDS);
+      assertTrue(committed_a5.getCommitted());
+
+      // Add third artifact to the repository - don't commit but immediately delete
+      ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
+      Artifact a3 = store.addArtifactData(ad3);
+      assertNotNull(a3);
+      store.deleteArtifactData(a3);
+      index.deleteArtifact(a3.getId());
+
+      // Add fourth artifact to the repository - commit and delete
+      ArtifactData ad4 = generateTestArtifactData("collection1", "auid1", "uri4", 1, 1024);
+      Artifact a4 = store.addArtifactData(ad4);
+      assertNotNull(a4);
+
+      // Commit fourth artifact
+      index.commitArtifact(a4.getId());
+      future = store.commitArtifactData(a4);
+      assertNotNull(future);
+      Artifact committed_a4 = future.get(10, TimeUnit.SECONDS);
+      assertTrue(committed_a4.getCommitted());
+
+      // Delete fourth artifact
+      store.deleteArtifactData(a4);
+      index.deleteArtifact(a4.getId());
+
+//      // Remove all journal files
+//      for (Path basePath : store.getBasePaths()) {
+//        Path journalFile = Paths.get("lockss-repo.warc");
+//
+//        Stream<Path> journalFiles = store.findWarcs(basePath)
+//            .stream()
+//            .filter(warc -> warc.getFileName().equals(journalFile));
+//
+//        journalFiles.forEach(warc -> {
+//          try {
+//            store.removeWarc(warc);
+//          } catch (IOException e) {
+//            log.error("Could not remove journal file [journalFile: {}]", journalFile, e);
+//          }
+//        });
+//      }
+    });
+  }
+
+  interface Scenario {
+    void setup(ArtifactIndex index)
+        throws IOException, InterruptedException, ExecutionException, TimeoutException;
+  }
+
+  public void runTestRebuildIndex(boolean useCompression, Scenario scenario) throws Exception {
     // Don't use provided data store, which provides an volatile index set
     teardownDataStore();
 
-    // Instances of artifact index to populate and compare
+    // Instances of artifact index
     ArtifactIndex index1 = new VolatileArtifactIndex();
     ArtifactIndex index2 = new VolatileArtifactIndex();
 
-    //// Create and populate first index by adding and indexing new artifacts
+    // Create data store with first index
     store = makeWarcArtifactDataStore(index1);
     store.setUseWarcCompression(useCompression);
 
-    assertEquals(index1, store.getArtifactIndex());
-
-    // Add first artifact to the repository - don't commit
-    ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
-    Artifact a1 = store.addArtifactData(ad1);
-    assertNotNull(a1);
-
-    // Add second artifact to the repository - commit
-    ArtifactData ad2 = generateTestArtifactData("collection1", "auid1", "uri2", 1, 1024);
-    Artifact a2 = store.addArtifactData(ad2);
-    assertNotNull(a2);
-    index1.commitArtifact(a2.getId());
-    Future<Artifact> future = store.commitArtifactData(a2);
-    assertNotNull(future);
-    Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
-    assertTrue(committed_a2.getCommitted());
-
-    // Add another artifact to the repository - commit
-    ArtifactData ad5 = generateTestArtifactData("collection1", "auid1", "uri2", 2, 1024);
-    Artifact a5 = store.addArtifactData(ad5);
-    assertNotNull(a5);
-    index1.commitArtifact(a5.getId());
-    future = store.commitArtifactData(a5);
-    assertNotNull(future);
-    Artifact committed_a5 = future.get(10, TimeUnit.SECONDS);
-    assertTrue(committed_a5.getCommitted());
-
-    // Add third artifact to the repository - don't commit but immediately delete
-    ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
-    Artifact a3 = store.addArtifactData(ad3);
-    assertNotNull(a3);
-    store.deleteArtifactData(a3);
-    index1.deleteArtifact(a3.getId());
-
-    // Add fourth artifact to the repository - commit and delete
-    ArtifactData ad4 = generateTestArtifactData("collection1", "auid1", "uri4", 1, 1024);
-    Artifact a4 = store.addArtifactData(ad4);
-    assertNotNull(a4);
-
-    // Commit fourth artifact
-    index1.commitArtifact(a4.getId());
-    future = store.commitArtifactData(a4);
-    assertNotNull(future);
-    Artifact committed_a4 = future.get(10, TimeUnit.SECONDS);
-    assertTrue(committed_a4.getCommitted());
-
-    // Delete fourth artifact
-    store.deleteArtifactData(a4);
-    index1.deleteArtifact(a4.getId());
+    // TODO: Do something
+    scenario.setup(index1);
 
     // Shutdown the data store
     store.shutdownDataStore();
 
     log.info("Rebuilding index");
 
-    //// Populate second index by rebuilding
+    //// Reindex into new artifact index
     store = makeWarcArtifactDataStore(index2, store);
+//    store.setArtifactIndex(index2);
     store.setUseWarcCompression(useCompression);
-    assertEquals(index2, store.getArtifactIndex());
-    store.rebuildIndexIfNeeded(index2);
+
+    // Invoke reindex for all base paths
+    for (Path basePath : store.getBasePaths()) {
+      store.enableRepoDB();
+      touchFile(basePath.resolve("state/reindex"));
+      store.rebuildIndex(index2, basePath);
+      store.disableRepoDB();
+    }
 
     //// Compare and assert contents of indexes
+    assertArtifactIndexEquals(index1, index2);
+  }
 
-    // Compare collections IDs
-    List<String> cids1 = IterableUtils.toList(index1.getCollectionIds());
-    List<String> cids2 = IterableUtils.toList(index2.getCollectionIds());
-    assertIterableEquals(cids1, cids2);
+  private void assertArtifactIndexEquals(ArtifactIndex expected, ArtifactIndex actual) throws IOException {
+    // Assert both indexes have the same collections
+    List<String> collections1 = IterableUtils.toList(expected.getCollectionIds());
+    List<String> collections2 = IterableUtils.toList(actual.getCollectionIds());
+    assertIterableEquals(collections1, collections2);
 
-    // Iterate over the collection IDs
-    for (String cid : cids1) {
-      // Compare the set of AUIDs
-      List<String> auids1 = IteratorUtils.toList(index1.getAuIds(cid).iterator());
-      List<String> auids2 = IteratorUtils.toList(index2.getAuIds(cid).iterator());
+    // Assert AUs in each collection have the same artifacts
+    for (String collection : collections1) {
+      // Assert that this collection has the same set of AUIDs
+      List<String> auids1 = IteratorUtils.toList(expected.getAuIds(collection).iterator());
+      List<String> auids2 = IteratorUtils.toList(actual.getAuIds(collection).iterator());
       assertIterableEquals(auids1, auids2);
 
-      // Iterate over AUIDs
+      // Assert set of artifacts is the same in all AUs
       for (String auid : auids1) {
-        List<Artifact> artifacts1 = IteratorUtils.toList(index1.getArtifacts(cid, auid, true).iterator());
-        List<Artifact> artifacts2 = IteratorUtils.toList(index2.getArtifacts(cid, auid, true).iterator());
+        List<Artifact> artifacts1 =
+            IteratorUtils.toList(expected.getArtifacts(collection, auid, true).iterator());
+
+        List<Artifact> artifacts2 =
+            IteratorUtils.toList(actual.getArtifacts(collection, auid, true).iterator());
+
         assertIterableEquals(artifacts1, artifacts2);
       }
     }
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#reindexArtifactsFromWarcs(ArtifactIndex, Collection)}.
+   * Test for {@link WarcArtifactDataStore#indexArtifactsFromWarc(ArtifactIndex, Path)}.
    *
    * @throws Exception
    */
   @Test
-  public void testReindexArtifactsFromWarc() throws Exception {
-    runTestReindexArtifactsFromWarc(false);
-    runTestReindexArtifactsFromWarc(true);
+  public void testIndexArtifactsFromWarc() throws Exception {
+    runTestIndexArtifactsFromWarc(false);
+    runTestIndexArtifactsFromWarc(true);
   }
 
-  public void runTestReindexArtifactsFromWarc(boolean useCompression) throws Exception {
+  public void runTestIndexArtifactsFromWarc(boolean useCompression) throws Exception {
     // Create artifact spec
     URI storageUrl = new URI("storageUrl");
 
@@ -2780,13 +2893,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
-    // Assert the artifact *is not* reindexed if it is not indexed and recorded as deleted in the journal
-    when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
-    when(index.artifactExists(spec.getArtifactId())).thenReturn(false);
-    when(state.isDeleted()).thenReturn(true);
-    ds.indexArtifactsFromWarc(index, warcFile);
-    verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
-    clearInvocations(index);
+    if (WarcArtifactDataStore.SKIP_IF_MARKED_DELETED) {
+      // Assert the artifact *is not* reindexed if it is not indexed and recorded as deleted in the journal
+      when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
+      when(index.artifactExists(spec.getArtifactId())).thenReturn(false);
+      when(state.isDeleted()).thenReturn(true);
+      ds.indexArtifactsFromWarc(index, warcFile);
+      verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+      clearInvocations(index);
+    }
 
     // TODO Actually index the artifact data and assert that it matches the spec?
   }
