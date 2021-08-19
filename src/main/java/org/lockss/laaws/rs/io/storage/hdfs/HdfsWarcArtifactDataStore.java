@@ -385,14 +385,38 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public void initWarc(Path warcPath) throws IOException {
-    org.apache.hadoop.fs.Path fullPath = new org.apache.hadoop.fs.Path(warcPath.toString());
-
-    if (fs.createNewFile(fullPath)) {
-      log.debug2("Created new WARC file under HDFS [fullPath: {}]", fullPath);
-    }
+    initFile(warcPath);
 
     try (OutputStream output = getAppendableOutputStream(warcPath)) {
       writeWarcInfoRecord(output);
+    }
+  }
+
+  @Override
+  protected boolean fileExists(Path filePath) throws IOException {
+    org.apache.hadoop.fs.Path fullPath =
+        new org.apache.hadoop.fs.Path(filePath.toString());
+
+    return fs.exists(fullPath);
+  }
+
+  @Override
+  protected void renameFile(Path oldPath, Path newPath) throws IOException {
+    org.apache.hadoop.fs.Path oldHdfsPath =
+        new org.apache.hadoop.fs.Path(oldPath.toString());
+
+    org.apache.hadoop.fs.Path newHdfsPath =
+        new org.apache.hadoop.fs.Path(newPath.toString());
+
+    fs.rename(oldHdfsPath, newHdfsPath);
+  }
+
+  protected void initFile(Path filePath) throws IOException {
+    org.apache.hadoop.fs.Path fullPath =
+        new org.apache.hadoop.fs.Path(filePath.toString());
+
+    if (fs.createNewFile(fullPath)) {
+      log.debug2("Created new WARC file under HDFS [fullPath: {}]", fullPath);
     }
   }
 

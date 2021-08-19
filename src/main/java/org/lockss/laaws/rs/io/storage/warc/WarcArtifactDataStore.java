@@ -195,6 +195,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected abstract OutputStream getAppendableOutputStream(Path filePath) throws IOException;
 
+  protected abstract boolean fileExists(Path filePath) throws IOException;
+  protected abstract void renameFile(Path oldPath, Path newPath) throws IOException;
   protected abstract void initWarc(Path warcPath) throws IOException;
 
   protected abstract long getWarcLength(Path warcPath) throws IOException;
@@ -285,7 +287,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       log.info("Finished shutdown of data store");
     } else {
-      log.info("Data store is already shutdown");
+      log.info("Data store is already stopped");
     }
   }
 
@@ -2115,11 +2117,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     for (Path basePath : getBasePaths()) {
       // Path to reindex state file
       Path reindexStatePath = basePath.resolve("state/reindex");
-      File reindexStateFile = reindexStatePath.toFile();
 
-      // Invoke index rebuild from WARCs under this base directory if
-      if (reindexStateFile.exists()) {
-        try {
+      try {
+        // Invoke index rebuild from WARCs under this base directory if the
+        // reindex state file exists
+        if (fileExists(reindexStatePath)) {
           // Enable usage of MapDB for large structures
           enableRepoDB();
 
@@ -2128,9 +2130,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Disable MapDB
           disableRepoDB();
-        } catch (IOException e) {
-          log.error("Could not index artifacts from data store", e);
         }
+      } catch (IOException e) {
+        log.error("Could not index artifacts from data store", e);
       }
     }
   }
@@ -2149,11 +2151,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new IllegalStateException("Index rebuild only allowed while the data store is stopped");
     }
 
-    log.trace("basePath = {}", basePath);
+    log.debug("Reindexing WARCs under data store directory [path: {}]", basePath);
 
     // Path to reindex state file
     Path reindexStatePath = basePath.resolve("state/reindex");
-    File reindexStateFile = reindexStatePath.toFile();
 
     // Boolean indicating whether to retry later (i.e., do not remove reindex state file)
     AtomicBoolean retryReindex = new AtomicBoolean(false);
@@ -2162,11 +2163,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     List<Path> reindexedWarcs = new ArrayList<>();
 
     // Read reindex state file for list of processed WARCs
-    try (FileReader reindexStateFileReader = new FileReader(reindexStateFile)) {
+    try (InputStreamReader reader =
+             new InputStreamReader(getInputStreamAndSeek(reindexStatePath, 0))) {
+
       Iterable<CSVRecord> records = CSVFormat.DEFAULT
           .withHeader(REINDEX_STATE_HEADERS)
           .withSkipHeaderRecord()
-          .parse(reindexStateFileReader);
+          .parse(reader);
 
       records.forEach(record ->
           reindexedWarcs.add(Paths.get(record.get("warc"))));
@@ -2201,10 +2204,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         long end = Instant.now().getEpochSecond();
 
         // Open writer to state file
-        try (BufferedWriter out = Files.newBufferedWriter(
-            reindexStatePath,
-            StandardOpenOption.APPEND,
-            StandardOpenOption.CREATE)) {
+        try (BufferedWriter out =
+                 new BufferedWriter(new OutputStreamWriter(getAppendableOutputStream(reindexStatePath)))) {
 
           // Append record to state file
           try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(REINDEX_STATE_HEADERS))) {
@@ -2226,22 +2227,30 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     });
 
-    // Paths to journals containing repository state
-    Collection<Path> repositoryStateJournals = warcPaths
-        .stream()
-        .filter(file -> file.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
-        .collect(Collectors.toList());
+    if (!SKIP_IF_MARKED_DELETED) {
+      // Paths to journals containing repository state
+      Collection<Path> repositoryStateJournals = warcPaths
+          .stream()
+          .filter(file -> file.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
+          .collect(Collectors.toList());
 
-    // Replay repository state journal
-    for (Path journalPath : repositoryStateJournals) {
-      replayArtifactRepositoryStateJournal(index, journalPath);
+      // Replay repository state journal
+      for (Path journalPath : repositoryStateJournals) {
+        replayArtifactRepositoryStateJournal(index, journalPath);
+      }
     }
 
-    // Remove reindex state file if there were no errors
-    // (i.e., successfully processed all WARCs under this base directory)
+    // Disable future reindexing by renaming reindex state file if there were no errors
+    // (i.e., successfully processed all WARCs under this base directory). Old reindex
+    // state files are kept to aid debugging / auditing.
     if (retryReindex.get() == false) {
-      reindexStateFile.delete();
-      // TODO Move out of the way
+      DateTimeFormatter formatter = DateTimeFormatter.BASIC_ISO_DATE
+          .withZone(ZoneId.systemDefault());
+
+      Path withSuffix = reindexStatePath
+          .resolveSibling(reindexStatePath.getFileName() + "." + formatter.format(Instant.now()));
+
+      renameFile(reindexStatePath, withSuffix);
     }
   }
 
@@ -2254,6 +2263,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * artifacts contained in the file WARC file if artifacts were previously indexed or were marked as deleted.
    * @throws IOException
    */
+  static boolean SKIP_IF_MARKED_DELETED = true;
   public long indexArtifactsFromWarc(ArtifactIndex index, Path warcFile) throws IOException {
     boolean isWarcInTemp = isTmpStorage(warcFile);
     boolean isCompressed = isCompressedWarcFile(warcFile);
@@ -2284,23 +2294,29 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               continue;
             }
 
-            // Determine whether this artifact is recorded as deleted in the journal
-            ArtifactRepositoryState state = getArtifactRepositoryStateFromJournal(artifactData.getIdentifier());
-
             // Default artifact repository state
-            if (state == null) {
-              state = new ArtifactRepositoryState(
-                  /* Artifact ID */ artifactData.getIdentifier(),
-                  /* Committed   */ !isWarcInTemp,
-                  /* Deleted     */ false);
-            }
+            artifactData.setArtifactRepositoryState(new ArtifactRepositoryState(
+                /* Artifact ID */ artifactData.getIdentifier(),
+                /* Committed   */ !isWarcInTemp,
+                /* Deleted     */ false));
 
-            // Set repository state
-            artifactData.setArtifactRepositoryState(state);
+            if (SKIP_IF_MARKED_DELETED) {
+              try {
+                // Determine whether this artifact is recorded as deleted in the journal
+                ArtifactRepositoryState state =
+                    getArtifactRepositoryStateFromJournal(artifactData.getIdentifier());
 
-            // Do not reindex artifact if it is marked as deleted
-            if (state.isDeleted()) {
-              continue;
+                // Set repository state
+                artifactData.setArtifactRepositoryState(state);
+
+                // Do not reindex artifact if it is marked as deleted
+                if (state.isDeleted()) {
+                  continue;
+                }
+              } catch (IOException e) {
+                log.warn("Could not read journal file: Applying default repository state to artifact [artifactId: {}]",
+                    artifactData.getIdentifier().getId(), e);
+              }
             }
 
             //// Generate storage URL
@@ -2333,10 +2349,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 isCompressed ? compressedRecordLength : recordLength));
 
             // Debugging
-            log.trace("artifactData({}).getStorageUrl() = {}",
-                artifactData.getIdentifier().getId(),
-                artifactData.getStorageUrl()
-            );
+            log.trace("artifactId = {}", artifactData.getIdentifier().getId());
+            log.trace("storageUrl = {}", artifactData.getStorageUrl());
 
             //// Add artifact to the index
             index.indexArtifact(artifactData);
@@ -2703,19 +2717,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Replay to artifact index
       if (index.artifactExists(artifactId)) {
         if (state.isDeleted()) {
-          log.debug2("Removing artifact {} from index", artifactId);
+          log.debug2("Removing deleted artifact from index [artifactId: {}]", artifactId);
           index.deleteArtifact(artifactId);
           continue;
         }
 
         if (state.isCommitted()) {
-          log.debug2("Marking artifact {} as committed in index", artifactId);
+          log.debug2("Marking artifact as committed in index [artifactId: {}]", artifactId);
           index.commitArtifact(artifactId);
         }
       } else {
-        if (!state.isDeleted()) {
-          log.warn("Artifact referenced by journal is not deleted but doesn't exist in index! [artifactId: {}]", artifactId);
-        }
+        // This is not necessarily an error e.g., for deleted artifacts that
+        // were not re-indexed in the first place. But we cannot
+        log.debug2(
+            "Cannot apply state: Artifact missing from index [artifactId: {}, state: {}]",
+            artifactId, state);
       }
     }
   }

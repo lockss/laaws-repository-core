@@ -51,7 +51,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * A volatile (i.e., "in-memory") implementation of WarcArtifactDataStore.
+ * A volatile (i.e., "in-memory") implementation of {@link WarcArtifactDataStore}.
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -115,12 +115,29 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public void initWarc(Path warcPath) throws IOException {
-    synchronized (warcs) {
-      warcs.putIfAbsent(warcPath, new ByteArrayOutputStream());
-    }
+    initFile(warcPath);
 
     try (OutputStream output = getAppendableOutputStream(warcPath)) {
       writeWarcInfoRecord(output);
+    }
+  }
+
+  @Override
+  protected boolean fileExists(Path filePath) {
+    return warcs.containsKey(filePath);
+  }
+
+  @Override
+  protected void renameFile(Path oldPath, Path newPath) throws IOException {
+    synchronized (warcs) {
+      warcs.put(newPath, warcs.get(oldPath));
+      removeWarc(oldPath);
+    }
+  }
+
+  protected void initFile(Path filePath) {
+    synchronized (warcs) {
+      warcs.putIfAbsent(filePath, new ByteArrayOutputStream());
     }
   }
 

@@ -350,6 +350,16 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     }
   }
 
+  @Override
+  protected boolean fileExists(Path filePath) {
+    return filePath.toFile().exists();
+  }
+
+  @Override
+  protected void renameFile(Path oldPath, Path newPath) throws IOException {
+    oldPath.toFile().renameTo(newPath.toFile());
+  }
+
   protected void initFile(File file) throws IOException {
     FileUtils.touch(file);
   }
