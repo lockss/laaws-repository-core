@@ -2169,19 +2169,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     log.debug("Reindexing WARCs under data store directory [path: {}]", basePath);
 
+    // List of WARCs that have already been indexed
+    List<Path> indexedWarcs = new ArrayList<>();
+
     // Path to reindex state file
-    Path reindexStatePath = basePath.resolve("state/reindex");
+    Path indexStateDir = repo.getRepositoryStateDir().toPath().resolve("index");
+    Path reindexStatePath = indexStateDir.resolve(REINDEX_STATE_FILE);
+    File reindexStateFile = reindexStatePath.toFile();
 
-    // Boolean indicating whether to retry later (i.e., do not remove reindex state file)
-    AtomicBoolean retryReindex = new AtomicBoolean(false);
-
-    // List of WARC paths that have been already processed
-    List<Path> reindexedWarcs = new ArrayList<>();
-
-    // Read reindex state file for list of processed WARCs
-    try (InputStreamReader reader =
-             new InputStreamReader(getInputStreamAndSeek(reindexStatePath, 0))) {
-
+    // Read reindex state file as CSV
+    try (FileReader reader = new FileReader(reindexStateFile)) {
       Iterable<CSVRecord> records = CSVFormat.DEFAULT
           .withHeader(REINDEX_STATE_HEADERS)
           .withSkipHeaderRecord()
@@ -2189,7 +2186,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Add indexed WARC path to list
       records.forEach(record ->
-          reindexedWarcs.add(Paths.get(record.get("warc"))));
+          indexedWarcs.add(Paths.get(record.get("warc"))));
     }
 
     // Search under data store base path for WARCs
@@ -2200,13 +2197,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         .stream()
         .filter(path -> !isTmpStorage(path))
         .filter(path -> !path.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
-        .filter(path -> !reindexedWarcs.contains(path));
+        .filter(path -> !indexedWarcs.contains(path));
 
     // Find WARCS in temporary storage
     Stream<Path> temporaryWarcs = warcPaths
         .stream()
         .filter(this::isTmpStorage)
-        .filter(path -> !reindexedWarcs.contains(path));
+        .filter(path -> !indexedWarcs.contains(path));
 
     //// Reindex artifacts
 
@@ -2220,9 +2217,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         long artifactsIndexed = indexArtifactsFromWarc(index, warcPath);
         long end = Instant.now().getEpochSecond();
 
-        // Open writer to state file
-        try (BufferedWriter out =
-                 new BufferedWriter(new OutputStreamWriter(getAppendableOutputStream(reindexStatePath)))) {
+              // WARC index successful - append record to state file
+              // Open writer to state file in append mode
+              try (BufferedWriter out = Files.newBufferedWriter(
+                  reindexStatePath,
+                  StandardOpenOption.APPEND,
+                  StandardOpenOption.CREATE)) {
 
           // Append record to state file
           try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(REINDEX_STATE_HEADERS))) {
