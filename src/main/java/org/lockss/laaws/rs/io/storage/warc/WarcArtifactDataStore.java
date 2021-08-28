@@ -1710,6 +1710,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Open an InputStream from the WARC file and get the WARC record representing this artifact data
       warcStream = getInputStreamFromStorageUrl(storageUrl);
 
+      // Wrap uncompressed stream in GZIPInputStream if the file is compressed
       if (isCompressedWarcFile(warcFilePath)) {
         GZIPInputStream gzipInputStream = new GZIPInputStream(warcStream);
         warcStream = new SimpleRepositionableStream(gzipInputStream);
@@ -1992,7 +1993,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Removes an artifact from this data store. Since cutting and splicing WARC files is expensive and there's
    * wariness about actually destroying data, this method currently:
-   *
+   * <p>
    * 1. Leaves the WARC record in place.
    * 2. Appends the deleted status to the AU's artifact state journal.
    * 3. Removes the artifact reference from the artifact index.
@@ -2120,6 +2121,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Rebuilds the provided index from WARCs within this WARC artifact data store.
+   * <p>
+   * Requirements:
+   * * Reindex must preserve ORDER of versions of artifacts, if not exact version
    *
    * @param index The {@code ArtifactIndex} to rebuild and populate from WARCs within this WARC artifact data store.
    * @throws IOException
@@ -2183,6 +2187,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           .withSkipHeaderRecord()
           .parse(reader);
 
+      // Add indexed WARC path to list
       records.forEach(record ->
           reindexedWarcs.add(Paths.get(record.get("warc"))));
     }
@@ -2239,7 +2244,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     });
 
-    if (!SKIP_IF_MARKED_DELETED) {
+    if (!SKIP_INDEXING_IF_MARKED_DELETED) {
       // Paths to journals containing repository state
       Collection<Path> repositoryStateJournals = warcPaths
           .stream()
@@ -2275,7 +2280,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * artifacts contained in the file WARC file if artifacts were previously indexed or were marked as deleted.
    * @throws IOException
    */
-  static boolean SKIP_IF_MARKED_DELETED = true;
+  static boolean SKIP_INDEXING_IF_MARKED_DELETED = true;
   public long indexArtifactsFromWarc(ArtifactIndex index, Path warcFile) throws IOException {
     boolean isWarcInTemp = isTmpStorage(warcFile);
     boolean isCompressed = isCompressedWarcFile(warcFile);
@@ -2306,13 +2311,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               continue;
             }
 
-            // Default artifact repository state
+            // Default artifact repository state - the assumption here is that
+            // the journal has been lost or incomplete
             artifactData.setArtifactRepositoryState(new ArtifactRepositoryState(
                 /* Artifact ID */ artifactData.getIdentifier(),
+                // Q: What happens to artifacts that are committed but pending copy?
+                // There's not much that can be done if that information is lost: With no
+                // journal record, to distinguish whether the artifact is uncommitted or
+                // committed but pending copy to permanent storage.
                 /* Committed   */ !isWarcInTemp,
                 /* Deleted     */ false));
 
-            if (SKIP_IF_MARKED_DELETED) {
+            if (SKIP_INDEXING_IF_MARKED_DELETED) {
               try {
                 // Determine whether this artifact is recorded as deleted in the journal
                 ArtifactRepositoryState state =
@@ -2873,7 +2883,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * This circumvents an issues in IIPC's webarchive-commons library.
-   *
+   * <p>
    * See {@link SimpleRepositionableStream} for details.
    */
   protected ArchiveReader getArchiveReader(Path warcFile, InputStream input) throws IOException {
@@ -2884,8 +2894,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * This circumvents another issue in IIPC's webarchive-commons library:
-   *
-   * {@link ArchiveReader.ArchiveRecordIterator} requires an {@link InputStream} that supports
+   * <p>
+   * {@code ArchiveReader.ArchiveRecordIterator} requires an {@link InputStream} that supports
    * {@link InputStream#mark(int)} which {@link GZIPInputStream} does not support. Wrapping it in a
    * {@link BufferedInputStream} causes problems because {@link ArchiveReader#positionForRecord(InputStream)} expects
    * either an {@link GZIPInputStream} or attempts to cast anything else as a {@link CountingInputStream}.
@@ -2918,8 +2928,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     /**
-      * COPIED FROM WEBARCHIVE-COMMONS
-     *
+     * COPIED FROM WEBARCHIVE-COMMONS
+     * <p>
      * Get record at passed <code>offset</code>.
      *
      * @param offset Byte index into file at which a record starts.
