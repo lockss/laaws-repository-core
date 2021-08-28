@@ -148,6 +148,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap = new HashMap<>();
   protected Map<CollectionAuidPair, List<Path>> auPathsMap = new HashMap<>();
 
+  private BaseLockssRepository repo;
+
   protected DataStoreState dataStoreState = DataStoreState.STOPPED;
 
   protected boolean useCompression;
@@ -1416,13 +1418,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     thresholdWarcSize = threshold;
   }
 
+  public void setLockssRepository(LockssRepository repository) {
+    this.repo = (BaseLockssRepository) repository;
+  }
+
   /**
    * Configures the artifact index associated with this WARC artifact data store.
    * <p>
    * Should only be used in testing.
    *
+   * Deprecated. Use internal handle to {@link BaseLockssRepository} instead.
+   *
    * @param artifactIndex The {@code ArtifactIndex} instance to associate with this WARC artifact data store.
    */
+  @Deprecated
   protected void setArtifactIndex(ArtifactIndex artifactIndex) {
 //    if (artifactIndex == null) {
 //      throw new IllegalArgumentException("Null artifact index");
@@ -1438,8 +1447,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Return the artifact index associated with this WARC artifact data store.
    *
+   * Deprecated. Use internal handle to {@link BaseLockssRepository} instead.
+   *
    * @return The {@code ArtifactIndex} associated with this WARC artifact data store.
    */
+  @Deprecated
   public ArtifactIndex getArtifactIndex() {
     return artifactIndex;
   }

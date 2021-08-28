@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.index;
 
+import org.lockss.laaws.rs.core.LockssRepositorySubsystem;
 import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
@@ -49,7 +50,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * Interface of the artifact index.
  */
-public interface ArtifactIndex extends StorageInfoSource, Ready {
+public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSource, Ready {
 
     /**
      * Acquires the artifact version lock for an artifact stem. See
