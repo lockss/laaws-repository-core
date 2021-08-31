@@ -327,6 +327,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     // Mock behavior
     doCallRealMethod().when(ds).initWarc(warcPath);
+    doCallRealMethod().when(ds).initFile(warcPath);
     when(ds.getAppendableOutputStream(warcPath)).thenReturn(output);
     when(warcPath.toString()).thenReturn("test");
 

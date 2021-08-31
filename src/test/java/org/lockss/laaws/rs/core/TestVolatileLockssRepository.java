@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import java.io.File;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
@@ -44,9 +45,14 @@ import org.lockss.util.storage.StorageInfo;
 public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
     private final static L4JLogger log = L4JLogger.getLogger();
 
+    File repoStateDir;
+
     @Override
     public LockssRepository makeLockssRepository() throws IOException {
-        return new VolatileLockssRepository();
+      BaseLockssRepository repo = new VolatileLockssRepository();
+      repoStateDir = getTempDir();
+      repo.setRepositoryStateDir(repoStateDir);
+      return repo;
     }
 
   @Test

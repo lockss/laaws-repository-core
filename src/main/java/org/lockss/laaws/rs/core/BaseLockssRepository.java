@@ -39,7 +39,12 @@ import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.http.HttpHeaders;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 /**
@@ -47,7 +52,10 @@ import java.util.UUID;
  */
 public class BaseLockssRepository implements LockssRepository,
 					     JmsFactorySource {
+
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  private File repoStateDir;
 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;
   protected ArtifactIndex index;
@@ -59,24 +67,104 @@ public class BaseLockssRepository implements LockssRepository,
    * @param index An instance of {@code ArtifactIndex}.
    * @param store An instance of {@code ArtifactDataStore}.
    */
-  public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) throws IOException {
+  protected BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) {
     if (index == null || store == null) {
       throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
     }
 
     this.index = index;
     this.store = store;
+
+    index.setLockssRepository(this);
+    store.setLockssRepository(this);
   }
 
   /** No-arg constructor for subclasses */
   protected BaseLockssRepository() throws IOException {
   }
 
+  /**
+   * Constructor.
+   *
+   * @param repoStateDir A {@link Path} containing the path to the state of this repository.
+   * @param index An instance of {@link ArtifactIndex}.
+   * @param store An instance of {@link ArtifactDataStore}.
+   * @param store
+   */
+  public BaseLockssRepository(File repoStateDir, ArtifactIndex index, ArtifactDataStore store) {
+    this(index, store);
+    this.repoStateDir = repoStateDir;
+  }
+
+  /**
+   * Getter for the repository state directory.
+   *
+   * @return A {@link File} containing the path to the repository state directory.
+   */
+  public File getRepositoryStateDir() {
+    return repoStateDir;
+  }
+
+  /**
+   * Setter for the repository state directory.
+   *
+   * @param dir A {@link File} containing the path to the repository state directory.
+   */
+  protected void setRepositoryStateDir(File dir) {
+    repoStateDir = dir;
+  }
+
+  /**
+   * Triggers a re-index of all artifacts in the data store into the index if the
+   * reindex state file is present.
+   *
+   * @throws IOException
+   */
+  public void reindexArtifactsIfNeeded() throws IOException {
+    if (repoStateDir == null) {
+      log.warn("Repository state directory has not been set");
+      throw new IllegalStateException("Repository state directory has not been set");
+    }
+
+    // Path to reindex state file
+    Path reindexStatePath = repoStateDir.toPath().resolve("index/reindex");
+    File reindexStateFile = reindexStatePath.toFile();
+
+    if (reindexStateFile.exists()) {
+      // Reindex artifacts in this data store to the index
+      store.reindexArtifacts(index);
+
+      // Disable future reindexing by renaming reindex state file if there were no errors
+      // (i.e., successfully processed all WARCs under this base directory). Old reindex
+      // state files are kept to aid debugging / auditing.
+      DateTimeFormatter formatter = DateTimeFormatter.BASIC_ISO_DATE
+          .withZone(ZoneId.systemDefault());
+
+      Path withSuffix = reindexStatePath
+          .resolveSibling(reindexStatePath.getFileName() + "." + formatter.format(Instant.now()));
+
+      // Remove by renaming with the suffix compute above
+      if (!reindexStateFile.renameTo(withSuffix.toFile())) {
+        log.error("Could not remove reindex state file");
+        throw new IllegalStateException("Could not remove reindex state file");
+      }
+    }
+  }
+
   @Override
   public void initRepository() throws IOException {
     log.info("Initializing repository");
+
+    // Initialize the index and data store
     index.initIndex();
     store.initDataStore();
+
+    // Re-index artifacts in the data store if needed
+    reindexArtifactsIfNeeded();
+
+    // Start the index and data store
+//    index.startIndex();
+    store.startDataStore();
   }
 
   @Override
@@ -236,8 +324,8 @@ public class BaseLockssRepository implements LockssRepository,
       Artifact artifact = index.getArtifact(artifactId);
 
       if (artifact == null) {
-	throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						  + artifactId);
+        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+            + artifactId);
       }
 
       if (!artifact.getCommitted()) {
@@ -268,7 +356,7 @@ public class BaseLockssRepository implements LockssRepository,
 
       if (artifact == null) {
         throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						  + artifactId);
+            + artifactId);
       }
 
       // Remove from index and data store
@@ -293,7 +381,7 @@ public class BaseLockssRepository implements LockssRepository,
 
       if (artifact == null) {
         throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						  + artifactId);
+            + artifactId);
       }
 
       return artifact.getCommitted();
@@ -494,7 +582,7 @@ public class BaseLockssRepository implements LockssRepository,
     }
 
     return index.getArtifactVersion(collection, auid, url, version,
-	includeUncommitted);
+        includeUncommitted);
   }
 
   /**
@@ -524,4 +612,5 @@ public class BaseLockssRepository implements LockssRepository,
   public boolean isReady() {
     return store.isReady() && index.isReady();
   }
+
 }

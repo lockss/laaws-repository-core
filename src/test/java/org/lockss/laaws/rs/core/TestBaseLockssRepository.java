@@ -32,11 +32,16 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.log.L4JLogger;
 
+import java.io.File;
+
 public class TestBaseLockssRepository extends AbstractLockssRepositoryTest {
     private final static L4JLogger log = L4JLogger.getLogger();
 
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
-        return new VolatileLockssRepository();
+        BaseLockssRepository repo = new VolatileLockssRepository();
+        File tempDir = getTempDir();
+        repo.setRepositoryStateDir(tempDir);
+        return repo;
     }
 }

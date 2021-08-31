@@ -47,13 +47,14 @@ import java.io.File;
 public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTest {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    // The local repository root directory.
+    private File repoStateDir = null;
     private File repoBaseDir = null;
 
     @Override
     public LockssRepository makeLockssRepository() throws Exception {
-        repoBaseDir = getTempDir();
-        return new LocalLockssRepository(repoBaseDir, "persist.ser");
+      repoStateDir = getTempDir();
+      repoBaseDir = getTempDir();
+      return new LocalLockssRepository(repoStateDir, repoBaseDir, "persist.ser");
     }
 
     /**

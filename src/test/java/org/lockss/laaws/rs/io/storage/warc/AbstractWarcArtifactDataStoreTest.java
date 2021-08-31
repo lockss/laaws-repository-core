@@ -51,6 +51,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -2613,79 +2614,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * INDEX REBUILD FROM DATA STORE
   // *******************************************************************************************************************
 
-  @Disabled
-  @VariantTest
-  @EnumSource(TestRepoScenarios.class)
-  public void testRebuildIndex_variants() throws Exception {
-    runTestRebuildIndexIfNeeded_variant();
-  }
-
-  public void runTestRebuildIndexIfNeeded_variant() throws Exception {
-    // Instances of artifact index
-    ArtifactIndex index1 = store.getArtifactIndex();
-    ArtifactIndex index2 = new VolatileArtifactIndex();
-
-    // Shutdown the data store
-    store.shutdownDataStore();
-
-    // Trigger reindex
-    for (Path basePath : store.getBasePaths()) {
-      Path reindexStatePath = basePath.resolve("state/reindex");
-      touchFile(reindexStatePath);
-    }
-
-    log.info("Rebuilding index");
-
-    //// Reindex into new artifact index
-    boolean useCompression = store.getUseWarcCompression();
-    store = makeWarcArtifactDataStore(index2, store);
-//    store.setArtifactIndex(index2);
-    store.setUseWarcCompression(useCompression);
-    store.rebuildIndexIfNeeded(index2);
-
-    //// Compare and assert contents of indexes
-    assertArtifactIndexEquals(index1, index2);
-  }
-
   /**
-   * Test for {@link WarcArtifactDataStore#rebuildIndexIfNeeded(ArtifactIndex)}.
-   *
-   * Checks that rebuildIndex() is called only for the data store's WARC caches
-   * that have a reindex state file.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testRebuildIndexIfNeeded() throws Exception {
-    // Mock artifact index and data store
-    ArtifactIndex index = mock(ArtifactIndex.class);
-    store = (WADS) mock(WarcArtifactDataStore.class);
-
-    // Emulate one WARC cache
-    Path cache0 = Paths.get("/lockss0");
-    Path reindexStatePath = cache0.resolve("state/reindex");
-    Path[] basePaths = new Path[]{cache0};
-
-    // Setup common mock behavior
-    when(store.getBasePaths()).thenReturn(basePaths);
-    doCallRealMethod().when(store)
-        .rebuildIndexIfNeeded(ArgumentMatchers.any(ArtifactIndex.class));
-
-    // Assert rebuildIndex() is invoked if the reindex state file exists
-    when(store.fileExists(reindexStatePath)).thenReturn(true);
-    store.rebuildIndexIfNeeded(index);
-    verify(store).rebuildIndex(index, cache0);
-
-    clearInvocations(store);
-
-    // Assert rebuildIndex() is not invoked if the reindex state file does not exist
-    when(store.fileExists(reindexStatePath)).thenReturn(false);
-    store.rebuildIndexIfNeeded(index);
-    verify(store, never()).rebuildIndex(index, cache0);
-  }
-
-  /**
-   * Test for {@link WarcArtifactDataStore#rebuildIndex(ArtifactIndex, Path)}.
+   * Test for {@link WarcArtifactDataStore#indexArtifactsFromWarcs(ArtifactIndex, Path)}.
    * @throws Exception
    */
   @Test
@@ -2782,6 +2712,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store = makeWarcArtifactDataStore(index1);
     store.setUseWarcCompression(useCompression);
 
+    // Setup mock BaseLockssRepository to pass repository state directory
+    File repoStateDir = getTempDir();
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getRepositoryStateDir()).thenReturn(repoStateDir);
+
+    // Touch reindex state file
+    Path indexStateDir = repoStateDir.toPath().resolve("index");
+    indexStateDir.toFile().mkdir();
+    indexStateDir.resolve("reindex").toFile().createNewFile();
+
     // TODO: Do something
     scenario.setup(index1);
 
@@ -2795,13 +2735,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 //    store.setArtifactIndex(index2);
     store.setUseWarcCompression(useCompression);
 
-    // Invoke reindex for all base paths
-    for (Path basePath : store.getBasePaths()) {
-      store.enableRepoDB();
-      touchFile(basePath.resolve("state/reindex"));
-      store.rebuildIndex(index2, basePath);
-      store.disableRepoDB();
-    }
+    // Set BaseLockssRepository - used to indirectly pass repository state directory
+    store.setLockssRepository(repo);
+
+    // Reindex artifacts
+    store.reindexArtifacts(index2);
 
     //// Compare and assert contents of indexes
     assertArtifactIndexEquals(index1, index2);
@@ -2893,7 +2831,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
     clearInvocations(index);
 
-    if (WarcArtifactDataStore.SKIP_IF_MARKED_DELETED) {
+    if (WarcArtifactDataStore.SKIP_INDEXING_IF_MARKED_DELETED) {
       // Assert the artifact *is not* reindexed if it is not indexed and recorded as deleted in the journal
       when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
       when(index.artifactExists(spec.getArtifactId())).thenReturn(false);

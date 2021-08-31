@@ -60,12 +60,26 @@ import java.util.concurrent.TimeoutException;
 // TODO Remove generics
 public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends ArtifactData, MD extends ArtifactRepositoryState>
     extends LockssRepositorySubsystem, StorageInfoSource, Ready {
+
     /**
+     * Initializes the data store.
      *
      * @throws IOException
      */
     void initDataStore() throws IOException;
 
+    /**
+     * Starts internal operations, if any.
+     *
+     * @throws IOException
+     */
+    void startDataStore() throws IOException;
+
+    /**
+     * Shuts down the data store.
+     *
+     * @throws InterruptedException
+     */
     void shutdownDataStore() throws InterruptedException;
 
     /**
@@ -167,4 +181,11 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
             }
         }
     }
+
+    /**
+     * Re-indexes all artifacts in this data store into the given {@link ArtifactIndex}.
+     *
+     * @param index The {@link ArtifactIndex} to re-index artifacts into.
+     */
+    void reindexArtifacts(ArtifactIndex index) throws IOException;
 }

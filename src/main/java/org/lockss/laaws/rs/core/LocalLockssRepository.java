@@ -50,7 +50,8 @@ public class LocalLockssRepository extends BaseLockssRepository {
    * @param basePath           A {@link File} containing the base path of this LOCKSS repository.
    * @param persistedIndexName A {@link String} with the name of the file where to persist the index.
    */
-  public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
+  public LocalLockssRepository(File repoStateDir, File basePath, String persistedIndexName) throws IOException {
+    setRepositoryStateDir(repoStateDir);
     index = new LocalArtifactIndex(basePath, persistedIndexName);
     store = new LocalWarcArtifactDataStore(index, new File[]{basePath});
   }
