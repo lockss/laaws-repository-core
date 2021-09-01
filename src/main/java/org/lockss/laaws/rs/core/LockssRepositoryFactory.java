@@ -59,14 +59,16 @@ public class LockssRepositoryFactory {
      * Instantiates a local filesystem based LOCKSS repository. Uses a volatile index that must be rebuilt upon each
      * instantiation. Use of a volatile index is not recommended for large installations.
      *
+     * @param stateDir
+     *          A {@link File} containing the path to the state directory of this LOCKSS Repository.
      * @param basePath
-     *          A {@code File} containing the base path of this LOCKSS Repository.
+     *          A {@link File} containing the base path of this LOCKSS Repository.
      * @param persistedIndexName
      *          A String with the name of the file where to persist the index.
-     * @return A {@code LocalLockssRepository} instance.
+     * @return A {@link LocalLockssRepository} instance.
      */
-    public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
-        return new LocalLockssRepository(basePath, persistedIndexName);
+    public static LockssRepository createLocalRepository(File stateDir, File basePath, String persistedIndexName) throws IOException {
+        return new LocalLockssRepository(stateDir, basePath, persistedIndexName);
     }
 
     /**
