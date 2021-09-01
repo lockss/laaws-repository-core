@@ -526,8 +526,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public abstract void testInitCollectionImpl() throws Exception;
   public abstract void testInitAuImpl() throws Exception;
 
-  // Implementation-specific utility methods
-  protected abstract void touchFile(Path path) throws IOException;
   protected abstract boolean pathExists(Path path) throws IOException;
   protected abstract boolean isDirectory(Path path) throws IOException;
   protected abstract boolean isFile(Path path) throws IOException;

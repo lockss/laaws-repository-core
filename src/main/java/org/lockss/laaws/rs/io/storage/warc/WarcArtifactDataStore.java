@@ -200,10 +200,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected abstract OutputStream getAppendableOutputStream(Path filePath) throws IOException;
 
-  protected abstract boolean fileExists(Path filePath) throws IOException;
-
-  protected abstract void renameFile(Path oldPath, Path newPath) throws IOException;
-
   protected abstract void initWarc(Path warcPath) throws IOException;
 
   protected abstract long getWarcLength(Path warcPath) throws IOException;

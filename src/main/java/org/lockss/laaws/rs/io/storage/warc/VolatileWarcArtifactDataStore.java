@@ -122,19 +122,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     }
   }
 
-  @Override
-  protected boolean fileExists(Path filePath) {
-    return warcs.containsKey(filePath);
-  }
-
-  @Override
-  protected void renameFile(Path oldPath, Path newPath) throws IOException {
-    synchronized (warcs) {
-      warcs.put(newPath, warcs.get(oldPath));
-      removeWarc(oldPath);
-    }
-  }
-
   protected void initFile(Path filePath) {
     synchronized (warcs) {
       warcs.putIfAbsent(filePath, new ByteArrayOutputStream());

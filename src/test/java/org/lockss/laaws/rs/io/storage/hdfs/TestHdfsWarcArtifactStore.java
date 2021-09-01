@@ -297,11 +297,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     clearInvocations(ds);
   }
 
-  @Override
-  protected void touchFile(Path path) throws IOException {
-    store.initFile(path);
-  }
-
   /**
    * Test for {@link HdfsWarcArtifactDataStore#makeStorageUrl(java.nio.file.Path, MultiValueMap)}.
    *

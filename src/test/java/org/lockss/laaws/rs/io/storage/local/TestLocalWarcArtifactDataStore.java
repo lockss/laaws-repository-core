@@ -411,11 +411,6 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     clearInvocations(ds);
   }
 
-  @Override
-  protected void touchFile(Path path) throws IOException {
-    store.initFile(path.toFile());
-  }
-
   private Path mockPathFile(boolean isDirectory) {
     Path path = mock(Path.class);
     File file = mock(File.class);
