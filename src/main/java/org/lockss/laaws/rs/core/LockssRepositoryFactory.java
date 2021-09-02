@@ -56,6 +56,26 @@ public class LockssRepositoryFactory {
     }
 
     /**
+     * Instantiates a local filesystem based LOCKSS repository, with a locally persisted artifact index
+     * and a repository state directory under the provided content directory.
+     *
+     * @param basePath
+     *          A {@link File} containing the base path of this LOCKSS Repository.
+     * @param persistedIndexName
+     *          A String with the name of the file where to persist the index.
+     * @return A {@link LocalLockssRepository} instance.
+     */
+    public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
+        // Create repository state directory if it doesn't exist
+        File stateDir = basePath.toPath().resolve("state").toFile();
+        if (!stateDir.exists()) {
+            stateDir.mkdir();
+        }
+
+        return new LocalLockssRepository(stateDir, basePath, persistedIndexName);
+    }
+
+    /**
      * Instantiates a local filesystem based LOCKSS repository. Uses a volatile index that must be rebuilt upon each
      * instantiation. Use of a volatile index is not recommended for large installations.
      *
