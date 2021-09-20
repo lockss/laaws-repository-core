@@ -56,8 +56,25 @@ public class LockssRepositoryFactory {
     }
 
     /**
+     * Creates a repository state directory under th given base path, if it doesn't exist yet.
+     *
+     * @param basePath Repository base directory
+     * @return A {@link File} containing the path to the repository state directory.
+     */
+    private static File getRepositoryStateDir(File basePath) {
+        File stateDir = basePath.toPath().resolve("state").toFile();
+        if (!stateDir.exists()) {
+            stateDir.mkdir();
+        }
+
+        return stateDir;
+    }
+
+    /**
      * Instantiates a local filesystem based LOCKSS repository, with a locally persisted artifact index
      * and a repository state directory under the provided content directory.
+     *
+     * Deprecated. Creates the repository state directory under the first base path.
      *
      * @param basePath
      *          A {@link File} containing the base path of this LOCKSS Repository.
@@ -65,14 +82,9 @@ public class LockssRepositoryFactory {
      *          A String with the name of the file where to persist the index.
      * @return A {@link LocalLockssRepository} instance.
      */
+    @Deprecated
     public static LockssRepository createLocalRepository(File basePath, String persistedIndexName) throws IOException {
-        // Create repository state directory if it doesn't exist
-        File stateDir = basePath.toPath().resolve("state").toFile();
-        if (!stateDir.exists()) {
-            stateDir.mkdir();
-        }
-
-        return new LocalLockssRepository(stateDir, basePath, persistedIndexName);
+        return new LocalLockssRepository(getRepositoryStateDir(basePath), basePath, persistedIndexName);
     }
 
     /**
@@ -95,38 +107,47 @@ public class LockssRepositoryFactory {
      * Instantiates a LOCKSS repository backed by a local data store with one or more base paths, and a locally
      * persisting artifact index.
      *
+     * Deprecated. Creates the repository state directory under the first base path.
+     *
      * @param basePaths          A {@link File[]} containing the base paths of the local data store.
      * @param persistedIndexName A {@link String} containing the locally persisted artifact index name.
      * @return A {@link LocalLockssRepository} backed by a local data store and locally persisted artifact index.
      * @throws IOException
      */
+    @Deprecated
     public static LockssRepository createLocalRepository(File[] basePaths, String persistedIndexName) throws IOException {
-        return new LocalLockssRepository(basePaths, persistedIndexName);
+        return new LocalLockssRepository(getRepositoryStateDir(basePaths[0]), basePaths, persistedIndexName);
     }
 
     /**
      * Instantiates a local filesystem based LOCKSS repository with a provided ArtifactIndex implementation for artifact
      * indexing. It does not invoke rebuilding the index, so it is only appropriate for implementations that persist.
      *
+     * Deprecated. Creates the repository state directory under the first base path.
+     *
      * @param basePath A {@code File} containing the base path of this LOCKSS Repository.
      * @param index    An {@code ArtifactIndex} to use as this repository's artifact index.
      * @return A {@code LocalLockssRepository} instance.
      */
+    @Deprecated
     public static LockssRepository createLocalRepository(File basePath, ArtifactIndex index) throws IOException {
-        return new LocalLockssRepository(index, basePath);
+        return new LocalLockssRepository(getRepositoryStateDir(basePath), index, basePath);
     }
 
     /**
      * Instantiates a LOCKSS repository backed by a local data store with one or more base paths, and the provided
      * artifact index.
      *
+     * Deprecated. Creates the repository state directory under the first base path.
+     *
      * @param basePaths A {@link File[]} containing the base paths of the local data store.
      * @param index     An {@link ArtifactIndex} to use as this repository's artifact index.
      * @return A {@link LocalLockssRepository} backed by a local data store and locally persisted artifact index.
      * @throws IOException
      */
+    @Deprecated
     public static LockssRepository createLocalRepository(File[] basePaths, ArtifactIndex index) throws IOException {
-        return new LocalLockssRepository(index, basePaths);
+        return new LocalLockssRepository(getRepositoryStateDir(basePaths[0]), index, basePaths);
     }
 
     /**
