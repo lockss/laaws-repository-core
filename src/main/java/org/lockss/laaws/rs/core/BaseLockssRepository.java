@@ -50,8 +50,7 @@ import java.util.UUID;
 /**
  * Base implementation of the LOCKSS Repository service.
  */
-public class BaseLockssRepository implements LockssRepository,
-					     JmsFactorySource {
+public class BaseLockssRepository implements LockssRepository, JmsFactorySource {
 
   private final static L4JLogger log = L4JLogger.getLogger();
 
@@ -72,11 +71,8 @@ public class BaseLockssRepository implements LockssRepository,
       throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
     }
 
-    this.index = index;
-    this.store = store;
-
-    index.setLockssRepository(this);
-    store.setLockssRepository(this);
+    setArtifactIndex(index);
+    setArtifactDataStore(store);
   }
 
   /** No-arg constructor for subclasses */
@@ -613,4 +609,21 @@ public class BaseLockssRepository implements LockssRepository,
     return store.isReady() && index.isReady();
   }
 
+  public void setArtifactIndex(ArtifactIndex index) {
+    this.index = index;
+    index.setLockssRepository(this);
+  }
+
+  public ArtifactIndex getArtifactIndex() {
+    return index;
+  }
+
+  public void setArtifactDataStore(ArtifactDataStore store) {
+    this.store = store;
+    store.setLockssRepository(this);
+  }
+
+  public ArtifactDataStore getArtifactDataStore() {
+    return store;
+  }
 }
