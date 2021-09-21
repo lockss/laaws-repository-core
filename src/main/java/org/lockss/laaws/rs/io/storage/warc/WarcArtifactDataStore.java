@@ -257,6 +257,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public void startDataStore() {
     log.debug("Starting data store");
+    reloadDataStoreState();
     scheduleGarbageCollector();
     setDataStoreState(DataStoreState.RUNNING);
   }
@@ -306,6 +307,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected void setDataStoreState(DataStoreState state) {
     this.dataStoreState = state;
+  }
+
+  protected void reloadDataStoreState() {
+    stripedExecutor.submit(new ReloadDataStoreStateTask());
   }
 
   /**
