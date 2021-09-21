@@ -33,8 +33,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.archive.format.warc.WARCConstants;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -71,15 +69,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    * Constructor.
    */
   public VolatileWarcArtifactDataStore() {
-    this(new VolatileArtifactIndex());
-  }
-
-  /**
-   * For testing; this kind of data store ignores the base path.
-   */
-  public VolatileWarcArtifactDataStore(ArtifactIndex index) {
-    super(index);
-
     this.basePaths = new Path[]{DEFAULT_BASEPATH};
     this.tmpWarcPool = new WarcFilePool(this);
     this.warcs = new HashMap<>();

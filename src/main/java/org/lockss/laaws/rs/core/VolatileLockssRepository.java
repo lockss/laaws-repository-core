@@ -56,8 +56,9 @@ public class VolatileLockssRepository extends BaseLockssRepository {
    * @throws IOException
    */
   public VolatileLockssRepository(boolean useWarcCompression) throws IOException {
-    index = new VolatileArtifactIndex();
-    store = new VolatileWarcArtifactDataStore(index);
+    super(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+
+    // Set compression use
     ((WarcArtifactDataStore)store).setUseWarcCompression(useWarcCompression);
 
     // Create a temporary repository state directory

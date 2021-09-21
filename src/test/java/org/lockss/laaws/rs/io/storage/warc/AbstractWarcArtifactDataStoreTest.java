@@ -1846,7 +1846,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArchiveRecord record = mock(ArchiveRecord.class);
     ArchiveRecordHeader header = mock(ArchiveRecordHeader.class);
-    ds.artifactIndex = mock(ArtifactIndex.class);
+
+    // Mock getArtifactIndex() called by data store
+    ArtifactIndex index = mock(ArtifactIndex.class);
+    when(ds.getArtifactIndex()).thenReturn(index);
 
     // Mock behavior
     doCallRealMethod().when(ds).isTempWarcRecordRemovable(ArgumentMatchers.any(ArchiveRecord.class));
@@ -1867,7 +1870,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
 
     // Mock behavior
-    when(ds.artifactIndex.getArtifact((String) ArgumentMatchers.any())).thenReturn(mock(Artifact.class));
+    when(index.getArtifact((String) ArgumentMatchers.any())).thenReturn(mock(Artifact.class));
 
     // WARC record types that need further consideration
     WARCConstants.WARCRecordType[] types = new WARCConstants.WARCRecordType[]{
@@ -1959,8 +1962,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       case UNKNOWN:
         // Setup conditions that would cause an UNKNOWN state by mocking
         // index.artifactExists() to throw an IOException
-        store.setArtifactIndex(mock(ArtifactIndex.class));
-        when(store.artifactIndex.artifactExists(artifact.getId()))
+        ArtifactIndex index2 = mock(ArtifactIndex.class);
+        when(store.getArtifactIndex()).thenReturn(index2);
+        when(index2.artifactExists(artifact.getId()))
             .thenThrow(IOException.class);
 
         break;
@@ -2042,12 +2046,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
 
     doCallRealMethod().when(ds).isArtifactDeleted(aid);
-    ds.artifactIndex = mock(ArtifactIndex.class);
 
-    when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(true);
+    // Mock getArtifactIndex() called by data store
+    ArtifactIndex index = mock(ArtifactIndex.class);
+    when(ds.getArtifactIndex()).thenReturn(index);
+
+    when(index.artifactExists(aid.getId())).thenReturn(true);
     assertFalse(ds.isArtifactDeleted(aid));
 
-    when(ds.artifactIndex.artifactExists(aid.getId())).thenReturn(false);
+    when(index.artifactExists(aid.getId())).thenReturn(false);
     assertTrue(ds.isArtifactDeleted(aid));
   }
 
@@ -2061,18 +2068,22 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
-    ds.artifactIndex = mock(ArtifactIndex.class);
+
+    // Mock getArtifactIndex() called by data store
+    ArtifactIndex index = mock(ArtifactIndex.class);
+    when(ds.getArtifactIndex()).thenReturn(index);
+
     Artifact artifact = mock(Artifact.class);
 
     doCallRealMethod().when(ds).isArtifactCommitted(aid);
 
     // Assert LockssNoSuchArtifactIdException thrown if artifact is not in the index
-    when(ds.artifactIndex.getArtifact(aid)).thenReturn(null);
+    when(index.getArtifact(aid)).thenReturn(null);
     assertThrows(LockssNoSuchArtifactIdException.class,
         (Executable) () -> ds.isArtifactCommitted(aid));
 
     // Assert return from isArtifactCommitted matches artifact's committed status
-    when(ds.artifactIndex.getArtifact(aid)).thenReturn(artifact);
+    when(index.getArtifact(aid)).thenReturn(artifact);
 
     when(artifact.isCommitted()).thenReturn(true);
     assertTrue(ds.isArtifactCommitted(aid));
@@ -2312,13 +2323,17 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Mock artifact data store and index
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    ds.artifactIndex = mock(ArtifactIndex.class);
+
+    // Mock getArtifactIndex() called by data store
+    ArtifactIndex index = mock(ArtifactIndex.class);
+    when(ds.getArtifactIndex()).thenReturn(index);
+
     ds.tmpWarcPool = mock(WarcFilePool.class);
 
     // getArtifactData returns null if the artifact doesn't exist or is deleted - not very interesting to test?
-    when(ds.artifactIndex.artifactExists(spec.getArtifactId())).thenReturn(true);
+    when(index.artifactExists(spec.getArtifactId())).thenReturn(true);
     when(ds.isArtifactDeleted(spec.getArtifactIdentifier())).thenReturn(false);
-    when(ds.artifactIndex.getArtifact(spec.getArtifactId())).thenReturn(spec.getArtifact());
+    when(index.getArtifact(spec.getArtifactId())).thenReturn(spec.getArtifact());
 
     // Control whether getArtifactData handles the interprets the InputStream as a compressed/uncompressed WARC
     when(ds.isCompressedWarcFile(WarcArtifactDataStore.getPathFromStorageUrl(storageUrl))).thenReturn(useCompression);
@@ -2540,7 +2555,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertTrue(store.isArtifactDeleted(spec.getArtifactIdentifier()));
 
       // Assert the artifact reference is removed from the index
-      assertFalse(store.artifactIndex.artifactExists(spec.getArtifactId()));
+      assertFalse(store.getArtifactIndex().artifactExists(spec.getArtifactId()));
 
       // Assert artifact marked deleted in AU artifact state journal
       ArtifactRepositoryState state = store.getArtifactRepositoryStateFromJournal(spec.getArtifactIdentifier());

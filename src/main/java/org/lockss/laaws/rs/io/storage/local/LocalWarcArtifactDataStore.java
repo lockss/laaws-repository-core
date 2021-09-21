@@ -32,7 +32,6 @@ package org.lockss.laaws.rs.io.storage.local;
 
 import org.apache.commons.io.FileUtils;
 import org.archive.format.warc.WARCConstants;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.laaws.rs.model.CollectionAuidPair;
@@ -64,24 +63,22 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   // * CONSTRUCTORS
   // *******************************************************************************************************************
 
-  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
-    this(index, new File[]{basePath});
+  public LocalWarcArtifactDataStore(File basePath) throws IOException {
+    this(new File[]{basePath});
   }
 
-  public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
-    this(index, Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
+  public LocalWarcArtifactDataStore(File[] basePath) throws IOException {
+    this(Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
   }
 
-  public LocalWarcArtifactDataStore(ArtifactIndex index, Path basePaths) throws IOException {
-    this(index, new Path[]{basePaths});
+  public LocalWarcArtifactDataStore(Path basePaths) throws IOException {
+    this(new Path[]{basePaths});
   }
 
   /**
    * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
    */
-  public LocalWarcArtifactDataStore(ArtifactIndex index, Path[] basePaths) throws IOException {
-    super(index);
-
+  public LocalWarcArtifactDataStore(Path[] basePaths) throws IOException {
     log.debug2("Starting local WARC artifact data store [basePaths: {}]", basePaths);
 
     // Set local base paths

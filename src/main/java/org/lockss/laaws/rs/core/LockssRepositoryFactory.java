@@ -169,7 +169,7 @@ public class LockssRepositoryFactory {
         String basePath
     ) throws IOException {
         ArtifactIndex index = new SolrArtifactIndex(solrClient, coreName);
-        ArtifactDataStore store = new HdfsWarcArtifactDataStore(index, hadoopConf, Paths.get(basePath));
+        ArtifactDataStore store = new HdfsWarcArtifactDataStore(hadoopConf, Paths.get(basePath));
         return new BaseLockssRepository(index, store);
     }
 
