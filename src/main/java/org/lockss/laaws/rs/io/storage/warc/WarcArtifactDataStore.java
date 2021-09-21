@@ -322,9 +322,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         //// TODO: Reload active WARCs
         // reloadActiveWarcs();
-
-        // Reached the end of reload - set data store state to RUNNING
-        setDataStoreState(DataStoreState.RUNNING);
       } catch (Exception e) {
         log.error("Could not complete asynchronous data store reload", e);
         throw new IllegalStateException("Could not complete asynchronous reload", e);
@@ -2161,7 +2158,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected void indexArtifactsFromWarcs(ArtifactIndex index, Path basePath) throws IOException {
-    if (dataStoreState != DataStoreState.STOPPED) {
+    if (dataStoreState == DataStoreState.RUNNING) {
       throw new IllegalStateException("Index rebuild only allowed while the data store is stopped");
     }
 

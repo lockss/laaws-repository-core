@@ -219,9 +219,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
     // Sets the data store state to INITIALIZING and schedules
     // the temporary WARC garbage collector
     super.initDataStore();
-
-    // Set state to RUNNING
-    setDataStoreState(DataStoreState.RUNNING);
   }
 
   /**
