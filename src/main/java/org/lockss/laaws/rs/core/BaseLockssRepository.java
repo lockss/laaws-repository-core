@@ -89,7 +89,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   public BaseLockssRepository(File repoStateDir, ArtifactIndex index, ArtifactDataStore store) {
     this(index, store);
-    this.repoStateDir = repoStateDir;
+    setRepositoryStateDir(repoStateDir);
   }
 
   /**

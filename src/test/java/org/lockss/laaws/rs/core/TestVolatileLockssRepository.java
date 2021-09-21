@@ -45,14 +45,9 @@ import org.lockss.util.storage.StorageInfo;
 public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    File repoStateDir;
-
     @Override
     public LockssRepository makeLockssRepository() throws IOException {
-      BaseLockssRepository repo = new VolatileLockssRepository();
-      repoStateDir = getTempDir();
-      repo.setRepositoryStateDir(repoStateDir);
-      return repo;
+      return new VolatileLockssRepository();
     }
 
   @Test

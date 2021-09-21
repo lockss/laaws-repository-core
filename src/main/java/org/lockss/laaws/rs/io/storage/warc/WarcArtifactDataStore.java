@@ -2116,7 +2116,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // * INDEX REBUILD FROM DATA STORE
   // *******************************************************************************************************************
 
-  final static String REINDEX_STATE_FILE = "reindex";
+  final static String REINDEX_STATE_FILE = "index/reindex";
 
   /**
    * Rebuilds the provided index from WARCs within this WARC artifact data store.
@@ -2129,10 +2129,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   public void reindexArtifacts(ArtifactIndex index) throws IOException {
     // Path to reindex state file
-    Path indexStateDir =
-        repo.getRepositoryStateDir().toPath().resolve("index");
+    Path reindexStatePath = repo.getRepositoryStateDir()
+        .toPath()
+        .resolve(REINDEX_STATE_FILE);
 
-    Path reindexStatePath = indexStateDir.resolve(REINDEX_STATE_FILE);
     File reindexStateFile = reindexStatePath.toFile();
 
     // Invoke index rebuild from WARCs in this WARC data store
@@ -2171,8 +2171,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     List<Path> indexedWarcs = new ArrayList<>();
 
     // Path to reindex state file
-    Path indexStateDir = repo.getRepositoryStateDir().toPath().resolve("index");
-    Path reindexStatePath = indexStateDir.resolve(REINDEX_STATE_FILE);
+    Path reindexStatePath = repo.getRepositoryStateDir()
+        .toPath()
+        .resolve(REINDEX_STATE_FILE);
+
     File reindexStateFile = reindexStatePath.toFile();
 
     // Read reindex state file as CSV
