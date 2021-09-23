@@ -2226,7 +2226,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                   StandardOpenOption.CREATE)) {
 
                 // Write CSV record
-                try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(REINDEX_STATE_HEADERS))) {
+                try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
+                    .withHeader(REINDEX_STATE_HEADERS)
+                    .withSkipHeaderRecord(!indexedWarcs.isEmpty()))) {
+
                   printer.printRecord(start, end, artifactsIndexed, warcPath);
                 }
               } catch (IOException e) {
