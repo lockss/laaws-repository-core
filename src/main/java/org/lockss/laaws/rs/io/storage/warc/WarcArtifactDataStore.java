@@ -1447,8 +1447,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Return the artifact index associated with this WARC artifact data store.
    *
-   * Deprecated. Use internal handle to {@link BaseLockssRepository} instead.
-   *
    * @return The {@code ArtifactIndex} associated with this WARC artifact data store.
    */
   public ArtifactIndex getArtifactIndex() {
@@ -2129,6 +2127,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param index The {@code ArtifactIndex} to rebuild and populate from WARCs within this WARC artifact data store.
    * @throws IOException
    */
+  @Override
   public void reindexArtifacts(ArtifactIndex index) throws IOException {
     // Path to reindex state file
     Path reindexStatePath = repo.getRepositoryStateDir()
