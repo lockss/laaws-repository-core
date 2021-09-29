@@ -2366,10 +2366,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
                 isCompressed ? compressedRecordLength : recordLength));
 
-            // Debugging
-            log.trace("artifactId = {}", artifactData.getIdentifier().getId());
-            log.trace("storageUrl = {}", artifactData.getStorageUrl());
-
             //// Add artifact to the index
             index.indexArtifact(artifactData);
             artifactsIndexed++;

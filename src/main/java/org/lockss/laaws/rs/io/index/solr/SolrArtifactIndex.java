@@ -366,8 +366,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-    log.debug2("Indexing artifact data: {}", artifactData);
-
     if (artifactData == null) {
       throw new IllegalArgumentException("Null artifact data");
     }
@@ -414,7 +412,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Return the Artifact added to the Solr collection
-    log.debug("Added artifact to index: {}", artifact);
+    log.debug2("Added artifact to index: {}", artifact);
 
     return artifact;
   }
