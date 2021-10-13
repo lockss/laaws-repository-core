@@ -1674,6 +1674,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     InputStream warcStream = null;
     boolean incrementedCounter = false;
 
+    boolean isTmpStorage;
+
     try {
       synchronized (tmpWarcPool) {
         // Retrieve artifact reference from index
@@ -1689,13 +1691,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           // Get storage URL and WARC path of artifact's WARC record
           storageUrl = new URI(indexedArtifact.getStorageUrl());
           warcFilePath = getPathFromStorageUrl(storageUrl);
+          isTmpStorage = isTmpStorage(warcFilePath);
         } catch (URISyntaxException e) {
           // This should never happen since storage URLs are internal
           log.error("Malformed storage URL [storageUrl:  {}]", indexedArtifact.getStorageUrl());
           throw new IllegalArgumentException("Malformed storage URL");
         }
 
-        if (isTmpStorage(warcFilePath)) {
+        if (isTmpStorage) {
           // Yes: Increment usage counter of temp WARC
           TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
           incrementedCounter = true;
@@ -1713,7 +1716,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         warcStream = new SimpleRepositionableStream(gzipInputStream);
       }
 
-      if (isTmpStorage(warcFilePath)) {
+      if (isTmpStorage) {
         // Wrap the stream with a CloseCallbackInputStream with a callback that will mark the end of the use of this file
         // when close() is called.
         warcStream = new CloseCallbackInputStream(
@@ -1744,7 +1747,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Set artifact's repository state state
       ArtifactRepositoryState state = new ArtifactRepositoryState();
       state.setDeleted(false); // Must be false to have reached here
-      state.setCommitted(isArtifactCommitted(indexedArtifact.getIdentifier()));
+
+      state.setCommitted(!isTmpStorage);
+
+      if (isTmpStorage) {
+        state.setCommitted(isArtifactCommitted(indexedArtifact.getIdentifier()));
+      }
+
       artifactData.setArtifactRepositoryState(state);
 
       // Return an ArtifactData from the WARC record
