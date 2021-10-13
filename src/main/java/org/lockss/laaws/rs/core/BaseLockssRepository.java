@@ -315,24 +315,22 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    synchronized (index) {
-      // Get artifact as it is currently
-      Artifact artifact = index.getArtifact(artifactId);
+    // Get artifact as it is currently
+    Artifact artifact = index.getArtifact(artifactId);
 
-      if (artifact == null) {
-        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-            + artifactId);
-      }
-
-      if (!artifact.getCommitted()) {
-        // Commit artifact in data store and index
-        store.commitArtifactData(artifact);
-        index.commitArtifact(artifactId);
-        artifact.setCommitted(true);
-      }
-
-      return artifact;
+    if (artifact == null) {
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
     }
+
+    if (!artifact.getCommitted()) {
+      // Commit artifact in data store and index
+      store.commitArtifactData(artifact);
+      index.commitArtifact(artifactId);
+      artifact.setCommitted(true);
+    }
+
+    return artifact;
   }
 
   /**
@@ -347,17 +345,15 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    synchronized (index) {
-      Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactId);
 
-      if (artifact == null) {
-        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-            + artifactId);
-      }
-
-      // Remove from index and data store
-      store.deleteArtifactData(artifact);
+    if (artifact == null) {
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
     }
+
+    // Remove from index and data store
+    store.deleteArtifactData(artifact);
   }
 
   /**
@@ -372,16 +368,14 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    synchronized (index) {
-      Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactId);
 
-      if (artifact == null) {
-        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-            + artifactId);
-      }
-
-      return artifact.getCommitted();
+    if (artifact == null) {
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
     }
+
+    return artifact.getCommitted();
   }
 
   /**
