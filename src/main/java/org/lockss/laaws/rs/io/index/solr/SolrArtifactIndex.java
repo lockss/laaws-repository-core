@@ -399,12 +399,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       UpdateRequest req = new UpdateRequest();
       req.add(doc);
       addSolrCredentials(req);
-      req.setCommitWithin(-1);
 
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
 
-      handleSolrResponse(handleCommit(), "Problem committing addition of "
+      handleSolrResponse(handleCommit(false), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
@@ -528,15 +527,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       UpdateRequest request = new UpdateRequest();
       request.add(document);
       addSolrCredentials(request);
-      request.setCommitWithin(-1);
 
       // Update the artifact.
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
       // Commit changes
-      handleSolrResponse(handleCommit(), "Problem committing addition of "
-          + "document '" + document + "' to Solr");
+//      handleSolrResponse(handleCommit(false), "Problem committing addition of "
+//          + "document '" + document + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException("Solr error", e);
@@ -553,10 +551,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws IOException
    * @throws SolrServerException
    */
-  private UpdateResponse handleCommit() throws IOException, SolrServerException {
+  private UpdateResponse handleCommit(boolean hardCommit) throws IOException, SolrServerException {
     // Update request to commit
     UpdateRequest req = new UpdateRequest();
-    req.setAction(UpdateRequest.ACTION.COMMIT, true, true);
+    req.setAction(UpdateRequest.ACTION.COMMIT, true, true, !hardCommit);
 
     // Add Solr credentials if present
     addSolrCredentials(req);
@@ -598,15 +596,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         UpdateRequest request = new UpdateRequest();
         request.deleteById(artifactId);
         addSolrCredentials(request);
-        request.setCommitWithin(-1);
 
         // Remove Solr document for this artifact
         handleSolrResponse(request.process(solrClient, solrCollection), "Problem deleting "
             + "artifact '" + artifactId + "' from Solr");
 
         // Commit changes
-        handleSolrResponse(handleCommit(), "Problem committing deletion of "
-            + "artifact '" + artifactId + "' from Solr");
+//        handleSolrResponse(handleCommit(false), "Problem committing deletion of "
+//            + "artifact '" + artifactId + "' from Solr");
 
         // Return true to indicate success
         return true;
@@ -681,14 +678,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       UpdateRequest request = new UpdateRequest();
       request.add(document);
       addSolrCredentials(request);
-      request.setCommitWithin(-1);
 
       // Update the field
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      handleSolrResponse(handleCommit(), "Problem committing addition of "
-          + "document '" + document + "' to Solr");
+//      handleSolrResponse(handleCommit(false), "Problem committing addition of "
+//          + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
