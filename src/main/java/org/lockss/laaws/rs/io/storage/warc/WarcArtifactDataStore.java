@@ -1820,7 +1820,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       switch (artifactState) {
         case INDEXED:
           // Mark artifact as committed in the index
-          getArtifactIndex().commitArtifact(artifact.getId());
+//          getArtifactIndex().commitArtifact(artifact.getId());
           artifact.setCommitted(true);
 
           // Mark artifact as committed in the journal
