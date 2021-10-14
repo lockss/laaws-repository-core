@@ -602,8 +602,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
             + "artifact '" + artifactId + "' from Solr");
 
         // Commit changes
-//        handleSolrResponse(handleCommit(false), "Problem committing deletion of "
-//            + "artifact '" + artifactId + "' from Solr");
+        handleSolrResponse(handleCommit(false), "Problem committing deletion of "
+            + "artifact '" + artifactId + "' from Solr");
 
         // Return true to indicate success
         return true;
@@ -683,8 +683,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-//      handleSolrResponse(handleCommit(false), "Problem committing addition of "
-//          + "document '" + document + "' to Solr");
+      handleSolrResponse(handleCommit(false), "Problem committing addition of "
+          + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
