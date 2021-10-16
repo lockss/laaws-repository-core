@@ -156,7 +156,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected boolean useCompression;
 
-  protected ScheduledExecutorService scheduledExecutor;
   protected StripedExecutorService stripedExecutor;
 
   // The Artifact life cycle states.
@@ -228,8 +227,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Base constructor for {@link WarcArtifactDataStore} implementations.
    */
   public WarcArtifactDataStore() {
-    // Start executors
-    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    // Create striped executor service
     this.stripedExecutor = new StripedExecutorService();
 
     // Set WARC threshold size to use
@@ -265,7 +263,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // TODO: Parameterize
   protected void scheduleGarbageCollector() {
     log.debug("Scheduling temporary WARC garbage collection");
-    scheduledExecutor.scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 1, 1, TimeUnit.DAYS);
+
+    repo.getScheduledExecutorService()
+        .scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 1, 1, TimeUnit.DAYS);
   }
 
   /**
@@ -276,11 +276,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   @Override
   public void shutdownDataStore() throws InterruptedException {
     if (dataStoreState != DataStoreState.STOPPED) {
-      scheduledExecutor.shutdown();
       stripedExecutor.shutdown();
 
       // TODO: Parameterize
-      scheduledExecutor.awaitTermination(1, TimeUnit.MINUTES);
       stripedExecutor.awaitTermination(1, TimeUnit.MINUTES);
 
       setDataStoreState(DataStoreState.STOPPED);
@@ -869,7 +867,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Submits a {@link GarbageCollectTempWarcsTask} for execution by the {@link ScheduledExecutorService}.
    */
   protected void runGarbageCollector() {
-    scheduledExecutor.submit(new GarbageCollectTempWarcsTask());
+    repo.getScheduledExecutorService()
+        .submit(new GarbageCollectTempWarcsTask());
   }
 
   protected class GarbageCollectTempWarcsTask implements Runnable {

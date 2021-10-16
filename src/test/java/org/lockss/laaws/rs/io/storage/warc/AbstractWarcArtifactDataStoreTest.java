@@ -673,11 +673,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testBaseConstructor() throws Exception {
-    // Assert ScheduledExecutor is running
-    assertNotNull(store.scheduledExecutor);
-    assertFalse(store.scheduledExecutor.isShutdown());
-    assertFalse(store.scheduledExecutor.isTerminated());
-
     // Assert StripedExecutor is running
     assertNotNull(store.stripedExecutor);
     assertFalse(store.stripedExecutor.isShutdown());
@@ -737,9 +732,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   public void testShutdownDataStoreImpl() throws Exception {
     store.shutdownDataStore();
-
-    assertTrue(store.scheduledExecutor.isShutdown());
-    assertTrue(store.scheduledExecutor.isTerminated());
 
     assertTrue(store.stripedExecutor.isShutdown());
     assertTrue(store.stripedExecutor.isTerminated());
@@ -1460,18 +1452,31 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testRunGarbageCollector() throws Exception {
     // Mocks
+    BaseLockssRepository repository = mock(BaseLockssRepository.class);
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    ds.scheduledExecutor = mock(ScheduledExecutorService.class);
+    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).runGarbageCollector();
+    doCallRealMethod()
+        .when(ds).setLockssRepository(ArgumentMatchers.any());
+
+    doCallRealMethod()
+        .when(ds).runGarbageCollector();
+
+    when(repository.getScheduledExecutorService())
+        .thenReturn(executor);
+
+    // Set data store's repository context
+    ds.setLockssRepository(repository);
 
     // Call runGarbageCollector()
     ds.runGarbageCollector();
 
     // Assert instance of GarbageCollectTempWarcsTask is submitted to scheduledExecutor
-    verify(ds.scheduledExecutor).submit(ArgumentMatchers.any(WarcArtifactDataStore.GarbageCollectTempWarcsTask.class));
-    verifyNoMoreInteractions(ds.scheduledExecutor);
+    verify(executor)
+        .submit(ArgumentMatchers.any(WarcArtifactDataStore.GarbageCollectTempWarcsTask.class));
+
+    verifyNoMoreInteractions(executor);
   }
 
   /**

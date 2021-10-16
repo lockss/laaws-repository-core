@@ -46,6 +46,9 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base implementation of the LOCKSS Repository service.
@@ -59,6 +62,8 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;
   protected ArtifactIndex index;
   protected JmsFactory jmsFact;
+
+  protected ScheduledExecutorService scheduledExecutor;
 
   /**
    * Create a LOCKSS repository with the provided artifact index and storage layers.
@@ -147,9 +152,16 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     }
   }
 
+  public ScheduledExecutorService getScheduledExecutorService() {
+    return scheduledExecutor;
+  }
+
   @Override
   public void initRepository() throws IOException {
     log.info("Initializing repository");
+
+    // Start executor
+    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
     // Initialize the index and data store
     index.initIndex();
@@ -166,8 +178,12 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public void shutdownRepository() throws InterruptedException {
     log.info("Shutting down repository");
+
     index.shutdownIndex();
     store.shutdownDataStore();
+
+    scheduledExecutor.shutdown();
+    scheduledExecutor.awaitTermination(1, TimeUnit.MINUTES);
   }
 
   /** JmsFactorySource method to store a JmsFactory for use by (a user of)
