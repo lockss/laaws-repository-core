@@ -403,7 +403,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
 
-      handleSolrResponse(handleCommit(false), "Problem committing addition of "
+      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
@@ -533,7 +533,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
           + document + "' to Solr");
 
       // Commit changes
-//      handleSolrResponse(handleCommit(false), "Problem committing addition of "
+//      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
 //          + "document '" + document + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
@@ -551,7 +551,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws IOException
    * @throws SolrServerException
    */
-  private UpdateResponse handleCommit(boolean hardCommit) throws IOException, SolrServerException {
+  private UpdateResponse handleSolrCommit(boolean hardCommit) throws IOException, SolrServerException {
     // Update request to commit
     UpdateRequest req = new UpdateRequest();
     req.setAction(UpdateRequest.ACTION.COMMIT, true, true, !hardCommit);
@@ -602,7 +602,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
             + "artifact '" + artifactId + "' from Solr");
 
         // Commit changes
-        handleSolrResponse(handleCommit(false), "Problem committing deletion of "
+        handleSolrResponse(handleSolrCommit(false), "Problem committing deletion of "
             + "artifact '" + artifactId + "' from Solr");
 
         // Return true to indicate success
@@ -683,7 +683,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      handleSolrResponse(handleCommit(false), "Problem committing addition of "
+      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
