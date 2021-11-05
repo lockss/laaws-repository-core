@@ -1680,8 +1680,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     if (expire) {
       // Set the data store to expire artifacts immediately
-      reloadedStore.setUncommittedArtifactExpiration(0);
-      assertEquals(0, reloadedStore.getUncommittedArtifactExpiration());
+      reloadedStore.setUncommittedArtifactExpiration(-1);
+      assertEquals(-1, reloadedStore.getUncommittedArtifactExpiration());
     }
 
     // Reload temporary WARCs

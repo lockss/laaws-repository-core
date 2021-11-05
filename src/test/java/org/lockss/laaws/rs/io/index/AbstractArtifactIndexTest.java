@@ -228,7 +228,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactIndex index = makeArtifactIndex();
 
     // Assert waiting on a deadline that expires immediately results in a TimeoutException thrown
-    assertThrows(TimeoutException.class, () -> index.waitReady(Deadline.in(0L)));
+    assertThrows(TimeoutException.class, () -> index.waitReady(Deadline.in(-1L)));
 
     // Initialize the index in a separate thread
     new Thread(() -> {
