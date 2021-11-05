@@ -152,25 +152,28 @@ public class ArtifactDataUtil {
     public static InputStream getHttpResponseStreamFromHttpResponse(HttpResponse response) throws IOException {
         // Return the concatenation of the header and content streams
         return new SequenceInputStream(
-                new ByteArrayInputStream(getHttpResponseHeader(response)),
-                response.getEntity().getContent()
+            new ByteArrayInputStream(getHttpResponseHeader(response)),
+            response.getEntity().getContent()
         );
     }
 
     public static byte[] getHttpResponseHeader(HttpResponse response) throws IOException {
-        UnsynchronizedByteArrayOutputStream headerStream = new UnsynchronizedByteArrayOutputStream();
+        try (UnsynchronizedByteArrayOutputStream headerStream = new UnsynchronizedByteArrayOutputStream()) {
 
-        // Create a new SessionOutputBuffer from the OutputStream
-        SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
-        outputBuffer.bind(headerStream);
+            // Create a new SessionOutputBuffer from the OutputStream
+            SessionOutputBufferImpl outputBuffer =
+                new SessionOutputBufferImpl(new HttpTransportMetricsImpl(), 4096);
 
-        // Write the HTTP response header
-        writeHttpResponseHeader(response, outputBuffer);
+            outputBuffer.bind(headerStream);
 
-        // Flush anything remaining in the buffer
-        outputBuffer.flush();
+            // Write the HTTP response header
+            writeHttpResponseHeader(response, outputBuffer);
 
-        return headerStream.toByteArray();
+            // Flush anything remaining in the buffer
+            outputBuffer.flush();
+
+            return headerStream.toByteArray();
+        }
     }
 
     /**
