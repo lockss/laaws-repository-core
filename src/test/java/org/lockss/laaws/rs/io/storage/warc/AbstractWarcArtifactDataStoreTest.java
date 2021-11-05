@@ -109,7 +109,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Create a volatile index for all data store tests
     ArtifactIndex index = new VolatileArtifactIndex();
-    index.initIndex();
+    index.init();
 
     // Create a new WARC artifact data store
     store = makeWarcArtifactDataStore(index);
@@ -117,7 +117,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertSame(index, store.getArtifactIndex());
 
     // Initialize data store and assert state
-    store.initDataStore();
+    store.init();
     assertNotEquals(WarcArtifactDataStore.DataStoreState.STOPPED,
         store.getDataStoreState());
 
@@ -128,10 +128,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @AfterEach
   public void teardownDataStore() throws InterruptedException {
     ArtifactIndex index = store.getArtifactIndex();
-    store.shutdownDataStore();
+    store.stop();
 
     if (index != null) {
-      index.shutdownIndex();
+      index.stop();
     }
   }
 
@@ -699,7 +699,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Create a new index for the new data store below
     ArtifactIndex index = new VolatileArtifactIndex();
-    index.initIndex();
+    index.init();
 
     // Create a new data store for this test
     store = makeWarcArtifactDataStore(index);
@@ -710,19 +710,19 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(WarcArtifactDataStore.DataStoreState.STOPPED, store.getDataStoreState());
 
     // Initialize the data store
-    store.initDataStore();
+    store.init();
 
     WarcArtifactDataStore.DataStoreState state = store.getDataStoreState();
 
-    assertTrue(state == WarcArtifactDataStore.DataStoreState.INITIALIZING ||
+    assertTrue(state == WarcArtifactDataStore.DataStoreState.INITIALIZED ||
                state == WarcArtifactDataStore.DataStoreState.RUNNING);
 
     // Run implementation-specific post-initArtifactDataStore() tests
     testInitDataStoreImpl();
 
     // Shutdown the data store and index created earlier
-    store.shutdownDataStore();
-    index.shutdownIndex();
+    store.stop();
+    index.stop();
   }
 
   @Test
@@ -731,7 +731,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   public void testShutdownDataStoreImpl() throws Exception {
-    store.shutdownDataStore();
+    store.stop();
 
     assertTrue(store.stripedExecutor.isShutdown());
     assertTrue(store.stripedExecutor.isTerminated());
@@ -1568,7 +1568,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   private void runTestReloadTempWarcs(boolean commit, boolean expire, boolean delete) throws Exception {
     // Create and initialize a blank index
     ArtifactIndex index = new VolatileArtifactIndex();
-    index.initIndex();
+    index.init();
 
     // Instantiate a new data store with our newly instantiated volatile artifact index
     store = makeWarcArtifactDataStore(index);
@@ -1924,6 +1924,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testGetArtifactState() throws Exception {
     // Do not use provided data store
     teardownDataStore();
+
 
     for (ArtifactState testState : ArtifactState.values()) {
       runTestGetArtifactState(testState);
@@ -2746,7 +2747,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     scenario.setup(index1);
 
     // Shutdown the data store
-    store.shutdownDataStore();
+    store.stop();
 
     log.info("Rebuilding index");
 

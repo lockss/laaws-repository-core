@@ -35,13 +35,12 @@ import org.lockss.laaws.rs.core.LockssRepository;
 public abstract class AbstractArtifactIndex implements ArtifactIndex {
   protected LockssRepository repository;
 
-  protected ArtifactIndexState indexState = ArtifactIndexState.UNINITIALIZED;
+  protected ArtifactIndexState indexState = ArtifactIndexState.STOPPED;
 
   public enum ArtifactIndexState {
-    UNINITIALIZED,
     INITIALIZED,
-    READY,
-    SHUTDOWN
+    RUNNING,
+    STOPPED
   }
 
   public ArtifactIndexState getState() {

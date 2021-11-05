@@ -197,7 +197,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link HdfsWarcArtifactDataStore#initDataStore()}.
+   * Test for {@link HdfsWarcArtifactDataStore#init()}.
    *
    * @throws Exception
    */
@@ -207,10 +207,10 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).initDataStore();
+    doCallRealMethod().when(ds).init();
 
     // Initialize data store
-    ds.initDataStore();
+    ds.init();
 
     // FIXME: Method access not permissive enough (protected) - why?
 //    verify(ds).reloadDataStoreState();

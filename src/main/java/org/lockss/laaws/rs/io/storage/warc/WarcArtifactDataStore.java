@@ -170,7 +170,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   public enum DataStoreState {
-    INITIALIZING,
+    INITIALIZED,
     RUNNING,
     STOPPED
   }
@@ -247,13 +247,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Initializes the data store.
    */
   @Override
-  public void initDataStore() {
+  public void init() {
     log.debug("Initializing data store");
-    setDataStoreState(DataStoreState.INITIALIZING);
+    setDataStoreState(DataStoreState.INITIALIZED);
   }
 
   @Override
-  public void startDataStore() {
+  public void start() {
     log.debug("Starting data store");
     reloadDataStoreState();
     scheduleGarbageCollector();
@@ -274,7 +274,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws InterruptedException
    */
   @Override
-  public void shutdownDataStore() throws InterruptedException {
+  public void stop() {
     if (dataStoreState != DataStoreState.STOPPED) {
       stripedExecutor.shutdown();
 
@@ -1076,57 +1076,57 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         log.trace("artifact.state = {}", artifactState);
 
-        // Resume artifact lifecycle based on the artifact's state
-        switch (artifactState) {
-          case PENDING_COMMIT:
-            // Requeue the copy of this artifact from temporary to permanent storage
-            try {
-              Artifact artifact = index.getArtifact(aid.getId());
+          // Resume artifact lifecycle based on the artifact's state
+          switch (artifactState) {
+            case PENDING_COMMIT:
+              // Requeue the copy of this artifact from temporary to permanent storage
+              try {
+                Artifact artifact = index.getArtifact(aid.getId());
 
-              // Only reschedule a copy to permanent storage if the artifact is still in temporary storage
-              // according to the artifact index
-              if (isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
-                log.debug("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
+                // Only reschedule a copy to permanent storage if the artifact is still in temporary storage
+                // according to the artifact index
+                if (isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
+                  log.debug("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
 
-                // TODO Rename this task and remove second mark-as-committed
-                stripedExecutor.submit(new CommitArtifactTask(artifact));
+                  // TODO Rename this task and remove second mark-as-committed
+                  stripedExecutor.submit(new CommitArtifactTask(artifact));
+                }
+              } catch (RejectedExecutionException e) {
+                log.warn("Could not re-queue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
+              } catch (URISyntaxException e) {
+                // This should never happen
+                log.error("Bad storage URL [artifactId: {}]", aid.getId());
+                break;
               }
-            } catch (RejectedExecutionException e) {
-              log.warn("Could not re-queue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
-            } catch (URISyntaxException e) {
-              // This should never happen
-              log.error("Bad storage URL [artifactId: {}]", aid.getId());
+
+            case INDEXED:
+              // Nothing to do
               break;
-            }
 
-          case INDEXED:
-            // Nothing to do
-            break;
+            case EXPIRED:
+            case DELETED:
+              // Remove artifact reference from index if it exists
+              if (index.deleteArtifact(aid.getId())) {
+                // This would be noteworthy since we only get DELETED if the artifact is not indexed
+                log.warn("Removed artifact from index [artifactId: {}]", aid.getId());
+              }
 
-          case EXPIRED:
-          case DELETED:
-            // Remove artifact reference from index if it exists
-            if (index.deleteArtifact(aid.getId())) {
-              // This would be noteworthy since we only get DELETED if the artifact is not indexed
-              log.warn("Removed artifact from index [artifactId: {}]", aid.getId());
-            }
+              // Fall-through to next case
 
-            // Fall-through to next case
+            case NOT_INDEXED:
+              // If this artifact in temporary storage was not indexed then it was interrupted
+              // and did not succeed being added to the repository: Treat it as removable.
 
-          case NOT_INDEXED:
-            // If this artifact in temporary storage was not indexed then it was interrupted
-            // and did not succeed being added to the repository: Treat it as removable.
+            case COMMITTED:
+              log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
+                  record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
 
-          case COMMITTED:
-            log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
-                record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), artifactState);
+              // Mark this temporary WARC record as removable
+              isRecordRemovable = true;
+              break;
 
-            // Mark this temporary WARC record as removable
-            isRecordRemovable = true;
-            break;
-
-          case UNKNOWN:
-            // TODO Introduce more robustness
+            case UNKNOWN:
+              // TODO Introduce more robustness
 
           default:
             log.warn("Could not determine artifact state; aborting reload [artifactId: {}]", aid.getId());
@@ -1257,7 +1257,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       if (isArtifactDeleted(aid)) {
         return ArtifactState.DELETED;
       }
-
     } catch (IOException e) {
       log.warn("Could not determine artifact state", e);
       return ArtifactState.UNKNOWN;
@@ -1750,7 +1749,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // If this artifact is in permanent storage, then it is COMMITTED. Otherwise,
       // we need to do a lookup to distinguish between INDEXED and PENDING_COMMIT.
       state.setCommitted(!isTmpStorage);
-
       if (isTmpStorage) {
         state.setCommitted(isArtifactCommitted(indexedArtifact.getIdentifier()));
       }

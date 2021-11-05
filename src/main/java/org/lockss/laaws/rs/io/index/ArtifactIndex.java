@@ -450,11 +450,4 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
             }
         }
     }
-
-    default void initIndex() {
-        // No-op
-    }
-    default void shutdownIndex() {
-        // No-op
-    }
 }

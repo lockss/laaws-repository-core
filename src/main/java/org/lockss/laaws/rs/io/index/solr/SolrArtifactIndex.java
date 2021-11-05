@@ -303,13 +303,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   @Override
-  public void shutdownIndex() {
+  public void stop() {
     try {
       if (isInternalClient) {
         solrClient.close();
       }
 
-      setState(ArtifactIndexState.SHUTDOWN);
+      setState(ArtifactIndexState.STOPPED);
     } catch (IOException e) {
       log.error("Could not close Solr client connection", e);
     }
@@ -344,7 +344,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public boolean isReady() {
-    return getState() == ArtifactIndexState.READY
+    return getState() == ArtifactIndexState.RUNNING
         || getState() == ArtifactIndexState.INITIALIZED && checkAlive();
   }
 

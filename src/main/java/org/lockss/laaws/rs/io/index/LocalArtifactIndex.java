@@ -82,9 +82,12 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         }
     }
 
+    /**
+     * Overrides {@link VolatileArtifactIndex#stop()} to persist map to disk.
+     */
     @Override
-    public void shutdownIndex() {
-        super.shutdownIndex();
+    public void stop() {
+        super.stop();
 
         // Persist index one last time
         persist();

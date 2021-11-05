@@ -52,16 +52,16 @@ public class TestVolatileArtifactIndex extends AbstractArtifactIndexTest<Volatil
   @Test
   @Override
   public void testInitIndex() throws Exception {
-    ArtifactIndex index = makeArtifactIndex();
-    index.initIndex();
-    assertTrue(index.isReady());
+    VolatileArtifactIndex index = makeArtifactIndex();
+    index.init();
+    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.INITIALIZED);
   }
 
   @Test
   @Override
   public void testShutdownIndex() throws Exception {
     VolatileArtifactIndex index = makeArtifactIndex();
-    index.shutdownIndex();
-    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.SHUTDOWN);
+    index.stop();
+    assertTrue(index.getState() == AbstractArtifactIndex.ArtifactIndexState.STOPPED);
   }
 }

@@ -65,13 +65,18 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
 
     @Override
-    public void initIndex() {
-      setState(ArtifactIndexState.READY);
+    public void init() {
+      setState(ArtifactIndexState.INITIALIZED);
     }
 
-    @Override
-    public void shutdownIndex() {
-      setState(ArtifactIndexState.SHUTDOWN);
+  @Override
+  public void start() {
+    setState(ArtifactIndexState.RUNNING);
+  }
+
+  @Override
+    public void stop() {
+      setState(ArtifactIndexState.STOPPED);
     }
 
     /**
@@ -795,6 +800,6 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      */
     @Override
     public boolean isReady() {
-        return getState() == ArtifactIndexState.READY;
+        return getState() == ArtifactIndexState.RUNNING;
     }
 }

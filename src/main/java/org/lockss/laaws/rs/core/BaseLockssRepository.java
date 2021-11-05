@@ -164,23 +164,23 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
     // Initialize the index and data store
-    index.initIndex();
-    store.initDataStore();
+    index.init();
+    store.init();
 
     // Re-index artifacts in the data store if needed
     reindexArtifactsIfNeeded();
 
     // Start the index and data store
-//    index.startIndex();
-    store.startDataStore();
+    index.start();
+    store.start();
   }
 
   @Override
   public void shutdownRepository() throws InterruptedException {
     log.info("Shutting down repository");
 
-    index.shutdownIndex();
-    store.shutdownDataStore();
+    index.stop();
+    store.stop();
 
     scheduledExecutor.shutdown();
     scheduledExecutor.awaitTermination(1, TimeUnit.MINUTES);

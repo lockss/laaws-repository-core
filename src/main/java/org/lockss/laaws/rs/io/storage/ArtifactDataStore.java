@@ -62,27 +62,6 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     extends LockssRepositorySubsystem, StorageInfoSource, Ready {
 
     /**
-     * Initializes the data store.
-     *
-     * @throws IOException
-     */
-    void initDataStore() throws IOException;
-
-    /**
-     * Starts internal operations, if any.
-     *
-     * @throws IOException
-     */
-    void startDataStore() throws IOException;
-
-    /**
-     * Shuts down the data store.
-     *
-     * @throws InterruptedException
-     */
-    void shutdownDataStore() throws InterruptedException;
-
-    /**
      * Initializes a collection storage structure in an artifact data store implementation.
      *
      * @param collectionId

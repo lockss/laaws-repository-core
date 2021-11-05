@@ -36,6 +36,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
@@ -48,9 +49,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -225,7 +231,10 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertThrows(TimeoutException.class, () -> index.waitReady(Deadline.in(0L)));
 
     // Initialize the index in a separate thread
-    new Thread(() -> index.initIndex()).start();
+    new Thread(() -> {
+      index.init();
+      index.start();
+    }).start();
 
     // Assert waiting with a sufficient deadline works
     try {
@@ -472,6 +481,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertIterableEquals(artList(specs, 5), index.getArtifactsAllVersions("d", "a", "v"));
 
     index.commitArtifact(specs.get(4).getArtifactId());
+
     variantState.commit(specs.get(4).getArtifactId());
 
     log.debug("result = {}", ListUtil.fromIterable(index.getArtifactsAllVersions("d", "a", "v")));
