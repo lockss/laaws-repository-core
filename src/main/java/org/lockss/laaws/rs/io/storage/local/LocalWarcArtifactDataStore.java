@@ -240,16 +240,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     return dataStoreState != DataStoreState.STOPPED;
   }
 
-  @Override
-  public void initDataStore() {
-    // Sets the data store state to INITIALIZING and schedules
-    // the temporary WARC garbage collector
-    super.initDataStore();
-
-    // Schedule asynchronous data store reload operations
-    stripedExecutor.submit(new ReloadDataStoreStateTask());
-  }
-
   /**
    * Recursively finds artifact WARC files under a given base path.
    *
