@@ -61,6 +61,11 @@ import static org.mockito.Mockito.when;
 public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  /**
+   * Handle to a {@link BaseLockssRepository} for testing.
+   */
+  private static BaseLockssRepository repository;
+
   protected AI index;
 
   // *******************************************************************************************************************
@@ -80,7 +85,16 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   public void setupCommon() throws Exception {
     // Create an artifact index instance to test
     index = makeArtifactIndex();
-    index.initIndex();
+
+    repository = mock(BaseLockssRepository.class);
+    when(repository.getRepositoryStateDir()).thenReturn(getTempDir());
+
+    ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+    when(repository.getScheduledExecutorService()).thenReturn(ses);
+    index.setLockssRepository(repository);
+
+    index.init();
+    index.start();
 
     // Invoke before variant steps
     beforeVariant();
@@ -226,6 +240,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   public void testWaitReady() throws Exception {
     // Instantiate a new index (that has not had initIndex() called already)
     ArtifactIndex index = makeArtifactIndex();
+
+    repository = mock(BaseLockssRepository.class);
+    when(repository.getRepositoryStateDir()).thenReturn(getTempDir());
+
+    ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+    when(repository.getScheduledExecutorService()).thenReturn(ses);
+    index.setLockssRepository(repository);
 
     // Assert waiting on a deadline that expires immediately results in a TimeoutException thrown
     assertThrows(TimeoutException.class, () -> index.waitReady(Deadline.in(-1L)));

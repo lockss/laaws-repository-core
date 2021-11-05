@@ -1990,6 +1990,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         break;
 
       case COMMITTED:
+        // Needed to emulate behavior of BaseLockssRepository
+        index.commitArtifact(artifact.getId());
+
         Future<Artifact> future = store.commitArtifactData(artifact);
         artifact = future.get(10, TimeUnit.SECONDS);
         break;
