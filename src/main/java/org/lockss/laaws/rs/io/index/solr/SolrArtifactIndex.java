@@ -540,9 +540,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
           + document + "' to Solr");
 
       // Commit changes
-//      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
-//          + "document '" + document + "' to Solr");
-
+      handleSolrResponse(handleSolrCommit(false), "Problem committing Solr changes");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException("Solr error", e);
     }
