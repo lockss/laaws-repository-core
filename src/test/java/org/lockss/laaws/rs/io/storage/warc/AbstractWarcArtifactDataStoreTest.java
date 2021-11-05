@@ -1957,12 +1957,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Create conditions for expected state
     // ************************************
 
-    // Add and remove an artifact
+    // Add an artifact
     ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 128);
     Artifact artifact = store.addArtifactData(ad);
 
     boolean isExpired = false;
 
+    // Setup conditions necessary for the artifact state we wish to test
     switch (expectedState) {
       case UNKNOWN:
         // Setup conditions that would cause an UNKNOWN state by mocking
@@ -1975,6 +1976,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         break;
 
       case INDEXED:
+        // Default state for newly added artifacts
         break;
 
       case EXPIRED:

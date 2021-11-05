@@ -72,7 +72,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
   @BeforeEach
   public void setupCommon() throws Exception {
-    // Create an artifact index instance to test; initialize it
+    // Create an artifact index instance to test
     index = makeArtifactIndex();
     index.initIndex();
 

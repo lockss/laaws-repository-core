@@ -1747,6 +1747,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ArtifactRepositoryState state = new ArtifactRepositoryState();
       state.setDeleted(false); // Must be false to have reached here
 
+      // If this artifact is in permanent storage, then it is COMMITTED. Otherwise,
+      // we need to do a lookup to distinguish between INDEXED and PENDING_COMMIT.
       state.setCommitted(!isTmpStorage);
 
       if (isTmpStorage) {
@@ -1908,13 +1910,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       URI storageUrl = new URI(artifact.getStorageUrl());
       Path storagePath = Paths.get(storageUrl.getPath());
 
-      // Do not commit again if already committed - determined by examining the storage URL
+      // Do not commit again if already committed (stored in permanent storage);
+      // determined by examining the storage URL
       if (!isTmpStorage(storagePath)) {
         log.warn("Artifact is already committed [artifactId: {}]", artifact.getId());
         return artifact;
       }
 
       // Get the temporary WARC record location from the artifact's storage URL
+      // FIXME: Resolves only path of storage URL
       WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(new URI(artifact.getStorageUrl()));
       long recordOffset = loc.getOffset();
       long recordLength = loc.getLength();

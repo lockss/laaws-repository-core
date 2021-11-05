@@ -68,9 +68,8 @@ public class ArtifactDataUtil {
      * @throws HttpException
      */
     public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData) throws IOException {
-        InputStream httpResponse = getHttpResponseStreamFromHttpResponse(
-                getHttpResponseFromArtifactData(artifactData)
-        );
+        InputStream httpResponse =
+            getHttpResponseStreamFromHttpResponse(getHttpResponseFromArtifactData(artifactData));
 
 	// getBytesRead() hasn't been computed yet
 //         artifactData.setContentLength(artifactData.getBytesRead());
@@ -86,8 +85,8 @@ public class ArtifactDataUtil {
      * This is effectively the inverse operation of {@code ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
      *
      * @param artifactData
-     *          An {@code ArtifactData} to to transform to an HttpResponse object.
-     * @return An {@code HttpResponse} object containing a representation of the artifact.
+     *          An {@link ArtifactData} to transform to an HttpResponse object.
+     * @return An {@link HttpResponse} object containing a representation of the artifact.
      * @throws HttpException
      * @throws IOException
      */

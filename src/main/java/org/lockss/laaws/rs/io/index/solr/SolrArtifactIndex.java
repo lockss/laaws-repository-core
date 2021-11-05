@@ -131,6 +131,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     this(solrBaseUrl, collection, null);
   }
 
+  /**
+   * Constructor.
+   *
+   * @param solrBaseUrl A {@link String} containing the Solr base URL.
+   * @param collection  @ {@link String} containing the name of the Solr collection to use.
+   * @param solrCredentials A {@link List<String>} containing the username and password for Solr.
+   */
   public SolrArtifactIndex(String solrBaseUrl, String collection, List<String> solrCredentials) {
     // Convert provided Solr base URL to URI object
     URI baseUrl = URI.create(solrBaseUrl);
