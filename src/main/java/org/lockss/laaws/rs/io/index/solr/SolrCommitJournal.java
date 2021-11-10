@@ -143,6 +143,10 @@ public class SolrCommitJournal {
         throw e;
       }
     }
+
+    public Path getJournalPath() {
+      return this.journalPath;
+    }
   }
 
   public static class SolrJournalReader implements Closeable {

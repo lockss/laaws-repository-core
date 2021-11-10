@@ -674,24 +674,23 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       QueryResponse response =
           handleSolrResponse(handleSolrQuery(q), "Problem performing Solr query");
 
-      // Deserialize results into a list of Artifacts
-      List<Artifact> artifacts = response.getBeans(Artifact.class);
+      long numFound = response.getResults().getNumFound();
 
-      switch (artifacts.size()) {
-        case 0:
-          // Expected at least one match
-          log.debug("Artifact not found [artifactId: {}]", artifactId);
-          return null;
+      if (numFound == 0) {
+        // Expected at least one match
+        log.debug("Artifact not found [artifactId: {}]", artifactId);
+        return null;
+      } else if (numFound == 1) {
+        // Deserialize results into a list of Artifacts
+        List<Artifact> artifacts = response.getBeans(Artifact.class);
 
-        case 1:
-          // Return the artifact
-          return artifacts.get(0);
-
-        default:
-          // This should never happen
-          log.warn("Unexpected number of Solr documents in response: {}", artifacts.size());
-          throw new RuntimeException("Unexpected number of Solr documents in response");
+        // Return the artifact
+        return artifacts.get(0);
       }
+
+      // This should never happen
+      log.warn("Unexpected number of Solr documents in response: {}", numFound);
+      throw new RuntimeException("Unexpected number of Solr documents in response");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException("Solr error", e);
