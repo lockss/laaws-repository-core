@@ -38,12 +38,14 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.*;
@@ -51,10 +53,14 @@ import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.URI;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -106,6 +112,22 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Map from artifact stem to semaphore. Used for artifact version locking.
    */
   private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
+
+  /**
+   * Handle to Solr soft commit journal writer.
+   */
+  private SolrCommitJournal.SolrJournalWriter solrJournalWriter;
+
+  /**
+   * An internal {@code boolean} indicating whether a hard commit is needed.
+   */
+  private volatile boolean hardCommitNeeded = false;
+
+  /**
+   * Last start time seen of the remote Solr index. Used to determine whether
+   * Solr has restarted since.
+   */
+  private static long lastStartTime;
 
   /**
    * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr collection endpoint.
@@ -208,17 +230,199 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Modifies the schema of a collection pointed to by a SolrClient, to support artifact indexing.
+   * Initializes this {@link SolrArtifactIndex}.
    */
   @Override
-  public synchronized void initIndex() {
-    if (getState() == ArtifactIndexState.UNINITIALIZED) {
+  public synchronized void init() {
+    if (getState() == ArtifactIndexState.STOPPED) {
 
-      // TODO: Check that the core exists?
-//      CoreAdminResponse response = CoreAdminRequest.getStatus(coreName, solrClient);
-//      response.getCoreStatus(coreName).size() > 0;
+      // Check if Solr core is available
+      try {
+        CoreAdminResponse response =
+            CoreAdminRequest.getStatus(getSolrCollection(), solrClient);
+
+        if (response.getCoreStatus(getSolrCollection()).size() <= 0) {
+          log.error("Solr core or collection not found");
+          throw new IllegalStateException("Solr core missing");
+        }
+      } catch (IOException | SolrServerException e) {
+        log.error("Could not fetch Solr core status", e);
+      }
+
+      // Path to artifact index state directory
+      Path indexStateDir =
+          ((BaseLockssRepository)repository).getRepositoryStateDir()
+              .toPath()
+              .resolve("index"); // TODO: Parameterize
+
+      // Ensure index state directory exists
+      indexStateDir.toFile().mkdirs();
 
       setState(ArtifactIndexState.INITIALIZED);
+    }
+  }
+
+  /**
+   * Starts this {@link SolrArtifactIndex}:
+   *
+   * <ul>
+   *   <li>Replays any Solr operations recorded in the Solr soft commit journal, if one exists.</li>
+   *   <li>Schedules a Solr hard commit at regular intervals.</li>
+   *   <li>Opens a new journal to log changes made to the Solr index since the last hard commit.</li>
+   * </ul>
+   */
+  @Override
+  public synchronized void start() {
+    long hardCommitInterval = 15000; // TODO: Parameterize
+
+    Path journalPath = getSolrJournalPath();
+    File journalFile = journalPath.toFile();
+
+    // Replay journal of soft commits if it exists
+    if (journalFile.exists() && journalFile.isFile()) {
+      try (SolrCommitJournal.SolrJournalReader journalReader =
+               new SolrCommitJournal.SolrJournalReader(journalPath)) {
+        journalReader.replaySolrJournal(this);
+      } catch (IOException e) {
+        log.error("Could not replay operations from Solr soft commit journal", e);
+        throw new RuntimeException("Could not replay journal", e);
+      }
+    }
+
+    // Start journal of Solr soft commits
+    startJournal();
+    log.debug("Opened Solr journal");
+
+    // Schedule hard commits
+    ((BaseLockssRepository)repository).getScheduledExecutorService()
+        .scheduleAtFixedRate(new SolrHardCommitTask(), hardCommitInterval, hardCommitInterval, TimeUnit.MILLISECONDS);
+
+    log.debug("Scheduled Solr hard commits");
+
+    // Set index state to RUNNING
+    setState(ArtifactIndexState.RUNNING);
+  }
+
+  /**
+   * Returns the path to the journal maintained by this {@link SolrArtifactIndex}.
+   *
+   * @return A {@link Path} containing the path of the journal.
+   */
+  private Path getSolrJournalPath() {
+    return ((BaseLockssRepository) repository)
+        .getRepositoryStateDir()
+        .toPath()
+        .resolve("index/solr/soft-commit-journal.csv");
+  }
+
+  /**
+   * Opens a new journal (using {@link SolrCommitJournal.SolrJournalWriter}) to record the operations made to Solr.
+   */
+  public synchronized void startJournal() {
+    if (solrJournalWriter == null) {
+      try {
+        // Get journal path
+        Path journalPath = getSolrJournalPath();
+
+        // Ensure parent directories exist
+        journalPath.getParent().toFile().mkdirs();
+
+        // Start new Solr journal writer
+        solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
+      } catch (IOException e) {
+        // FIXME: Revisit
+        log.error("Could not create Solr journal", e);
+        throw new IllegalStateException("Could not create Solr journal", e);
+      }
+    } else {
+      log.warn("Solr journal already open");
+    }
+  }
+
+  /**
+   * Closes an open {@link SolrCommitJournal.SolrJournalWriter}.
+   */
+  public synchronized void closeJournal() {
+    try {
+      if (solrJournalWriter != null) {
+        solrJournalWriter.close();
+        solrJournalWriter = null;
+      }
+    } catch (IOException e) {
+      // FIXME: Revisit
+      log.error("Could not close Solr journal", e);
+      throw new IllegalStateException("Could not close Solr journal");
+    }
+  }
+
+  /**
+   * @return The {@link SolrClient} through which this {@link SolrArtifactIndex} interfaces with Solr.
+   */
+  protected SolrClient getSolrClient() {
+    return this.solrClient;
+  }
+
+  /**
+   * Implementation of {@link Runnable} which performs a Solr hard commit if there have been any
+   * soft commits since the last hard commit.
+   */
+  private class SolrHardCommitTask implements Runnable {
+    @Override
+    public void run() {
+      try {
+        // Get Solr core status
+        CoreAdminResponse response = CoreAdminRequest.getStatus(getSolrCollection(), solrClient);
+        Long uptimeMs = response.getUptime(getSolrCollection());
+        Long startTime = Instant.now().toEpochMilli() - uptimeMs;
+
+        // Initial case
+        if (lastStartTime <= 0) {
+          lastStartTime = startTime;
+        }
+
+        // Detect if there was a restart
+        if (lastStartTime /* TODO: add slop; 15 seconds? */ < startTime) {
+          log.warn("Detected a Solr restart");
+
+//          // Replay journal since last hard commit
+//          Path journalPath = getSolrJournalPath();
+//          closeJournal();
+//
+//          try {
+//            replaySolrJournal(journalPath);
+//            lastStartTime = startTime;
+//          } catch (IOException e) {
+//            log.error("Could not replay journal", e);
+//          }
+        }
+      } catch (IOException | SolrServerException e) {
+        log.error("Could not get Solr uptime", e);
+        return;
+      }
+
+      // Proceed only if there were any soft commits since the last hard commit
+      if (!hardCommitNeeded) {
+        log.debug2("Skipping Solr hard commit");
+        return;
+      }
+
+      log.debug2("Performing Solr hard commit");
+
+      try {
+        // Rename existing journal
+        SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
+        lastJournalWriter.rename(getSolrJournalPath());
+        solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(getSolrJournalPath());
+
+        // Perform a hard commit
+        hardCommitNeeded = false;
+        handleSolrCommit(true);
+
+        lastJournalWriter.close();
+
+      } catch (IOException | SolrServerException e) {
+        log.error("Could not perform Solr hard commit", e);
+      }
     }
   }
 
@@ -308,6 +512,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       if (isInternalClient) {
         solrClient.close();
       }
+
+      closeJournal();
 
       setState(ArtifactIndexState.STOPPED);
     } catch (IOException e) {
@@ -409,6 +615,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
+
+      solrJournalWriter.logOperation(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
 
       handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
@@ -539,6 +747,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
+      solrJournalWriter.logOperation(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
+
       // Commit changes
       handleSolrResponse(handleSolrCommit(false), "Problem committing Solr changes");
     } catch (SolrResponseErrorException | SolrServerException e) {
@@ -560,6 +770,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     // Update request to commit
     UpdateRequest req = new UpdateRequest();
     req.setAction(UpdateRequest.ACTION.COMMIT, true, true, !hardCommit);
+
+    // Signal a hard commit is needed if we're performing a soft commit
+    if (!hardCommit) {
+      hardCommitNeeded = true;
+    }
 
     // Add Solr credentials if present
     addSolrCredentials(req);
@@ -605,6 +820,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         // Remove Solr document for this artifact
         handleSolrResponse(request.process(solrClient, solrCollection), "Problem deleting "
             + "artifact '" + artifactId + "' from Solr");
+
+        solrJournalWriter.logOperation(artifactId, SolrCommitJournal.SolrOperation.DELETE, null);
 
         // Commit changes
         handleSolrResponse(handleSolrCommit(false), "Problem committing deletion of "
@@ -687,6 +904,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Update the field
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
+
+      solrJournalWriter.logOperation(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
 
       handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "document '" + document + "' to Solr");
