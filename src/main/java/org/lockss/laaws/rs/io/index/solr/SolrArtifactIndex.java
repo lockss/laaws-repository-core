@@ -207,7 +207,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param request
    */
-  private void addSolrCredentials(SolrRequest request) {
+  void addSolrCredentials(SolrRequest request) {
     // Add Solr BasicAuth credentials if present
     if (solrCredentials != null) {
       request.setBasicAuthCredentials(
@@ -766,7 +766,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws IOException
    * @throws SolrServerException
    */
-  private UpdateResponse handleSolrCommit(boolean hardCommit) throws IOException, SolrServerException {
+  UpdateResponse handleSolrCommit(boolean hardCommit) throws IOException, SolrServerException {
     // Update request to commit
     UpdateRequest req = new UpdateRequest();
     req.setAction(UpdateRequest.ACTION.COMMIT, true, true, !hardCommit);
