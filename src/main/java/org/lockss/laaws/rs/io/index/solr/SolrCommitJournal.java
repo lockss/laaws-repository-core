@@ -154,6 +154,7 @@ public class SolrCommitJournal {
   public static class SolrJournalReader implements Closeable {
     private final Path journalPath;
     private final ObjectMapper mapper;
+    private final DocumentObjectBinder binder;
 
     public SolrJournalReader(Path journalPath) {
       this.journalPath = journalPath;
