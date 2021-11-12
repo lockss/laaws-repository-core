@@ -35,10 +35,12 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
 import org.apache.solr.common.util.Utils;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.log.L4JLogger;
 import org.noggit.CharArr;
 import org.noggit.JSONWriter;
@@ -155,7 +157,9 @@ public class SolrCommitJournal {
 
     public SolrJournalReader(Path journalPath) {
       this.journalPath = journalPath;
+      this.binder =  new DocumentObjectBinder();
       this.mapper = new ObjectMapper();
+//      this.mapper.configure(DeserializationFeature.USE_LONG_FOR_INTS, true);
     }
 
     @Override
@@ -189,6 +193,17 @@ public class SolrCommitJournal {
             // Replay Solr operation
             switch (op) {
               case ADD:
+              {
+                // Transform JSON to SolrInputDocument
+                Artifact artifact = mapper.readValue(record.get(JOURNAL_HEADER_INPUT_DOCUMENT), Artifact.class);
+                SolrInputDocument doc = binder.toSolrInputDocument(artifact);
+
+                UpdateRequest req = new UpdateRequest();
+                req.add(doc);
+                processUpdateRequest(index, req);
+                return;
+              }
+
               case UPDATE: {
                 // Transform JSON to SolrInputDocument
                 SolrInputDocument doc = transformMapToSolrInputDocument(
@@ -196,28 +211,14 @@ public class SolrCommitJournal {
 
                 UpdateRequest req = new UpdateRequest();
                 req.add(doc);
-                index.addSolrCredentials(req);
-
-                index.handleSolrResponse(
-                    req.process(index.getSolrClient(), index.getSolrCollection()), "Error with UpdateRequest");
-
-                index.handleSolrResponse(
-                    index.handleSolrCommit(false), "Error with Commit request");
-
+                processUpdateRequest(index, req);
                 return;
               }
 
               case DELETE: {
                 UpdateRequest req = new UpdateRequest();
                 req.deleteById(record.get(JOURNAL_HEADER_ARTIFACT_ID));
-                index.addSolrCredentials(req);
-
-                index.handleSolrResponse(
-                    req.process(index.getSolrClient(), index.getSolrCollection()), "Error with UpdateRequest");
-
-                index.handleSolrResponse(
-                    index.handleSolrCommit(false), "Error with Commit request");
-
+                processUpdateRequest(index, req);
                 return;
               }
 
@@ -225,7 +226,7 @@ public class SolrCommitJournal {
                 log.error("Unknown Solr operation [op: {}, record: {}]", op, record);
             }
           } catch (IOException | SolrServerException | SolrResponseErrorException e) {
-            log.error("Could not replay journal entry");
+            log.error("Could not replay journal entry", e);
           }
         });
 
@@ -236,6 +237,16 @@ public class SolrCommitJournal {
           log.error("Could not perform a Solr hard commit after replaying journal", e);
         }
       }
+    }
+
+    static private void processUpdateRequest(SolrArtifactIndex index, UpdateRequest req) throws SolrServerException, IOException, SolrResponseErrorException {
+      index.addSolrCredentials(req);
+
+      index.handleSolrResponse(
+          req.process(index.getSolrClient(), index.getSolrCollection()), "Error with UpdateRequest");
+
+      index.handleSolrResponse(
+          index.handleSolrCommit(false), "Error with Commit request");
     }
   }
 
@@ -266,9 +277,6 @@ public class SolrCommitJournal {
     public void handleUnknownClass(Object o) {
       if (o instanceof SolrInputField) {
         SolrInputField field = (SolrInputField)o;
-        startObject();
-        writeString(field.getName());
-        writeNameSeparator();
         if (field.getValueCount() > 1) {
           // Yes: Multivalued field; write array of values
           startArray();
@@ -285,7 +293,6 @@ public class SolrCommitJournal {
           // No: Single valued field
           write(field.getValue());
         }
-        endObject();
       } else {
         super.handleUnknownClass(o);
       }
@@ -303,20 +310,7 @@ public class SolrCommitJournal {
   private static SolrInputDocument transformMapToSolrInputDocument(Map<String, Object> docMap) {
     SolrInputDocument doc = new SolrInputDocument();
     for (Map.Entry<String, Object> entry : docMap.entrySet()) {
-
-      Object value = entry.getValue();
-
-      if (value instanceof Map) {
-        Map<String, Object> fieldMap = (Map<String, Object>) value;
-        for (Map.Entry<String, Object> entry2 : fieldMap.entrySet()) {
-          SolrInputField field = new SolrInputField(entry2.getKey());
-
-          // Adds all values if value is a collection
-          field.addValue(entry2.getValue());
-
-          doc.put(entry.getKey(), field);
-        }
-      }
+      doc.setField(entry.getKey(), entry.getValue());
     }
 
     return doc;
