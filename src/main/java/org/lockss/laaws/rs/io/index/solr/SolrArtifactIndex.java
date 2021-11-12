@@ -675,8 +675,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       long numFound = response.getResults().getNumFound();
 
       if (numFound == 0) {
-        // Expected at least one match
-        log.debug("Artifact not found [artifactId: {}]", artifactId);
         return null;
       } else if (numFound == 1) {
         // Deserialize results into a list of Artifacts
