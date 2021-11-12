@@ -413,13 +413,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
         lastJournalWriter.rename(getSolrJournalPath());
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(getSolrJournalPath());
+        lastJournalWriter.close();
 
         // Perform a hard commit
         hardCommitNeeded = false;
         handleSolrCommit(true);
-
-        lastJournalWriter.close();
-
       } catch (IOException | SolrServerException e) {
         log.error("Could not perform Solr hard commit", e);
       }
