@@ -74,6 +74,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   private final static String DEFAULT_COLLECTION_NAME = "lockss-repo";
+  private final static long DEFAULT_SOLR_HARDCOMMIT_INTERVAL = 15000;
 
   private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
@@ -128,6 +129,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Solr has restarted since.
    */
   private static long lastStartTime;
+
+  /**
+   * Interval (in ms) between Solr hard commits performed by {@link SolrHardCommitTask}.
+   */
+  long hardCommitInterval = DEFAULT_SOLR_HARDCOMMIT_INTERVAL;
 
   /**
    * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr collection endpoint.
@@ -273,8 +279,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public synchronized void start() {
-    long hardCommitInterval = 15000; // TODO: Parameterize
-
     Path journalPath = getSolrJournalPath();
     File journalFile = journalPath.toFile();
 
@@ -294,7 +298,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug("Opened Solr journal");
 
     // Schedule hard commits
-    ((BaseLockssRepository)repository).getScheduledExecutorService()
+    ((BaseLockssRepository) repository).getScheduledExecutorService()
         .scheduleAtFixedRate(new SolrHardCommitTask(), hardCommitInterval, hardCommitInterval, TimeUnit.MILLISECONDS);
 
     log.debug("Scheduled Solr hard commits");
@@ -465,6 +469,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
   public void setSolrCollection(String collection) {
     this.solrCollection = collection;
+  }
+
+  public long getHardCommitInterval() {
+    return hardCommitInterval;
+  }
+
+  public SolrArtifactIndex setHardCommitInterval(long interval) {
+    this.hardCommitInterval = interval;
+    return this;
   }
 
   /**
