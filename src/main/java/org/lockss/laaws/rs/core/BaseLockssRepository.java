@@ -43,7 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -139,7 +139,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       // (i.e., successfully processed all WARCs under this base directory). Old reindex
       // state files are kept to aid debugging / auditing.
       DateTimeFormatter formatter = DateTimeFormatter.BASIC_ISO_DATE
-          .withZone(ZoneId.systemDefault());
+          .withZone(ZoneOffset.UTC);
 
       Path withSuffix = reindexStatePath
           .resolveSibling(reindexStatePath.getFileName() + "." + formatter.format(Instant.now()));
