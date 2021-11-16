@@ -629,7 +629,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
 
-      solrJournalWriter.logOperation(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
+      logSolrUpdate(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
 
       handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
@@ -642,6 +642,23 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug2("Added artifact to index: {}", artifact);
 
     return artifact;
+  }
+
+  private void logSolrUpdate(String artifactId, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
+    for (int i = 0; i < 3; i++) {
+      try {
+        solrJournalWriter.logOperation(artifactId, op, doc);
+        return;
+      } catch (IOException e) {
+        try {
+          Thread.sleep(1000L);
+        } catch (InterruptedException ex) {
+          break;
+        }
+      }
+    }
+
+    log.error("Could not log to Solr update journal [artifactId: {}, op: {}, doc: {}]", artifactId, op, doc);
   }
 
   /**
@@ -757,7 +774,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      solrJournalWriter.logOperation(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
+      logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
 
       // Commit changes
       handleSolrResponse(handleSolrCommit(false), "Problem committing Solr changes");
@@ -831,7 +848,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         handleSolrResponse(request.process(solrClient, solrCollection), "Problem deleting "
             + "artifact '" + artifactId + "' from Solr");
 
-        solrJournalWriter.logOperation(artifactId, SolrCommitJournal.SolrOperation.DELETE, null);
+        logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.DELETE, null);
 
         // Commit changes
         handleSolrResponse(handleSolrCommit(false), "Problem committing deletion of "
@@ -915,7 +932,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      solrJournalWriter.logOperation(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
+      logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
 
       handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "document '" + document + "' to Solr");
