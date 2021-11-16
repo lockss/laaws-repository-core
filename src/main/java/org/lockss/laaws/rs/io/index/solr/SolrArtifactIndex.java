@@ -415,7 +415,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       try {
         // Rename existing journal
         SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
-        lastJournalWriter.rename(getSolrJournalPath());
+        lastJournalWriter.renameWithSuffix(LAST_JOURNAL_SUFFIX);
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(getSolrJournalPath());
         lastJournalWriter.close();
 
@@ -427,6 +427,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       }
     }
   }
+
+  final static String LAST_JOURNAL_SUFFIX = "last";
 
   /**
    * Returns information about the storage size and free space.

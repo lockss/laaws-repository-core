@@ -58,6 +58,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex.LAST_JOURNAL_SUFFIX;
 import static org.lockss.laaws.rs.io.index.solr.SolrCommitJournal.*;
 import static org.lockss.laaws.rs.io.index.solr.SolrCommitJournal.SolrOperation.ADD;
 import static org.mockito.Mockito.*;
@@ -211,6 +212,28 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
         assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_ID));
         assertEquals("DELETE", record.get(JOURNAL_HEADER_SOLR_OP));
         assertEquals(EMPTY_STRING, record.get(JOURNAL_HEADER_INPUT_DOCUMENT));
+      }
+    }
+
+    /**
+     * Test for {@link SolrJournalWriter#renameWithSuffix(String)}.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testRenameWithSuffix() throws Exception {
+      File journalFile = getTempFile("journal-test", null);
+      Path journalPath = journalFile.toPath();
+
+      try (SolrCommitJournal.SolrJournalWriter writer =
+               new SolrCommitJournal.SolrJournalWriter(journalFile.toPath())) {
+
+        writer.renameWithSuffix(LAST_JOURNAL_SUFFIX);
+
+        Path expectedPath = journalPath
+            .resolveSibling(journalPath.getFileName() + "." + LAST_JOURNAL_SUFFIX);
+
+        assertEquals(expectedPath, writer.getJournalPath());
       }
     }
   }

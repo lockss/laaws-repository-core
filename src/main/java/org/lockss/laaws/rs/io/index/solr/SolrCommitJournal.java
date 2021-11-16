@@ -45,7 +45,10 @@ import org.lockss.log.L4JLogger;
 import org.noggit.CharArr;
 import org.noggit.JSONWriter;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.Closeable;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -112,10 +115,6 @@ public class SolrCommitJournal {
       journalFileWriter.close();
     }
 
-    public void rename(Path name) {
-      Path p = journalPath.getParent();
-    }
-
 //    @Override
 //    public String toString() {
 //      StringBuilder builder = new StringBuilder();
@@ -148,6 +147,18 @@ public class SolrCommitJournal {
 
     public Path getJournalPath() {
       return this.journalPath;
+    }
+
+    public void renameWithSuffix(String suffix) {
+      Path withSuffix = journalPath
+          .resolveSibling(journalPath.getFileName() + "." + suffix);
+
+      // Perform rename
+      journalPath.toFile().renameTo(withSuffix.toFile());
+
+      log.debug2("Journal renamed [old: {}, new: {}]", journalPath, withSuffix);
+
+      journalPath = withSuffix;
     }
   }
 
