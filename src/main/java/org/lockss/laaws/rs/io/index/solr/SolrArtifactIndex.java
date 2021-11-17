@@ -371,6 +371,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * soft commits since the last hard commit.
    */
   private class SolrHardCommitTask implements Runnable {
+    private final static long SOLR_STAR_TIME_SLOP = 15000;
+
     @Override
     public void run() {
       try {
@@ -385,16 +387,17 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         }
 
         // Detect if there was a restart
-        if (lastStartTime /* TODO: add slop; 15 seconds? */ < startTime) {
+        if (lastStartTime + SOLR_STAR_TIME_SLOP < startTime) {
           log.warn("Detected a Solr restart");
+          lastStartTime = startTime;
 
 //          // Replay journal since last hard commit
 //          Path journalPath = getSolrJournalPath();
 //          closeJournal();
 //
-//          try {
-//            replaySolrJournal(journalPath);
-//            lastStartTime = startTime;
+//          try (SolrCommitJournal.SolrJournalReader journalReader =
+//                   new SolrCommitJournal.SolrJournalReader(journalPath)) {
+//            journalReader.replaySolrJournal(index);
 //          } catch (IOException e) {
 //            log.error("Could not replay journal", e);
 //          }
