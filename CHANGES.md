@@ -4,26 +4,32 @@
 
 ### Features
 
-*   Upgraded Hadoop client libraries to version 3.3.1
-*   Upgraded Solr client libraries to version 8.9.0
-*   BaseLockssRepository implementations now have a repository state directory. Its 
+* Upgraded Hadoop client libraries to version 3.3.1
+* Upgraded Solr client libraries and configuration to version 8.9.0. Merged LOCKSS-specific 
+  configuration changes into Solr 8.9.0 configuration.
+* `BaseLockssRepository` implementations now have a repository state directory. Its 
     subsystems (e.g., the data store) may organize their state into subdirectories
     of the repository state directory. It is currently used for artifact reindex 
     signaling and state.
-*   Reindex trigger and logic was implemented in BaseLockssRepository. The reindex
-    is triggered by the presence of its state file (.../state/index/reindex). After
+* Reindex trigger and logic was implemented in `BaseLockssRepository`. The reindex
+    is triggered by the presence of its state file (`.../state/index/reindex`). After
     a successful reindex, the reindex state file is renamed out of the way. The 
     reindex state file is a CSV log of WARCs that were reindexed. It may be useful
     for debugging or auditing the reindex.
-*   WarcArtifactDataStore and its subclasses were refactored so that they channel 
-    their access to subsystems (e.g., index) to their BaseLockssRepository context.
-*   Introduced LockssRepositorySubsystem interface for subsystems (currently index
-    and data store) of BaseLockssRepository.
-    
+* `WarcArtifactDataStore` and its subclasses were refactored so that they channel 
+    their access to subsystems (e.g., index) through their BaseLockssRepository context.
+* Introduced `LockssRepositorySubsystem` interface for subsystems (currently index
+    and data store) of `BaseLockssRepository`.
+* Numerous performances improvements to `SolrArtifactIndex` through control over
+  when Solr performs soft and hard commits. Introduced `SolrCommitJournal` to record Solr
+  updates and replay them if necessary.
+
 ### Fixes
 
-*   Re-enabled the resumption and processing of artifacts from temporary WARCs upon 
-    WarcArtifactDataStore startup.
+* Re-enabled the resumption and processing of artifacts from temporary WARCs upon 
+  `WarcArtifactDataStore` startup.
+* Adjusted (and removed unnecessary) synchronization through the Repository service to
+  improve performance and avoid a deadlock.
 
 ## Changes Since 2.0.14.0
 
