@@ -32,7 +32,9 @@ package org.lockss.laaws.rs.io.index.solr;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
-import org.junit.jupiter.api.AfterEach;
+import org.apache.solr.core.CoreContainer;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndexTest;
 import org.lockss.log.L4JLogger;
@@ -56,11 +58,12 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   // * JUNIT LIFECYCLE
   // *******************************************************************************************************************
 
-  /*
   @BeforeAll
   protected static void startEmbeddedSolrServer() throws IOException {
-    // Create a temporary directory to hold a copy of the test Solr environment
+    // Create a test Solr home directory and populate it
     tmpSolrHome = FileUtil.createTempDir("testSolrHome", null);
+    log.trace("tmpSolrHome = {}", tmpSolrHome);
+    copyResourcesForTests(TEST_SOLR_HOME_RESOURCES, tmpSolrHome.toPath());
 
     // Start EmbeddedSolrServer
     client = new EmbeddedSolrServer(tmpSolrHome.toPath(), TEST_SOLR_CORE_NAME);
@@ -74,11 +77,27 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     // Remove the temporary test Solr environment
     FileUtil.delTree(tmpSolrHome);
   }
-  */
 
-  private void copyResourcesForTests(String filelistRes, Path dstPath) throws IOException {
+  @Override
+  protected SolrArtifactIndex makeArtifactIndex() throws Exception {
+    CoreContainer cc = client.getCoreContainer();
+
+    // NOTE: This replaces the entire content under the Solr home directory. If there
+    // are problems, try replacing only the Solr core.
+    cc.unload(TEST_SOLR_CORE_NAME);
+    FileUtil.delTree(tmpSolrHome);
+    copyResourcesForTests(TEST_SOLR_HOME_RESOURCES, tmpSolrHome.toPath());
+    cc.load();
+    cc.waitForLoadingCore(TEST_SOLR_CORE_NAME, 1000);
+
+    return new SolrArtifactIndex(client, TEST_SOLR_CORE_NAME);
+  }
+
+  private static void copyResourcesForTests(String filelistRes, Path dstPath) throws IOException {
     // Read file list
-    try (InputStream input = getClass().getResourceAsStream(filelistRes)) {
+    try (InputStream input = TestSolrArtifactIndex.class
+        .getResourceAsStream(filelistRes)) {
+
       try (BufferedReader reader = new BufferedReader(new InputStreamReader(input))) {
 
         // Name of resource to load
@@ -87,7 +106,8 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
         // Iterate over resource names from the list and copy each into the target directory
         while ((resourceName = reader.readLine()) != null) {
           // Source resource URL
-          URL srcUrl = getClass().getResource(String.format("/solr/%s", resourceName));
+          URL srcUrl = TestSolrArtifactIndex.class
+              .getResource(String.format("/solr/%s", resourceName));
 
           // Destination file
           File dstFile = dstPath.resolve(resourceName).toFile();
@@ -98,31 +118,6 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
 
       }
     }
-  }
-
-  @Override
-  protected SolrArtifactIndex makeArtifactIndex() throws Exception {
-    // Create a temporary directory to hold a copy of the test Solr environment
-    tmpSolrHome = getTempDir();
-
-    log.trace("tmpSolrHome = {}", tmpSolrHome);
-
-    // TODO Use a LocalSolrCoreAdmin to create the core programmatically
-    copyResourcesForTests(TEST_SOLR_HOME_RESOURCES, tmpSolrHome.toPath());
-
-    // TODO May be faster to use one EmbeddedSolrServer from @BeforeAll then call client.getCoreContainer().reload(...);
-    client = new EmbeddedSolrServer(tmpSolrHome.toPath(), TEST_SOLR_CORE_NAME);
-
-    return new SolrArtifactIndex(client, TEST_SOLR_CORE_NAME);
-  }
-
-  @AfterEach
-  public void removeSolrCollection() throws Exception {
-    // Shutdown the EmbeddedSolrServer
-    client.close();
-
-    // Remove the temporary test Solr environment
-    FileUtil.delTree(tmpSolrHome);
   }
 
   // *******************************************************************************************************************
@@ -140,13 +135,6 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
   @Override
   public void testShutdownIndex() throws Exception {
     // Intentionally left blank; see @AfterEach remoteSolrCollection()
-  }
-
-  @Test
-  @Override
-  public void testWaitReady() throws Exception {
-    removeSolrCollection();
-    super.testWaitReady();
   }
 
   @Test

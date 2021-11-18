@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.index;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -87,17 +88,21 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     index = makeArtifactIndex();
 
     repository = mock(BaseLockssRepository.class);
-    when(repository.getRepositoryStateDir()).thenReturn(getTempDir());
-
     ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+    when(repository.getRepositoryStateDir()).thenReturn(getTempDir());
     when(repository.getScheduledExecutorService()).thenReturn(ses);
-    index.setLockssRepository(repository);
 
+    index.setLockssRepository(repository);
     index.init();
     index.start();
 
     // Invoke before variant steps
     beforeVariant();
+  }
+
+  @AfterEach
+  public void stopArtifactIndex() {
+    index.stop();
   }
 
   // *******************************************************************************************************************
@@ -242,10 +247,10 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactIndex index = makeArtifactIndex();
 
     repository = mock(BaseLockssRepository.class);
-    when(repository.getRepositoryStateDir()).thenReturn(getTempDir());
-
     ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+    when(repository.getRepositoryStateDir()).thenReturn(getTempDir());
     when(repository.getScheduledExecutorService()).thenReturn(ses);
+
     index.setLockssRepository(repository);
 
     // Assert waiting on a deadline that expires immediately results in a TimeoutException thrown
