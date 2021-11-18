@@ -183,22 +183,6 @@ POSSIBILITY OF SUCH DAMAGE.
     </dependency>
 
     <dependency>
-      <groupId>org.netpreserve.commons</groupId>
-      <artifactId>webarchive-commons</artifactId>
-      <version>${version.dependency.webarchive-commons}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>junit</groupId>
-          <artifactId>junit</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>${version.dependency.commons-lang3}</version>
@@ -226,9 +210,19 @@ POSSIBILITY OF SUCH DAMAGE.
     </dependency>
 
     <dependency>
-      <groupId>commons-lang</groupId>
-      <artifactId>commons-lang</artifactId>
-      <version>${version.dependency.commons-lang}</version>
+      <groupId>org.netpreserve.commons</groupId>
+      <artifactId>webarchive-commons</artifactId>
+      <version>${version.dependency.webarchive-commons}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
