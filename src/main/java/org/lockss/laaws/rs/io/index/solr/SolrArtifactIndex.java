@@ -52,6 +52,7 @@ import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.time.TimeUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,7 +75,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   private final static String DEFAULT_COLLECTION_NAME = "lockss-repo";
-  private final static long DEFAULT_SOLR_HARDCOMMIT_INTERVAL = 15000;
+  public final static long DEFAULT_SOLR_HARDCOMMIT_INTERVAL = 15000;
 
   private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
@@ -298,10 +299,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug("Opened Solr journal");
 
     // Schedule hard commits
-    ((BaseLockssRepository) repository).getScheduledExecutorService()
-        .scheduleAtFixedRate(new SolrHardCommitTask(), hardCommitInterval, hardCommitInterval, TimeUnit.MILLISECONDS);
-
-    log.debug("Scheduled Solr hard commits");
+    scheduleHardCommitter();
 
     // Set index state to RUNNING
     setState(ArtifactIndexState.RUNNING);
@@ -367,14 +365,40 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
+   * Arrange for the hard commit task to run once, in
+   * hardCommitInterval ms.
+   */
+  private void scheduleHardCommitter() {
+    ((BaseLockssRepository) repository).getScheduledExecutorService()
+      .schedule(new SolrHardCommitTask(), hardCommitInterval, TimeUnit.MILLISECONDS);
+    log.debug2("Scheduled Solr hard commit in {}",
+               TimeUtil.timeIntervalToString(hardCommitInterval));
+  }
+
+  /**
    * Implementation of {@link Runnable} which performs a Solr hard commit if there have been any
    * soft commits since the last hard commit.
    */
   private class SolrHardCommitTask implements Runnable {
-    private final static long SOLR_STAR_TIME_SLOP = 15000;
+    private final static long SOLR_START_TIME_SLOP = 15000;
 
     @Override
     public void run() {
+      try {
+        checkForSolrRestart();
+
+        // Proceed only if there were any soft commits since the last hard commit
+        if (!hardCommitNeeded) {
+          log.debug2("Skipping Solr hard commit");
+          return;
+        }
+        doHardCommit();
+      } finally {
+        scheduleHardCommitter();
+      }
+    }
+
+    private void checkForSolrRestart() {
       try {
         // Get Solr core status
         CoreAdminResponse response = CoreAdminRequest.getStatus(getSolrCollection(), solrClient);
@@ -387,7 +411,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         }
 
         // Detect if there was a restart
-        if (lastStartTime + SOLR_STAR_TIME_SLOP < startTime) {
+        if (lastStartTime + SOLR_START_TIME_SLOP < startTime) {
           log.warn("Detected a Solr restart");
           lastStartTime = startTime;
 
@@ -404,15 +428,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         }
       } catch (IOException | SolrServerException e) {
         log.error("Could not get Solr uptime", e);
-        return;
       }
+    }
 
-      // Proceed only if there were any soft commits since the last hard commit
-      if (!hardCommitNeeded) {
-        log.debug2("Skipping Solr hard commit");
-        return;
-      }
-
+    private void doHardCommit() {
       log.debug2("Performing Solr hard commit");
 
       try {
@@ -426,6 +445,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         hardCommitNeeded = false;
         handleSolrCommit(true);
       } catch (IOException | SolrServerException e) {
+        // TODO: the entries in lastJournalWriter should be retained
+        // as they haven't been hard committed yet.
         log.error("Could not perform Solr hard commit", e);
       }
     }
