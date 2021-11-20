@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.index.solr;
 
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -51,15 +52,15 @@ import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
 import org.lockss.util.time.TimeUtil;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InterruptedIOException;
+import java.io.*;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -85,6 +86,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Label to describe type of SolrArtifactIndex
    */
   public static String ARTIFACT_INDEX_TYPE = "Solr";
+
+  private static final String SOLR_UPDATE_JOURNAL_NAME = "solr-update-journal.csv";
 
   // TODO: Currently only used for getStorageInfo()
   private static final Pattern SOLR_COLLECTION_ENDPOINT_PATTERN = Pattern.compile("/solr(/(?<collection>[^/]+)?)?$");
@@ -242,7 +245,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   @Override
   public synchronized void init() {
     if (getState() == ArtifactIndexState.STOPPED) {
-
       // Check if Solr core is available
       try {
         CoreAdminResponse response =
@@ -263,7 +265,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
               .resolve("index"); // TODO: Parameterize
 
       // Ensure index state directory exists
-      indexStateDir.toFile().mkdirs();
+      FileUtil.ensureDirExists(indexStateDir.toFile());
+
+      // Ensure Solr update journal directory exists
+      FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
 
       setState(ArtifactIndexState.INITIALIZED);
     }
@@ -280,23 +285,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public synchronized void start() {
-    Path journalPath = getSolrJournalPath();
-    File journalFile = journalPath.toFile();
+    // Replay journal of Solr index updates if it exists
+    replayUpdateJournal();
 
-    // Replay journal of soft commits if it exists
-    if (journalFile.exists() && journalFile.isFile()) {
-      try (SolrCommitJournal.SolrJournalReader journalReader =
-               new SolrCommitJournal.SolrJournalReader(journalPath)) {
-        journalReader.replaySolrJournal(this);
-      } catch (IOException e) {
-        log.error("Could not replay operations from Solr soft commit journal", e);
-        throw new RuntimeException("Could not replay journal", e);
-      }
-    }
-
-    // Start journal of Solr soft commits
-    startJournal();
-    log.debug("Opened Solr journal");
+    // Start journal of Solr index updates
+    startUpdateJournal();
 
     // Schedule hard commits
     scheduleHardCommitter();
@@ -306,30 +299,57 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
+   * Replays all Solr update journal files found under the Solr journal directory.
+   */
+  public void replayUpdateJournal() {
+    File journalDir = getSolrJournalDirectory().toFile();
+
+    File[] journalFiles = journalDir
+        .listFiles((FileFilter) new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + "*"));
+
+    if (journalFiles == null) {
+      throw new RuntimeException("Error searching for journal files");
+    }
+
+    for (File journalFile : journalFiles) {
+      if (journalFile.exists() && journalFile.isFile()) {
+        try (SolrCommitJournal.SolrJournalReader journalReader =
+                 new SolrCommitJournal.SolrJournalReader(journalFile.toPath())) {
+
+          journalReader.replaySolrJournal(this);
+          journalFile.delete();
+
+        } catch (IOException e) {
+          log.error("Could not replay operations from Solr update journal", e);
+          throw new RuntimeException("Could not replay journal", e);
+        }
+      }
+    }
+  }
+
+  /**
    * Returns the path to the journal maintained by this {@link SolrArtifactIndex}.
    *
    * @return A {@link Path} containing the path of the journal.
    */
-  private Path getSolrJournalPath() {
+  private Path getSolrJournalDirectory() {
     return ((BaseLockssRepository) repository)
         .getRepositoryStateDir()
         .toPath()
-        .resolve("index/solr/soft-commit-journal.csv");
+        .resolve("index/solr");
   }
 
   /**
-   * Opens a new journal (using {@link SolrCommitJournal.SolrJournalWriter}) to record the operations made to Solr.
+   * Opens a new journal (using {@link SolrCommitJournal.SolrJournalWriter}) to record updates made to the Solr index.
    */
-  public synchronized void startJournal() {
+  public synchronized void startUpdateJournal() {
     if (solrJournalWriter == null) {
       try {
-        // Get journal path
-        Path journalPath = getSolrJournalPath();
-
-        // Ensure parent directories exist
-        journalPath.getParent().toFile().mkdirs();
+        // Get journal directory and ensure it exists
+        FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
 
         // Start new Solr journal writer
+        Path journalPath = getSolrJournalDirectory().resolve(SOLR_UPDATE_JOURNAL_NAME);
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
       } catch (IOException e) {
         // FIXME: Revisit
@@ -392,6 +412,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
           log.debug2("Skipping Solr hard commit");
           return;
         }
+
         doHardCommit();
       } finally {
         scheduleHardCommitter();
@@ -437,18 +458,28 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       try {
         // Rename existing journal
         SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
-        lastJournalWriter.renameWithSuffix(LAST_JOURNAL_SUFFIX);
-        solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(getSolrJournalPath());
+        lastJournalWriter.renameWithSuffix(timestamp());
+        Path journalPath = getSolrJournalDirectory().resolve(SOLR_UPDATE_JOURNAL_NAME);
+        solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
         lastJournalWriter.close();
 
         // Perform a hard commit
         hardCommitNeeded = false;
         handleSolrCommit(true);
+
+        // Remove old journal files
+        FileFilter filter = new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*");
+        File journalDir = getSolrJournalDirectory().toFile();
+        File[] journalFiles = journalDir.listFiles(filter);
+        Arrays.stream(journalFiles).forEach(File::delete);
       } catch (IOException | SolrServerException e) {
-        // TODO: the entries in lastJournalWriter should be retained
-        // as they haven't been hard committed yet.
         log.error("Could not perform Solr hard commit", e);
       }
+    }
+
+    private String timestamp() {
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+      return formatter.format(Instant.now());
     }
   }
 
