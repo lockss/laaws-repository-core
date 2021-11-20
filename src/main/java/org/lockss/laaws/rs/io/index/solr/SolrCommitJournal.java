@@ -131,7 +131,7 @@ public class SolrCommitJournal {
 //      return builder.toString();
 //    }
 
-    public void logOperation(String artifactId, SolrOperation op, SolrInputDocument doc) throws IOException {
+    public synchronized void logOperation(String artifactId, SolrOperation op, SolrInputDocument doc) throws IOException {
       try {
         // Transform SolrInputDocument to JSON (if one was provided)
         String docJson = (doc == null) ? EMPTY_STRING : toJSON(doc);
