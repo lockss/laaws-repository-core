@@ -350,7 +350,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
 
         // Start new Solr journal writer
-        Path journalPath = getSolrJournalDirectory().resolve(getSolrUpdateJournalName());
+        Path journalPath = getSolrJournalDirectory().resolve(generateSolrUpdateJournalName());
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
       } catch (IOException e) {
         // FIXME: Revisit
@@ -459,7 +459,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       try {
         // Start new journal
         SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
-        Path journalPath = getSolrJournalDirectory().resolve(getSolrUpdateJournalName());
+        Path journalPath = getSolrJournalDirectory().resolve(generateSolrUpdateJournalName());
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
         lastJournalWriter.close();
 
@@ -484,11 +484,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Generates a new Solr update journal name. The journal
+   * Generates a new Solr update journal filename.
    *
-   * @return
+   * @return A {@link String} containing the generated journal filename.
    */
-  private String getSolrUpdateJournalName() {
+  private String generateSolrUpdateJournalName() {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
         .withZone(ZoneOffset.UTC);
     return String.format("%s.%s.csv", SOLR_UPDATE_JOURNAL_NAME, formatter.format(Instant.now()));
