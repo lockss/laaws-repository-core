@@ -32,7 +32,7 @@ package org.lockss.laaws.rs.io.index.solr;
 
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.io.filefilter.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -60,6 +60,7 @@ import java.io.*;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -87,7 +88,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   public static String ARTIFACT_INDEX_TYPE = "Solr";
 
-  private static final String SOLR_UPDATE_JOURNAL_NAME = "solr-update-journal.csv";
+  private static final String SOLR_UPDATE_JOURNAL_NAME = "solr-update-journal";
 
   // TODO: Currently only used for getStorageInfo()
   private static final Pattern SOLR_COLLECTION_ENDPOINT_PATTERN = Pattern.compile("/solr(/(?<collection>[^/]+)?)?$");
@@ -305,7 +306,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     File journalDir = getSolrJournalDirectory().toFile();
 
     File[] journalFiles = journalDir
-        .listFiles((FileFilter) new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + "*"));
+        .listFiles((FileFilter) new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*.csv"));
 
     if (journalFiles == null) {
       throw new RuntimeException("Error searching for journal files");
@@ -349,7 +350,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
 
         // Start new Solr journal writer
-        Path journalPath = getSolrJournalDirectory().resolve(SOLR_UPDATE_JOURNAL_NAME);
+        Path journalPath = getSolrJournalDirectory().resolve(getSolrUpdateJournalName());
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
       } catch (IOException e) {
         // FIXME: Revisit
@@ -456,10 +457,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       log.debug2("Performing Solr hard commit");
 
       try {
-        // Rename existing journal
+        // Start new journal
         SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
-        lastJournalWriter.renameWithSuffix(timestamp());
-        Path journalPath = getSolrJournalDirectory().resolve(SOLR_UPDATE_JOURNAL_NAME);
+        Path journalPath = getSolrJournalDirectory().resolve(getSolrUpdateJournalName());
         solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
         lastJournalWriter.close();
 
@@ -467,8 +467,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         hardCommitNeeded = false;
         handleSolrCommit(true);
 
-        // Remove old journal files
-        FileFilter filter = new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*");
+        // Find all journal files and exclude the active one
+        IOFileFilter journalFileFilter = new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*.csv");
+        IOFileFilter excludeFileFilter =
+            new NotFileFilter(new NameFileFilter(String.valueOf(solrJournalWriter.getJournalPath().getFileName())));
+        FileFilter filter = new AndFileFilter(journalFileFilter, excludeFileFilter);
+
+        // Remove inactive journal files
         File journalDir = getSolrJournalDirectory().toFile();
         File[] journalFiles = journalDir.listFiles(filter);
         Arrays.stream(journalFiles).forEach(File::delete);
@@ -476,14 +481,18 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         log.error("Could not perform Solr hard commit", e);
       }
     }
-
-    private String timestamp() {
-      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-      return formatter.format(Instant.now());
-    }
   }
 
-  final static String LAST_JOURNAL_SUFFIX = "last";
+  /**
+   * Generates a new Solr update journal name. The journal
+   *
+   * @return
+   */
+  private String getSolrUpdateJournalName() {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+        .withZone(ZoneOffset.UTC);
+    return String.format("%s.%s.csv", SOLR_UPDATE_JOURNAL_NAME, formatter.format(Instant.now()));
+  }
 
   /**
    * Returns information about the storage size and free space.
