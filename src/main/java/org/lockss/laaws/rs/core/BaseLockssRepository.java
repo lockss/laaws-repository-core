@@ -167,11 +167,11 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     index.init();
     store.init();
 
+    index.start();
+
     // Re-index artifacts in the data store if needed
     reindexArtifactsIfNeeded();
 
-    // Start the index and data store
-    index.start();
     store.start();
   }
 
