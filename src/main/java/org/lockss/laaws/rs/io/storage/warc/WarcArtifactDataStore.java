@@ -1809,7 +1809,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.trace("artifact = {}", artifact);
 
     // Acquire artifact lock
-    lockArtifact(artifact.getIdentifier());
+    lockArtifact(artifactId);
 
     try {
       // Determine what action to take based on the state of the artifact
@@ -1869,7 +1869,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // This should never happen since storage URLs are internal
       throw new IllegalStateException(e);
     } finally {
-      releaseArtifactLock(artifact.getIdentifier());
+      releaseArtifactLock(artifactId);
     }
   }
 
