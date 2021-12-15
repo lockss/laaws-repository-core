@@ -45,6 +45,7 @@ import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
@@ -246,10 +247,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   @Override
   public synchronized void init() {
     if (getState() == ArtifactIndexState.STOPPED) {
-      // Check if Solr core is available
       try {
-        CoreAdminResponse response =
-            CoreAdminRequest.getStatus(getSolrCollection(), solrClient);
+        // Check if Solr core is available
+        CoreAdminRequest req = new CoreAdminRequest();
+        req.setCoreName(getSolrCollection());
+        req.setAction(CoreAdminParams.CoreAdminAction.STATUS);
+        addSolrCredentials(req);
+        CoreAdminResponse response = req.process(solrClient);
 
         if (response.getCoreStatus(getSolrCollection()).size() <= 0) {
           log.error("Solr core or collection not found");

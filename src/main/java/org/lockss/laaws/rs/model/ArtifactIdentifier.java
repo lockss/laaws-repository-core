@@ -145,6 +145,11 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
        return other != null && this.compareTo(other) == 0;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(collection, auid, uri, version);
+    }
+
     /**
      *
      * @return
