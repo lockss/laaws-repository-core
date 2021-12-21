@@ -45,14 +45,16 @@ public class LocalLockssRepository extends BaseLockssRepository {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   /**
-   * Constructor which takes a base path and name of the local index to persist to disk.
+   * Constructor which takes a content base path and name of the locally persisted index.
    *
+   * @param repoStateDir       A {@link File} to the directory containing this repository's state.
    * @param basePath           A {@link File} containing the base path of this LOCKSS repository.
    * @param persistedIndexName A {@link String} with the name of the file where to persist the index.
    */
-  public LocalLockssRepository(File basePath, String persistedIndexName) throws IOException {
-    index = new LocalArtifactIndex(basePath, persistedIndexName);
-    store = new LocalWarcArtifactDataStore(index, new File[]{basePath});
+  public LocalLockssRepository(File repoStateDir, File basePath, String persistedIndexName) throws IOException {
+    super(repoStateDir,
+        new LocalArtifactIndex(basePath, persistedIndexName),
+        new LocalWarcArtifactDataStore(new File[]{basePath}));
   }
 
   /**
@@ -60,34 +62,37 @@ public class LocalLockssRepository extends BaseLockssRepository {
    * <p>
    * Note: The local index is persisted to the first base path.
    *
+   * @param repoStateDir       A {@link File} to the directory containing this repository's state.
    * @param basePaths          An array of {@link File} containing the base paths of this LOCKSS repository.
    * @param persistedIndexName A {@link String} with the name of the file where to persist the index.
    * @throws IOException
    */
-  public LocalLockssRepository(File[] basePaths, String persistedIndexName) throws IOException {
-    // FIXME: Keeping the persisted LocalArtifactIndex on the first base path
-    index = new LocalArtifactIndex(basePaths[0], persistedIndexName);
-    store = new LocalWarcArtifactDataStore(index, basePaths);
+  public LocalLockssRepository(File repoStateDir, File[] basePaths, String persistedIndexName) throws IOException {
+    super(repoStateDir,
+        new LocalArtifactIndex(basePaths[0], persistedIndexName),
+        new LocalWarcArtifactDataStore(basePaths));
   }
 
   /**
    * Constructor which takes a local filesystem base path, and an instance of an ArtifactIndex implementation.
    *
+   * @param repoStateDir       A {@link File} to the directory containing this repository's state.
    * @param index    An {@link ArtifactIndex} to use as this repository's artifact index.
    * @param basePath A {@link File} containing the base path of this LOCKSS repository.
    */
-  public LocalLockssRepository(ArtifactIndex index, File basePath) throws IOException {
-    super(index, new LocalWarcArtifactDataStore(index, new File[]{basePath}));
+  public LocalLockssRepository(File repoStateDir, ArtifactIndex index, File basePath) throws IOException {
+    super(repoStateDir, index, new LocalWarcArtifactDataStore(new File[]{basePath}));
   }
 
   /**
    * Constructor which takes a local filesystem base paths, and an instance of an ArtifactIndex implementation.
    *
+   * @param repoStateDir       A {@link File} to the directory containing this repository's state.
    * @param index     An {@link ArtifactIndex} to use as this repository's artifact index.
    * @param basePaths An array of {@link File} containing the base path of this LOCKSS repository.
    * @throws IOException
    */
-  public LocalLockssRepository(ArtifactIndex index, File[] basePaths) throws IOException {
-    super(index, new LocalWarcArtifactDataStore(index, basePaths));
+  public LocalLockssRepository(File repoStateDir, ArtifactIndex index, File[] basePaths) throws IOException {
+    super(repoStateDir, index, new LocalWarcArtifactDataStore(basePaths));
   }
 }

@@ -769,7 +769,9 @@ public class RestLockssRepository implements LockssRepository {
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix,
+                                                                ArtifactVersions versions) throws IOException {
+
     if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");
     }
@@ -777,7 +779,8 @@ public class RestLockssRepository implements LockssRepository {
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("urlPrefix", prefix);
+        .queryParam("urlPrefix", prefix)
+        .queryParam("versions", versions);
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
@@ -812,7 +815,7 @@ public class RestLockssRepository implements LockssRepository {
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions) throws IOException {
     if (collection == null || url == null) {
       throw new IllegalArgumentException("Null collection id or url");
     }
@@ -820,7 +823,8 @@ public class RestLockssRepository implements LockssRepository {
     String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("url", url);
+        .queryParam("url", url)
+        .queryParam("versions", versions);
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }

@@ -32,7 +32,6 @@ package org.lockss.laaws.rs.io.storage.local;
 
 import org.apache.commons.io.FileUtils;
 import org.archive.format.warc.WARCConstants;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
 import org.lockss.laaws.rs.model.CollectionAuidPair;
@@ -64,24 +63,22 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   // * CONSTRUCTORS
   // *******************************************************************************************************************
 
-  public LocalWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
-    this(index, new File[]{basePath});
+  public LocalWarcArtifactDataStore(File basePath) throws IOException {
+    this(new File[]{basePath});
   }
 
-  public LocalWarcArtifactDataStore(ArtifactIndex index, File[] basePath) throws IOException {
-    this(index, Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
+  public LocalWarcArtifactDataStore(File[] basePath) throws IOException {
+    this(Arrays.stream(basePath).map(File::toPath).toArray(Path[]::new));
   }
 
-  public LocalWarcArtifactDataStore(ArtifactIndex index, Path basePaths) throws IOException {
-    this(index, new Path[]{basePaths});
+  public LocalWarcArtifactDataStore(Path basePaths) throws IOException {
+    this(new Path[]{basePaths});
   }
 
   /**
    * Constructor. Rebuilds the index on start-up from a given repository base path, if using a volatile index.
    */
-  public LocalWarcArtifactDataStore(ArtifactIndex index, Path[] basePaths) throws IOException {
-    super(index);
-
+  public LocalWarcArtifactDataStore(Path[] basePaths) throws IOException {
     log.debug2("Starting local WARC artifact data store [basePaths: {}]", basePaths);
 
     // Set local base paths
@@ -243,16 +240,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     return dataStoreState != DataStoreState.STOPPED;
   }
 
-  @Override
-  public void initDataStore() {
-    // Sets the data store state to INITIALIZING and schedules
-    // the temporary WARC garbage collector
-    super.initDataStore();
-
-    // Schedule asynchronous data store reload operations
-    stripedExecutor.submit(new ReloadDataStoreStateTask());
-  }
-
   /**
    * Recursively finds artifact WARC files under a given base path.
    *
@@ -366,57 +353,53 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public StorageInfo getStorageInfo() {
-    try {
-      // Build a StorageInfo
-      StorageInfo sum = new StorageInfo(ARTIFACT_DATASTORE_TYPE);
-      Map<String,PlatformUtil.DF> mnts = new LinkedHashMap<>(); 
-      List<StorageInfo> basePathSis = new ArrayList<>();
-      PlatformUtil putil = PlatformUtil.getInstance();
+    // Build a StorageInfo
+    StorageInfo sum = new StorageInfo(ARTIFACT_DATASTORE_TYPE);
+    Map<String,PlatformUtil.DF> mnts = new LinkedHashMap<>();
+    List<StorageInfo> basePathSis = new ArrayList<>();
+    PlatformUtil putil = PlatformUtil.getInstance();
 
-      // Report the sum of the DF for each distinct mount point, include as
-      // components all the base paths (even if they're have the same mount
-      // point, as it's handy for testing)
-      for (Path basePath : getBasePaths()) {
-        PlatformUtil.DF df = putil.getDF(basePath.toString());
-        if (df != null) {
-          mnts.put(df.getMnt(), df);
-	  StorageInfo si = StorageInfo.fromDF(df);
-	  si.setPath(basePath.toString());
-	  basePathSis.add(si);
-	}
-      }
-      PlatformUtil.DF oneDF = null;
-      // Compute sum of DFs
-      for (PlatformUtil.DF df : mnts.values()) {
-	oneDF = df;
-	sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
-	sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
-	sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
-      }
-
-      // Set one-time StorageInfo fields
-      sum.setName(String.join(",", mnts.keySet()));
-      if (mnts.size() == 1) {
-	// If only one, use percentages returns by DF
-	sum.setPercentUsed(oneDF.getPercent());
-	sum.setPercentUsedString(oneDF.getPercentString());
-      } else {
-	// Compute percent used as 1.0 - avail / size, as some FSs have a
-	// "full" threshold that's lower than the total size
-	sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
-	sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
-							   sum.getPercentUsed())) + "%");
-      }
-      if (basePathSis.size() > 1) {
-	sum.setComponents(basePathSis);
-      } else {
-	sum.setPath(basePathSis.get(0).getPath());
-      }
-      // Return the sum
-      return sum;
-
-    } catch (PlatformUtil.UnsupportedException e) {
-      throw new UnsupportedOperationException("Can't get WarcArtifactDataStore info", e);
+    // Report the sum of the DF for each distinct mount point, include as
+    // components all the base paths (even if they're have the same mount
+    // point, as it's handy for testing)
+    for (Path basePath : getBasePaths()) {
+      PlatformUtil.DF df = putil.getDF(basePath.toString());
+      if (df != null) {
+        mnts.put(df.getMnt(), df);
+  StorageInfo si = StorageInfo.fromDF(df);
+  si.setPath(basePath.toString());
+  basePathSis.add(si);
+}
     }
+    PlatformUtil.DF oneDF = null;
+    // Compute sum of DFs
+    for (PlatformUtil.DF df : mnts.values()) {
+oneDF = df;
+sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
+sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
+sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
+    }
+
+    // Set one-time StorageInfo fields
+    sum.setName(String.join(",", mnts.keySet()));
+    if (mnts.size() == 1) {
+// If only one, use percentages returns by DF
+sum.setPercentUsed(oneDF.getPercent());
+sum.setPercentUsedString(oneDF.getPercentString());
+    } else {
+// Compute percent used as 1.0 - avail / size, as some FSs have a
+// "full" threshold that's lower than the total size
+sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
+sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
+               sum.getPercentUsed())) + "%");
+    }
+    if (basePathSis.size() > 1) {
+sum.setComponents(basePathSis);
+    } else {
+sum.setPath(basePathSis.get(0).getPath());
+    }
+    // Return the sum
+    return sum;
+
   }
 }

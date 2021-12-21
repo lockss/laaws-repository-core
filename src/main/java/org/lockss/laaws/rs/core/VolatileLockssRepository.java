@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.core;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.VolatileWarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
+import org.lockss.util.io.FileUtil;
 
 import java.io.IOException;
 
@@ -55,8 +56,12 @@ public class VolatileLockssRepository extends BaseLockssRepository {
    * @throws IOException
    */
   public VolatileLockssRepository(boolean useWarcCompression) throws IOException {
-    index = new VolatileArtifactIndex();
-    store = new VolatileWarcArtifactDataStore(index);
+    super(new VolatileArtifactIndex(), new VolatileWarcArtifactDataStore());
+
+    // Set compression use
     ((WarcArtifactDataStore)store).setUseWarcCompression(useWarcCompression);
+
+    // Create a temporary repository state directory
+    setRepositoryStateDir(FileUtil.createTempDir("state", null));
   }
 }

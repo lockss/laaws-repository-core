@@ -68,9 +68,8 @@ public class ArtifactDataUtil {
      * @throws HttpException
      */
     public static InputStream getHttpResponseStreamFromArtifactData(ArtifactData artifactData) throws IOException {
-        InputStream httpResponse = getHttpResponseStreamFromHttpResponse(
-                getHttpResponseFromArtifactData(artifactData)
-        );
+        InputStream httpResponse =
+            getHttpResponseStreamFromHttpResponse(getHttpResponseFromArtifactData(artifactData));
 
 	// getBytesRead() hasn't been computed yet
 //         artifactData.setContentLength(artifactData.getBytesRead());
@@ -86,8 +85,8 @@ public class ArtifactDataUtil {
      * This is effectively the inverse operation of {@code ArtifactDataFactory#fromHttpResponse(HttpResponse)}.
      *
      * @param artifactData
-     *          An {@code ArtifactData} to to transform to an HttpResponse object.
-     * @return An {@code HttpResponse} object containing a representation of the artifact.
+     *          An {@link ArtifactData} to transform to an HttpResponse object.
+     * @return An {@link HttpResponse} object containing a representation of the artifact.
      * @throws HttpException
      * @throws IOException
      */
@@ -153,25 +152,28 @@ public class ArtifactDataUtil {
     public static InputStream getHttpResponseStreamFromHttpResponse(HttpResponse response) throws IOException {
         // Return the concatenation of the header and content streams
         return new SequenceInputStream(
-                new ByteArrayInputStream(getHttpResponseHeader(response)),
-                response.getEntity().getContent()
+            new ByteArrayInputStream(getHttpResponseHeader(response)),
+            response.getEntity().getContent()
         );
     }
 
     public static byte[] getHttpResponseHeader(HttpResponse response) throws IOException {
-        UnsynchronizedByteArrayOutputStream headerStream = new UnsynchronizedByteArrayOutputStream();
+        try (UnsynchronizedByteArrayOutputStream headerStream = new UnsynchronizedByteArrayOutputStream()) {
 
-        // Create a new SessionOutputBuffer from the OutputStream
-        SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
-        outputBuffer.bind(headerStream);
+            // Create a new SessionOutputBuffer from the OutputStream
+            SessionOutputBufferImpl outputBuffer =
+                new SessionOutputBufferImpl(new HttpTransportMetricsImpl(), 4096);
 
-        // Write the HTTP response header
-        writeHttpResponseHeader(response, outputBuffer);
+            outputBuffer.bind(headerStream);
 
-        // Flush anything remaining in the buffer
-        outputBuffer.flush();
+            // Write the HTTP response header
+            writeHttpResponseHeader(response, outputBuffer);
 
-        return headerStream.toByteArray();
+            // Flush anything remaining in the buffer
+            outputBuffer.flush();
+
+            return headerStream.toByteArray();
+        }
     }
 
     /**

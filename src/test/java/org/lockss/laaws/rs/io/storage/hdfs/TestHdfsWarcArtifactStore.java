@@ -36,6 +36,7 @@ import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
@@ -116,16 +117,30 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     assertNotNull(hdfsCluster);
 
-    return new HdfsWarcArtifactDataStore(
-        index,
-        hdfsCluster.getFileSystem(),
-        basePath
-    );
+    HdfsWarcArtifactDataStore ds =
+        new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), basePath);
+
+    // Mock getArtifactIndex() called by data store
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getArtifactIndex()).thenReturn(index);
+    ds.setLockssRepository(repo);
+
+    return ds;
   }
 
   @Override
-  protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, HdfsWarcArtifactDataStore other) throws IOException {
-    return new HdfsWarcArtifactDataStore(index, hdfsCluster.getFileSystem(), other.getBasePaths()[0]);
+  protected HdfsWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, HdfsWarcArtifactDataStore other)
+      throws IOException {
+
+    HdfsWarcArtifactDataStore ds =
+        new HdfsWarcArtifactDataStore(hdfsCluster.getFileSystem(), other.getBasePaths()[0]);
+
+    // Mock getArtifactIndex() called by data store
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getArtifactIndex()).thenReturn(index);
+    ds.setLockssRepository(repo);
+
+    return ds;
   }
 
   // *******************************************************************************************************************
@@ -182,7 +197,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link HdfsWarcArtifactDataStore#initDataStore()}.
+   * Test for {@link HdfsWarcArtifactDataStore#init()}.
    *
    * @throws Exception
    */
@@ -192,10 +207,10 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).initDataStore();
+    doCallRealMethod().when(ds).init();
 
     // Initialize data store
-    ds.initDataStore();
+    ds.init();
 
     // FIXME: Method access not permissive enough (protected) - why?
 //    verify(ds).reloadDataStoreState();
@@ -322,6 +337,7 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     // Mock behavior
     doCallRealMethod().when(ds).initWarc(warcPath);
+    doCallRealMethod().when(ds).initFile(warcPath);
     when(ds.getAppendableOutputStream(warcPath)).thenReturn(output);
     when(warcPath.toString()).thenReturn("test");
 

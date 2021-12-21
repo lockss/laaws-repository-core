@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.io.storage.local;
 
 import org.archive.format.warc.WARCConstants;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
@@ -69,14 +70,30 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     testRepoBasePath = getTempDir();
     testRepoBasePath.mkdirs();
 
-    return new LocalWarcArtifactDataStore(index, new File[]{testRepoBasePath});
+    LocalWarcArtifactDataStore ds =
+        new LocalWarcArtifactDataStore(new File[]{testRepoBasePath});
+
+    // Mock getArtifactIndex() called by data store
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getArtifactIndex()).thenReturn(index);
+    ds.setLockssRepository(repo);
+
+    return ds;
   }
 
   @Override
   protected LocalWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, LocalWarcArtifactDataStore other)
       throws IOException {
 
-    return new LocalWarcArtifactDataStore(index, other.getBasePaths());
+    LocalWarcArtifactDataStore ds =
+        new LocalWarcArtifactDataStore(other.getBasePaths());
+
+    // Mock getArtifactIndex() called by data store
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getArtifactIndex()).thenReturn(index);
+    ds.setLockssRepository(repo);
+
+    return ds;
   }
 
   // *******************************************************************************************************************

@@ -82,9 +82,12 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         }
     }
 
+    /**
+     * Overrides {@link VolatileArtifactIndex#stop()} to persist map to disk.
+     */
     @Override
-    public void shutdownIndex() {
-        super.shutdownIndex();
+    public void stop() {
+        super.stop();
 
         // Persist index one last time
         persist();
@@ -100,17 +103,12 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
       if (persistedIndex == null) {
 	return super.getStorageInfo();
       }
-      try {
-	// Mustn't use persistedIndex filename as it mightn't have been
-	// created yet.  The parent directory is required to already exist.
-	String parentDir = persistedIndex.getParent();
-	return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir))
-	  .setType(ARTIFACT_INDEX_TYPE)
-	  .setPath(persistedIndex.toString());
-      } catch (PlatformUtil.UnsupportedException e) {
-	throw new UnsupportedOperationException("Can't get index StorageInfo",
-						e);
-      }
+        // Mustn't use persistedIndex filename as it mightn't have been
+        // created yet.  The parent directory is required to already exist.
+        String parentDir = persistedIndex.getParent();
+        return StorageInfo.fromDF(PlatformUtil.getInstance().getDF(parentDir))
+          .setType(ARTIFACT_INDEX_TYPE)
+          .setPath(persistedIndex.toString());
     }
 
     /**
@@ -122,11 +120,13 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
      *          An Artifact with the artifact to be added.
      */
     @Override
-    protected synchronized void addToIndex(String id, Artifact artifact) {
-        super.addToIndex(id, artifact);
+    protected void addToIndex(String id, Artifact artifact) {
+      synchronized (index) {
+          super.addToIndex(id, artifact);
 
-        // Persist the just modified index.
-        persist();
+          // Persist the just modified index.
+          persist();
+      }
     }
 
     /**
@@ -138,12 +138,14 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
      *         index.
      */
     @Override
-    protected synchronized Artifact removeFromIndex(String id) {
-        Artifact artifact = super.removeFromIndex(id);
+    protected Artifact removeFromIndex(String id) {
+      synchronized (index) {
+          Artifact artifact = super.removeFromIndex(id);
 
-        // Persist the just modified index.
-        persist();
-        return artifact;
+          // Persist the just modified index.
+          persist();
+          return artifact;
+      }
     }
 
     /**

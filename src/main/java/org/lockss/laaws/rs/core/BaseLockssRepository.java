@@ -39,19 +39,31 @@ import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.http.HttpHeaders;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base implementation of the LOCKSS Repository service.
  */
-public class BaseLockssRepository implements LockssRepository,
-					     JmsFactorySource {
+public class BaseLockssRepository implements LockssRepository, JmsFactorySource {
+
   private final static L4JLogger log = L4JLogger.getLogger();
+
+  private File repoStateDir;
 
   protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;
   protected ArtifactIndex index;
   protected JmsFactory jmsFact;
+
+  protected ScheduledExecutorService scheduledExecutor;
 
   /**
    * Create a LOCKSS repository with the provided artifact index and storage layers.
@@ -59,31 +71,119 @@ public class BaseLockssRepository implements LockssRepository,
    * @param index An instance of {@code ArtifactIndex}.
    * @param store An instance of {@code ArtifactDataStore}.
    */
-  public BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) throws IOException {
+  protected BaseLockssRepository(ArtifactIndex index, ArtifactDataStore store) {
     if (index == null || store == null) {
       throw new IllegalArgumentException("Cannot start repository with a null artifact index or store");
     }
 
-    this.index = index;
-    this.store = store;
+    setArtifactIndex(index);
+    setArtifactDataStore(store);
   }
 
   /** No-arg constructor for subclasses */
   protected BaseLockssRepository() throws IOException {
   }
 
+  /**
+   * Constructor.
+   *
+   * @param repoStateDir A {@link Path} containing the path to the state of this repository.
+   * @param index An instance of {@link ArtifactIndex}.
+   * @param store An instance of {@link ArtifactDataStore}.
+   * @param store
+   */
+  public BaseLockssRepository(File repoStateDir, ArtifactIndex index, ArtifactDataStore store) {
+    this(index, store);
+    setRepositoryStateDir(repoStateDir);
+  }
+
+  /**
+   * Getter for the repository state directory.
+   *
+   * @return A {@link File} containing the path to the repository state directory.
+   */
+  public File getRepositoryStateDir() {
+    return repoStateDir;
+  }
+
+  /**
+   * Setter for the repository state directory.
+   *
+   * @param dir A {@link File} containing the path to the repository state directory.
+   */
+  protected void setRepositoryStateDir(File dir) {
+    repoStateDir = dir;
+  }
+
+  /**
+   * Triggers a re-index of all artifacts in the data store into the index if the
+   * reindex state file is present.
+   *
+   * @throws IOException
+   */
+  public void reindexArtifactsIfNeeded() throws IOException {
+    if (repoStateDir == null) {
+      log.warn("Repository state directory has not been set");
+      throw new IllegalStateException("Repository state directory has not been set");
+    }
+
+    // Path to reindex state file
+    Path reindexStatePath = repoStateDir.toPath().resolve("index/reindex");
+    File reindexStateFile = reindexStatePath.toFile();
+
+    if (reindexStateFile.exists()) {
+      // Reindex artifacts in this data store to the index
+      store.reindexArtifacts(index);
+
+      // Disable future reindexing by renaming reindex state file if there were no errors
+      // (i.e., successfully processed all WARCs under this base directory). Old reindex
+      // state files are kept to aid debugging / auditing.
+      DateTimeFormatter formatter = DateTimeFormatter.BASIC_ISO_DATE
+          .withZone(ZoneOffset.UTC);
+
+      Path withSuffix = reindexStatePath
+          .resolveSibling(reindexStatePath.getFileName() + "." + formatter.format(Instant.now()));
+
+      // Remove by renaming with the suffix compute above
+      if (!reindexStateFile.renameTo(withSuffix.toFile())) {
+        log.error("Could not remove reindex state file");
+        throw new IllegalStateException("Could not remove reindex state file");
+      }
+    }
+  }
+
+  public ScheduledExecutorService getScheduledExecutorService() {
+    return scheduledExecutor;
+  }
+
   @Override
   public void initRepository() throws IOException {
     log.info("Initializing repository");
-    index.initIndex();
-    store.initDataStore();
+
+    // Start executor
+    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+
+    // Initialize the index and data store
+    index.init();
+    store.init();
+
+    index.start();
+
+    // Re-index artifacts in the data store if needed
+    reindexArtifactsIfNeeded();
+
+    store.start();
   }
 
   @Override
   public void shutdownRepository() throws InterruptedException {
     log.info("Shutting down repository");
-    index.shutdownIndex();
-    store.shutdownDataStore();
+
+    index.stop();
+    store.stop();
+
+    scheduledExecutor.shutdown();
+    scheduledExecutor.awaitTermination(1, TimeUnit.MINUTES);
   }
 
   /** JmsFactorySource method to store a JmsFactory for use by (a user of)
@@ -231,24 +331,22 @@ public class BaseLockssRepository implements LockssRepository,
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    synchronized (index) {
-      // Get artifact as it is currently
-      Artifact artifact = index.getArtifact(artifactId);
+    // Get artifact as it is currently
+    Artifact artifact = index.getArtifact(artifactId);
 
-      if (artifact == null) {
-	throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						  + artifactId);
-      }
-
-      if (!artifact.getCommitted()) {
-        // Commit artifact in data store and index
-        store.commitArtifactData(artifact);
-        index.commitArtifact(artifactId);
-        artifact.setCommitted(true);
-      }
-
-      return artifact;
+    if (artifact == null) {
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
     }
+
+    if (!artifact.getCommitted()) {
+      // Commit artifact in data store and index
+      store.commitArtifactData(artifact);
+      index.commitArtifact(artifactId);
+      artifact.setCommitted(true);
+    }
+
+    return artifact;
   }
 
   /**
@@ -263,17 +361,15 @@ public class BaseLockssRepository implements LockssRepository,
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    synchronized (index) {
-      Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactId);
 
-      if (artifact == null) {
-        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						  + artifactId);
-      }
-
-      // Remove from index and data store
-      store.deleteArtifactData(artifact);
+    if (artifact == null) {
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
     }
+
+    // Remove from index and data store
+    store.deleteArtifactData(artifact);
   }
 
   /**
@@ -288,16 +384,14 @@ public class BaseLockssRepository implements LockssRepository,
       throw new IllegalArgumentException("Null collection id or artifact id");
     }
 
-    synchronized (index) {
-      Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactId);
 
-      if (artifact == null) {
-        throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-						  + artifactId);
-      }
-
-      return artifact.getCommitted();
+    if (artifact == null) {
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
+          + artifactId);
     }
+
+    return artifact.getCommitted();
   }
 
   /**
@@ -403,16 +497,20 @@ public class BaseLockssRepository implements LockssRepository,
    *
    * @param collection A String with the collection identifier.
    * @param prefix     A String with the URL prefix.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix,
+                                                                ArtifactVersions versions) throws IOException {
+
     if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");
     }
 
-    return index.getArtifactsWithPrefixAllVersionsAllAus(collection, prefix);
+    return index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, versions);
   }
 
   /**
@@ -438,15 +536,19 @@ public class BaseLockssRepository implements LockssRepository,
    *
    * @param collection A {@code String} with the collection identifier.
    * @param url        A {@code String} with the URL to be matched.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions)
+      throws IOException {
+
     if (collection == null || url == null) {
       throw new IllegalArgumentException("Null collection id or url");
     }
 
-    return index.getArtifactsAllVersionsAllAus(collection, url);
+    return index.getArtifactsWithUrlFromAllAus(collection, url, versions);
   }
 
   /**
@@ -486,7 +588,7 @@ public class BaseLockssRepository implements LockssRepository,
     }
 
     return index.getArtifactVersion(collection, auid, url, version,
-	includeUncommitted);
+        includeUncommitted);
   }
 
   /**
@@ -515,5 +617,23 @@ public class BaseLockssRepository implements LockssRepository,
   @Override
   public boolean isReady() {
     return store.isReady() && index.isReady();
+  }
+
+  public void setArtifactIndex(ArtifactIndex index) {
+    this.index = index;
+    index.setLockssRepository(this);
+  }
+
+  public ArtifactIndex getArtifactIndex() {
+    return index;
+  }
+
+  public void setArtifactDataStore(ArtifactDataStore store) {
+    this.store = store;
+    store.setLockssRepository(this);
+  }
+
+  public ArtifactDataStore getArtifactDataStore() {
+    return store;
   }
 }

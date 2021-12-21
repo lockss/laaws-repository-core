@@ -30,11 +30,11 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PatternIntMap;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 
 /**
@@ -45,23 +45,23 @@ public class TestingWarcArtifactDataStore extends LocalWarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
   private PatternIntMap freeSpacePatternMap;
 
-  public TestingWarcArtifactDataStore(ArtifactIndex index, File basePath) throws IOException {
-    super(index, basePath);
+  public TestingWarcArtifactDataStore(File basePath) throws IOException {
+    super(basePath);
   }
 
-  public TestingWarcArtifactDataStore(ArtifactIndex index, File[] basePath)
+  public TestingWarcArtifactDataStore(File[] basePath)
       throws IOException {
-    super(index, basePath);
+    super(basePath);
   }
 
-  public TestingWarcArtifactDataStore(ArtifactIndex index, Path basePaths)
+  public TestingWarcArtifactDataStore(Path basePaths)
       throws IOException {
-    super(index, basePaths);
+    super(basePaths);
   }
 
-  public TestingWarcArtifactDataStore(ArtifactIndex index, Path[] basePaths)
+  public TestingWarcArtifactDataStore(Path[] basePaths)
       throws IOException {
-    super(index, basePaths);
+    super(basePaths);
   }
 
   @Override

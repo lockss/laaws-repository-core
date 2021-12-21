@@ -32,33 +32,44 @@ package org.lockss.laaws.rs.io.index.solr;
 
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.io.filefilter.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.*;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.util.NamedList;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.time.TimeUtil;
 
-import java.io.IOException;
-import java.io.InterruptedIOException;
+import java.io.*;
 import java.net.URI;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * An Apache Solr implementation of ArtifactIndex.
@@ -67,6 +78,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   private final static String DEFAULT_COLLECTION_NAME = "lockss-repo";
+  public final static long DEFAULT_SOLR_HARDCOMMIT_INTERVAL = 15000;
 
   private static final SolrQuery.SortClause SORTURI_ASC = new SolrQuery.SortClause("sortUri", SolrQuery.ORDER.asc);
   private static final SolrQuery.SortClause VERSION_DESC = new SolrQuery.SortClause("version", SolrQuery.ORDER.desc);
@@ -76,6 +88,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Label to describe type of SolrArtifactIndex
    */
   public static String ARTIFACT_INDEX_TYPE = "Solr";
+
+  private static final String SOLR_UPDATE_JOURNAL_NAME = "solr-update-journal";
 
   // TODO: Currently only used for getStorageInfo()
   private static final Pattern SOLR_COLLECTION_ENDPOINT_PATTERN = Pattern.compile("/solr(/(?<collection>[^/]+)?)?$");
@@ -107,6 +121,27 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
 
   /**
+   * Handle to Solr soft commit journal writer.
+   */
+  private SolrCommitJournal.SolrJournalWriter solrJournalWriter;
+
+  /**
+   * An internal {@code boolean} indicating whether a hard commit is needed.
+   */
+  private volatile boolean hardCommitNeeded = false;
+
+  /**
+   * Last start time seen of the remote Solr index. Used to determine whether
+   * Solr has restarted since.
+   */
+  private static long lastStartTime;
+
+  /**
+   * Interval (in ms) between Solr hard commits performed by {@link SolrHardCommitTask}.
+   */
+  long hardCommitInterval = DEFAULT_SOLR_HARDCOMMIT_INTERVAL;
+
+  /**
    * Constructor. Creates and uses an internal {@link HttpSolrClient} from the provided Solr collection endpoint.
    *
    * @param solrBaseUrl A {@link String} containing the URL to a Solr collection or core.
@@ -130,6 +165,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     this(solrBaseUrl, collection, null);
   }
 
+  /**
+   * Constructor.
+   *
+   * @param solrBaseUrl A {@link String} containing the Solr base URL.
+   * @param collection  @ {@link String} containing the name of the Solr collection to use.
+   * @param solrCredentials A {@link List<String>} containing the username and password for Solr.
+   */
   public SolrArtifactIndex(String solrBaseUrl, String collection, List<String> solrCredentials) {
     // Convert provided Solr base URL to URI object
     URI baseUrl = URI.create(solrBaseUrl);
@@ -177,7 +219,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param request
    */
-  private void addSolrCredentials(SolrRequest request) {
+  void addSolrCredentials(SolrRequest request) {
     // Add Solr BasicAuth credentials if present
     if (solrCredentials != null) {
       request.setBasicAuthCredentials(
@@ -200,18 +242,260 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Modifies the schema of a collection pointed to by a SolrClient, to support artifact indexing.
+   * Initializes this {@link SolrArtifactIndex}.
    */
   @Override
-  public synchronized void initIndex() {
-    if (getState() == ArtifactIndexState.UNINITIALIZED) {
+  public synchronized void init() {
+    if (getState() == ArtifactIndexState.STOPPED) {
+      try {
+        // Check if Solr core is available
+        CoreAdminRequest req = new CoreAdminRequest();
+        req.setCoreName(getSolrCollection());
+        req.setAction(CoreAdminParams.CoreAdminAction.STATUS);
+        addSolrCredentials(req);
+        CoreAdminResponse response = req.process(solrClient);
 
-      // TODO: Check that the core exists?
-//      CoreAdminResponse response = CoreAdminRequest.getStatus(coreName, solrClient);
-//      response.getCoreStatus(coreName).size() > 0;
+        if (response.getCoreStatus(getSolrCollection()).size() <= 0) {
+          log.error("Solr core or collection not found");
+          throw new IllegalStateException("Solr core missing");
+        }
+      } catch (IOException | SolrServerException e) {
+        log.error("Could not fetch Solr core status", e);
+      }
+
+      // Path to artifact index state directory
+      Path indexStateDir =
+          ((BaseLockssRepository)repository).getRepositoryStateDir()
+              .toPath()
+              .resolve("index"); // TODO: Parameterize
+
+      // Ensure index state directory exists
+      FileUtil.ensureDirExists(indexStateDir.toFile());
+
+      // Ensure Solr update journal directory exists
+      FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
 
       setState(ArtifactIndexState.INITIALIZED);
     }
+  }
+
+  /**
+   * Starts this {@link SolrArtifactIndex}:
+   *
+   * <ul>
+   *   <li>Replays any Solr operations recorded in the Solr soft commit journal, if one exists.</li>
+   *   <li>Schedules a Solr hard commit at regular intervals.</li>
+   *   <li>Opens a new journal to log changes made to the Solr index since the last hard commit.</li>
+   * </ul>
+   */
+  @Override
+  public synchronized void start() {
+    // Replay journal of Solr index updates if it exists
+    replayUpdateJournal();
+
+    // Start journal of Solr index updates
+    startUpdateJournal();
+
+    // Schedule hard commits
+    scheduleHardCommitter();
+
+    // Set index state to RUNNING
+    setState(ArtifactIndexState.RUNNING);
+  }
+
+  /**
+   * Replays all Solr update journal files found under the Solr journal directory.
+   */
+  public void replayUpdateJournal() {
+    File journalDir = getSolrJournalDirectory().toFile();
+
+    File[] journalFiles = journalDir
+        .listFiles((FileFilter) new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*.csv"));
+
+    if (journalFiles == null) {
+      throw new RuntimeException("Error searching for journal files");
+    }
+
+    for (File journalFile : journalFiles) {
+      if (journalFile.exists() && journalFile.isFile()) {
+        try (SolrCommitJournal.SolrJournalReader journalReader =
+                 new SolrCommitJournal.SolrJournalReader(journalFile.toPath())) {
+
+          journalReader.replaySolrJournal(this);
+          journalFile.delete();
+
+        } catch (IOException e) {
+          log.error("Could not replay operations from Solr update journal", e);
+          throw new RuntimeException("Could not replay journal", e);
+        }
+      }
+    }
+  }
+
+  /**
+   * Returns the path to the journal maintained by this {@link SolrArtifactIndex}.
+   *
+   * @return A {@link Path} containing the path of the journal.
+   */
+  private Path getSolrJournalDirectory() {
+    return ((BaseLockssRepository) repository)
+        .getRepositoryStateDir()
+        .toPath()
+        .resolve("index/solr");
+  }
+
+  /**
+   * Opens a new journal (using {@link SolrCommitJournal.SolrJournalWriter}) to record updates made to the Solr index.
+   */
+  public synchronized void startUpdateJournal() {
+    if (solrJournalWriter == null) {
+      try {
+        // Get journal directory and ensure it exists
+        FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
+
+        // Start new Solr journal writer
+        Path journalPath = getSolrJournalDirectory().resolve(generateSolrUpdateJournalName());
+        solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
+      } catch (IOException e) {
+        // FIXME: Revisit
+        log.error("Could not create Solr journal", e);
+        throw new IllegalStateException("Could not create Solr journal", e);
+      }
+    } else {
+      log.warn("Solr journal already open");
+    }
+  }
+
+  /**
+   * Closes an open {@link SolrCommitJournal.SolrJournalWriter}.
+   */
+  public synchronized void closeJournal() {
+    try {
+      if (solrJournalWriter != null) {
+        solrJournalWriter.close();
+        solrJournalWriter = null;
+      }
+    } catch (IOException e) {
+      // FIXME: Revisit
+      log.error("Could not close Solr journal", e);
+      throw new IllegalStateException("Could not close Solr journal");
+    }
+  }
+
+  /**
+   * @return The {@link SolrClient} through which this {@link SolrArtifactIndex} interfaces with Solr.
+   */
+  protected SolrClient getSolrClient() {
+    return this.solrClient;
+  }
+
+  /**
+   * Arrange for the hard commit task to run once, in
+   * hardCommitInterval ms.
+   */
+  private void scheduleHardCommitter() {
+    ((BaseLockssRepository) repository).getScheduledExecutorService()
+      .schedule(new SolrHardCommitTask(), hardCommitInterval, TimeUnit.MILLISECONDS);
+    log.debug2("Scheduled Solr hard commit in {}",
+               TimeUtil.timeIntervalToString(hardCommitInterval));
+  }
+
+  /**
+   * Implementation of {@link Runnable} which performs a Solr hard commit if there have been any
+   * soft commits since the last hard commit.
+   */
+  private class SolrHardCommitTask implements Runnable {
+    private final static long SOLR_START_TIME_SLOP = 15000;
+
+    @Override
+    public void run() {
+      try {
+        checkForSolrRestart();
+
+        // Proceed only if there were any soft commits since the last hard commit
+        if (!hardCommitNeeded) {
+          log.debug2("Skipping Solr hard commit");
+          return;
+        }
+
+        doHardCommit();
+      } finally {
+        scheduleHardCommitter();
+      }
+    }
+
+    private void checkForSolrRestart() {
+      try {
+        // Get Solr core status
+        CoreAdminResponse response = CoreAdminRequest.getStatus(getSolrCollection(), solrClient);
+        Long uptimeMs = response.getUptime(getSolrCollection());
+        Long startTime = Instant.now().toEpochMilli() - uptimeMs;
+
+        // Initial case
+        if (lastStartTime <= 0) {
+          lastStartTime = startTime;
+        }
+
+        // Detect if there was a restart
+        if (lastStartTime + SOLR_START_TIME_SLOP < startTime) {
+          log.warn("Detected a Solr restart");
+          lastStartTime = startTime;
+
+//          // Replay journal since last hard commit
+//          Path journalPath = getSolrJournalPath();
+//          closeJournal();
+//
+//          try (SolrCommitJournal.SolrJournalReader journalReader =
+//                   new SolrCommitJournal.SolrJournalReader(journalPath)) {
+//            journalReader.replaySolrJournal(index);
+//          } catch (IOException e) {
+//            log.error("Could not replay journal", e);
+//          }
+        }
+      } catch (IOException | SolrServerException e) {
+        log.error("Could not get Solr uptime", e);
+      }
+    }
+
+    private void doHardCommit() {
+      log.debug2("Performing Solr hard commit");
+
+      try {
+        // Start new journal
+        SolrCommitJournal.SolrJournalWriter lastJournalWriter = solrJournalWriter;
+        Path journalPath = getSolrJournalDirectory().resolve(generateSolrUpdateJournalName());
+        solrJournalWriter = new SolrCommitJournal.SolrJournalWriter(journalPath);
+        lastJournalWriter.close();
+
+        // Perform a hard commit
+        hardCommitNeeded = false;
+        handleSolrCommit(true);
+
+        // Find all journal files and exclude the active one
+        IOFileFilter journalFileFilter = new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*.csv");
+        IOFileFilter excludeFileFilter =
+            new NotFileFilter(new NameFileFilter(String.valueOf(solrJournalWriter.getJournalPath().getFileName())));
+        FileFilter filter = new AndFileFilter(journalFileFilter, excludeFileFilter);
+
+        // Remove inactive journal files
+        File journalDir = getSolrJournalDirectory().toFile();
+        File[] journalFiles = journalDir.listFiles(filter);
+        Arrays.stream(journalFiles).forEach(File::delete);
+      } catch (IOException | SolrServerException e) {
+        log.error("Could not perform Solr hard commit", e);
+      }
+    }
+  }
+
+  /**
+   * Generates a new Solr update journal filename.
+   *
+   * @return A {@link String} containing the generated journal filename.
+   */
+  private String generateSolrUpdateJournalName() {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+        .withZone(ZoneOffset.UTC);
+    return String.format("%s.%s.csv", SOLR_UPDATE_JOURNAL_NAME, formatter.format(Instant.now()));
   }
 
   /**
@@ -257,6 +541,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     this.solrCollection = collection;
   }
 
+  public long getHardCommitInterval() {
+    return hardCommitInterval;
+  }
+
+  public SolrArtifactIndex setHardCommitInterval(long interval) {
+    this.hardCommitInterval = interval;
+    return this;
+  }
+
   /**
    * Returns a Solr response unchanged, if it has a zero status; throws,
    * otherwise.
@@ -295,13 +588,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   @Override
-  public void shutdownIndex() {
+  public void stop() {
     try {
       if (isInternalClient) {
         solrClient.close();
       }
 
-      setState(ArtifactIndexState.SHUTDOWN);
+      closeJournal();
+
+      setState(ArtifactIndexState.STOPPED);
     } catch (IOException e) {
       log.error("Could not close Solr client connection", e);
     }
@@ -336,7 +631,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public boolean isReady() {
-    return getState() == ArtifactIndexState.READY
+    return getState() == ArtifactIndexState.RUNNING
         || getState() == ArtifactIndexState.INITIALIZED && checkAlive();
   }
 
@@ -365,8 +660,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-    log.debug2("Indexing artifact data: {}", artifactData);
-
     if (artifactData == null) {
       throw new IllegalArgumentException("Null artifact data");
     }
@@ -400,12 +693,13 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       UpdateRequest req = new UpdateRequest();
       req.add(doc);
       addSolrCredentials(req);
-      req.setCommitWithin(-1);
 
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
 
-      handleSolrResponse(handleCommit(), "Problem committing addition of "
+      logSolrUpdate(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
+
+      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
@@ -413,9 +707,26 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Return the Artifact added to the Solr collection
-    log.debug("Added artifact to index: {}", artifact);
+    log.debug2("Added artifact to index: {}", artifact);
 
     return artifact;
+  }
+
+  private void logSolrUpdate(String artifactId, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
+    for (int i = 0; i < 3; i++) {
+      try {
+        solrJournalWriter.logOperation(artifactId, op, doc);
+        return;
+      } catch (IOException e) {
+        try {
+          Thread.sleep(1000L);
+        } catch (InterruptedException ex) {
+          break;
+        }
+      }
+    }
+
+    log.error("Could not log to Solr update journal [artifactId: {}, op: {}, doc: {}]", artifactId, op, doc);
   }
 
   /**
@@ -461,24 +772,21 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       QueryResponse response =
           handleSolrResponse(handleSolrQuery(q), "Problem performing Solr query");
 
-      // Deserialize results into a list of Artifacts
-      List<Artifact> artifacts = response.getBeans(Artifact.class);
+      long numFound = response.getResults().getNumFound();
 
-      switch (artifacts.size()) {
-        case 0:
-          // Expected at least one match
-          log.debug("Artifact not found [artifactId: {}]", artifactId);
-          return null;
+      if (numFound == 0) {
+        return null;
+      } else if (numFound == 1) {
+        // Deserialize results into a list of Artifacts
+        List<Artifact> artifacts = response.getBeans(Artifact.class);
 
-        case 1:
-          // Return the artifact
-          return artifacts.get(0);
-
-        default:
-          // This should never happen
-          log.warn("Unexpected number of Solr documents in response: {}", artifacts.size());
-          throw new RuntimeException("Unexpected number of Solr documents in response");
+        // Return the artifact
+        return artifacts.get(0);
       }
+
+      // This should never happen
+      log.warn("Unexpected number of Solr documents in response: {}", numFound);
+      throw new RuntimeException("Unexpected number of Solr documents in response");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException("Solr error", e);
@@ -529,16 +837,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       UpdateRequest request = new UpdateRequest();
       request.add(document);
       addSolrCredentials(request);
-      request.setCommitWithin(-1);
 
       // Update the artifact.
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      // Commit changes
-      handleSolrResponse(handleCommit(), "Problem committing addition of "
-          + "document '" + document + "' to Solr");
+      logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
 
+      // Commit changes
+      handleSolrResponse(handleSolrCommit(false), "Problem committing Solr changes");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException("Solr error", e);
     }
@@ -554,10 +861,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws IOException
    * @throws SolrServerException
    */
-  private UpdateResponse handleCommit() throws IOException, SolrServerException {
+  UpdateResponse handleSolrCommit(boolean hardCommit) throws IOException, SolrServerException {
     // Update request to commit
     UpdateRequest req = new UpdateRequest();
-    req.setAction(UpdateRequest.ACTION.COMMIT, true, true);
+    req.setAction(UpdateRequest.ACTION.COMMIT, true, true, !hardCommit);
+
+    // Signal a hard commit is needed if we're performing a soft commit
+    if (!hardCommit) {
+      hardCommitNeeded = true;
+    }
 
     // Add Solr credentials if present
     addSolrCredentials(req);
@@ -599,14 +911,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         UpdateRequest request = new UpdateRequest();
         request.deleteById(artifactId);
         addSolrCredentials(request);
-        request.setCommitWithin(-1);
 
         // Remove Solr document for this artifact
         handleSolrResponse(request.process(solrClient, solrCollection), "Problem deleting "
             + "artifact '" + artifactId + "' from Solr");
 
+        logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.DELETE, null);
+
         // Commit changes
-        handleSolrResponse(handleCommit(), "Problem committing deletion of "
+        handleSolrResponse(handleSolrCommit(false), "Problem committing deletion of "
             + "artifact '" + artifactId + "' from Solr");
 
         // Return true to indicate success
@@ -682,13 +995,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       UpdateRequest request = new UpdateRequest();
       request.add(document);
       addSolrCredentials(request);
-      request.setCommitWithin(-1);
 
       // Update the field
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      handleSolrResponse(handleCommit(), "Problem committing addition of "
+      logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
+
+      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
           + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
@@ -965,12 +1279,24 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified collection.
    *
    * @param collection A String with the collection identifier.
-   * @param prefix     A String with the URL prefix.
+   * @param urlPrefix     A String with the URL prefix.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersionsAllAus(String collection, String prefix) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String urlPrefix,
+                                                                ArtifactVersions versions) throws IOException {
+
+    if (!(versions == ArtifactVersions.ALL ||
+        versions == ArtifactVersions.LATEST)) {
+      throw new IllegalArgumentException("Versions must be ALL or LATEST");
+    }
+
+    if (collection == null) {
+      throw new IllegalArgumentException("Collection is null");
+    }
 
     SolrQuery q = new SolrQuery();
 
@@ -979,18 +1305,48 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("committed:%s", true));
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
 
-// Q: Perhaps it would be better to throw an IllegalArgumentException if prefix is null? Without this filter,
-//  we return all the committed artifacts in a collection. Is that useful?
-    if (prefix != null) {
-      q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
+    if (urlPrefix != null) {
+      q.addFilterQuery(String.format("{!prefix f=uri}%s", urlPrefix));
     }
+
+//    // This gives us the right results but does not work with CursorMark-based
+//    // pagination despite group.main=true. It is left here as a reminder that
+//    // we already tried this approach.
+//    q.set("group", true);
+//    q.set("group.func", "concat(collection,auid,uri)");
+//    q.set("group.sort", "version desc");
+//    q.set("group.limit", 1);
+//    q.set("group.main", true);
 
     q.addSort(SORTURI_ASC);
     q.addSort(AUID_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(
-        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q));
+    Iterator<Artifact> allVersionsIterator =
+        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q);
+
+    if (versions == ArtifactVersions.LATEST) {
+      // Convert Iterator<Artifact> to Stream<Artifact>
+      Stream<Artifact> allVersions = StreamSupport.stream(
+          Spliterators.spliteratorUnknownSize(allVersionsIterator, Spliterator.ORDERED), false);
+
+      // Group by (Collection, AUID, URL) then pick highest version from each group
+      Stream<Artifact> latestVersions = allVersions
+          .collect(Collectors.groupingBy(
+              artifact -> artifact.getIdentifier().getArtifactStem(),
+              Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+          .values()
+          .stream()
+          .filter(Optional::isPresent)
+          .map(Optional::get);
+
+      // Sort artifacts and return as Iterable<Artifact>
+      return IteratorUtils.asIterable(latestVersions
+          .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION)
+          .iterator());
+    }
+
+    return IteratorUtils.asIterable(allVersionsIterator);
   }
 
   /**
@@ -1025,10 +1381,23 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param collection A {@code String} with the collection identifier.
    * @param url        A {@code String} with the URL to be matched.
+   * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
+   *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersionsAllAus(String collection, String url) throws IOException {
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions)
+      throws IOException {
+
+    if (!(versions == ArtifactVersions.ALL ||
+        versions == ArtifactVersions.LATEST)) {
+      throw new IllegalArgumentException("Versions must be ALL or LATEST");
+    }
+
+    if (collection == null || url == null) {
+      throw new IllegalArgumentException("Collection or URL is null");
+    }
+
     SolrQuery q = new SolrQuery();
 
     q.setQuery("*:*");
@@ -1037,12 +1406,44 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
+//    // This gives us the right results but does not work with CursorMark-based
+//    // pagination despite group.main=true. It is left here as a reminder that
+//    // we already tried this approach.
+//    q.set("group", true);
+//    q.set("group.func", "concat(collection,auid,uri)");
+//    q.set("group.sort", "version desc");
+//    q.set("group.limit", 1);
+//    q.set("group.main", true);
+
     q.addSort(SORTURI_ASC);
     q.addSort(AUID_ASC);
     q.addSort(VERSION_DESC);
 
-    return IteratorUtils.asIterable(
-        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q));
+    Iterator<Artifact> allVersionsIterator =
+        new SolrQueryArtifactIterator(solrCollection, solrClient, solrCredentials, q);
+
+    if (versions == ArtifactVersions.LATEST) {
+      // Convert Iterator<Artifact> to Stream<Artifact>
+      Stream<Artifact> allVersions = StreamSupport.stream(
+          Spliterators.spliteratorUnknownSize(allVersionsIterator, Spliterator.ORDERED), false);
+
+      // Group by (Collection, AUID, URL) then pick highest version from each group
+      Stream<Artifact> latestVersions = allVersions
+          .collect(Collectors.groupingBy(
+              artifact -> artifact.getIdentifier().getArtifactStem(),
+              Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
+          .values()
+          .stream()
+          .filter(Optional::isPresent)
+          .map(Optional::get);
+
+      // Sort artifacts and return as Iterable<Artifact>
+      return IteratorUtils.asIterable(latestVersions
+          .sorted(ArtifactComparators.BY_URI_BY_AUID_BY_DECREASING_VERSION)
+          .iterator());
+    }
+
+    return IteratorUtils.asIterable(allVersionsIterator);
   }
 
   /**

@@ -42,19 +42,20 @@ import org.springframework.util.FileSystemUtils;
 import java.io.File;
 
 /**
- * Test class for {@code org.lockss.laaws.rs.core.LocalLockssRepository}
+ * Test class for {@link LocalLockssRepository}
  */
 public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    // The local repository root directory.
-    private File repoBaseDir = null;
+  File repoStateDir;
+  File repoBaseDir;
 
-    @Override
-    public LockssRepository makeLockssRepository() throws Exception {
-        repoBaseDir = getTempDir();
-        return new LocalLockssRepository(repoBaseDir, null);
-    }
+  @Override
+  public LockssRepository makeLockssRepository() throws Exception {
+    repoStateDir = getTempDir();
+    repoBaseDir = getTempDir();
+    return new LocalLockssRepository(repoStateDir, repoBaseDir, null);
+  }
 
     /**
      * Run after the test is finished.

@@ -33,8 +33,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.archive.format.warc.WARCConstants;
-import org.lockss.laaws.rs.io.index.ArtifactIndex;
-import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -51,7 +49,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * A volatile (i.e., "in-memory") implementation of WarcArtifactDataStore.
+ * A volatile (i.e., "in-memory") implementation of {@link WarcArtifactDataStore}.
  */
 public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -71,15 +69,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
    * Constructor.
    */
   public VolatileWarcArtifactDataStore() {
-    this(new VolatileArtifactIndex());
-  }
-
-  /**
-   * For testing; this kind of data store ignores the base path.
-   */
-  public VolatileWarcArtifactDataStore(ArtifactIndex index) {
-    super(index);
-
     this.basePaths = new Path[]{DEFAULT_BASEPATH};
     this.tmpWarcPool = new WarcFilePool(this);
     this.warcs = new HashMap<>();
@@ -115,12 +104,16 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public void initWarc(Path warcPath) throws IOException {
-    synchronized (warcs) {
-      warcs.putIfAbsent(warcPath, new ByteArrayOutputStream());
-    }
+    initFile(warcPath);
 
     try (OutputStream output = getAppendableOutputStream(warcPath)) {
       writeWarcInfoRecord(output);
+    }
+  }
+
+  protected void initFile(Path filePath) {
+    synchronized (warcs) {
+      warcs.putIfAbsent(filePath, new ByteArrayOutputStream());
     }
   }
 
@@ -219,16 +212,6 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   @Override
   public boolean isReady() {
     return dataStoreState != DataStoreState.STOPPED;
-  }
-
-  @Override
-  public void initDataStore() {
-    // Sets the data store state to INITIALIZING and schedules
-    // the temporary WARC garbage collector
-    super.initDataStore();
-
-    // Set state to RUNNING
-    setDataStoreState(DataStoreState.RUNNING);
   }
 
   /**

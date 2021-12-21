@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
+import java.io.File;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.lockss.log.L4JLogger;
@@ -46,7 +47,7 @@ public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
 
     @Override
     public LockssRepository makeLockssRepository() throws IOException {
-        return new VolatileLockssRepository();
+      return new VolatileLockssRepository();
     }
 
   @Test

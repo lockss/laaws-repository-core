@@ -31,6 +31,7 @@
 package org.lockss.laaws.rs.io.storage.warc;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -59,12 +60,27 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
   @Override
   protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index) throws IOException {
-    return new VolatileWarcArtifactDataStore(index);
+    VolatileWarcArtifactDataStore ds = new VolatileWarcArtifactDataStore();
+
+    // Mock getArtifactIndex() called by data store
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getArtifactIndex()).thenReturn(index);
+    ds.setLockssRepository(repo);
+
+    return ds;
   }
 
   @Override
-  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(ArtifactIndex index, VolatileWarcArtifactDataStore other) throws IOException {
-    VolatileWarcArtifactDataStore n_store = new VolatileWarcArtifactDataStore(index);
+  protected VolatileWarcArtifactDataStore makeWarcArtifactDataStore(
+      ArtifactIndex index, VolatileWarcArtifactDataStore other) throws IOException {
+
+    VolatileWarcArtifactDataStore n_store = new VolatileWarcArtifactDataStore();
+
+    // Mock getArtifactIndex() called by data store
+    BaseLockssRepository repo = mock(BaseLockssRepository.class);
+    when(repo.getArtifactIndex()).thenReturn(index);
+    n_store.setLockssRepository(repo);
+
     n_store.warcs.putAll(other.warcs);
     return n_store;
   }
@@ -194,6 +210,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Mock behavior
     doCallRealMethod().when(ds).initWarc(warcPath);
+    doCallRealMethod().when(ds).initFile(warcPath);
     doCallRealMethod().when(ds).getAppendableOutputStream(warcPath);
 
     // Call method
