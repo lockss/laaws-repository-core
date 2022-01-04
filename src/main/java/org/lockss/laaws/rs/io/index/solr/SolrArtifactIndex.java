@@ -419,6 +419,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         }
 
         doHardCommit();
+      } catch (Exception e) {
+        log.error("Unexpected exception", e);
+        throw e;
       } finally {
         scheduleHardCommitter();
       }
