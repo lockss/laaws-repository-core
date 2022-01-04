@@ -427,7 +427,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     private void checkForSolrRestart() {
       try {
         // Get Solr core status
-        CoreAdminResponse response = CoreAdminRequest.getStatus(getSolrCollection(), solrClient);
+        CoreAdminRequest req = new CoreAdminRequest();
+        req.setCoreName(getSolrCollection());
+        req.setAction(CoreAdminParams.CoreAdminAction.STATUS);
+
+        // Add credentials to Solr request
+        addSolrCredentials(req);
+
+        // Get uptime from Solr core status request
+        CoreAdminResponse response = req.process(solrClient);
         Long uptimeMs = response.getUptime(getSolrCollection());
         Long startTime = Instant.now().toEpochMilli() - uptimeMs;
 
