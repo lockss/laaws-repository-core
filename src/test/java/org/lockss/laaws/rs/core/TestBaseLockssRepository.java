@@ -39,4 +39,8 @@ public class TestBaseLockssRepository extends AbstractLockssRepositoryTest {
     public LockssRepository makeLockssRepository() throws Exception {
         return new VolatileLockssRepository();
     }
+
+  protected boolean wantTempTmpDir() {
+    return true;
+  }
 }

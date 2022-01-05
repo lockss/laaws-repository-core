@@ -66,6 +66,10 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
   private final static String EMPTY_STRING = "";
 
+  protected boolean wantTempTmpDir() {
+    return true;
+  }
+
   /**
    * Tests for {@link SolrCommitJournal.SolrJournalWriter}.
    */

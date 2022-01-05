@@ -135,6 +135,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
   }
 
+  protected boolean wantTempTmpDir() {
+    return true;
+  }
+
   // *******************************************************************************************************************
   // * VARIANT FRAMEWORK
   // *******************************************************************************************************************
