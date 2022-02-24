@@ -930,18 +930,30 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testAuSize() throws Exception {
+    AuSize zero = new AuSize();
+    zero.setTotalAllVersions(0L);
+    zero.setTotalLatestVersions(0L);
+    zero.setTotalWarcSize(-1L); // TODO
+
     // Check AU size of non-existent AUs
-    assertEquals(0L, index.auSize(null, null).longValue());
-    assertEquals(0L, index.auSize("collection", null).longValue());
-    assertEquals(0L, index.auSize(null, "auid").longValue());
-    assertEquals(0L, index.auSize("collection", "auid").longValue());
+    assertEquals(zero, index.auSize(null, null));
+    assertEquals(zero, index.auSize("collection", null));
+    assertEquals(zero, index.auSize(null, "auid"));
+    assertEquals(zero, index.auSize("collection", "auid"));
 
     // Assert variant state
     for (String collection : variantState.allCollections()) {
       for (String auid : variantState.allAuids(collection)) {
         log.debug("index.auSize() = {}", index.auSize(collection, auid));
         log.debug("variantState.auSize() = {}", variantState.auSize(collection, auid));
-        assertEquals((long) variantState.auSize(collection, auid), (long) index.auSize(collection, auid));
+
+        AuSize auSize = index.auSize(collection, auid);
+
+        // TODO: VariantState#auSize(...) still returns an integer (i.e., totalLatestVersions)
+        assertEquals((long) variantState.auSize(collection, auid), auSize.getTotalLatestVersions());
+
+        // TODO:
+        assertEquals(-1L, auSize.getTotalWarcSize());
       }
     }
   }

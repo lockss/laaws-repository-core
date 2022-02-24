@@ -713,28 +713,44 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *          A {@code String} containing the collection ID.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
-     * @return A {@code Long} with the total size of the specified AU in bytes.
+     * @return A {@link AuSize} with byte size statistics of the specified AU.
      */
     @Override
-    public Long auSize(String collection, String auid) {
-        ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
-        q.filterByCommitStatus(true);
-        q.filterByCollection(collection);
-        q.filterByAuid(auid);
+    public AuSize auSize(String collection, String auid) {
+      AuSize auSize = new AuSize();
 
-        synchronized (index) {
-          Map<String, Optional<Artifact>> result = index.values().stream()
-              .filter(q.build())
-              .collect(Collectors.groupingBy(Artifact::getUri,
-                  Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion)))
-              );
+      auSize.setTotalAllVersions(0L);
+      auSize.setTotalLatestVersions(0L);
+      auSize.setTotalWarcSize(-1L); // TODO
 
-          return result.values().stream()
-              .filter(Optional::isPresent)
-              .map(Optional::get)
-              .mapToLong(Artifact::getContentLength)
-              .sum();
-        }
+      ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
+      q.filterByCommitStatus(true);
+      q.filterByCollection(collection);
+      q.filterByAuid(auid);
+
+      synchronized (index) {
+        auSize.setTotalAllVersions(
+            index.values()
+                .stream()
+                .filter(q.build())
+                .mapToLong(Artifact::getContentLength)
+                .sum());
+
+        Map<String, Optional<Artifact>> latestArtifactVersions =
+            index.values()
+                .stream()
+                .filter(q.build())
+                .collect(Collectors.groupingBy(Artifact::getUri, Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))));
+
+        auSize.setTotalLatestVersions(
+            latestArtifactVersions.values().stream()
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .mapToLong(Artifact::getContentLength)
+                .sum());
+      }
+
+      return auSize;
     }
 
     /**

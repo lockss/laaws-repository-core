@@ -1566,10 +1566,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param collection A {@code String} containing the collection ID.
    * @param auid       A {@code String} containing the Archival Unit ID.
-   * @return A {@code Long} with the total size of the specified AU in bytes.
+   * @return A {@link AuSize} with byte size statistics of the specified AU.
    */
+  // FIXME: Is there potential for a race condition here between checking
+  //  the results of the query and performing the collapse filter?
   @Override
-  public Long auSize(String collection, String auid) throws IOException {
+  public AuSize auSize(String collection, String auid) throws IOException {
     // Create Solr query
     SolrQuery q = new SolrQuery();
     q.setQuery("*:*");
@@ -1577,39 +1579,50 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.addFilterQuery(String.format("{!term f=collection}%s", collection));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
 
+    AuSize result = new AuSize();
+
+    result.setTotalAllVersions(0L);
+    result.setTotalLatestVersions(0L);
+    result.setTotalWarcSize(-1L); // TODO
+
     // Ensure the result is non-empty for the collapse filter query next
     if (isEmptyResult(q)) {
-      log.debug2(
-          "No artifacts in AU [committed: true, collection: {}, auid: {}]",
-          collection,
-          auid
-      );
-
-      return 0L;
+      // YES: No artifacts in AU (i.e., AU doesn't exist)
+      return result;
     }
 
-    // FIXME: Is there potential for a race condition here between checking
-    //  the results of the query and performing the collapse filter?
-
     // Setup the collapse filter query
-    q.addFilterQuery("{!collapse field=uri max=version}");
     q.setGetFieldStatistics(true);
     q.setGetFieldStatistics("contentLength");
     q.setRows(0);
 
     try {
-      // Query Solr and get
-      QueryResponse response =
+      //// Perform query for size of all artifact versions
+      QueryResponse response1 =
           handleSolrResponse(handleSolrQuery(q), "Problem performing Solr query");
 
-      // Get the contentLength field stats
-      FieldStatsInfo contentLengthStats = response.getFieldStatsInfo().get("contentLength");
+      // Get the contentLength from field statistics
+      FieldStatsInfo fieldStats1 = response1.getFieldStatsInfo().get("contentLength");
 
       // Sum the contentLengths and return
-      return ((Double) contentLengthStats.getSum()).longValue();
+      result.setTotalAllVersions(((Double)fieldStats1.getSum()).longValue());
+
+      //// Perform query for size of latest artifact versions
+      q.addFilterQuery("{!collapse field=uri max=version}");
+
+      QueryResponse response2 =
+          handleSolrResponse(handleSolrQuery(q), "Problem performing Solr query");
+
+      // Get the contentLength from field statistics
+      FieldStatsInfo fieldStats2 = response2.getFieldStatsInfo().get("contentLength");
+
+      // Sum the contentLengths and return
+      result.setTotalLatestVersions(((Double)fieldStats2.getSum()).longValue());
     } catch (SolrResponseErrorException | SolrServerException e) {
-      throw new IOException("Solr error", e);
+      throw new IOException("Solr request error", e);
     }
+
+    return result;
   }
 
   private boolean isEmptyResult(SolrQuery q) throws IOException {

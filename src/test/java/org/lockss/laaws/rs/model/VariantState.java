@@ -253,6 +253,7 @@ public class VariantState {
         .sorted();
   }
 
+  // TODO: Return AuSize
   public long auSize(String collection, String auid) {
     return orderedAllAu(collection, auid).mapToLong(ArtifactSpec::getContentLength).sum();
   }

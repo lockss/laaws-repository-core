@@ -34,10 +34,7 @@ package org.lockss.laaws.rs.io.index;
 
 import org.lockss.laaws.rs.core.LockssRepositorySubsystem;
 import org.lockss.laaws.rs.io.StorageInfoSource;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactVersions;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.util.lang.Ready;
@@ -419,9 +416,9 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      *          A {@code String} containing the collection ID.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
-     * @return A {@code Long} with the total size of the specified AU in bytes.
+     * @return A {@link AuSize} with byte size statistics of the specified AU.
      */
-    Long auSize(String collection, String auid) throws IOException;
+    AuSize auSize(String collection, String auid) throws IOException;
 
     long DEFAULT_WAITREADY = 5000;
 

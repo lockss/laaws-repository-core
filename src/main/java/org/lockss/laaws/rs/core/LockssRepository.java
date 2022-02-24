@@ -30,10 +30,7 @@
 
 package org.lockss.laaws.rs.core;
 
-import org.lockss.laaws.rs.model.ArtifactData;
-import org.lockss.laaws.rs.model.Artifact;
-import org.lockss.laaws.rs.model.ArtifactVersions;
-import org.lockss.laaws.rs.model.RepositoryInfo;
+import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
@@ -381,9 +378,9 @@ public interface LockssRepository extends Ready {
    *
    * @param collection A {@code String} containing the collection ID.
    * @param auid       A {@code String} containing the Archival Unit ID.
-   * @return A {@code Long} with the total size of the specified AU in bytes.
+   * @return A {@link AuSize} with byte size statistics of the specified AU.
    */
-  Long auSize(String collection, String auid) throws IOException;
+  AuSize auSize(String collection, String auid) throws IOException;
 
   /**
    * Returns information about the repository's storage areas

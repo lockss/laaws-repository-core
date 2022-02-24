@@ -983,10 +983,10 @@ public class RestLockssRepository implements LockssRepository {
    *
    * @param collection A {@code String} containing the collection ID.
    * @param auid       A {@code String} containing the Archival Unit ID.
-   * @return A {@code Long} with the total size of the specified AU in bytes.
+   * @return A {@link AuSize} with byte size statistics of the specified AU.
    */
   @Override
-  public Long auSize(String collection, String auid) throws IOException {
+  public AuSize auSize(String collection, String auid) throws IOException {
     if (collection == null || auid == null) {
       throw new IllegalArgumentException("Null collection id or au id");
     }
@@ -1008,7 +1008,9 @@ public class RestLockssRepository implements LockssRepository {
     checkStatusOk(response);
 
     ObjectMapper objectMapper = new ObjectMapper();
-    return objectMapper.readValue(response.getBody(), Long.class);
+
+    // Parse and return JSON response body as an AuSize bean
+    return objectMapper.readValue(response.getBody(), AuSize.class);
   }
 
   /**
