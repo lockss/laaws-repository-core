@@ -560,7 +560,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertNotNull(auSize1);
     assertEquals(0, auSize1.getTotalAllVersions());
     assertEquals(0, auSize1.getTotalLatestVersions());
-    assertEquals(-1L, auSize1.getTotalWarcSize()); // TODO
+    assertEquals(0L, auSize1.getTotalWarcSize());
 
     // Calculate the expected size of each AU in each collection, compare with auSize()
     for (String coll : variantState.activeCollections()) {
@@ -577,11 +577,20 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
             .mapToLong(ArtifactSpec::getContentLength)
             .sum();
 
+//        long expTotalWarcSize = variantState.committedSpecStream()
+//            .filter(spec -> spec.getCollection().equals(coll))
+//            .filter(spec -> spec.getAuid().equals(auid))
+//            .mapToLong(spec -> spec.getWarcLength())
+//            .sum();
+
+        long expTotalWarcSize = ((BaseLockssRepository)repository)
+            .getArtifactDataStore().auWarcSize(coll, auid);
+
         AuSize auSize = repository.auSize(coll, auid);
 
         assertEquals((long) expTotalAllVersions, (long) auSize.getTotalAllVersions());
         assertEquals((long) expTotalLatestVersions, (long) auSize.getTotalLatestVersions());
-        assertEquals(-1L, (long) auSize.getTotalWarcSize()); // TODO
+        assertEquals((long) expTotalWarcSize, (long) auSize.getTotalWarcSize());
       }
     }
   }
@@ -669,7 +678,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       "Latest versions size changed after deleting non-highest version");
   assertNotEquals( auSize1.getTotalAllVersions(), auSize2.getTotalAllVersions(),
       "All versions size did NOT change after deleting non-highest version");
-  assertEquals(auSize1.getTotalWarcSize(), auSize2.getTotalWarcSize());
+
+  // FIXME: We don't actually remove anything from disk yet so we expect the size to be the same
+  assertEquals(auSize1.getTotalWarcSize(), auSize2.getTotalWarcSize(),
+        "Total WARC size did NOT change after deleting non-highest version");
       }
     }
 
@@ -700,6 +712,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   long expectedTotalAllVersions = auSize1.getTotalAllVersions() - artsize;
   long expectedTotalLatestVersions = auSize1.getTotalLatestVersions() - artsize;
 
+  long expectedTotalWarcSize = ((BaseLockssRepository)repository).getArtifactDataStore()
+      .auWarcSize(spec.getCollection(), spec.getAuid());
+
 	ArtifactSpec newHigh = variantState.getHighestCommittedVerSpec(spec.artButVerKey());
 	if (newHigh != null) {
 	  expectedTotalLatestVersions += newHigh.getContentLength();
@@ -711,7 +726,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       variant + ": AU all artifact versions size wrong after deleting highest version");
 	assertEquals(expectedTotalLatestVersions, auSize2.getTotalLatestVersions(),
 		     variant + ": AU latest artifact versions size wrong after deleting highest version");
-  assertEquals(-1L, auSize2.getTotalWarcSize(), // TODO
+  assertEquals(expectedTotalWarcSize, auSize2.getTotalWarcSize(),
       variant + ": AU latest artifact versions size wrong after deleting highest version");
       }
     }
@@ -736,7 +751,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
 	assertNull(getArtifact(repository, uspec, false));
 	assertNull(getArtifact(repository, uspec, true));
-	variantState.delFromAll(uspec);
+  variantState.delFromAll(uspec);
 
   AuSize auSize2 = repository.auSize(uspec.getCollection(), uspec.getAuid());
 

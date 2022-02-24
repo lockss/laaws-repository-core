@@ -576,7 +576,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * In service of {@link WarcArtifactDataStore#findAuActiveWarcs(String, String)}.
+   * Internal convenience method for use in Streams.
    */
   private Collection<Path> findWarcsOrEmpty(Path path) {
     try {
@@ -584,6 +584,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     } catch (IOException e) {
       log.warn("Caught IOException", e);
       return Collections.EMPTY_LIST;
+    }
+  }
+
+  /**
+   * Internal convenience method for use in Streams.
+   *
+   * Returns length of WARC file in bytes or zero if the WARC file doesn't exist or there was some
+   * other issue accessing its length.
+   */
+  private long getWarcLengthOrZero(Path path) {
+    try {
+      return getWarcLength(path);
+    } catch (IOException e) {
+      log.warn("Caught IOException", e);
+      return 0L;
     }
   }
 
@@ -2085,6 +2100,26 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected InputStream getInputStreamFromStorageUrl(URI storageUrl) throws IOException {
     WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(storageUrl);
     return getInputStreamAndSeek(loc.getPath(), loc.getOffset());
+  }
+
+  /**
+   * Returns the size in bytes of storage used by this AU. E.g., sum of the sizes of all WARCs in the AU, in
+   * {@link WarcArtifactDataStore} implementations.
+   *
+   * @param collection A {@link String} of the name of the collection containing the AU.
+   * @param auid A {@link String} of the AUID of the AU.
+   * @return A {@code long} With the size in bytes of storage space used by this AU.
+   */
+  @Override
+  public long auWarcSize(String collection, String auid) throws IOException {
+    return getAuPaths(collection, auid).stream()
+        .map(auPath -> findWarcsOrEmpty(auPath))
+        .flatMap(Collection::stream)
+        // FIXME:
+        .filter(path -> !path.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
+        .filter(path -> !path.endsWith("lockss-repo" + WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION))
+        .mapToLong(this::getWarcLengthOrZero)
+        .sum();
   }
 
   // *******************************************************************************************************************

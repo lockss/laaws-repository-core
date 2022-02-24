@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.storage;
 import org.lockss.laaws.rs.core.LockssRepositorySubsystem;
 import org.lockss.laaws.rs.io.StorageInfoSource;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
@@ -167,4 +168,14 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * @param index The {@link ArtifactIndex} to re-index artifacts into.
      */
     void reindexArtifacts(ArtifactIndex index) throws IOException;
+
+    /**
+     * Returns the size in bytes of storage used by this AU. E.g., sum of the sizes of all WARCs in the AU, in
+     * {@link WarcArtifactDataStore} implementations.
+     *
+     * @param collection A {@link String} of the name of the collection containing the AU.
+     * @param auid A {@link String} of the AUID of the AU.
+     * @return A {@code long} With the size in bytes of storage space used by this AU.
+     */
+    long auWarcSize(String collection, String auid) throws IOException;
 }

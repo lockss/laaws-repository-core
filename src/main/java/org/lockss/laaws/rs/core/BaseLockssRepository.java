@@ -604,7 +604,19 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       throw new IllegalArgumentException("Null collection id or au id");
     }
 
-    return index.auSize(collection, auid);
+    // Get AU size from index query
+    AuSize auSize = index.auSize(collection, auid);
+
+//    long allVersionSize = index.auSize(collection, auid, true);
+//    auSize.setTotalAllVersions();
+
+//    long latestVersionsSize = index.auSize(collection, auid, false);
+//    auSize.setTotalLatestVersions();
+
+    long totalWarcSize = getArtifactDataStore().auWarcSize(collection, auid);
+    auSize.setTotalWarcSize(totalWarcSize);
+
+    return auSize;
   }
 
   /**
