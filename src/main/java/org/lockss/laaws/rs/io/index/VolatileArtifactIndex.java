@@ -721,7 +721,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
       auSize.setTotalAllVersions(0L);
       auSize.setTotalLatestVersions(0L);
-      auSize.setTotalWarcSize(-1L); // TODO
+      // auSize.setTotalWarcSize(null);
 
       ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
       q.filterByCommitStatus(true);
@@ -729,6 +729,17 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       q.filterByAuid(auid);
 
       synchronized (index) {
+        boolean isAuEmpty = !index.values()
+            .stream()
+            .filter(q.build())
+            .findFirst()
+            .isPresent();
+
+        if (isAuEmpty) {
+          auSize.setTotalWarcSize(0L);
+          return auSize;
+        }
+
         auSize.setTotalAllVersions(
             index.values()
                 .stream()

@@ -577,12 +577,6 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
             .mapToLong(ArtifactSpec::getContentLength)
             .sum();
 
-//        long expTotalWarcSize = variantState.committedSpecStream()
-//            .filter(spec -> spec.getCollection().equals(coll))
-//            .filter(spec -> spec.getAuid().equals(auid))
-//            .mapToLong(spec -> spec.getWarcLength())
-//            .sum();
-
         long expTotalWarcSize = ((BaseLockssRepository)repository)
             .getArtifactDataStore().auWarcSize(coll, auid);
 
@@ -647,8 +641,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 		      () -> {repository.deleteArtifact(NO_COLL, NO_ARTID);});
 
     {
-      // Delete a committed artifact that isn't the highest version. it
-      // should disappear but size shouldn't change
+      // Delete a committed artifact that isn't the highest version. Latest versions size
+      // should remain same, but all versions size should decrease.
       ArtifactSpec spec = variantState.committedSpecStream()
 	.filter(s -> s != variantState.getHighestCommittedVerSpec(s.artButVerKey()))
 	.findAny().orElse(null);

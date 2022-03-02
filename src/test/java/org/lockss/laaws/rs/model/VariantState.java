@@ -253,9 +253,44 @@ public class VariantState {
         .sorted();
   }
 
-  // TODO: Return AuSize
-  public long auSize(String collection, String auid) {
-    return orderedAllAu(collection, auid).mapToLong(ArtifactSpec::getContentLength).sum();
+  public AuSize auSize(String collection, String auid) {
+    AuSize auSize = new AuSize();
+
+    auSize.setTotalAllVersions(0L);
+    auSize.setTotalLatestVersions(0L);
+
+    boolean isAuEmpty = !committedSpecStream()
+        .filter(s -> s.getCollection().equals(collection))
+        .filter(s -> s.getAuid().equals(auid))
+        .findFirst()
+        .isPresent();
+
+    if (isAuEmpty) {
+      auSize.setTotalWarcSize(0L);
+      return auSize;
+    }
+
+    auSize.setTotalAllVersions(
+        committedSpecStream()
+            .filter(s -> s.getCollection().equals(collection))
+            .filter(s -> s.getAuid().equals(auid))
+            .mapToLong(ArtifactSpec::getContentLength)
+            .sum());
+
+    auSize.setTotalLatestVersions(
+        committedSpecStream()
+            .filter(s -> s.getCollection().equals(collection))
+            .filter(s -> s.getAuid().equals(auid))
+            .collect(Collectors.groupingBy(ArtifactSpec::getUrl,
+                Collectors.maxBy(Comparator.comparingInt(ArtifactSpec::getVersion))))
+            .values()
+            .stream()
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .mapToLong(ArtifactSpec::getContentLength)
+            .sum());
+
+    return auSize;
   }
 
   Stream<ArtifactSpec> orderedAllUrl(String coll, String auid, String url) {

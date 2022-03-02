@@ -1583,11 +1583,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     result.setTotalAllVersions(0L);
     result.setTotalLatestVersions(0L);
-    result.setTotalWarcSize(-1L); // TODO
+    // result.setTotalWarcSize(null);
 
     // Ensure the result is non-empty for the collapse filter query next
     if (isEmptyResult(q)) {
       // YES: No artifacts in AU (i.e., AU doesn't exist)
+      result.setTotalWarcSize(0L);
       return result;
     }
 

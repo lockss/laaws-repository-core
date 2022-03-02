@@ -931,9 +931,10 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testAuSize() throws Exception {
     AuSize zero = new AuSize();
+
     zero.setTotalAllVersions(0L);
     zero.setTotalLatestVersions(0L);
-    zero.setTotalWarcSize(-1L); // TODO
+    zero.setTotalWarcSize(0L);
 
     // Check AU size of non-existent AUs
     assertEquals(zero, index.auSize(null, null));
@@ -949,11 +950,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
         AuSize auSize = index.auSize(collection, auid);
 
-        // TODO: VariantState#auSize(...) still returns an integer (i.e., totalLatestVersions)
-        assertEquals((long) variantState.auSize(collection, auid), auSize.getTotalLatestVersions());
-
-        // TODO:
-        assertEquals(-1L, auSize.getTotalWarcSize());
+        assertEquals(variantState.auSize(collection, auid), auSize);
       }
     }
   }
