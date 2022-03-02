@@ -71,30 +71,23 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
   // * JUNIT
   // *******************************************************************************************************************
 
-  // FIXME: This is hella hacky...
   private final static class ProxyLockssTestCase5 extends LockssTestCase5 {
     // Intentionally left blank
   }
 
-  private final static ProxyLockssTestCase5 proxyLockssTestCase5 = new ProxyLockssTestCase5();
+  private final static ProxyLockssTestCase5 proxy = new ProxyLockssTestCase5();
 
   @BeforeAll
   public static void startMiniDFSCluster() throws IOException {
-    boolean isPropSet = System.getProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA) != null;
+    // Get temporary directory for HDFS data dir
+    File dataDir = proxy.getTempDir();
 
-    if (!isPropSet) {
-      // Get a temporary directory to serve as the HDSF cluster base directory
-      File hdfsClusterBase = proxyLockssTestCase5.getTempDir();
-      System.setProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA, hdfsClusterBase.getAbsolutePath());
-    }
+    HdfsConfiguration conf = new HdfsConfiguration();
+    conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
 
-    log.info(
-        "Starting MiniDFSCluster [{} = {}]",
-        MiniDFSCluster.PROP_TEST_BUILD_DATA, System.getProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA)
-    );
+    log.info("Starting MiniDFSCluster");
 
-    // Build MiniDFSCluster using default HDFS configuration
-    Configuration conf = new HdfsConfiguration();
+    // Build MiniDFSCluster using custom HDFS configuration
     MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
     hdfsCluster = builder.build();
 
