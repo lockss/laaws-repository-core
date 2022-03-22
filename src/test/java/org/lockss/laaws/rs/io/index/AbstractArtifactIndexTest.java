@@ -278,8 +278,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertThrowsMatch(IllegalArgumentException.class, "Null artifact data", () -> index.indexArtifact(null));
 
     // Assert attempting to index an ArtifactData with null ArtifactIdentifier throws an IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "ArtifactData has null identifier", () -> {
-      index.indexArtifact(new ArtifactData(null, null, null, null, null, null));
+    assertThrowsMatch(IllegalArgumentException.class, "Artifact ID may not be null", () -> {
+      index.indexArtifact(new ArtifactData());
     });
 
     // Assert against variant scenario
@@ -311,7 +311,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   /**
    * Asserts that an artifact's repository state is recorded accurately in the index.
    *
-   * TODO: Move this to {@link ArtifactSpec#assertArtifact(LockssRepository, Artifact)}?
+   * TODO: Move this to {@link ArtifactSpec#assertArtifactData(LockssRepository, Artifact)}?
    *
    * @throws Exception
    */
@@ -331,15 +331,17 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     spec.generateContent();
 
-    ArtifactRepositoryState state =
-        new ArtifactRepositoryState(spec.getArtifactIdentifier(), spec.isCommitted(), spec.isDeleted());
+//    ArtifactRepositoryState state =
+//        new ArtifactRepositoryState(spec.getArtifactIdentifier(), spec.isCommitted(), spec.isDeleted());
 
     ArtifactData ad = spec.getArtifactData();
-    ad.setArtifactRepositoryState(state);
+
+//    ad.setArtifactRepositoryState(state);
+    ad.committed(spec.isCommitted());
 
     Artifact indexed = index.indexArtifact(ad);
 
-    assertEquals(spec.isCommitted(), indexed.isCommitted());
+    assertEquals(spec.isCommitted(), indexed.getCommitted());
   }
 
   @VariantTest
@@ -807,7 +809,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
             .map(ArtifactSpec::getArtifact)
 
             .collect(Collectors.groupingBy(
-                artifact -> artifact.getIdentifier().getArtifactStem(),
+                artifact -> ArtifactStem.from(artifact),
                 Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
             .values()
             .stream()

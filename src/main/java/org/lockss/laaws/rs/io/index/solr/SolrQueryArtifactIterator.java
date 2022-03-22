@@ -43,6 +43,7 @@ import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.util.ArtifactUtil;
 import org.lockss.log.L4JLogger;
 
 /**
@@ -65,10 +66,10 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
   private final String solrCollection;
 
   // The internal buffer used to store locally the artifacts provides by Solr.
-  private List<Artifact> artifactBuffer = null;
+  private List<SolrArtifact> artifactBuffer = null;
 
   // An iterator to the internal buffer.
-  private Iterator<Artifact> artifactBufferIterator = null;
+  private Iterator<SolrArtifact> artifactBufferIterator = null;
 
   // Position for the Solr query.
   private String cursorMark = CursorMarkParams.CURSOR_MARK_START;
@@ -116,7 +117,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
     this.solrClient = solrClient;
     this.solrCredentials = solrCredentials;
     this.solrQuery = solrQuery;
-    artifactBuffer = new ArrayList<>(batchSize);
+    artifactBuffer = new ArrayList<SolrArtifact>(batchSize);
     artifactBufferIterator = artifactBuffer.iterator();
 
     // Set paging parameters.
@@ -174,7 +175,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
   @Override
   public Artifact next() {
     if (hasNext()) {
-      return artifactBufferIterator.next();
+      return ArtifactUtil.from(artifactBufferIterator.next());
     } else {
       throw new NoSuchElementException();
     }
@@ -217,7 +218,7 @@ public class SolrQueryArtifactIterator implements Iterator<Artifact> {
 
     // Populate the internal buffer with the batch of artifacts returned by
     // Solr.
-    artifactBuffer = response.getBeans(Artifact.class);
+    artifactBuffer = response.getBeans(SolrArtifact.class);
     log.trace("artifactBatch = {}", artifactBuffer);
 
     // Check whether the new query position is different than the old one.

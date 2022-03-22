@@ -52,6 +52,8 @@ import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
+import org.lockss.laaws.rs.util.ArtifactIdentifierUtil;
+import org.lockss.laaws.rs.util.ArtifactUtil;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
@@ -118,7 +120,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Map from artifact stem to semaphore. Used for artifact version locking.
    */
-  private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
+  private SemaphoreMap<ArtifactStem> versionLock = new SemaphoreMap<>();
 
   /**
    * Handle to Solr soft commit journal writer.
@@ -647,7 +649,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   @Override
-  public void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem) throws IOException {
+  public void acquireVersionLock(ArtifactStem stem) throws IOException {
     // Acquire the lock for this artifact stem
     try {
       versionLock.getLock(stem);
@@ -658,9 +660,23 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   @Override
-  public void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem) {
+  public void releaseVersionLock(ArtifactStem stem) {
     // Release the lock for the artifact stem
     versionLock.releaseLock(stem);
+  }
+
+  private void validateArtifactData(ArtifactData artifactData) {
+    notNull(artifactData.getId(), "Artifact ID");
+    notNull(artifactData.getCollection(), "Collection ID");
+    notNull(artifactData.getAuid(), "AUID");
+//    notNull(artifactData.getUri(), "URI");
+  }
+
+  public static <T> T notNull(final T argument, final String name) {
+    if (argument == null) {
+      throw new IllegalArgumentException(name + " may not be null");
+    }
+    return argument;
   }
 
   /**
@@ -675,30 +691,20 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throw new IllegalArgumentException("Null artifact data");
     }
 
-    ArtifactIdentifier artifactId = artifactData.getIdentifier();
+    validateArtifactData(artifactData);
+
+    ArtifactIdentifier artifactId = ArtifactIdentifierUtil.from(artifactData);
 
     if (artifactId == null) {
       throw new IllegalArgumentException("ArtifactData has null identifier");
     }
 
-    ArtifactRepositoryState state = artifactData.getArtifactRepositoryState();
-
-    // Create an instance of Artifact to represent the artifact
-    Artifact artifact = new Artifact(
-        artifactId,
-        state == null ? false : state.isCommitted(),
-        artifactData.getStorageUrl().toString(),
-        artifactData.getContentLength(),
-        artifactData.getContentDigest()
-    );
-
-    // Save the artifact collection date.
-    artifact.setCollectionDate(artifactData.getCollectionDate());
+    SolrArtifact solrArtifact = SolrArtifact.from(artifactData);
 
     // Add the Artifact to Solr as a bean
     try {
       // Convert Artifact to SolrInputDocument using the SolrClient's DocumentObjectBinder
-      SolrInputDocument doc = solrClient.getBinder().toSolrInputDocument(artifact);
+      SolrInputDocument doc = solrClient.getBinder().toSolrInputDocument(solrArtifact);
 
       // Create an UpdateRequest to add the Solr input document
       UpdateRequest req = new UpdateRequest();
@@ -706,21 +712,21 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       addSolrCredentials(req);
 
       handleSolrResponse(req.process(solrClient, solrCollection),
-          "Problem adding artifact '" + artifact + "' to Solr");
+          "Problem adding artifact '" + solrArtifact + "' to Solr");
 
       logSolrUpdate(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
 
       handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
-          + "artifact '" + artifact + "' to Solr");
+          + "artifact '" + solrArtifact + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
 
     // Return the Artifact added to the Solr collection
-    log.debug2("Added artifact to index: {}", artifact);
+    log.debug2("Added artifact to index: {}", solrArtifact);
 
-    return artifact;
+    return ArtifactUtil.from(solrArtifact);
   }
 
   private void logSolrUpdate(String artifactId, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
@@ -789,10 +795,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         return null;
       } else if (numFound == 1) {
         // Deserialize results into a list of Artifacts
-        List<Artifact> artifacts = response.getBeans(Artifact.class);
+        List<SolrArtifact> artifacts = response.getBeans(SolrArtifact.class);
 
         // Return the artifact
-        return artifacts.get(0);
+        return ArtifactUtil.from(artifacts.get(0));
       }
 
       // This should never happen
@@ -1344,7 +1350,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Group by (Collection, AUID, URL) then pick highest version from each group
       Stream<Artifact> latestVersions = allVersions
           .collect(Collectors.groupingBy(
-              artifact -> artifact.getIdentifier().getArtifactStem(),
+              artifact -> new ArtifactStem(ArtifactIdentifierUtil.from(artifact)),
               Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
           .values()
           .stream()
@@ -1441,7 +1447,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Group by (Collection, AUID, URL) then pick highest version from each group
       Stream<Artifact> latestVersions = allVersions
           .collect(Collectors.groupingBy(
-              artifact -> artifact.getIdentifier().getArtifactStem(),
+              artifact -> new ArtifactStem(ArtifactIdentifierUtil.from(artifact)),
               Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
           .values()
           .stream()

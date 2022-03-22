@@ -44,12 +44,11 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     @BeforeEach
     public void setUp() throws Exception {
         // Instantiate an ArtifactInstance to test getters against
-        this.identifier = new ArtifactIdentifier(
-                ARTIFACT_COLLECTION,
-                ARTIFACT_AUID,
-                ARTIFACT_URI,
-                ARTIFACT_VERSION
-        );
+        this.identifier = new ArtifactIdentifier()
+            .collection(ARTIFACT_COLLECTION)
+            .auid(ARTIFACT_AUID)
+            .uri(ARTIFACT_URI)
+            .version(ARTIFACT_VERSION);
     }
 
     @Test
@@ -74,66 +73,64 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
 
     @Test
     public void compareTo_equal() {
-        ArtifactIdentifier id1 = new ArtifactIdentifier(
-                "id1",
-                "c",
-                "a",
-                "u",
-                1
-        );
+        ArtifactIdentifier id1 = new ArtifactIdentifier()
+            .id("id1")
+            .collection("c")
+            .auid("a")
+            .uri("u")
+            .version(1);
 
-        ArtifactIdentifier id2 = new ArtifactIdentifier(
-                "id1",
-                "c",
-                "a",
-                "u",
-                1
-        );
+        ArtifactIdentifier id2 = new ArtifactIdentifier()
+            .id("id1")
+            .collection("c")
+            .auid("a")
+            .uri("u")
+            .version(1);
 
         assertTrue(id1.compareTo(id2) == 0);
     }
 
     @Test
     public void compareTo_greaterThan() {
-        ArtifactIdentifier id1 = new ArtifactIdentifier(
-                "c",
-                "a",
-                "u2",
-                1
-        );
+        ArtifactIdentifier id1 = new ArtifactIdentifier()
+            .collection("c")
+            .auid("a")
+            .uri("u2")
+            .version(1);
 
-        ArtifactIdentifier id2 = new ArtifactIdentifier(
-                "c",
-                "a",
-                "u1",
-                1
-        );
+        ArtifactIdentifier id2 = new ArtifactIdentifier()
+            .collection("c")
+            .auid("a")
+            .uri("u1")
+            .version(1);
 
         assertTrue(id1.compareTo(id2) >= 1);
     }
 
     @Test
     public void compareTo_lessThan() {
-        ArtifactIdentifier id1 = new ArtifactIdentifier(
-                "b",
-                "a",
-                "u",
-                1
-        );
+        ArtifactIdentifier id1 = new ArtifactIdentifier()
+            .collection("b")
+            .auid("a")
+            .uri("u")
+            .version(1);
 
-        ArtifactIdentifier id2 = new ArtifactIdentifier(
-                "c",
-                "a",
-                "u",
-                1
-        );
+        ArtifactIdentifier id2 = new ArtifactIdentifier()
+            .collection("c")
+            .auid("a")
+            .uri("u")
+            .version(1);
 
         assertTrue(id1.compareTo(id2) <= -1);
     }
 
   
   ArtifactIdentifier artId(String coll, String auid, String uri, int version) {
-    return new ArtifactIdentifier(coll, auid, uri, version);
+    return new ArtifactIdentifier()
+        .collection(coll)
+        .auid(auid)
+        .uri(uri)
+        .version(version);
   }
 
   @Test

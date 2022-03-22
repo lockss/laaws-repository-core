@@ -31,10 +31,7 @@
 package org.lockss.laaws.rs.util;
 
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
-import org.apache.http.Header;
-import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
+import org.apache.http.*;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.DefaultHttpResponseWriter;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
@@ -42,14 +39,21 @@ import org.apache.http.impl.io.SessionOutputBufferImpl;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicLineFormatter;
+import org.apache.http.message.BasicStatusLine;
 import org.apache.http.util.CharArrayBuffer;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 
 import java.io.*;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Common utilities and adapters for LOCKSS repository ArtifactData objects.
@@ -77,6 +81,39 @@ public class ArtifactDataUtil {
         return httpResponse;
     }
 
+    public static HttpHeaders getHttpHeaders(Map<String, List<String>> headersMap) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.putAll(headersMap);
+        return headers;
+    }
+
+    private static final Pattern PATTERN_HTTP_RESPONSE_STATUS =
+        Pattern.compile("(?<protocol>HTTP)/(?<major>\\d+).(?<minor>\\d+) (?<statuscode>\\d{3}) (?<reason>\\w+)");
+
+    /**
+     * Deprecated. Use {@code getStatusLine(String)} instead.
+     */
+    @Deprecated
+    public static StatusLine getStatusLine(HttpHeaders props) {
+        return getStatusLine(props.getFirst(ArtifactConstants.ARTIFACT_HTTP_RESPONSE_STATUS));
+    }
+
+    public static StatusLine getStatusLine(String statusLine) {
+        Matcher m = PATTERN_HTTP_RESPONSE_STATUS.matcher(statusLine.trim());
+
+        if (m.matches()) {
+            ProtocolVersion protoVer =
+                new ProtocolVersion(
+                    m.group("protocol"),
+                    Integer.parseInt(m.group("major")),
+                    Integer.parseInt(m.group("minor")));
+
+            return new BasicStatusLine(protoVer, Integer.parseInt(m.group("statuscode")), m.group("reason"));
+        } else {
+            log.error("Could not parse HTTP status line: {}", statusLine);
+            throw new IllegalArgumentException("Bad status line");
+        }
+    }
 
     /**
      * Adapter that takes an {@code ArtifactData} and returns an Apache {@code HttpResponse} object representation of
@@ -90,18 +127,20 @@ public class ArtifactDataUtil {
      * @throws HttpException
      * @throws IOException
      */
-    public static HttpResponse getHttpResponseFromArtifactData(ArtifactData artifactData) {
-        // Craft a new HTTP response object representation from the artifact
-        BasicHttpResponse response = new BasicHttpResponse(artifactData.getHttpStatus());
+    public static HttpResponse getHttpResponseFromArtifactData(ArtifactData artifactData) throws IOException {
+        HttpHeaders props = (HttpHeaders) artifactData.getProperties();
+        BasicHttpResponse response = new BasicHttpResponse(getStatusLine(props));
 
         // Create an InputStreamEntity from artifact InputStream
-        response.setEntity(new InputStreamEntity(artifactData.getInputStream()));
+        Resource data = artifactData.getData();
+        response.setEntity(null);
 
         // Add artifact headers into HTTP response
-        if (artifactData.getMetadata() != null) {
+//        Map<String, List<String>> props = artifactData.getProperties();
 
+        if (props != null) {
             // Compile a list of headers
-            artifactData.getMetadata().forEach((headerName, headerValues) ->
+            props.forEach((headerName, headerValues) ->
                 headerValues.forEach((headerValue) ->
                     response.addHeader(headerName, headerValue)
             ));
@@ -119,7 +158,7 @@ public class ArtifactDataUtil {
      * @return An {@code Header[]} representing the {@code ArtifactData}'s {@code ArtifactIdentifier}.
      */
     private static Header[] getArtifactIdentifierHeaders(ArtifactData artifact) {
-        return getArtifactIdentifierHeaders(artifact.getIdentifier());
+        return getArtifactIdentifierHeaders(ArtifactIdentifierUtil.from(artifact));
     }
 
     /**

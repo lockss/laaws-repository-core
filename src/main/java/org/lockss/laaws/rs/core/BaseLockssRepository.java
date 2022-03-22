@@ -30,9 +30,12 @@
 
 package org.lockss.laaws.rs.core;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.laaws.rs.util.ArtifactIdentifierUtil;
 import org.lockss.laaws.rs.util.JmsFactorySource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.JmsFactory;
@@ -157,6 +160,12 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   @Override
+  public ArtifactRepositoryState getArtifactState(ArtifactIdentifier from) {
+    // TODO
+    throw new NotImplementedException("TODO");
+  }
+
+  @Override
   public void initRepository() throws IOException {
     log.info("Initializing repository");
 
@@ -240,37 +249,28 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       throw new IllegalArgumentException("Null ArtifactData");
     }
 
-    ArtifactIdentifier artifactId = artifactData.getIdentifier();
-
-    index.acquireVersionLock(artifactId.getArtifactStem());
+    ArtifactStem key = ArtifactStem.from(artifactData);
+    index.acquireVersionLock(key);
 
     try {
       // Retrieve latest version in this URL lineage
       Artifact latestVersion = index.getArtifact(
-          artifactId.getCollection(),
-          artifactId.getAuid(),
-          artifactId.getUri(),
-          true
-      );
+          artifactData.getCollection(),
+          artifactData.getAuid(),
+          artifactData.getUri(),
+          true);
 
-      // Create a new artifact identifier for this artifact
-      ArtifactIdentifier newId = new ArtifactIdentifier(
-          // Assign a new artifact ID
-          UUID.randomUUID().toString(), // FIXME: Namespace collision unlikely but possible
-          artifactId.getCollection(),
-          artifactId.getAuid(),
-          artifactId.getUri(),
-          // Set the next version
-          (latestVersion == null) ? 1 : latestVersion.getVersion() + 1
-      );
+      // FIXME: Namespace collision unlikely but possible
+      artifactData.setId(UUID.randomUUID().toString());
 
-      // Set the new artifact identifier
-      artifactData.setIdentifier(newId);
+      int nextVersion = latestVersion == null ? 1 : latestVersion.getVersion() + 1;
+
+      artifactData.setVersion(nextVersion);
 
       // Add the artifact the data store and index
       return store.addArtifactData(artifactData);
     } finally {
-      index.releaseVersionLock(artifactId.getArtifactStem());
+      index.releaseVersionLock(key);
     }
   }
 
@@ -312,9 +312,8 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
 
   @Override
   public HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException {
-    try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
-      return ad.getMetadata();
-    }
+    ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId));
+    return ArtifactDataUtil.getHttpHeaders(ad.getProperties());
   }
 
   /**

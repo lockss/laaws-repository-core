@@ -141,7 +141,12 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
 
   @Override
   public void testMakeStorageUrlImpl() throws Exception {
-    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+    ArtifactIdentifier aid = new ArtifactIdentifier()
+        .collection("coll1")
+        .auid("auid1")
+        .uri("http://example.com/u1")
+        .version(1);
+
     long pendingArtifactSize = 1234L;
 
     Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), pendingArtifactSize, false);
@@ -153,9 +158,9 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
         5678L
     ));
 
-    URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
+    String actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
 
-    assertEquals(expectedStorageUrl, actualStorageUrl);
+    assertEquals(expectedStorageUrl.toString(), actualStorageUrl);
   }
 
   @Override

@@ -32,9 +32,11 @@ import java.util.*;
 import org.junit.jupiter.api.*;
 import org.apache.commons.collections4.IteratorUtils;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactUtil;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.*;
 import org.lockss.util.test.LockssTestCase5;
+import org.springframework.core.io.Resource;
 
 public class TestArtifactCache extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -60,8 +62,16 @@ public class TestArtifactCache extends LockssTestCase5 {
   }
 
   Artifact makeArt(String coll, String auid, String url, int version) {
-    return new Artifact("aidid", coll, auid, url, version, Boolean.TRUE,
-			"store_url", 123, null);
+    return new Artifact()
+        .id("aidid")
+        .collection(coll)
+        .auid(auid)
+        .uri(url)
+        .version(version)
+        .committed(Boolean.TRUE)
+        .storageUrl("store_url")
+        .contentLength(123L)
+        .contentDigest(null);
   }
 
   @Test
@@ -220,12 +230,12 @@ public class TestArtifactCache extends LockssTestCase5 {
     assertEquals(3, stats.getCacheHits());
     assertEquals(4, stats.getCacheIterHits());
 
-    assertTrue(cache.containsIterKey(a2.makeKey()));
+    assertTrue(cache.containsIterKey(ArtifactUtil.makeKey(a2)));
     cache.putLatest(s3);
     Artifact a6 = iter.next();
-    assertTrue(cache.containsIterKey(a2.makeKey()));
+    assertTrue(cache.containsIterKey(ArtifactUtil.makeKey(a2)));
     Artifact a7 = iter.next();
-    assertFalse(cache.containsIterKey(a2.makeKey()));
+    assertFalse(cache.containsIterKey(ArtifactUtil.makeKey(a2)));
 
     // Items in regular cache shouldn't have aged out
     assertSame(s2, cache.getLatest(COLL2, AUID1, URL2));
@@ -271,7 +281,7 @@ public class TestArtifactCache extends LockssTestCase5 {
     // Cached item has required InputStream
     assertSame(ad1, cache.getArtifactData(COLL1, ARTID1, true));
     // Use InputStream
-    ad1.getInputStream();
+    ad1.getData().getInputStream();
     // Now doesn't have required InputStream
     assertNull(cache.getArtifactData(COLL1, ARTID1, true));
     // But is still valid if InputStream not required
@@ -299,14 +309,16 @@ public class TestArtifactCache extends LockssTestCase5 {
     // Ensure unused item in cache isn't replaced by used new item
     ArtifactData ad2a = makeAD(URL2, ARTID2, "content2");
     ArtifactData ad2b = makeAD(URL2, ARTID2, "content2");
-    ad2a.getInputStream();
+
+    ad2a.getData().getInputStream();
+
     // ad2a is used, shouldn't replace unused ad2
     assertSame(ad2, cache.putArtifactData(COLL1, ARTID2, ad2a));
     assertSame(ad2, cache.getArtifactData(COLL1, ARTID2, true));
     // ad2b not used, should replace ad2
     assertSame(ad2b, cache.putArtifactData(COLL1, ARTID2, ad2b));
     assertSame(ad2b, cache.getArtifactData(COLL1, ARTID2, true));
-    ad2b.getInputStream();
+    ad2b.getData().getInputStream();
     // now ad2a should replace used ad2b
     assertSame(ad2a, cache.putArtifactData(COLL1, ARTID2, ad2a));
     assertSame(ad2a, cache.getArtifactData(COLL1, ARTID2, false));

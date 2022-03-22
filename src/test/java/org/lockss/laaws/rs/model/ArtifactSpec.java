@@ -41,10 +41,17 @@ import org.junit.jupiter.api.Assertions;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.core.RepoUtil;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
+import org.lockss.laaws.rs.util.ArtifactConstants;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.laaws.rs.util.ArtifactIdentifierUtil;
+import org.lockss.laaws.rs.util.FixedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.time.TimeBase;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
@@ -94,6 +101,7 @@ public class ArtifactSpec implements Comparable<Object> {
     HEADERS1.add("key1", "val1");
     HEADERS1.add("key1", "val2");
     HEADERS1.add("key2", "val1");
+    HEADERS1.add("X-LockssRepo-Artifact-HttpResponseStatus", "HTTP/1.1 200 OK");
   }
 
   public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR =
@@ -393,7 +401,8 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   private MessageDigest makeDigest() {
-    String algorithmName = ArtifactData.DEFAULT_DIGEST_ALGORITHM;
+    String algorithmName = WarcArtifactDataStore.DEFAULT_DIGEST_ALGORITHM;
+
     try {
       return MessageDigest.getInstance(algorithmName);
     } catch (NoSuchAlgorithmException nsae) {
@@ -446,36 +455,61 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactIdentifier getArtifactIdentifier() {
-    return new ArtifactIdentifier(artId, coll, auid, url, getVersion());
+    return new ArtifactIdentifier()
+        .id(artId)
+        .collection(coll)
+        .auid(auid)
+        .uri(url)
+        .version(getVersion());
   }
 
   public Artifact getArtifact() {
-    Artifact artifact = new Artifact(
-        getArtifactId(),
-        getCollection(),
-        getAuid(),
-        getUrl(),
-        getVersion(),
-        isCommitted(),
-        getStorageUrl() == null ? null : getStorageUrl().toString(),
-        getContentLength(),
-        getContentDigest()
-    );
+    Artifact artifact = new Artifact()
+        .id(getArtifactId())
+        .collection(getCollection())
+        .auid(getAuid())
+        .uri(getUrl())
+        .version(getVersion())
+        .committed(isCommitted())
+        .storageUrl(getStorageUrl() == null ? null : getStorageUrl().toString())
+        .contentLength(getContentLength())
+        .contentDigest(getContentDigest());
 
     artifact.setCollectionDate(getCollectionDate());
 
     return artifact;
   }
 
+  private static final String SP = " ";
+  private static String getStatusLineString(StatusLine sl) {
+    return sl.getProtocolVersion().toString() + SP + sl.getStatusCode() + SP + sl.getReasonPhrase();
+  }
+
   public ArtifactData getArtifactData() {
-    ArtifactData ad = new ArtifactData(
-        getArtifactIdentifier(),
-        getMetadata(),
-        getInputStream(),
-        getStatusLine(),
-        getStorageUrl(),
-        null
-    );
+    ArtifactIdentifier id = getArtifactIdentifier();
+
+    HttpHeaders headers = getMetadata();
+
+    StatusLine status = getStatusLine();
+
+    if (status != null) {
+      headers.add(ArtifactConstants.ARTIFACT_HTTP_RESPONSE_STATUS,
+          getStatusLineString(status));
+    }
+
+    ArtifactData ad = new ArtifactData()
+        .id(id.getId())
+        .collection(id.getCollection())
+        .auid(id.getAuid())
+        .uri(id.getUri())
+        .version(id.getVersion())
+        .committed(this.isCommitted())
+        .properties(headers)
+        .data(new FixedInputStreamResource(getInputStream()));
+
+    if (getStorageUrl() != null) {
+        ad.storageUrl(getStorageUrl().toString());
+    }
 
     if (this.hasContent()) {
       ad.setContentLength(this.getContentLength());
@@ -534,26 +568,24 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   /**
-   * Assert that the Artifact matches this ArtifactSpec
+   * Assert that the ArtifactData matches this ArtifactSpec
    */
-  public void assertArtifact(LockssRepository repository, Artifact art) throws IOException {
+  public void assertArtifactData(LockssRepository repository, Artifact art) throws IOException {
     try {
       assertArtifactCommon(art);
 
       // Test for getArtifactData(Artifact)
-      try (ArtifactData ad1 = repository.getArtifactData(art)) {
-        Assertions.assertEquals(art.getIdentifier(), ad1.getIdentifier());
-        Assertions.assertEquals(getContentLength(), ad1.getContentLength());
-        Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
-        assertArtifactData(ad1);
-      }
+      ArtifactData ad1 = repository.getArtifactData(art);
+      Assertions.assertEquals(ArtifactIdentifierUtil.from(art), ArtifactIdentifierUtil.from(ad1));
+      Assertions.assertEquals(getContentLength(), ad1.getContentLength());
+      Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
+      assertArtifactData(ad1);
 
       // Test for getArtifactData(String, String)
-      try (ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId())) {
-        Assertions.assertEquals(getContentLength(), ad2.getContentLength());
-        Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
-        assertArtifactData(ad2);
-      }
+      ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId());
+      Assertions.assertEquals(getContentLength(), ad2.getContentLength());
+      Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
+      assertArtifactData(ad2);
     } catch (Exception e) {
       log.error("Caught exception asserting artifact spec: {}", this, e);
       log.error("art = {}", art);
@@ -561,20 +593,16 @@ public class ArtifactSpec implements Comparable<Object> {
     }
   }
 
-  public void assertArtifact(ArtifactDataStore store, Artifact artifact) throws IOException {
+  public void assertArtifactData(ArtifactDataStore store, Artifact artifact) throws IOException {
     assertArtifactCommon(artifact);
-    try (ArtifactData ad1 = store.getArtifactData(artifact)) {
+    ArtifactData ad1 = store.getArtifactData(artifact);
       Assertions.assertNotNull(ad1);
 
       // Test for getArtifactData(Artifact)
-      Assertions.assertEquals(artifact.getIdentifier(), ad1.getIdentifier());
+      Assertions.assertEquals(ArtifactIdentifierUtil.from(artifact), ArtifactIdentifierUtil.from(ad1));
       Assertions.assertEquals(getContentLength(), ad1.getContentLength());
       Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
       assertArtifactData(ad1);
-    } catch (Exception e) {
-      log.error( "Caught exception asserting artifact [artifactId: {}, artifactSpec = {}]: {}", artifact, this, e);
-      throw e;
-    }
   }
 
   public void assertArtifactCommon(Artifact art) {
@@ -607,18 +635,24 @@ public class ArtifactSpec implements Comparable<Object> {
   /**
    * Assert that the ArtifactData matches the ArtifactSpec
    */
-  public void assertArtifactData(ArtifactData ad) {
+  public void assertArtifactData(ArtifactData ad) throws IOException {
     Assertions.assertNotNull(ad, "Didn't find ArtifactData for: " + this);
-    assertEquals(getStatusLine(), ad.getHttpStatus());
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());
 
+    assertEquals(getStatusLine(), ArtifactDataUtil.getStatusLine((HttpHeaders)ad.getProperties()));
+
     if (getStorageUrl() != null) {
-      Assertions.assertEquals(getStorageUrl(), ad.getStorageUrl());
+      Assertions.assertEquals(getStorageUrl().toString(), ad.getStorageUrl());
     }
 
-    new LockssTestCase5().assertSameBytes(getInputStream(), ad.getInputStream(), getContentLength());
-    Assertions.assertEquals(getHeaders(), RepoUtil.mapFromHttpHeaders(ad.getMetadata()));
+    Resource r = ad.getData();
+
+    new LockssTestCase5()
+        .assertSameBytes(getInputStream(), r.getInputStream());//, getContentLength());
+
+    Assertions.assertEquals(getHeaders(),
+        ((HttpHeaders) ad.getProperties()).toSingleValueMap());
   }
 
   /**
@@ -631,7 +665,7 @@ public class ArtifactSpec implements Comparable<Object> {
     while (specIter.hasNext() && artIter.hasNext()) {
       ArtifactSpec spec = specIter.next();
       Artifact art = artIter.next();
-      spec.assertArtifact(repository, art);
+      spec.assertArtifactData(repository, art);
     }
     Assertions.assertFalse(specIter.hasNext());
     Assertions.assertFalse(artIter.hasNext());

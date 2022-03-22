@@ -46,6 +46,8 @@ import java.util.concurrent.TimeoutException;
  */
 public interface LockssRepository extends Ready {
 
+  ArtifactRepositoryState getArtifactState(ArtifactIdentifier from);
+
   /**
    * NEVER: Artifact content should never be included. The client does not want it, period.
    * IF_SMALL: Include the artifact content if the artifact is small enough.
@@ -76,8 +78,7 @@ public interface LockssRepository extends Ready {
 
   /**
    * Retrieves an artifact from this LOCKSS repository.
-   * <br>(See Reusability and release note in {@link
-   * org.lockss.laaws.rs.model.ArtifactData})
+   * <br>(See Reusability and release note in {@link * ArtifactData})
    *
    * @param artifact An artifact to retrieve from this repository.
    * @return The {@code ArtifactData} referenced by this artifact.
@@ -89,8 +90,7 @@ public interface LockssRepository extends Ready {
 
   /**
    * Retrieves an artifact from this LOCKSS repository.
-   * <br>(See Reusability and release note in {@link
-   * org.lockss.laaws.rs.model.ArtifactData})
+   * <br>(See Reusability and release note in {@link * ArtifactData})
    *
    * @param artifact           An artifact to retrieve from this repository.
    * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
@@ -99,7 +99,7 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   default ArtifactData getArtifactData(Artifact artifact,
-                                       IncludeContent includeContent)
+                                              IncludeContent includeContent)
       throws IOException {
     return getArtifactData(artifact.getCollection(), artifact.getId(),
         includeContent);
@@ -107,8 +107,7 @@ public interface LockssRepository extends Ready {
 
   /**
    * Retrieves an artifact from this LOCKSS repository.
-   * <br>(See Reusability and release note in {@link
-   * org.lockss.laaws.rs.model.ArtifactData})
+   * <br>(See Reusability and release note in {@link * ArtifactData})
    *
    * @param collection         The collection ID of the artifact.
    * @param artifactId         A {@code String} with the artifact ID of the artifact to retrieve from this repository.
@@ -118,16 +117,15 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   default ArtifactData getArtifactData(String collection,
-                                       String artifactId,
-                                       IncludeContent includeContent)
+                                              String artifactId,
+                                              IncludeContent includeContent)
       throws IOException {
     return getArtifactData(collection, artifactId);
   }
 
   /**
    * Retrieves an artifact from this LOCKSS repository.
-   * <br>(See Reusability and release note in {@link
-   * org.lockss.laaws.rs.model.ArtifactData})
+   * <br>(See Reusability and release note in {@link * ArtifactData})
    *
    * @param collection The collection ID of the artifact.
    * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
@@ -135,7 +133,7 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   ArtifactData getArtifactData(String collection,
-                               String artifactId)
+                                      String artifactId)
       throws IOException;
 
   /**
@@ -225,7 +223,7 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   Iterable<Artifact> getArtifacts(String collection,
-                                  String auid)
+                                         String auid)
       throws IOException;
 
   /**
@@ -236,7 +234,7 @@ public interface LockssRepository extends Ready {
    * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
    */
   Iterable<Artifact> getArtifactsAllVersions(String collection,
-                                             String auid)
+                                                    String auid)
       throws IOException;
 
   /**
@@ -250,8 +248,8 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   Iterable<Artifact> getArtifactsWithPrefix(String collection,
-                                            String auid,
-                                            String prefix)
+                                                   String auid,
+                                                   String prefix)
       throws IOException;
 
   /**
@@ -265,8 +263,8 @@ public interface LockssRepository extends Ready {
    * prefix from an AU.
    */
   Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection,
-                                                       String auid,
-                                                       String prefix)
+                                                              String auid,
+                                                              String prefix)
       throws IOException;
 
   /**
@@ -280,8 +278,8 @@ public interface LockssRepository extends Ready {
    * prefix.
    */
   Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection,
-                                                         String prefix,
-                                                         ArtifactVersions versions)
+                                                                String prefix,
+                                                                ArtifactVersions versions)
       throws IOException;
 
   /**
@@ -294,8 +292,8 @@ public interface LockssRepository extends Ready {
    * Archival Unit.
    */
   Iterable<Artifact> getArtifactsAllVersions(String collection,
-                                             String auid,
-                                             String url)
+                                                    String auid,
+                                                    String url)
       throws IOException;
 
   /**
@@ -308,8 +306,8 @@ public interface LockssRepository extends Ready {
    * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection,
-                                                   String url,
-                                                   ArtifactVersions versions)
+                                                          String url,
+                                                          ArtifactVersions versions)
       throws IOException;
 
   /**
@@ -322,8 +320,8 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   Artifact getArtifact(String collection,
-                       String auid,
-                       String url)
+                              String auid,
+                              String url)
       throws IOException;
 
   /**
@@ -347,9 +345,9 @@ public interface LockssRepository extends Ready {
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   default Artifact getArtifactVersion(String collection,
-                                      String auid,
-                                      String url,
-                                      Integer version)
+                                             String auid,
+                                             String url,
+                                             Integer version)
       throws IOException {
     return getArtifactVersion(collection, auid, url, version, false);
   }
@@ -366,10 +364,10 @@ public interface LockssRepository extends Ready {
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   Artifact getArtifactVersion(String collection,
-                              String auid,
-                              String url,
-                              Integer version,
-                              boolean includeUncommitted)
+                                     String auid,
+                                     String url,
+                                     Integer version,
+                                     boolean includeUncommitted)
       throws IOException;
 
 

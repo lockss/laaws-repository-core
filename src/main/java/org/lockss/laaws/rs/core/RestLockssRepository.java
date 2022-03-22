@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.laaws.rs.util.ArtifactUtil;
 import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
@@ -198,6 +199,11 @@ public class RestLockssRepository implements LockssRepository {
     }
   }
 
+  @Override
+  public ArtifactRepositoryState getArtifactState(ArtifactIdentifier from) {
+    return null;
+  }
+
   /**
    * Adds an instance of {@code ArtifactData} to the remote REST LOCKSS Repository server.
    * <p>
@@ -212,20 +218,17 @@ public class RestLockssRepository implements LockssRepository {
     if (artifactData == null)
       throw new IllegalArgumentException("ArtifactData is null");
 
-    // Get artifact identifier
-    ArtifactIdentifier artifactId = artifactData.getIdentifier();
-
     log.debug(
         "Adding artifact to remote repository [collectionId: {}, auId: {}, uri: {}]",
-        artifactId.getCollection(),
-        artifactId.getAuid(),
-        artifactId.getUri()
+        artifactData.getCollection(),
+        artifactData.getAuid(),
+        artifactData.getUri()
     );
 
     // Create a multivalue map to contain the multipart parts
     MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
-    parts.add("auid", artifactId.getAuid());
-    parts.add("uri", artifactId.getUri());
+    parts.add("auid", artifactData.getAuid());
+    parts.add("uri", artifactData.getUri());
 
     // Add collection date form data part if set
     if (artifactData.getCollectionDate() >= 0) {
@@ -253,7 +256,7 @@ public class RestLockssRepository implements LockssRepository {
         new HttpEntity<>(parts, getInitializedHttpHeaders());
 
     // Construct REST endpoint to collection
-    String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, artifactId.getCollection());
+    String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, artifactData.getCollection());
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
     // POST the multipart entity to the remote LOCKSS repository and return the result
@@ -272,7 +275,7 @@ public class RestLockssRepository implements LockssRepository {
           false);
       Artifact res = mapper.readValue(response.getBody(), Artifact.class);
       artCache.put(res);
-      artCache.putArtifactData(res.getCollection(), res.getIdentifier().getId(),
+      artCache.putArtifactData(res.getCollection(), res.getId(),
           artifactData);
 
       return res;
@@ -330,12 +333,13 @@ public class RestLockssRepository implements LockssRepository {
     boolean includeCachedContent = (includeContent != IncludeContent.NEVER);
 
     // Get ArtifactData from cache
-    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeCachedContent);
-
-    if (cached != null) {
-      // Cache hit: Return cached ArtifactData
-      return cached;
-    }
+    // TODO
+//    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeCachedContent);
+//
+//    if (cached != null) {
+//      // Cache hit: Return cached ArtifactData
+//      return cached;
+//    }
 
     // Cache miss: Fetch ArtifactData from repository service
     try {
@@ -385,16 +389,23 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     // Retrieve artifact from the artifact cache if cached
-    ArtifactData cached = artCache.getArtifactData(collectionId, artifactId, false);
+    // TODO
+//    ArtifactData cached = artCache.getArtifactData(collectionId, artifactId, false);
+//
+//    if (cached != null) {
+//      // Artifact found in cache; return its headers
+//      return getHttpHeaders(cached.getProperties());
+//    }
 
-    if (cached != null) {
-      // Artifact found in cache; return its headers
-      return cached.getMetadata();
-    }
+    ArtifactData ad = getArtifactData(collectionId, artifactId, IncludeContent.NEVER);
 
-    ArtifactData ad = getArtifactData(collectionId, artifactId, IncludeContent.IF_SMALL);
-    // TODO: IOUtils.closeQuietly(ad.getInputStream());
-    return ad.getMetadata();
+    return getHttpHeaders(ad.getProperties());
+  }
+
+  private HttpHeaders getHttpHeaders(Map<String, List<String>> headersMap) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.putAll(headersMap);
+    return headers;
   }
 
   /**
@@ -452,8 +463,7 @@ public class RestLockssRepository implements LockssRepository {
    * @throws IOException
    */
   public void deleteArtifact(Artifact artifact) throws IOException {
-    artCache.invalidate(ArtifactCache.InvalidateOp.Delete,
-        artifact.makeKey());
+    artCache.invalidate(ArtifactCache.InvalidateOp.Delete, ArtifactUtil.makeKey(artifact));
     deleteArtifact(artifact.getCollection(), artifact.getId());
   }
 
@@ -550,21 +560,17 @@ public class RestLockssRepository implements LockssRepository {
     }
 
     // Retrieve artifact from the artifact cache if cached
-    ArtifactData cached = artCache.getArtifactData(collection, artifactId, false);
+    // TODO
+//    ArtifactData cached = artCache.getArtifactData(collection, artifactId, false);
+//
+//    if (cached != null) {
+//      // Artifact found in cache; return its headers
+//      return cached.getCommitted();
+//    }
 
-    if (cached != null) {
-      // Artifact found in cache; return its headers
-      return cached.getArtifactRepositoryState().isCommitted();
-    }
+    Artifact artifact = getArtifact(collection, artifactId);
 
-    ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
-    // TODO: IOUtils.closeQuietly(ad.getInputStream());
-
-    if (ad.getArtifactRepositoryState() == null ) {
-      throw new LockssRestInvalidResponseException("Missing artifact repository state");
-    }
-
-    return ad.getArtifactRepositoryState().isCommitted();
+    return artifact.getCommitted();
   }
 
   /**
@@ -636,6 +642,17 @@ public class RestLockssRepository implements LockssRepository {
   private Iterator<Artifact> getArtifactIterator(UriComponentsBuilder builder) throws IOException {
     return new RestLockssRepositoryArtifactIterator(restTemplate, builder,
         authHeaderValue);
+  }
+
+  private Artifact getArtifact(String collection, String artifactId) throws IOException {
+    Iterator<Artifact> artifacts =
+        getArtifacts(artifactEndpoint(collection, artifactId));
+
+    if (artifacts.hasNext()) {
+      return artifacts.next();
+    }
+
+    return null;
   }
 
   /**
@@ -770,7 +787,7 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix,
-                                                                ArtifactVersions versions) throws IOException {
+                                                                       ArtifactVersions versions) throws IOException {
 
     if (collection == null || prefix == null) {
       throw new IllegalArgumentException("Null collection id or prefix");

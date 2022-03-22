@@ -28,6 +28,8 @@ in this Software without prior written authorization from Stanford University.
 
 package org.lockss.laaws.rs.core;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 
 import org.apache.commons.collections4.IteratorUtils;
@@ -36,7 +38,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.util.ArtifactUtil;
 import org.lockss.log.L4JLogger;
+import org.omg.PortableInterceptor.INACTIVE;
+import org.springframework.core.io.Resource;
 
 
 /**
@@ -147,7 +152,7 @@ public class ArtifactCache {
    * @return cached Artifact or null if not found in cache.
    */
   public Artifact get(Artifact protoArt) {
-    return get(protoArt.makeKey());
+    return get(ArtifactUtil.makeKey(protoArt));
   }
 
   /** Return a cached latest-version Artifact with the collection, auid and
@@ -160,7 +165,7 @@ public class ArtifactCache {
    */
   public Artifact getLatest(String collection, String auid, String url) {
     // "latest"
-    return get(Artifact.makeLatestKey(collection, auid, url));
+    return get(ArtifactUtil.makeLatestKey(collection, auid, url));
   }
 
   /** Return a cached Artifact with the collection, auid, url and version.
@@ -171,7 +176,7 @@ public class ArtifactCache {
    * @return cached Artifact or null if not found in cache.
    */
   public Artifact get(String collection, String auid, String url, int version) {
-    return get(Artifact.makeKey(collection, auid, url, version));
+    return get(ArtifactUtil.makeKey(collection, auid, url, version));
   }
 
   /** Internal store
@@ -202,7 +207,7 @@ public class ArtifactCache {
    * @return the Artifact
    */
   public Artifact put(Artifact art) {
-    return put(art.makeKey(), art);
+    return put(ArtifactUtil.makeKey(art), art);
   }
 
   /** Store the Artifact in the cache.
@@ -214,7 +219,7 @@ public class ArtifactCache {
     if (!art.getCommitted()) {
       throw new IllegalStateException("putLatest() called with uncommitted Artifact: " + art);
     }
-    String latestKey = art.makeLatestKey();
+    String latestKey = ArtifactUtil.makeLatestKey(art);
     if (artIterMap.containsKey(latestKey)) {
       artIterMap.put(latestKey, art);
     } else {
@@ -234,8 +239,8 @@ public class ArtifactCache {
     if (!art.getCommitted()) {
       throw new IllegalStateException("putLatest() called with uncommitted Artifact: " + art);
     }
-    String key = art.makeKey();
-    String latestKey = art.makeLatestKey();
+    String key = ArtifactUtil.makeKey(art);
+    String latestKey = ArtifactUtil.makeLatestKey(art);
     // if already in artMap, leave it there,
     if (artMap.containsKey(key)) {
       artMap.put(key, art);
@@ -266,7 +271,8 @@ public class ArtifactCache {
    */
   public synchronized void invalidate(InvalidateOp op, String key) {
     if (artMap == null) return;
-    String latestKey = Artifact.makeLatestKey(key);
+
+    String latestKey = ArtifactUtil.makeLatestKey(key);
 
     // Be conservative and always remove the latest version of this
     // artifact.  The circumstances in which this could unnecessarily
@@ -275,7 +281,8 @@ public class ArtifactCache {
     // safely determine that it's not necessary.
 
     if (artMap.containsKey(key) || artMap.containsKey(latestKey) ||
-	artIterMap.containsKey(key) || artIterMap.containsKey(latestKey)) {
+        artIterMap.containsKey(key) || artIterMap.containsKey(latestKey)) {
+
       artMap.remove(key);
       artMap.remove(latestKey);
       artIterMap.remove(key);
@@ -340,7 +347,19 @@ public class ArtifactCache {
     @Override
     protected boolean removeLRU(LinkEntry<String, ArtifactData> entry) {
       ArtifactData ad = entry.getValue();
-      ad.release();
+
+      // TODO: Does this even make sense??
+      Resource r = ad.getData();
+      if (r != null && r.exists()) {
+        try {
+          InputStream is = r.getInputStream();
+          is.close();
+        } catch (IOException e) {
+          log.error("Could not close open Resource", e);
+          throw new IllegalStateException("Could not close open Resource", e);
+        }
+      }
+
       return true;
     }
   }
@@ -393,13 +412,18 @@ public class ArtifactCache {
     }
     String key = artifactDataKey(collection, artifactId);
     ArtifactData old = artDataMap.get(key);
-    if (old != null && old.hasContentInputStream()
-	&& !ad.hasContentInputStream()) {
-      log.trace("Not replacing unused ArtifactData with a used one: {}", key);
-      return old;
-    }
+
+    if (old != null){
+      Resource oldData = old.getData();
+      Resource newData = ad.getData();
+      if (oldData != null && oldData.isReadable() &&
+          newData != null && !newData.isReadable()) {
+        log.trace("Not replacing unused ArtifactData with a used one: {}", key);
+        return old;
+      }
+  }
+
     artDataMap.put(key, ad);
-    ad.setAutoRelease(true);
     log.trace("putArtifactData({}, {})", key, ad);
     stats.dataCacheStores++;
     return ad;
@@ -414,24 +438,31 @@ public class ArtifactCache {
    * is requred and not available.
    */
   public synchronized ArtifactData getArtifactData(String collection,
-						   String artifactId,
-						   boolean needInputStream) {
+                                                   String artifactId,
+                                                   boolean needInputStream) {
     if (artDataMap == null) return null;
+
     String key = artifactDataKey(collection, artifactId);
     updateHist(stats.artDataHist, artDataMap, key);
     ArtifactData res = artDataMap.get(key);
-    if (res != null && needInputStream && !res.hasContentInputStream()) {
-      if (!res.hadAnInputStream()) {
-	stats.refetchedForContent++;
+
+    if (res != null && needInputStream) {
+      Resource r = res.getData();
+
+//      if (!res.hadAnInputStream()) {
+      if (r == null || !r.isReadable()) {
+        stats.refetchedForContent++;
+        res = null;
       }
-      res = null;
     }
+
     if (res == null) {
       stats.dataCacheMisses++;
     } else {
       stats.dataCacheHits++;
       log.trace("getArtifactData({}): {}", key, res);
     }
+
     return res;
   }
 
@@ -443,8 +474,8 @@ public class ArtifactCache {
    * This must be called *before* the item is looked up, as that operation
    * moves it to the LRU position.
    * @param hist the history array to update
-   * @param the LRU map in question
-   * @param the key being looked up in the map
+   * @param map the LRU map in question
+   * @param key the key being looked up in the map
    * @return true iff the key was found an the historgram updated
    */
   private boolean updateHist(int[] hist,

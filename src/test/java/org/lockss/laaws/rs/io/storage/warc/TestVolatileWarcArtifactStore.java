@@ -119,7 +119,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link VolatileWarcArtifactDataStore#initDataStore()}.
+   * Test for {@link VolatileWarcArtifactDataStore#init()}.
    *
    * @throws Exception
    */
@@ -180,7 +180,11 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
    */
   @Override
   public void testMakeStorageUrlImpl() throws Exception {
-    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+    ArtifactIdentifier aid = new ArtifactIdentifier()
+        .collection("coll1")
+        .auid("auid1")
+        .uri("http://example.com/u1")
+        .version(1);
 
     Path activeWarcPath = store.getAuActiveWarcPath(aid.getCollection(), aid.getAuid(), 4321L, false);
 
@@ -191,9 +195,9 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
         5678L
     ));
 
-    URI actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
+    String actualStorageUrl = store.makeWarcRecordStorageUrl(activeWarcPath, 1234L, 5678L);
 
-    assertEquals(expectedStorageUrl, actualStorageUrl);
+    assertEquals(expectedStorageUrl.toString(), actualStorageUrl);
   }
 
   /**

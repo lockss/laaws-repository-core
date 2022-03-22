@@ -50,21 +50,19 @@ import java.util.concurrent.TimeoutException;
 public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSource, Ready {
 
     /**
-     * Acquires the artifact version lock for an artifact stem. See
-     * {@link ArtifactIdentifier.ArtifactStem}.
+     * Acquires the artifact version lock for an artifact stem. See * {@link ArtifactStem}.
      *
-     * @param stem The {@link ArtifactIdentifier.ArtifactStem} to acquire the lock of.
+     * @param stem The {@link ArtifactStem} to acquire the lock of.
      * @throws IOException
      */
-    void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem) throws IOException;
+    void acquireVersionLock(ArtifactStem stem) throws IOException;
 
     /**
-     * Releases the artifact version lock for an artifact stem. See
-     * {@link org.lockss.laaws.rs.model.ArtifactIdentifier.ArtifactStem}.
+     * Releases the artifact version lock for an artifact stem. See {@link ArtifactStem}.
      *
      * @param stem
      */
-    void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem);
+    void releaseVersionLock(ArtifactStem stem);
 
     /**
      * Adds an artifact to the index.

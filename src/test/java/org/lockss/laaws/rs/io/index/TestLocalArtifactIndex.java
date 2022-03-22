@@ -82,6 +82,7 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
         // Compare collections IDs
         List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
         List<String> cids2 = IteratorUtils.toList(index2.getCollectionIds().iterator());
+        assertIterableEquals(cids1, cids2);
         if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
             fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
         }
@@ -119,8 +120,16 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     void addToIndexTest() throws IOException {
         // Create an Artifact to add
         String artifactId = UUID.randomUUID().toString();
-        ArtifactIdentifier ident = new ArtifactIdentifier(artifactId, "collection1", "auid1", "uri1", 1);
-        Artifact artifact = new Artifact(ident, true, "volatile://test.warc?offset=0", 1024, "sha1");
+
+        Artifact artifact = new Artifact()
+            .id(artifactId)
+            .collection("collection1")
+            .auid("auid1")
+            .uri("uri1")
+            .committed(true)
+            .storageUrl("volatile://test.warc?offset=0")
+            .contentLength(1024L)
+            .contentDigest("sha1");
 
         // Add Artifact to index
         index.addToIndex(artifactId, artifact);

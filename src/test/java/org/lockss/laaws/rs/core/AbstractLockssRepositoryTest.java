@@ -47,10 +47,14 @@ import org.apache.http.message.BasicStatusLine;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactConstants;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
+import org.lockss.laaws.rs.util.FixedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.PreOrderComparator;
 import org.lockss.util.test.*;
 import org.lockss.util.time.TimeBase;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 
 
@@ -296,7 +300,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
       .toCommit(true).setContentLength(size);
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
-    spec.assertArtifact(repository, commArt);
+    spec.assertArtifactData(repository, commArt);
   }
 
   @VariantTest
@@ -309,7 +313,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Illegal ArtifactData (at least one null field)
     for (ArtifactData illAd : nullPointerArtData) {
-      assertThrows(NullPointerException.class,
+      assertThrows(IllegalArgumentException.class,
 		   () -> {repository.addArtifact(illAd);});
     }
 
@@ -320,7 +324,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     ArtifactSpec spec = new ArtifactSpec().setUrl("https://mr/ed/").setContent(CONTENT1).setCollectionDate(0);
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
-    spec.assertArtifact(repository, commArt);
+    spec.assertArtifactData(repository, commArt);
   }
 
   // Test ArtifactSpec from InputStream generator.  (This is really more a
@@ -338,7 +342,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     Artifact newArt = addUncommitted(spec);
     Artifact commArt = commit(spec, newArt);
-    spec.assertArtifact(repository, commArt);
+    spec.assertArtifactData(repository, commArt);
   }
 
   @VariantTest
@@ -376,7 +380,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     // Ensure that a no-version retrieval gets the expected highest version
     for (ArtifactSpec highSpec : variantState.getHighestCommittedVerSpecs()) {
       log.info("highSpec: " + highSpec);
-      highSpec.assertArtifact(repository, repository.getArtifact(
+      highSpec.assertArtifactData(repository, repository.getArtifact(
 	  highSpec.getCollection(),
 	  highSpec.getAuid(),
 	  highSpec.getUrl()));
@@ -402,9 +406,24 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 					    highSpec.getAuid(),
 					    highSpec.getUrl());
 
-      assertTrue(art.equalsExceptStorageUrl(repository.getArtifactFromId(art.getId())));
+      assertArtifactEqualsExceptStorageUrl(art, repository.getArtifactFromId(art.getId()));
     }
 
+  }
+
+  public void assertArtifactEqualsExceptStorageUrl(Artifact expected, Artifact actual) {
+    assertEquals(expected.getId(), actual.getId());
+    assertEquals(expected.getCollection(), actual.getCollection());
+    assertEquals(expected.getAuid(), actual.getAuid());
+    assertEquals(expected.getUri(), actual.getUri());
+    assertEquals(expected.getVersion(), actual.getVersion());
+    assertEquals(expected.getCommitted(), actual.getCommitted());
+//    assertEquals(expected.getStorageUrl(), actual.getStorageUrl());
+    assertEquals(expected.getContentLength(), actual.getContentLength());
+    assertEquals(expected.getContentDigest(), actual.getContentDigest());
+    assertEquals(expected.getContentType(), actual.getContentType());
+    assertEquals(expected.getCollectionDate(), actual.getCollectionDate());
+    assertEquals(expected.getProperties(), actual.getProperties());
   }
 
   @VariantTest
@@ -433,10 +452,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 						   cspec.getArtifactId());
       cspec.assertArtifactData(ad);
       // should be in TestArtifactData
-      assertFalse(ad.hasContentInputStream());
-      assertThrowsMatch(IllegalStateException.class,
-			"Attempt to get InputStream from ArtifactData whose InputStream has been used",
-			() -> ad.getInputStream());
+      assertThrowsMatch(IllegalStateException.class, "InputStream has already been read",
+          () -> ad.getData().getInputStream());
     }
     ArtifactSpec uspec = variantState.anyUncommittedSpec();
     if (uspec != null) {
@@ -507,11 +524,11 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
     // Get all added artifacts, check correctness
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
-      spec.assertArtifact(repository, getArtifact(repository, spec, true));
+      spec.assertArtifactData(repository, getArtifact(repository, spec, true));
 
       if (spec.isCommitted()) {
 	log.info("s.b. data: " + spec);
-	spec.assertArtifact(repository, getArtifact(repository, spec, false));
+	spec.assertArtifactData(repository, getArtifact(repository, spec, false));
       } else {
 	log.info("s.b. uncommitted: " + spec);
 	assertNull(getArtifact(repository, spec, false),
@@ -611,12 +628,12 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 // 						    commSpec.getArtifactId());});
       Artifact dupArt = repository.commitArtifact(commSpec.getCollection(),
 						  commSpec.getArtifactId());
-      assertTrue(commArt.equalsExceptStorageUrl(dupArt));
-      commSpec.assertArtifact(repository, dupArt);
+      assertArtifactEqualsExceptStorageUrl(commArt, dupArt);
+      commSpec.assertArtifactData(repository, dupArt);
 
       // Get the same artifact when uncommitted may be included.
       commArt = getArtifact(repository, commSpec, true);
-      commSpec.assertArtifact(repository, commArt);
+      commSpec.assertArtifactData(repository, commArt);
     }
   }
 
@@ -1033,7 +1050,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
           (variantState.orderedAllCollAllAus(collection)
               .filter(spec -> spec.getUrl().startsWith(PREFIX1))
               .collect(Collectors.groupingBy(
-                  spec -> new ArtifactIdentifier.ArtifactStem(spec.getCollection(), spec.getAuid(), spec.getUrl()),
+                  spec -> new ArtifactStem(spec.getCollection(), spec.getAuid(), spec.getUrl()),
                   Collectors.maxBy(Comparator.comparingInt(ArtifactSpec::getVersion))))
               .values()
               .stream()
@@ -1152,7 +1169,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
           (variantState.orderedAllCommittedAllAus()
               .filter(spec -> spec.sameArtButVerAllAus(urlSpec))
               .collect(Collectors.groupingBy(
-                  spec -> new ArtifactIdentifier.ArtifactStem(spec.getCollection(), spec.getAuid(), spec.getUrl()),
+                  spec -> new ArtifactStem(spec.getCollection(), spec.getAuid(), spec.getUrl()),
                   Collectors.maxBy(Comparator.comparingInt(ArtifactSpec::getVersion))))
               .values()
               .stream()
@@ -1321,7 +1338,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     assertNotNull(newArt);
 
     try {
-      spec.assertArtifact(repository, newArt);
+      spec.assertArtifactData(repository, newArt);
     } catch (Exception e) {
       log.error("Caught exception adding uncommitted artifact: {}", e);
       log.error("spec = {}", spec);
@@ -1342,9 +1359,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 					       newArtId));
     assertFalse(newArt.getCommitted());
 
-    try (ArtifactData artifact = repository.getArtifactData(spec.getCollection(), newArtId)) {
-      assertNotNull(artifact);
-    }
+    ArtifactData artifact = repository.getArtifactData(spec.getCollection(), newArtId);
+    assertNotNull(artifact);
 
     Artifact oldArt = getArtifact(repository, spec, false);
     if (expVers == 0) {
@@ -1395,7 +1411,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 					      commArt.getId()));
     assertTrue(commArt.getCommitted());
 
-    spec.assertArtifact(repository, commArt);
+    spec.assertArtifactData(repository, commArt);
 
     Artifact newArt = getArtifact(repository, spec, false);
     assertNotNull(newArt);
@@ -1415,14 +1431,43 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
   // These should all cause addArtifact to throw NPE
   protected ArtifactData[] nullPointerArtData = {
-    new ArtifactData(null, null, null),
-    new ArtifactData(null, null, STATUS_LINE_OK),
-    new ArtifactData(null, stringInputStream(""), null),
-    new ArtifactData(null, stringInputStream(""), STATUS_LINE_OK),
-    new ArtifactData(HEADERS1, null, null),
-    new ArtifactData(HEADERS1, null, STATUS_LINE_OK),
-    new ArtifactData(HEADERS1, stringInputStream(""), null),
+    generateArtifactData(null, null, null),
+    generateArtifactData(null, null, STATUS_LINE_OK),
+    generateArtifactData(null, stringInputStream(""), null),
+    generateArtifactData(null, stringInputStream(""), STATUS_LINE_OK),
+    generateArtifactData(HEADERS1, null, null),
+    generateArtifactData(HEADERS1, null, STATUS_LINE_OK),
+    generateArtifactData(HEADERS1, stringInputStream(""), null),
   };
+
+  /**
+   * Deprecated. Support for old ArtifactData constructor.
+   */
+  @Deprecated
+  private static ArtifactData generateArtifactData(HttpHeaders headers, InputStream is,
+                                                   StatusLine statusLine) {
+    if (headers == null && statusLine != null) {
+      headers = new HttpHeaders();
+    }
+
+    if (statusLine != null) {
+      try {
+        headers.add(ArtifactConstants.ARTIFACT_HTTP_RESPONSE_STATUS,
+            String.valueOf(ArtifactDataUtil.getHttpStatusByteArray(statusLine)));
+      } catch (IOException e) {
+        throw new IllegalStateException("Could not generate ArtifactData", e);
+      }
+    }
+
+    ArtifactData ad = new ArtifactData()
+        .properties(headers);
+
+    if (is != null)
+        ad.data(new FixedInputStreamResource(is));
+
+    return ad;
+  }
+
 
   // These describe artifacts that getArtifact() should never find
   protected ArtifactSpec[] neverFoundArtifactSpecs = {

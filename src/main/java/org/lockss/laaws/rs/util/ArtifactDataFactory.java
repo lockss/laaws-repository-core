@@ -47,10 +47,10 @@ import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -162,17 +162,18 @@ public class ArtifactDataFactory {
     }
 
     HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
+    ArtifactIdentifier id = buildArtifactIdentifier(headers);
 
-    ArtifactData artifactData = new ArtifactData(
-        buildArtifactIdentifier(headers),
-        headers,
-        response.getEntity().getContent(),
-        response.getStatusLine()
-    );
+    //        artifactData.setContentLength(response.getEntity().getContentLength());
 
-//        artifactData.setContentLength(response.getEntity().getContentLength());
-
-    return artifactData;
+    return new ArtifactData()
+        .id(id.getId())
+        .collection(id.getCollection())
+        .auid(id.getAuid())
+        .uri(id.getUri())
+        .version(id.getVersion())
+        .properties(headers)
+        .data(new FixedInputStreamResource(response.getEntity().getContent()));
   }
 
   /**
@@ -182,7 +183,7 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
-    Integer version = -1;
+    Integer version = null;
 
     String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACT_VERSION_KEY);
 
@@ -190,13 +191,12 @@ public class ArtifactDataFactory {
       version = Integer.valueOf(versionHeader);
     }
 
-    return new ArtifactIdentifier(
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_ID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_AUID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_URI_KEY),
-        version
-    );
+    return new ArtifactIdentifier()
+        .id(headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY))
+        .collection(headers.getFirst(ArtifactConstants.ARTIFACT_COLLECTION_KEY))
+        .auid(headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY))
+        .uri(headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY))
+        .version(version);
   }
 
   /**
@@ -214,15 +214,14 @@ public class ArtifactDataFactory {
       version = Integer.valueOf(versionHeader);
     }
 
-    return new ArtifactIdentifier(
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
-//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
-//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-        version
-    );
+    return new ArtifactIdentifier()
+        .id((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY))
+//        .id((String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID))
+        .collection((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY))
+        .auid((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY))
+        .uri((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY))
+        // (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI)
+        .version(version);
   }
 
   @Deprecated
@@ -237,13 +236,12 @@ public class ArtifactDataFactory {
       version = Integer.valueOf(versionHeader);
     }
 
-    return new ArtifactIdentifier(
-        headers.get(ArtifactConstants.ARTIFACT_ID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_AUID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_URI_KEY),
-        version
-    );
+    return new ArtifactIdentifier()
+        .id(headers.get(ArtifactConstants.ARTIFACT_ID_KEY))
+        .collection(headers.get(ArtifactConstants.ARTIFACT_COLLECTION_KEY))
+        .auid(headers.get(ArtifactConstants.ARTIFACT_AUID_KEY))
+        .uri(headers.get(ArtifactConstants.ARTIFACT_URI_KEY))
+        .version(version);
   }
 
   /**
@@ -283,17 +281,7 @@ public class ArtifactDataFactory {
     return headers;
   }
 
-  /**
-   * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
-   * <p>
-   * Uses a default HTTP response status of HTTP/1.1 200 OK.
-   *
-   * @param resourceStream An {@code InputStream} containing the byte stream to instantiate an {@code ArtifactData} from.
-   * @return An {@code ArtifactData} wrapping the byte stream.
-   */
-  public static ArtifactData fromResource(InputStream resourceStream) {
-    return fromResourceStream(null, resourceStream);
-  }
+
 
   /**
    * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
@@ -305,12 +293,8 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactData} wrapping the byte stream.
    */
   public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream) {
-    StatusLine responseStatus = new BasicStatusLine(
-        new ProtocolVersion("HTTP", 1, 1),
-        200,
-        "OK"
-    );
-
+    // FIXME: This is a synthesized HTTP response status!
+    StatusLine responseStatus = new BasicStatusLine(new ProtocolVersion("HTTP", 1, 1), 200, "OK");
     return fromResourceStream(metadata, resourceStream, responseStatus);
   }
 
@@ -319,13 +303,20 @@ public class ArtifactDataFactory {
    * <p>
    * Takes a {@code StatusLine} containing the HTTP response status associated with this byte stream.
    *
-   * @param metadata       A Spring {@code HttpHeaders} object containing optional artifact headers.
+   * @param headers       A Spring {@code HttpHeaders} object containing optional artifact headers.
    * @param resourceStream An {@code InputStream} containing an arbitrary byte stream.
    * @param responseStatus
    * @return An {@code ArtifactData} wrapping the byte stream.
    */
-  public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream, StatusLine responseStatus) {
-    return new ArtifactData(metadata, resourceStream, responseStatus);
+  public static ArtifactData fromResourceStream(HttpHeaders headers, InputStream resourceStream, StatusLine responseStatus) {
+    ArtifactIdentifier id = buildArtifactIdentifier(headers);
+    return new ArtifactData()
+        .id(id.getId())
+        .collection(id.getCollection())
+        .auid(id.getAuid())
+        .uri(id.getUri())
+        .version(id.getVersion())
+        .data(new FixedInputStreamResource(resourceStream));
   }
 
   /**
@@ -359,38 +350,44 @@ public class ArtifactDataFactory {
         }
 
         // Parse the ArchiveRecord into an artifact and return it
-        ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(record);
-        ad.setIdentifier(artifactId);
+        ArtifactData artifactData = ArtifactDataFactory.fromHttpResponseStream(record);
+
+        artifactData
+            .id(artifactId.getId())
+            .collection(artifactId.getCollection())
+            .auid(artifactId.getAuid())
+            .uri(artifactId.getUri())
+            .version(artifactId.getVersion());
 
         String artifactContentLength = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
         log.trace("artifactContentLength = {}", artifactContentLength);
         if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
-          ad.setContentLength(Long.parseLong(artifactContentLength));
+          artifactData.setContentLength(Long.parseLong(artifactContentLength));
         }
 
         String artifactDigest = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
         log.trace("artifactDigest = {}", artifactDigest);
         if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
-          ad.setContentDigest(artifactDigest);
+          artifactData.setContentDigest(artifactDigest);
         }
 
         String artifactStoredDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_STORED_DATE);
         log.trace("artifactStoredDate = {}", artifactStoredDate);
         if (artifactStoredDate != null && !artifactStoredDate.trim().isEmpty()) {
           TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactStoredDate);
-          ad.setStoredDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+          artifactData.setStoredDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
         }
 
         String artifactCollectionDate = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
         log.trace("artifactCollectionDate = {}", artifactCollectionDate);
         if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
           TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
-          ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+          artifactData.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
         }
 
-        log.trace("ad = {}", ad);
+        log.trace("ad = {}", artifactData);
 
-        return ad;
+        return artifactData;
 
       case resource:
         // Holds optional HTTP headers for metadata
@@ -435,6 +432,7 @@ public class ArtifactDataFactory {
       // Assemble ArtifactData object from multipart response parts
       MultipartResponse multipartMessage = new MultipartResponse(response);
       LinkedHashMap<String, MultipartResponse.Part> parts = multipartMessage.getParts();
+
       ArtifactData result = new ArtifactData();
 
       //// Set artifact repository properties
@@ -443,28 +441,24 @@ public class ArtifactDataFactory {
 
         HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
 
-        // Set ArtifactIdentifier
-        ArtifactIdentifier id = new ArtifactIdentifier(
-            headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
-            Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY))
-        );
-
-        result.setIdentifier(id);
+        result
+          .id(headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY))
+          .collection(headers.getFirst(ArtifactConstants.ARTIFACT_COLLECTION_KEY))
+          .auid(headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY))
+          .uri(headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY))
+          .version(Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY)));
 
         // Set artifact repository state
         String committedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
         String deletedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED);
 
         if (!(StringUtils.isEmpty(committedHeaderValue) || StringUtils.isEmpty(deletedHeaderValue))) {
-          ArtifactRepositoryState artifactState = new ArtifactRepositoryState(
-              id,
-              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-          );
-          result.setArtifactRepositoryState(artifactState);
+//          ArtifactRepositoryState artifactState = new ArtifactRepositoryState(
+//              id,
+//              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
+//              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED)));
+
+          result.setCommitted(Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)));
         }
 
         // Set misc. artifact properties
@@ -478,7 +472,7 @@ public class ArtifactDataFactory {
 
         // Parse header part body into HttpHeaders object
         HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
-        result.setMetadata(headers);
+        result.setProperties(headers);
       }
 
       //// Set artifact HTTP status if present
@@ -492,7 +486,9 @@ public class ArtifactDataFactory {
 
           // Read and parse HTTP status line
           StatusLine httpStatus = BasicLineParser.parseStatusLine(buffer.readLine(), null);
-          result.setHttpStatus(httpStatus);
+
+          // TODO
+//          result.setHttpStatus(httpStatus);
         }
       }
 
@@ -501,7 +497,7 @@ public class ArtifactDataFactory {
         MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
 
         if (part != null) {
-          result.setInputStream(part.getInputStream());
+          result.setData(new FixedInputStreamResource(part.getInputStream()));
         }
       }
 
@@ -511,14 +507,6 @@ public class ArtifactDataFactory {
       log.error("Could not process MultipartMessage into ArtifactData object", e);
       throw new IOException("Error processing multipart response");
     }
-  }
-
-  private static ArtifactRepositoryState buildRepositoryMetadata(HttpHeaders headers) {
-    return new ArtifactRepositoryState(
-        buildArtifactIdentifier(headers),
-        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-    );
   }
 
   private static boolean getBooleanHeaderValue(String value) {

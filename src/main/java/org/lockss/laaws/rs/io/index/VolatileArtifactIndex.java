@@ -35,6 +35,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
+import org.lockss.laaws.rs.util.ArtifactIdentifierUtil;
+import org.lockss.laaws.rs.util.ArtifactUtil;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
@@ -62,7 +64,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     /**
      * Map from artifact stem to semaphore. Used for artifact version locking.
      */
-    private SemaphoreMap<ArtifactIdentifier.ArtifactStem> versionLock = new SemaphoreMap<>();
+    private SemaphoreMap<ArtifactStem> versionLock = new SemaphoreMap<>();
 
     @Override
     public void init() {
@@ -89,7 +91,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
   @Override
-  public void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem) throws IOException {
+  public void acquireVersionLock(ArtifactStem stem) throws IOException {
     // Acquire the lock for this artifact stem
     try {
       versionLock.getLock(stem);
@@ -100,9 +102,23 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
   }
 
   @Override
-  public void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem) {
+  public void releaseVersionLock(ArtifactStem stem) {
     // Release the lock for the artifact stem
     versionLock.releaseLock(stem);
+  }
+
+  private void validateArtifactData(ArtifactData artifactData) {
+    notNull(artifactData.getId(), "Artifact ID");
+    notNull(artifactData.getCollection(), "Collection ID");
+    notNull(artifactData.getAuid(), "AUID");
+//    notNull(artifactData.getUri(), "URI");
+  }
+
+  public static <T> T notNull(final T argument, final String name) {
+    if (argument == null) {
+      throw new IllegalArgumentException(name + " may not be null");
+    }
+    return argument;
   }
 
   /**
@@ -120,11 +136,9 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
           throw new IllegalArgumentException("Null artifact data");
         }
 
-        ArtifactIdentifier artifactId = artifactData.getIdentifier();
+        validateArtifactData(artifactData);
 
-        if (artifactId == null) {
-          throw new IllegalArgumentException("ArtifactData has null identifier");
-        }
+        ArtifactIdentifier artifactId = ArtifactIdentifierUtil.from(artifactData);
 
         String id = artifactId.getId();
 
@@ -133,20 +147,8 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
               "ArtifactIdentifier has null or empty id");
         }
 
-        // Get artifact's repository state
-        ArtifactRepositoryState state = artifactData.getArtifactRepositoryState();
-
         // Create and populate an Artifact bean for this ArtifactData
-        Artifact artifact = new Artifact(
-            artifactId,
-            state == null ? false : state.isCommitted(),
-            artifactData.getStorageUrl().toString(),
-            artifactData.getContentLength(),
-            artifactData.getContentDigest()
-        );
-
-        // Save the artifact collection date.
-        artifact.setCollectionDate(artifactData.getCollectionDate());
+        Artifact artifact = ArtifactUtil.from(artifactData);
 
         // Add Artifact to the index
         addToIndex(id, artifact);
@@ -174,7 +176,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         Artifact artifactRef = index.get(artifactId);
 
         // Return *copy* of artifact, if found in the internal map
-        return artifactRef == null ? null : artifactRef.copyOf();
+        return artifactRef == null ? null : ArtifactUtil.copyOf(artifactRef);
       }
     }
 
@@ -532,7 +534,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
           Stream<Artifact> latestVersions = allVersions
               // Group the Artifacts by URL then pick the Artifact with highest version from each group
               .collect(Collectors.groupingBy(
-                  artifact -> artifact.getIdentifier().getArtifactStem(),
+                  artifact -> ArtifactStem.from(artifact),
                   Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
               .values()
               .stream()
@@ -608,7 +610,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
           Stream<Artifact> latestVersions = allVersions
               // Group the Artifacts by URL then pick the Artifact with highest version from each group
               .collect(Collectors.groupingBy(
-                  artifact -> artifact.getIdentifier().getArtifactStem(),
+                  artifact -> ArtifactStem.from(artifact),
                   Collectors.maxBy(Comparator.comparingInt(Artifact::getVersion))))
               .values()
               .stream()

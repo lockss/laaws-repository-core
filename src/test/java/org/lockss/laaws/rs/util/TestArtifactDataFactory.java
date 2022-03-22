@@ -43,6 +43,7 @@ import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
@@ -75,7 +76,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "X-LockssRepo-Artifact-Uri: url1\n" +
             "X-LockssRepo-Artifact-Version: 1\n" +
             "X-LockssRepo-Artifact-Origin: warc\n" +
-            "\n" +
+            "X-LockssRepo-Artifact-HttpResponseStatus: HTTP/1.1 200 OK\n" +
+        "\n" +
             ARTIFACT_BYTES;
 
     private static final String ARTIFACT_WARC_ENCODED = "WARC/1.0\n" +
@@ -133,7 +135,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes()));
             assertNotNull(artifact);
 
-            ArtifactIdentifier identifier = artifact.getIdentifier();
+            ArtifactIdentifier identifier = ArtifactIdentifierUtil.from(artifact);
             assertNotNull(identifier);
             assertEquals("id1", identifier.getId());
             assertEquals("coll1", identifier.getCollection());
@@ -141,25 +143,29 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
 
-            HttpHeaders metadata = artifact.getMetadata();
-            assertNotNull(metadata);
-            assertEquals(MediaType.TEXT_HTML, metadata.getContentType());
+            HttpHeaders props = (HttpHeaders) artifact.getProperties();
+            assertNotNull(props);
+            assertEquals(MediaType.TEXT_HTML, props.getContentType());
 
-            InputStream inputStream = artifact.getInputStream();
+            Resource data = artifact.getData();
+            InputStream inputStream = data.getInputStream();
             assertNotNull(inputStream);
             assertEquals(ARTIFACT_BYTES, IOUtils.toString(inputStream));
 
-            StatusLine statusLine = artifact.getHttpStatus();
-            assertNotNull(statusLine);
-            assertEquals(new ProtocolVersion("HTTP", 1, 1), artifact.getHttpStatus().getProtocolVersion());
-            assertEquals(200, artifact.getHttpStatus().getStatusCode());
-            assertEquals("OK", artifact.getHttpStatus().getReasonPhrase());
+            StatusLine statusLine = ArtifactDataUtil.getStatusLine(
+                props.getFirst(ArtifactConstants.ARTIFACT_HTTP_RESPONSE_STATUS));
 
-            URI storageUrl = artifact.getStorageUrl();
+            assertNotNull(statusLine);
+            assertEquals(new ProtocolVersion("HTTP", 1, 1), statusLine.getProtocolVersion());
+            assertEquals(200, statusLine.getStatusCode());
+            assertEquals("OK", statusLine.getReasonPhrase());
+
+            String storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
-            assertNull(repositoryState);
+            // TODO
+//            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
+//            assertNull(repositoryState);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         }
@@ -182,14 +188,13 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
         }
 
         try {
-            HttpResponse response = ArtifactDataFactory.getHttpResponseFromStream(
-                    new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes())
-            );
+            HttpResponse response = ArtifactDataFactory
+                .getHttpResponseFromStream(new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes()));
 
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponse(response);
             assertNotNull(artifact);
 
-            ArtifactIdentifier identifier = artifact.getIdentifier();
+            ArtifactIdentifier identifier = ArtifactIdentifierUtil.from(artifact);
             assertNotNull(identifier);
             assertEquals("id1", identifier.getId());
             assertEquals("coll1", identifier.getCollection());
@@ -197,25 +202,32 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
 
-            HttpHeaders metadata = artifact.getMetadata();
-            assertNotNull(metadata);
-            assertEquals(MediaType.TEXT_HTML, metadata.getContentType());
+            HttpHeaders props = (HttpHeaders) artifact.getProperties();
+            assertNotNull(props);
+            assertEquals(MediaType.TEXT_HTML, props.getContentType());
 
-            InputStream inputStream = artifact.getInputStream();
+            Resource data = artifact.getData();
+            InputStream inputStream = data.getInputStream();
             assertNotNull(inputStream);
             assertEquals(ARTIFACT_BYTES, IOUtils.toString(inputStream));
 
-            StatusLine statusLine = artifact.getHttpStatus();
-            assertNotNull(statusLine);
-            assertEquals(new ProtocolVersion("HTTP", 1, 1), artifact.getHttpStatus().getProtocolVersion());
-            assertEquals(200, artifact.getHttpStatus().getStatusCode());
-            assertEquals("OK", artifact.getHttpStatus().getReasonPhrase());
+            String statusLineVal = props.getFirst(ArtifactConstants.ARTIFACT_HTTP_RESPONSE_STATUS);
+            assertNotNull(statusLineVal);
 
-            URI storageUrl = artifact.getStorageUrl();
+            log.info("statusLineValue = {}", statusLineVal);
+            StatusLine statusLine = ArtifactDataUtil.getStatusLine(statusLineVal);
+            assertNotNull(statusLine);
+
+            assertEquals(new ProtocolVersion("HTTP", 1, 1), statusLine.getProtocolVersion());
+            assertEquals(200, statusLine.getStatusCode());
+            assertEquals("OK", statusLine.getReasonPhrase());
+
+            String storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
-            assertNull(repositoryState);
+            // TODO
+//            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
+//            assertNull(repositoryState);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         } catch (HttpException e) {
@@ -246,7 +258,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 ArtifactData artifact = ArtifactDataFactory.fromArchiveRecord(record);
                 assertNotNull(artifact);
 
-                ArtifactIdentifier identifier = artifact.getIdentifier();
+                ArtifactIdentifier identifier = ArtifactIdentifierUtil.from(artifact);
                 assertNotNull(identifier);
                 assertEquals("id1", identifier.getId());
                 assertEquals("coll1", identifier.getCollection());
@@ -255,7 +267,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 assertEquals("v1", identifier.getVersion());
 
                 String expectedMsg = "hello world";
-                assertEquals(expectedMsg, IOUtils.toString(artifact.getInputStream()));
+                Resource data = artifact.getData();
+                assertEquals(expectedMsg, IOUtils.toString(data.getInputStream()));
 
             } catch (IOException e) {
                 e.printStackTrace();

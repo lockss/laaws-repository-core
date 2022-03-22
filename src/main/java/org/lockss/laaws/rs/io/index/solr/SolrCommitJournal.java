@@ -195,6 +195,7 @@ public class SolrCommitJournal {
 
         // Replay Solr operation represented by CSV row
         records.forEach(record -> {
+
           try {
             // Determine Solr operation to replay
             SolrOperation op = SolrOperation.valueOf(record.get(JOURNAL_HEADER_SOLR_OP));
@@ -207,7 +208,7 @@ public class SolrCommitJournal {
               case ADD:
               {
                 // Transform JSON to SolrInputDocument
-                Artifact artifact = mapper.readValue(record.get(JOURNAL_HEADER_INPUT_DOCUMENT), Artifact.class);
+                SolrArtifact artifact = mapper.readValue(record.get(JOURNAL_HEADER_INPUT_DOCUMENT), SolrArtifact.class);
                 SolrInputDocument doc = binder.toSolrInputDocument(artifact);
 
                 UpdateRequest req = new UpdateRequest();

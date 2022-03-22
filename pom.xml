@@ -304,6 +304,24 @@ POSSIBILITY OF SUCH DAMAGE.
       <artifactId>commons-csv</artifactId>
       <version>1.4</version>
     </dependency>
+
+
+    <!-- BEGIN OAS3 -->
+
+    <dependency>
+      <groupId>org.openapitools</groupId>
+      <artifactId>jackson-databind-nullable</artifactId>
+      <version>0.2.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations</artifactId>
+      <version>2.1.12</version>
+    </dependency>
+
+    <!-- END OAS3 -->
+
   </dependencies>
 
   <build>

@@ -46,18 +46,18 @@ import org.lockss.util.PreOrderComparator;
  *
  * Comparable is implemented to allow for an ordering of artifacts.
  */
-public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIdentifier> {
+public class ArtifactIdentifierSwagger implements Serializable, Comparable<ArtifactIdentifierSwagger> {
     private String artifactId;
     private String collection;
     private String auid;
     private String uri;
     private Integer version;
 
-    public ArtifactIdentifier(String collection, String auid, String uri, Integer version) {
+    public ArtifactIdentifierSwagger(String collection, String auid, String uri, Integer version) {
         this(null, collection, auid, uri, version);
     }
 
-    public ArtifactIdentifier(String id, String collection, String auid, String uri, Integer version) {
+    public ArtifactIdentifierSwagger(String id, String collection, String auid, String uri, Integer version) {
         this.artifactId = id;
         this.collection = collection;
         this.auid = auid;
@@ -128,7 +128,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
      * @return An integer indicating whether order relative to other.
      */
     @Override
-    public int compareTo(ArtifactIdentifier other) {
+    public int compareTo(ArtifactIdentifierSwagger other) {
         return ComparisonChain.start()
                 .compare(this.getCollection(), other.getCollection())
                 .compare(this.getAuid(), other.getAuid())
@@ -141,7 +141,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
 
     @Override
     public boolean equals(Object o) {
-       ArtifactIdentifier other = (ArtifactIdentifier)o;
+       ArtifactIdentifierSwagger other = (ArtifactIdentifierSwagger)o;
        return other != null && this.compareTo(other) == 0;
     }
 
@@ -176,31 +176,4 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
         return new ArtifactStem(getCollection(), getAuid(), getUri());
     }
 
-    /**
-     * Struct representing a tuple of collection ID, AUID, and URL. Used for artifact version locking.
-     */
-    public static class ArtifactStem {
-        private final String collection;
-        private final String auid;
-        private final String uri;
-
-        public ArtifactStem(String collection, String auid, String uri) {
-            this.collection = collection;
-            this.auid = auid;
-            this.uri = uri;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            ArtifactStem that = (ArtifactStem) o;
-            return collection.equals(that.collection) && auid.equals(that.auid) && uri.equals(that.uri);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(collection, auid, uri);
-        }
-    }
 }

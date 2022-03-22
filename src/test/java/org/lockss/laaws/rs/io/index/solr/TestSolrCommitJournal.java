@@ -40,7 +40,6 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.NamedList;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
@@ -81,22 +80,24 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
      */
     @Test
     public void testLogOperation() throws Exception {
-      ArtifactIdentifier artifactId = new ArtifactIdentifier(
-          "test-artifact",
-          "test-collection",
-          "test-auid",
-          "test-url",
-          1
-      );
+      ArtifactIdentifier artifactId = new ArtifactIdentifier()
+          .id("test-artifact")
+          .collection("test-collection")
+          .auid("test-auid")
+          .uri("test-url")
+          .version(1);
 
       // Create an instance of Artifact to represent the artifact
-      Artifact artifact = new Artifact(
-          artifactId,
-          false,
-          "test-storage-url",
-          1234L,
-          "test-digest"
-      );
+      SolrArtifact artifact = new SolrArtifact()
+          .id("test-artifact")
+          .collection("test-collection")
+          .auid("test-auid")
+          .uri("test-url")
+          .version(1)
+          .committed(false)
+          .storageUrl("test-storage-url")
+          .contentLength(1234L)
+          .contentDigest("test-digest");
 
       // Save the artifact collection date.
       artifact.setCollectionDate(1234L);
@@ -125,13 +126,13 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
             "  \"collection\":\"test-collection\",\n" +
             "  \"auid\":\"test-auid\",\n" +
             "  \"uri\":\"test-url\",\n" +
-            "  \"sortUri\":\"test-url\",\n" +
             "  \"version\":1,\n" +
             "  \"committed\":false,\n" +
             "  \"storageUrl\":\"test-storage-url\",\n" +
             "  \"contentLength\":1234,\n" +
             "  \"contentDigest\":\"test-digest\",\n" +
-            "  \"collectionDate\":1234}";
+            "  \"collectionDate\":1234,\n" +
+            "  \"sortUri\":null}"; // FIXME
 
         assertEquals(json, record.get(JOURNAL_HEADER_INPUT_DOCUMENT));
       }
@@ -290,22 +291,18 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
     private final String CSV_HEADERS = "time,artifact,op,doc\n";
 
     private void testReplaySolrJournal_ADD() throws Exception {
-      ArtifactIdentifier ADD_ARTIFACTID = new ArtifactIdentifier(
-          "test-artifact",
-          "test-collection",
-          "test-auid",
-          "test-url",
-          1
-      );
-
       // Create an instance of Artifact to represent the artifact
-      Artifact ADD_ARTIFACT = new Artifact(
-          ADD_ARTIFACTID,
-          false,
-          "test-storage-url1",
-          1234,
-          "test-digest"
-      );
+      SolrArtifact ADD_ARTIFACT = new SolrArtifact()
+          .id("test-artifact")
+          .collection("test-collection")
+          .auid("test-auid")
+          .uri("test-url")
+          .sortUri("test-url")
+          .version(1)
+          .committed(false)
+          .storageUrl("test-storage-url1")
+          .contentLength(1234L)
+          .contentDigest("test-digest");
 
       // Save the artifact collection date.
       ADD_ARTIFACT.setCollectionDate(1234L);
