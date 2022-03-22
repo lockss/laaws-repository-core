@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2000-2019, Board of Trustees of Leland Stanford Jr. University
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -447,4 +447,23 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
             }
         }
     }
+
+    /**
+     * Sets an AUID into bulk store mode
+     *
+     * @param auid
+     *
+     * @throws IOException if not a DispatchingArtifactIndex
+     */
+    void setBulkStore(String collection, String auid) throws IOException;
+
+    /**
+     * Finish a bulk store operation (by copying the index entries
+     * to the permanent index).
+     *
+     * @param auid
+     *
+     * @throws IOException if not a DispatchingArtifactIndex
+     */
+    void finishBulkStore(String collection, String auid) throws IOException;
 }

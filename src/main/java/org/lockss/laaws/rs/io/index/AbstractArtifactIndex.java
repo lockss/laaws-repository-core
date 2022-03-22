@@ -55,4 +55,14 @@ public abstract class AbstractArtifactIndex implements ArtifactIndex {
   public void setLockssRepository(LockssRepository repository) {
     this.repository = repository;
   }
+
+  @Override
+  public void setBulkStore(String collection, String auid) {
+    throw new UnsupportedOperationException("Bulk Store not supported in this ArtifactIndex");
+  }
+
+  @Override
+  public void finishBulkStore(String collection, String auid) {
+    throw new UnsupportedOperationException("Bulk Store not supported in this ArtifactIndex");
+  }
 }

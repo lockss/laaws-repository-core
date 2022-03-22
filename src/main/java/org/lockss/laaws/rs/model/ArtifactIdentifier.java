@@ -190,6 +190,24 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
             this.uri = uri;
         }
 
+      /**
+       * Returns the Archival Unit ID (AUID) encoded in this artifact identifier.
+       *
+       * @return Archival unit ID
+       */
+      public String getAuid() {
+        return auid;
+      }
+
+      /**
+       * Returns the collection name encoded in this stem
+       *
+       * @return Collection name
+       */
+      public String getCollection() {
+        return collection;
+      }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
