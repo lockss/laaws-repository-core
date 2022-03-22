@@ -978,6 +978,50 @@ public class RestLockssRepository implements LockssRepository {
     }
   }
 
+  /** Start a bulk store operation for the collection/auid.
+   * Substantially speeds Artifact creation, but the index isn't
+   * permanently updated until a matching {@link
+   * #finishBulk(String,String)} completes) */
+  public void startBulkStore(String collection, String auid)
+      throws IOException {
+    doBulkOp(collection, auid, "start");
+  }
+
+  /** Finish a bulk store operation for the collection/auid.  Blocks
+   * until the Artifacts have been moved to the permanent ArtifactIndex. */
+  public void finishBulkStore(String collection, String auid)
+      throws IOException {
+    doBulkOp(collection, auid, "finish");
+  }
+
+  void doBulkOp(String collection, String auid, String op) throws IOException {
+    if ((collection == null) || (auid == null))
+      throw new IllegalArgumentException("Null collection or artifactId");
+
+    String endpoint = String.format("%s/collections/%s/aus/%s/bulk",
+                                    repositoryUrl, collection, auid);
+    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+      .queryParam("op", op);
+
+    // Required by REST API specification
+    HttpHeaders headers = getInitializedHttpHeaders();
+    headers.setContentType(MediaType.valueOf("multipart/form-data"));
+
+    try {
+      ResponseEntity<String> response =
+          RestUtil.callRestService(restTemplate,
+              builder.build().encode().toUri(),
+              HttpMethod.PUT,
+              new HttpEntity<>(null, headers),
+              String.class,
+              "startBulk");
+      checkStatusOk(response);
+    } catch (LockssRestException e) {
+      log.error("Could not start bulk for: {}", auid, e);
+      throw e;
+    }
+  }
+
   /**
    * Returns the size, in bytes, of AU in a collection.
    *
