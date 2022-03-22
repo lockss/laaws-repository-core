@@ -57,7 +57,7 @@ public abstract class AbstractArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public void setBulkStore(String collection, String auid) {
+  public void startBulkStore(String collection, String auid) {
     throw new UnsupportedOperationException("Bulk Store not supported in this ArtifactIndex");
   }
 
