@@ -38,6 +38,7 @@ import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.beans.DocumentObjectBinder;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.QueryRequest;
@@ -721,6 +722,51 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug2("Added artifact to index: {}", artifact);
 
     return artifact;
+  }
+
+  /**
+   * Bulk index artifacts into Solr.
+   *
+   * @param artifacts An {@link Iterable<Artifact>} containing the {@link Artifact}s to index.
+   */
+  public void indexArtifacts(Iterable<Artifact> artifacts) {
+    DocumentObjectBinder objBinder = solrClient.getBinder();
+
+    UpdateRequest req = new UpdateRequest();
+    addSolrCredentials(req);
+    long docsAdded = 0;
+
+    Iterator<Artifact> ai = artifacts.iterator();
+
+    while (ai.hasNext()) {
+      Artifact artifact = ai.next();
+      req.add(objBinder.toSolrInputDocument(artifact));
+      docsAdded++;
+
+      if (docsAdded % 1000 == 0 || !ai.hasNext()) {
+        // Process UpdateRequest batch
+        try {
+          handleSolrResponse(req.process(solrClient, solrCollection), "Failed to add artifacts");
+          handleSolrResponse(handleSolrCommit(false), "Failed to perform soft commit");
+        } catch (Exception e) {
+          // TODO
+          log.error("Failed to perform UpdateRequest", e);
+        }
+
+        // Reset for next batch of Artifacts
+        req = new UpdateRequest();
+        addSolrCredentials(req);
+      }
+    }
+
+    try {
+      handleSolrResponse(handleSolrCommit(true), "Failed to perform hard commit");
+    } catch (Exception e) {
+      // TODO
+      log.error("Failed to perform hard commit", e);
+    }
+
+    log.debug("Total documents added = {}", docsAdded);
   }
 
   private void logSolrUpdate(String artifactId, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
