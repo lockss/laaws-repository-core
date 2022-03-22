@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.*;
 
 import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -370,6 +371,13 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   public void finishBulkStore(String collection, String auid) {
     // copy Artifact to master indexy
     bulkStoreAuids.remove(key(collection, auid));
+
+    try {
+      Iterable<Artifact> artifacts = tempIndex.getArtifactsAllVersions(collection, auid, true);
+      ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts);
+    } catch (IOException e) {
+      log.error("Failed to retrieve and bulk add artifacts", e);
+    }
   }
 
   private String key(String collection, String auid) {
