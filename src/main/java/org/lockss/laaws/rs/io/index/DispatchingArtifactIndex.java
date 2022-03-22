@@ -39,6 +39,11 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 
 /**
+ * ArtifactIndex that dispatches all operations to either a permanent
+ * SolrArtifactIndex, or a transient VolatileArtifactIndex.  Allows
+ * substantially faster bulk artifact storage by firat storing the
+ * Artifacts in a VolatileArtifactIndex, then transferring them into
+ * the SolrArtifactIndex in a batch.
  */
 public class DispatchingArtifactIndex implements ArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -53,30 +58,42 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     this.tempIndex = temp;
   }
 
+  /** Return true if this {collection,auid} is currently in the temp index */
   private boolean useTempIndex(String collection, String auid) {
     return bulkStoreAuids.contains(key(collection, auid));
   }
 
+  /** Return true if the artifactId's {collection,auid} is declared to
+   * be in the temp index */
   private boolean useTempIndex(ArtifactIdentifier artifactId) {
     return useTempIndex(artifactId.getCollection(), artifactId.getAuid());
   }
 
+  /** Return true if the stem's {collection,auid} is declared to be in
+   * the temp index */
   private boolean useTempIndex(ArtifactIdentifier.ArtifactStem stem) {
     return useTempIndex(stem.getCollection(), stem.getAuid());
   }
 
+  /** Return true if the ArtifactData's {collection,auid} is declared
+   * to be in the temp index */
+  private boolean useTempIndex(ArtifactData ad) {
+    ArtifactIdentifier id = ad.getIdentifier();
+    return useTempIndex(id.getCollection(), id.getAuid());
+  }
+
+  /** Return true if the artifactId is found in the temp index.  (This
+   * is a heuristic - checks whether the artifactId is known to the
+   * temp index*/
   private boolean useTempIndex(String artifactId) throws IOException{
     return tempIndex.getArtifact(artifactId) != null;
   }
 
+  /** Return true if the artifactId is found in the temp index.  (This
+   * is a heuristic - checks whether the artifactId is known to the
+   * temp index*/
   private boolean useTempIndex(UUID artifactId) throws IOException {
     return useTempIndex(artifactId.toString());
-  }
-
-
-  private boolean useTempIndex(ArtifactData ad) {
-    ArtifactIdentifier id = ad.getIdentifier();
-    return useTempIndex(id.getCollection(), id.getAuid());
   }
 
   @Override
@@ -132,7 +149,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactData)) {
       return tempIndex.indexArtifact(artifactData);
     } else {
-      return tempIndex.indexArtifact(artifactData);
+      return masterIndex.indexArtifact(artifactData);
     }
   }
 
@@ -141,7 +158,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.getArtifact(artifactId);
     } else {
-      return tempIndex.getArtifact(artifactId);
+      return masterIndex.getArtifact(artifactId);
     }
   }
 
@@ -150,7 +167,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.getArtifact(artifactId);
     } else {
-      return tempIndex.getArtifact(artifactId);
+      return masterIndex.getArtifact(artifactId);
     }
   }
 
@@ -159,7 +176,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.commitArtifact(artifactId);
     } else {
-      return tempIndex.commitArtifact(artifactId);
+      return masterIndex.commitArtifact(artifactId);
     }
   }
 
@@ -168,7 +185,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.commitArtifact(artifactId);
     } else {
-      return tempIndex.commitArtifact(artifactId);
+      return masterIndex.commitArtifact(artifactId);
     }
   }
 
@@ -177,7 +194,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.deleteArtifact(artifactId);
     } else {
-      return tempIndex.deleteArtifact(artifactId);
+      return masterIndex.deleteArtifact(artifactId);
     }
   }
 
@@ -186,7 +203,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.deleteArtifact(artifactId);
     } else {
-      return tempIndex.deleteArtifact(artifactId);
+      return masterIndex.deleteArtifact(artifactId);
     }
   }
 
@@ -195,7 +212,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.artifactExists(artifactId);
     } else {
-      return tempIndex.artifactExists(artifactId);
+      return masterIndex.artifactExists(artifactId);
     }
   }
 
@@ -205,7 +222,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     if (useTempIndex(artifactId)) {
       return tempIndex.updateStorageUrl(artifactId, storageUrl);
     } else {
-      return tempIndex.updateStorageUrl(artifactId, storageUrl);
+      return masterIndex.updateStorageUrl(artifactId, storageUrl);
     }
   }
 
@@ -224,9 +241,9 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                          boolean includeUncommitted)
       throws IOException {
     if (useTempIndex(collection, auid)) {
-      return tempIndex. getArtifacts(collection, auid, includeUncommitted);
+      return tempIndex.getArtifacts(collection, auid, includeUncommitted);
     } else {
-      return tempIndex. getArtifacts(collection, auid, includeUncommitted);
+      return masterIndex.getArtifacts(collection, auid, includeUncommitted);
     }
   }
 
@@ -236,8 +253,8 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                                     boolean includeUncommitted)
       throws IOException {
     if (useTempIndex(auid)) {
-      return tempIndex. getArtifactsAllVersions(collection, auid,
-                                                includeUncommitted);
+      return tempIndex.getArtifactsAllVersions(collection, auid,
+                                               includeUncommitted);
     } else {
       return masterIndex.getArtifactsAllVersions(collection, auid,
                                                  includeUncommitted);
@@ -249,9 +266,9 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                                    String auid, String prefix)
       throws IOException {
     if (useTempIndex(auid)) {
-      return tempIndex. getArtifactsWithPrefix(collection, auid, prefix);
+      return tempIndex.getArtifactsWithPrefix(collection, auid, prefix);
     } else {
-      return tempIndex. getArtifactsWithPrefix(collection, auid, prefix);
+      return masterIndex.getArtifactsWithPrefix(collection, auid, prefix);
     }
   }
 
@@ -321,8 +338,8 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
       return tempIndex.getArtifactVersion(collection, auid, url,
                                           version, includeUncommitted);
     } else {
-      return tempIndex.getArtifactVersion(collection, auid, url,
-                                          version, includeUncommitted);
+      return masterIndex.getArtifactVersion(collection, auid, url,
+                                            version, includeUncommitted);
     }
   }
 
