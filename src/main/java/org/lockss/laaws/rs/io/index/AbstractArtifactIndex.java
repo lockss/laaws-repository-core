@@ -62,7 +62,8 @@ public abstract class AbstractArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public void finishBulkStore(String collection, String auid) {
+  public void finishBulkStore(String collection, String auid,
+                              int copyBatchSize) {
     throw new UnsupportedOperationException("Bulk Store not supported in this ArtifactIndex");
   }
 }

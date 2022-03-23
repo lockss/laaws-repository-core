@@ -368,13 +368,14 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public void finishBulkStore(String collection, String auid) {
+  public void finishBulkStore(String collection, String auid,
+                              int copyBatchSize) {
     // copy Artifact to master indexy
     bulkStoreAuids.remove(key(collection, auid));
 
     try {
       Iterable<Artifact> artifacts = tempIndex.getArtifactsAllVersions(collection, auid, true);
-      ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts);
+      ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts, copyBatchSize);
     } catch (IOException e) {
       log.error("Failed to retrieve and bulk add artifacts", e);
     }

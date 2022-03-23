@@ -465,5 +465,6 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      *
      * @throws IOException if not a DispatchingArtifactIndex
      */
-    void finishBulkStore(String collection, String auid) throws IOException;
+    void finishBulkStore(String collection, String auid, int copyBatchSize)
+        throws IOException;
 }

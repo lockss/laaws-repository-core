@@ -729,7 +729,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    *
    * @param artifacts An {@link Iterable<Artifact>} containing the {@link Artifact}s to index.
    */
-  public void indexArtifacts(Iterable<Artifact> artifacts) {
+  public void indexArtifacts(Iterable<Artifact> artifacts, int copyBatchSize) {
     DocumentObjectBinder objBinder = solrClient.getBinder();
 
     UpdateRequest req = new UpdateRequest();
@@ -743,7 +743,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       req.add(objBinder.toSolrInputDocument(artifact));
       docsAdded++;
 
-      if (docsAdded % 1000 == 0 || !ai.hasNext()) {
+      if (docsAdded % copyBatchSize == 0 || !ai.hasNext()) {
         // Process UpdateRequest batch
         try {
           handleSolrResponse(req.process(solrClient, solrCollection), "Failed to add artifacts");
