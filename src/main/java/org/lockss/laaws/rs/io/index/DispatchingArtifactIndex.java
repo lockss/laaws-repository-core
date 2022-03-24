@@ -50,181 +50,145 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   private ArtifactIndex masterIndex;
-  private ArtifactIndex tempIndex;
-  private Set<String> bulkStoreAuids = new HashSet<>();
+  private Map<String,ArtifactIndex> tempIndexMap = new HashMap<>();
   private LockssRepository repository;
 
-  public DispatchingArtifactIndex(ArtifactIndex master, ArtifactIndex temp) {
+  public DispatchingArtifactIndex(ArtifactIndex master) {
     this.masterIndex = master;
-    this.tempIndex = temp;
   }
 
   /** Return true if this {collection,auid} is currently in the temp index */
-  private boolean useTempIndex(String collection, String auid) {
-    return bulkStoreAuids.contains(key(collection, auid));
+  private ArtifactIndex findIndexHolding(String collection, String auid) {
+    ArtifactIndex res = tempIndexMap.get(key(collection, auid));
+    return res != null ? res : masterIndex;
   }
 
   /** Return true if the artifactId's {collection,auid} is declared to
    * be in the temp index */
-  private boolean useTempIndex(ArtifactIdentifier artifactId) {
-    return useTempIndex(artifactId.getCollection(), artifactId.getAuid());
+  private ArtifactIndex findIndexHolding(ArtifactIdentifier artifactId) {
+    return findIndexHolding(artifactId.getCollection(), artifactId.getAuid());
   }
 
   /** Return true if the stem's {collection,auid} is declared to be in
    * the temp index */
-  private boolean useTempIndex(ArtifactIdentifier.ArtifactStem stem) {
-    return useTempIndex(stem.getCollection(), stem.getAuid());
+  private ArtifactIndex findIndexHolding(ArtifactIdentifier.ArtifactStem stem) {
+    return findIndexHolding(stem.getCollection(), stem.getAuid());
   }
 
   /** Return true if the ArtifactData's {collection,auid} is declared
    * to be in the temp index */
-  private boolean useTempIndex(ArtifactData ad) {
+  private ArtifactIndex findIndexHolding(ArtifactData ad) {
     ArtifactIdentifier id = ad.getIdentifier();
-    return useTempIndex(id.getCollection(), id.getAuid());
+    return findIndexHolding(id.getCollection(), id.getAuid());
   }
 
   /** Return true if the artifactId is found in the temp index.  (This
    * is a heuristic - checks whether the artifactId is known to the
    * temp index*/
-  private boolean useTempIndex(String artifactId) throws IOException{
-    return tempIndex.getArtifact(artifactId) != null;
+  private ArtifactIndex findIndexHolding(String artifactId) throws IOException{
+    synchronized (tempIndexMap) {
+      for (ArtifactIndex ind : tempIndexMap.values()) {
+        if (ind.getArtifact(artifactId) != null) {
+          return ind;
+        }
+      }
+    }
+    return masterIndex;
   }
 
   /** Return true if the artifactId is found in the temp index.  (This
    * is a heuristic - checks whether the artifactId is known to the
    * temp index*/
-  private boolean useTempIndex(UUID artifactId) throws IOException {
-    return useTempIndex(artifactId.toString());
+  private ArtifactIndex findIndexHolding(UUID artifactId) throws IOException {
+    return findIndexHolding(artifactId.toString());
   }
 
   @Override
   public void init() {
     masterIndex.init();
-    tempIndex.init();
   }
 
   @Override
   public void setLockssRepository(LockssRepository repository) {
+    this.repository = repository;
     masterIndex.setLockssRepository(repository);
-    tempIndex.setLockssRepository(repository);
+    synchronized (tempIndexMap) {
+      for (ArtifactIndex ind : tempIndexMap.values()) {
+        ind.setLockssRepository(repository);
+      }
+    }
   }
 
   @Override
   public void start() {
     masterIndex.start();
-    tempIndex.start();
   }
 
   @Override
   public void stop() {
     masterIndex.stop();
-    tempIndex.stop();
   }
 
   @Override
   public boolean isReady() {
-    return masterIndex.isReady() && tempIndex.isReady();
+    return masterIndex.isReady();
   }
 
   @Override
   public void acquireVersionLock(ArtifactIdentifier.ArtifactStem stem)
       throws IOException {
-    if (useTempIndex(stem)) {
-      tempIndex.acquireVersionLock(stem);
-    } else {
-      masterIndex.acquireVersionLock(stem);
-    }
+    findIndexHolding(stem).acquireVersionLock(stem);
   }
 
   @Override
   public void releaseVersionLock(ArtifactIdentifier.ArtifactStem stem) {
-    if (useTempIndex(stem)) {
-      tempIndex.releaseVersionLock(stem);
-    } else {
-      masterIndex.releaseVersionLock(stem);
-    }
+    findIndexHolding(stem).releaseVersionLock(stem);
   }
 
   @Override
   public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-    if (useTempIndex(artifactData)) {
-      return tempIndex.indexArtifact(artifactData);
-    } else {
-      return masterIndex.indexArtifact(artifactData);
-    }
+    return findIndexHolding(artifactData).indexArtifact(artifactData);
   }
 
   @Override
   public Artifact getArtifact(String artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.getArtifact(artifactId);
-    } else {
-      return masterIndex.getArtifact(artifactId);
-    }
+    return findIndexHolding(artifactId).getArtifact(artifactId);
   }
 
   @Override
   public Artifact getArtifact(UUID artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.getArtifact(artifactId);
-    } else {
-      return masterIndex.getArtifact(artifactId);
-    }
+    return findIndexHolding(artifactId).getArtifact(artifactId);
   }
 
   @Override
   public Artifact commitArtifact(String artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.commitArtifact(artifactId);
-    } else {
-      return masterIndex.commitArtifact(artifactId);
-    }
+    return findIndexHolding(artifactId).commitArtifact(artifactId);
   }
 
   @Override
   public Artifact commitArtifact(UUID artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.commitArtifact(artifactId);
-    } else {
-      return masterIndex.commitArtifact(artifactId);
-    }
+    return findIndexHolding(artifactId).commitArtifact(artifactId);
   }
 
   @Override
   public boolean deleteArtifact(String artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.deleteArtifact(artifactId);
-    } else {
-      return masterIndex.deleteArtifact(artifactId);
-    }
+    return findIndexHolding(artifactId).deleteArtifact(artifactId);
   }
 
   @Override
   public boolean deleteArtifact(UUID artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.deleteArtifact(artifactId);
-    } else {
-      return masterIndex.deleteArtifact(artifactId);
-    }
+    return findIndexHolding(artifactId).deleteArtifact(artifactId);
   }
 
   @Override
   public boolean artifactExists(String artifactId) throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.artifactExists(artifactId);
-    } else {
-      return masterIndex.artifactExists(artifactId);
-    }
+    return findIndexHolding(artifactId).artifactExists(artifactId);
   }
 
   @Override
   public Artifact updateStorageUrl(String artifactId, String storageUrl)
       throws IOException {
-    if (useTempIndex(artifactId)) {
-      return tempIndex.updateStorageUrl(artifactId, storageUrl);
-    } else {
-      return masterIndex.updateStorageUrl(artifactId, storageUrl);
-    }
+    return findIndexHolding(artifactId).updateStorageUrl(artifactId, storageUrl);
   }
 
   @Override
@@ -241,11 +205,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   public Iterable<Artifact> getArtifacts(String collection, String auid,
                                          boolean includeUncommitted)
       throws IOException {
-    if (useTempIndex(collection, auid)) {
-      return tempIndex.getArtifacts(collection, auid, includeUncommitted);
-    } else {
-      return masterIndex.getArtifacts(collection, auid, includeUncommitted);
-    }
+    return findIndexHolding(collection, auid).getArtifacts(collection, auid, includeUncommitted);
   }
 
   @Override
@@ -253,24 +213,15 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                                     String auid,
                                                     boolean includeUncommitted)
       throws IOException {
-    if (useTempIndex(auid)) {
-      return tempIndex.getArtifactsAllVersions(collection, auid,
-                                               includeUncommitted);
-    } else {
-      return masterIndex.getArtifactsAllVersions(collection, auid,
-                                                 includeUncommitted);
-    }
+    return findIndexHolding(collection, auid).getArtifactsAllVersions(collection, auid,
+                                                                      includeUncommitted);
   }
 
   @Override
   public Iterable<Artifact> getArtifactsWithPrefix(String collection,
                                                    String auid, String prefix)
       throws IOException {
-    if (useTempIndex(auid)) {
-      return tempIndex.getArtifactsWithPrefix(collection, auid, prefix);
-    } else {
-      return masterIndex.getArtifactsWithPrefix(collection, auid, prefix);
-    }
+    return findIndexHolding(collection, auid).getArtifactsWithPrefix(collection, auid, prefix);
   }
 
   @Override
@@ -278,13 +229,8 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                                               String auid,
                                                               String prefix)
       throws IOException {
-    if (useTempIndex(collection, auid)) {
-      return tempIndex.getArtifactsWithPrefixAllVersions(collection, auid,
-                                                         prefix);
-    } else {
-      return masterIndex.getArtifactsWithPrefixAllVersions(collection, auid,
-                                                           prefix);
-    }
+    return findIndexHolding(collection, auid).getArtifactsWithPrefixAllVersions(collection, auid,
+                                                                                prefix);
   }
 
   @Override
@@ -302,11 +248,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                                     String auid,
                                                     String url)
       throws IOException {
-    if (useTempIndex(collection, auid)) {
-      return tempIndex.getArtifactsAllVersions( collection, auid, url);
-    } else {
-      return masterIndex.getArtifactsAllVersions(collection, auid, url);
-    }
+    return findIndexHolding(collection, auid).getArtifactsAllVersions(collection, auid, url);
   }
 
   @Override
@@ -321,11 +263,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   public Artifact getArtifact(String collection, String auid,
                               String url, boolean includeUncommitted)
       throws IOException {
-    if (useTempIndex(collection, auid)) {
-      return tempIndex.getArtifact(collection, auid, url, includeUncommitted);
-    } else {
-      return masterIndex.getArtifact(collection, auid, url, includeUncommitted);
-    }
+    return findIndexHolding(collection, auid).getArtifact(collection, auid, url, includeUncommitted);
   }
 
   @Override
@@ -335,22 +273,13 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
                                      Integer version,
                                      boolean includeUncommitted)
       throws IOException {
-    if (useTempIndex(collection, auid)) {
-      return tempIndex.getArtifactVersion(collection, auid, url,
-                                          version, includeUncommitted);
-    } else {
-      return masterIndex.getArtifactVersion(collection, auid, url,
-                                            version, includeUncommitted);
-    }
+    return findIndexHolding(collection, auid).getArtifactVersion(collection, auid, url,
+                                                                 version, includeUncommitted);
   }
 
   @Override
   public AuSize auSize(String collection, String auid) throws IOException {
-    if (useTempIndex(collection, auid)) {
-      return tempIndex.auSize(collection, auid);
-    } else {
-      return masterIndex.auSize(collection, auid);
-    }
+    return findIndexHolding(collection, auid).auSize(collection, auid);
   }
 
   /**
@@ -364,17 +293,30 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
 
   @Override
   public void startBulkStore(String collection, String auid) {
-    bulkStoreAuids.add(key(collection, auid));
+    VolatileArtifactIndex volInd = new VolatileArtifactIndex();
+    volInd.init();
+    volInd.start();
+    volInd.setLockssRepository(repository);
+    synchronized (tempIndexMap) {
+      tempIndexMap.put(key(collection, auid), volInd);
+    }
   }
 
   @Override
   public void finishBulkStore(String collection, String auid,
                               int copyBatchSize) {
     // copy Artifact to master indexy
-    bulkStoreAuids.remove(key(collection, auid));
-
+    ArtifactIndex volInd;
+    synchronized (tempIndexMap) {
+      volInd = tempIndexMap.get(key(collection, auid));
+      if (volInd == null) {
+        throw new IllegalStateException("Attempt to finishBulkStore of AU not in bulk store mode: " + collection + ", " + auid);
+      }
+      volInd.stop();
+      tempIndexMap.remove(key(collection, auid));
+    }
     try {
-      Iterable<Artifact> artifacts = tempIndex.getArtifactsAllVersions(collection, auid, true);
+      Iterable<Artifact> artifacts = volInd.getArtifactsAllVersions(collection, auid, true);
       ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts, copyBatchSize);
     } catch (IOException e) {
       log.error("Failed to retrieve and bulk add artifacts", e);

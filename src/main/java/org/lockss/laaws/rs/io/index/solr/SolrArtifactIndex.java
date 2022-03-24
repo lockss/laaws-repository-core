@@ -257,7 +257,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         CoreAdminResponse response = req.process(solrClient);
 
         if (response.getCoreStatus(getSolrCollection()).size() <= 0) {
-          log.error("Solr core or collection not found");
+          log.error("Solr core or collection not found: {}",
+                    getSolrCollection());
           throw new IllegalStateException("Solr core missing");
         }
       } catch (IOException | SolrServerException e) {
@@ -746,7 +747,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       if (docsAdded % copyBatchSize == 0 || !ai.hasNext()) {
         // Process UpdateRequest batch
         try {
+          log.debug("Storing batch");
           handleSolrResponse(req.process(solrClient, solrCollection), "Failed to add artifacts");
+          log.debug("Soft committing batch");
           handleSolrResponse(handleSolrCommit(false), "Failed to perform soft commit");
         } catch (Exception e) {
           // TODO
@@ -760,6 +763,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     try {
+      log.debug("Hard committing batches");
       handleSolrResponse(handleSolrCommit(true), "Failed to perform hard commit");
     } catch (Exception e) {
       // TODO
