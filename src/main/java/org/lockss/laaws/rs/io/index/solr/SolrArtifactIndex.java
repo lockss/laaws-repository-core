@@ -738,7 +738,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     long docsAdded = 0;
 
     Iterator<Artifact> ai = artifacts.iterator();
-
+    if (!ai.hasNext()) {
+      log.debug("No artifacts in AU to index");
+      return;
+    }
     while (ai.hasNext()) {
       Artifact artifact = ai.next();
       req.add(objBinder.toSolrInputDocument(artifact));
