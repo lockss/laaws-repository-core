@@ -31,10 +31,14 @@
 package org.lockss.laaws.rs.io.index;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.*;
 
 import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
@@ -51,7 +55,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
 
   private ArtifactIndex masterIndex;
   private Map<String,ArtifactIndex> tempIndexMap = new HashMap<>();
-  private LockssRepository repository;
+  private BaseLockssRepository repository;
 
   public DispatchingArtifactIndex(ArtifactIndex master) {
     this.masterIndex = master;
@@ -109,7 +113,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public void setLockssRepository(LockssRepository repository) {
+  public void setLockssRepository(BaseLockssRepository repository) {
     this.repository = repository;
     masterIndex.setLockssRepository(repository);
     synchronized (tempIndexMap) {
@@ -304,8 +308,20 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
 
   @Override
   public void finishBulkStore(String collection, String auid,
-                              int copyBatchSize) {
-    // copy Artifact to master indexy
+                              int copyBatchSize) throws IOException {
+    // Wait for all background commits for this AU to finish.  (They
+    // call updateStorageUrl(), but index reads or writes are not
+    // permitted and likely won't work correctly while the Artifacts
+    // are being copied into Solr
+    ArtifactDataStore store = repository.getArtifactDataStore();
+    if (store instanceof WarcArtifactDataStore) {
+      WarcArtifactDataStore warcStore = (WarcArtifactDataStore)store;
+      if (!warcStore.waitForCommitTasks(collection, auid)) {
+        log.warn("waitForCommitTasks() was interrupted");
+        throw new InterruptedIOException("finishBulk interrupted");
+      }
+    }
+    // copy Artifacts to master index
     ArtifactIndex volInd;
     synchronized (tempIndexMap) {
       volInd = tempIndexMap.get(key(collection, auid));
@@ -320,6 +336,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
       ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts, copyBatchSize);
     } catch (IOException e) {
       log.error("Failed to retrieve and bulk add artifacts", e);
+      throw e;
     }
   }
 

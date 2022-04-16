@@ -336,6 +336,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
+  /** Wait for all background commits for an AU to finish */
+  public boolean waitForCommitTasks(String collection, String auid) {
+    log.debug2("Waiting for stripe " + new CollectionAuidPair(collection,
+                                                              auid));
+
+    return stripedExecutor.waitForStripeToEmpty(new CollectionAuidPair(collection,
+                                                                       auid));
+  }
+
   // *******************************************************************************************************************
   // * INTERNAL PATH METHODS
   // *******************************************************************************************************************
@@ -1448,8 +1457,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     thresholdWarcSize = threshold;
   }
 
-  public void setLockssRepository(LockssRepository repository) {
-    this.repo = (BaseLockssRepository) repository;
+  public void setLockssRepository(BaseLockssRepository repository) {
+    this.repo = repository;
   }
 
   /**
@@ -1944,6 +1953,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      */
     @Override
     public Artifact call() throws Exception {
+      log.trace("Starting CommitArtifactTask: " + getStripe());
       // Artifact's storage URL
       URI storageUrl = new URI(artifact.getStorageUrl());
       Path storagePath = Paths.get(storageUrl.getPath());
@@ -1952,6 +1962,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // determined by examining the storage URL
       if (!isTmpStorage(storagePath)) {
         log.warn("Artifact is already committed [artifactId: {}]", artifact.getId());
+        log.trace("CommitArtifactTask already committed: " + getStripe());
         return artifact;
       }
 
@@ -2032,6 +2043,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Set committed bit on artifact
       artifact.setCommitted(true);
+      log.trace("CommitArtifactTask done: " + getStripe());
 
       return artifact;
     }

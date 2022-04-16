@@ -52,4 +52,9 @@ public class CollectionAuidPair extends MutablePair<String, String> {
   public void setAuid(String auid) {
     setRight(auid);
   }
+
+  public String toString() {
+    return "[Stripe: " + getLeft() + ", " + getRight() + "]";
+  }
+
 }
