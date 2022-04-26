@@ -127,7 +127,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  private RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
+  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
     // Set RestTemplate used by RestLockssRepository
     this.restTemplate = restTemplate;
 
