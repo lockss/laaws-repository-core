@@ -752,8 +752,11 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         try {
           log.debug("Storing batch");
           handleSolrResponse(req.process(solrClient, solrCollection), "Failed to add artifacts");
-          log.debug("Soft committing batch");
-          handleSolrResponse(handleSolrCommit(false), "Failed to perform soft commit");
+
+          if (ai.hasNext()) {
+            log.debug("Soft committing batch");
+            handleSolrResponse(handleSolrCommit(false), "Failed to perform soft commit");
+          }
         } catch (Exception e) {
           // TODO
           log.error("Failed to perform UpdateRequest", e);
