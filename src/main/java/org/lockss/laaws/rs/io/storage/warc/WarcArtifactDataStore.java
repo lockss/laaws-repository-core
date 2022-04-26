@@ -1,32 +1,34 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 package org.lockss.laaws.rs.io.storage.warc;
 
@@ -34,7 +36,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -72,6 +73,7 @@ import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.time.TimeBase;
 import org.lockss.util.time.TimeUtil;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
@@ -1538,7 +1540,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       long recordLength = 0;
 
       if (useCompression) {
-        // Yes - wrap DFOS in GZIPOutputStream the write to it
+        // Yes - wrap DFOS in GZIPOutputStream then write to it
         try (GZIPOutputStream gzipOutput = new GZIPOutputStream(dfos)) {
           recordLength = writeArtifactData(artifactData, gzipOutput);
         }
@@ -1687,7 +1689,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return artifact;
 
     } catch (Exception e) {
-      log.error("Could not add artifact data!", e);
+      log.error("Could not add artifact data", e);
       throw e;
     }
   }
@@ -2852,8 +2854,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Create a WARC record object
     WARCRecordInfo record = new WARCRecordInfo();
 
-    // Mandatory WARC record headers
+    //// Mandatory WARC record headers
+
+    // Set WARC-Record-ID
     record.setRecordId(URI.create(artifactId.getId()));
+
+    // Set WARC record type
+    record.setType(WARCRecordType.response);
 
     // Use fetch time property from artifact for WARC-Date if present
     String fetchTimeValue = artifactData.getMetadata().getFirst(Constants.X_LOCKSS_FETCH_TIME);
@@ -2876,16 +2883,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Set WARC-Date field; default to now() if fetch time property and collection date not present
     record.setCreate14DigitDate(
         DateTimeFormatter.ISO_INSTANT.format(
-            fetchTime > 0 ?
-                Instant.ofEpochMilli(fetchTime).atZone(ZoneOffset.UTC) :
-                Instant.now().atZone(ZoneOffset.UTC)
-        ));
+            fetchTime < 0 ?
+                Instant.ofEpochMilli(TimeBase.nowMs()).atZone(ZoneOffset.UTC) :
+                Instant.ofEpochMilli(fetchTime).atZone(ZoneOffset.UTC)));
 
-    record.setType(WARCRecordType.response);
+    //// Optional WARC record headers
 
-    // Optional WARC record headers
+    // Set WARC record URL
     record.setUrl(artifactId.getUri());
-    record.setMimetype("application/http; msgtype=response"); // Content-Type of WARC payload
+
+    // Set WARC record Content-Type - hardcoded to always write an HTTP response
+    // containing the artifact headers/properties and data
+    record.setMimetype("application/http; msgtype=response");
 
     // Add LOCKSS-specific WARC headers to record (Note: X-LockssRepo-Artifact-Id and X-LockssRepo-Artifact-Uri are
     // redundant because the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
@@ -2901,58 +2910,34 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // Inherit stored date if set (e.g., in the temporary WARC record)
             artifactData.getStoredDate() > 0 ?
                 Instant.ofEpochMilli(artifactData.getStoredDate()).atZone(ZoneOffset.UTC) :
-                Instant.now().atZone(ZoneOffset.UTC)
-        )
-    );
+                Instant.now().atZone(ZoneOffset.UTC)));
 
-    // We're required to pre-compute the WARC payload size (which is an artifact encoded as an HTTP response stream)
-    // but it is not possible to determine the final size without exhausting the InputStream, so we use a
-    // DeferredFileOutputStream, copy the InputStream into it, and determine the number of bytes written.
-    DeferredTempFileOutputStream dfos = new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "writeArtifactData");
-    try {
-      artifactData.setComputeDigestOnRead(true);
-      // Create a HTTP response stream from the ArtifactData
-      InputStream httpResponse = ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
-          ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)
-      );
+    // Set the artifact data length (i.e., WARC payload length)
+    record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(artifactData.getContentLength()));
 
-      IOUtils.copyLarge(httpResponse, dfos);
+    // Set WARC-Payload-Digest and our custom artifact digest key. Both represent the digest of the
+    // artifact data.Our custom artifact digest key is added here for backward compatibility.
+    record.addExtraHeader(WARCConstants.HEADER_KEY_PAYLOAD_DIGEST, artifactData.getContentDigest());
+    record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY, artifactData.getContentDigest());
 
-      dfos.flush();
-      dfos.close();
+    // Create an HTTP response stream from the ArtifactData
+    InputStream httpResponse = ArtifactDataUtil
+        .getHttpResponseStreamFromHttpResponse(ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData));
 
-      // Set the length of the artifact data
-      long contentLength = artifactData.getBytesRead();
-      log.debug2("contentLength = {}", contentLength);
-      artifactData.setContentLength(contentLength);
-      record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY,
-          String.valueOf(contentLength));
+    // Set WARC block
+    record.setContentStream(httpResponse);
 
-      // Set content digest of artifact data
-      String contentDigest = String.format("%s:%s",
-          artifactData.getMessageDigest().getAlgorithm(),
-          new String(Hex.encodeHex(artifactData.getMessageDigest().digest())));
-      log.debug2("contentDigest = {}", contentDigest);
-      artifactData.setContentDigest(contentDigest);
-      record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY,
-          contentDigest);
+    // Set WARC block length
+    byte[] headers = ArtifactDataUtil.getHttpResponseHeader(artifactData);
+    record.setContentLength(headers.length + artifactData.getContentLength());
 
-      // Attach WARC record payload and set the payload length
-      try (InputStream input = dfos.getInputStream()) {
-        record.setContentStream(input);
-        record.setContentLength(dfos.getByteCount());
+    // TODO: Set WARC-Block-Digest header
+    // record.addExtraHeader(WARCConstants.HEADER_KEY_BLOCK_DIGEST, artifactData.getHttpResponseDigest());
 
-        // Write WARCRecordInfo to OutputStream
-        CountingOutputStream cout = new CountingOutputStream(outputStream);
-        writeWarcRecord(record, cout);
-
-        // Return bytes
-        return cout.getCount();
-      }
-    } finally {
-      // Delete the temporary file if one was created
-      dfos.deleteTempFile();
-    }
+    // Write record to output stream and return number of bytes written
+    CountingOutputStream cout = new CountingOutputStream(outputStream);
+    writeWarcRecord(record, cout);
+    return cout.getCount();
   }
 
   /**
