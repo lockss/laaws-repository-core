@@ -482,7 +482,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
         // Perform a hard commit
         hardCommitNeeded = false;
-        handleSolrCommit(true);
+        handleSolrCommit(SolrCommitStrategy.HARD);
 
         // Find all journal files and exclude the active one
         IOFileFilter journalFileFilter = new WildcardFileFilter(SOLR_UPDATE_JOURNAL_NAME + ".*.csv");
@@ -712,7 +712,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       logSolrUpdate(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
 
-      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
+      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
 
     } catch (SolrResponseErrorException | SolrServerException e) {
@@ -755,7 +755,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
           if (ai.hasNext()) {
             log.debug("Soft committing batch");
-            handleSolrResponse(handleSolrCommit(false), "Failed to perform soft commit");
+            handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT_ONLY), "Failed to perform soft commit");
           }
         } catch (Exception e) {
           // TODO
@@ -770,7 +770,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     try {
       log.debug("Hard committing batches");
-      handleSolrResponse(handleSolrCommit(true), "Failed to perform hard commit");
+      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.HARD), "Failed to perform hard commit");
     } catch (Exception e) {
       // TODO
       log.error("Failed to perform hard commit", e);
@@ -912,13 +912,19 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
 
       // Commit changes
-      handleSolrResponse(handleSolrCommit(false), "Problem committing Solr changes");
+      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing Solr changes");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException("Solr error", e);
     }
 
     // Return updated Artifact
     return getArtifact(artifactId);
+  }
+
+  public enum SolrCommitStrategy {
+    SOFT_ONLY,
+    SOFT,
+    HARD
   }
 
   /**
@@ -928,15 +934,29 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * @throws IOException
    * @throws SolrServerException
    */
-  UpdateResponse handleSolrCommit(boolean hardCommit) throws IOException, SolrServerException {
+  UpdateResponse handleSolrCommit(SolrCommitStrategy strategy) throws IOException, SolrServerException {
+    boolean softCommit = true;
+
+    switch (strategy) {
+      case SOFT_ONLY:
+        softCommit = true;
+        // hardCommitNeeded = false;
+        break;
+
+      case SOFT:
+        softCommit = true;
+        hardCommitNeeded = true;
+        break;
+
+      case HARD:
+        softCommit = false;
+        hardCommitNeeded = false;
+        break;
+    }
+
     // Update request to commit
     UpdateRequest req = new UpdateRequest();
-    req.setAction(UpdateRequest.ACTION.COMMIT, true, true, !hardCommit);
-
-    // Signal a hard commit is needed if we're performing a soft commit
-    if (!hardCommit) {
-      hardCommitNeeded = true;
-    }
+    req.setAction(UpdateRequest.ACTION.COMMIT, true, true, softCommit);
 
     // Add Solr credentials if present
     addSolrCredentials(req);
@@ -986,7 +1006,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.DELETE, null);
 
         // Commit changes
-        handleSolrResponse(handleSolrCommit(false), "Problem committing deletion of "
+        handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing deletion of "
             + "artifact '" + artifactId + "' from Solr");
 
         // Return true to indicate success
@@ -1069,7 +1089,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
 
-      handleSolrResponse(handleSolrCommit(false), "Problem committing addition of "
+      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "document '" + document + "' to Solr");
     } catch (SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);

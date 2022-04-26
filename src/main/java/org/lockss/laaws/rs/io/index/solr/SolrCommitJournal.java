@@ -244,7 +244,8 @@ public class SolrCommitJournal {
 
         // Perform a Solr hard commit of all changes
         try {
-          index.handleSolrResponse(index.handleSolrCommit(true), "Error with Commit request");
+          index.handleSolrResponse(
+              index.handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.HARD), "Error with Commit request");
         } catch (IOException | SolrServerException | SolrResponseErrorException e) {
           log.error("Could not perform a Solr hard commit after replaying journal", e);
         }
@@ -258,7 +259,7 @@ public class SolrCommitJournal {
           req.process(index.getSolrClient(), index.getSolrCollection()), "Error with UpdateRequest");
 
       index.handleSolrResponse(
-          index.handleSolrCommit(false), "Error with Commit request");
+          index.handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.SOFT), "Error with Commit request");
     }
   }
 
