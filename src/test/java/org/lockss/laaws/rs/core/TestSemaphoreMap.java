@@ -84,7 +84,7 @@ public class TestSemaphoreMap extends LockssTestCase5 {
   }
 
   private int counter = 0;
-  private BlockingQueue queue = new ArrayBlockingQueue((int) (4*MAX_THREADS));
+  private BlockingQueue queue = new ArrayBlockingQueue(4*MAX_THREADS);
 
   private class SemaphoreMapTestRunnable implements Runnable {
     private SemaphoreMap locks;
