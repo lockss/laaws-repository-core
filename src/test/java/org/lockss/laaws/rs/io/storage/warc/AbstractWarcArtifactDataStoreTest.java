@@ -1691,7 +1691,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Determine the current artifact state
     ArtifactState artifactState = reloadedStore.getArtifactState(indexedRef, expire);
 
-    log.debug("commit = {}, expire = {}, delete = {}, artifactState = {}", commit, expire, delete, artifactState);
+    log.debug("commit: {}, expire: {}, delete: {}, state: {}", commit, expire, delete, artifactState);
 
     switch (artifactState) {
       case NOT_INDEXED:
@@ -2463,7 +2463,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Assert the state of variant against the data store
     assertVariantState();
 
-    // Assert attempting to commit a delete artifact results in null
+    // Assert attempting to commit a deleted artifact results in null
     ArtifactSpec deletedSpec = variantState.anyDeletedSpec();
     if (deletedSpec != null) {
       assertNull(store.commitArtifactData(deletedSpec.getArtifact()));

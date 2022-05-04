@@ -1196,7 +1196,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Determines whether a temporary WARC file is removable.
    * <p>
-   * A temporary WARC file is removable if all of the WARC records contained within it may be removed.
+   * A temporary WARC file is removable if all the WARC records contained within it may be removed.
    * <p>
    * Note: This is in service of the temporary WARC garbage collector. This is slightly different from reloading
    * temporary WARCs, which may resume the artifact's lifecycle depending on its state (e.g., re-queuing a copy).
@@ -1726,7 +1726,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       }
 
-      log.debug("Retrieving artifact data [artifactId: {}, storageUrl: {}]", artifactId, storageUrl);
+      log.debug("artifactId: {}, storageUrl: {}", artifactId, storageUrl);
 
       // Open an InputStream from the WARC file and get the WARC record representing this artifact data
       warcStream = getInputStreamFromStorageUrl(storageUrl);
