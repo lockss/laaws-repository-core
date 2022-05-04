@@ -1178,13 +1178,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Handle the result of isWarcFileRemovable
     // ****************************************
 
-    // Q: Where else would it be in use?
     if (isWarcFileRemovable && !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
       try {
-        log.info("Removing temporary WARC file [tmpWarc: {}]", tmpWarc);
+        log.debug2("Removing temporary WARC file [tmpWarc: {}]", tmpWarc);
         removeWarc(tmpWarc);
       } catch (IOException e) {
-        log.warn("Could not remove removable temporary WARC [tmpWarc: {}]", tmpWarc, e);
+        log.warn("Could not remove a removable temporary WARC file", e);
+        // TODO: Mark as removable and try again later
       }
     } else {
       // WARC file still in use; add it to the temporary WARC pool
@@ -1819,7 +1819,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     try {
       // Determine what action to take based on the state of the artifact. Hardwired isExpired
-      // parameter to false. The effect is expired artifacts will be committed.
+      // parameter to false. The effect is expired artifacts will still be committed.
       Artifact indexed = getArtifactIndex().getArtifact(artifactId);
       ArtifactState state = getArtifactState(indexed, false);
 
@@ -1835,8 +1835,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           updateArtifactRepositoryState(
               getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
               artifact.getIdentifier(),
-              artifactRepoState
-          );
+              artifactRepoState);
 
           // Fall-through...
 
