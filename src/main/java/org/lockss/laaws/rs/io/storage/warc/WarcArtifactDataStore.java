@@ -1335,7 +1335,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     String warcDateHeader = headers.getDate();
     Instant created = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(warcDateHeader));
     Instant expiration = created.plus(getUncommittedArtifactExpiration(), ChronoUnit.MILLIS);
-    return Instant.now().isAfter(expiration);
+    return Instant.ofEpochMilli(TimeBase.nowMs()).isAfter(expiration);
   }
 
   /**
