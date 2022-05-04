@@ -1187,9 +1187,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // TODO: Mark as removable and try again later
       }
     } else {
-      // WARC file still in use; add it to the temporary WARC pool
-      long tmpWarcFileLen = getWarcLength(tmpWarc);
-      tmpWarcPool.addWarcFile(new WarcFile(tmpWarc, tmpWarcFileLen, isCompressedWarcFile(tmpWarc)));
+      // WARC file is not removable: It either contains one or more records that are
+      // not removable or some other process is actively using it. Try again later.
+      // Previously these files were re-added to the temporary WARC pool, but we now
+      // keep these files frozen / as-is to encourage their GC.
+      log.debug("Ignoring temporary WARC file [tmpWarc: {}]", tmpWarc);
     }
   }
 
