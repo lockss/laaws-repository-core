@@ -141,6 +141,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected static final long DEFAULT_THRESHOLD_WARC_SIZE = 1L * FileUtils.ONE_GB;
   protected long thresholdWarcSize;
 
+  protected static final String ENV_THRESHOLD_ARTIFACTS = "REPO_MAX_ARTIFACTS";
+  public static final int DEFAULT_THRESHOLD_ARTIFACTS = 1000;
+  protected int thresholdArtifacts;
+
   protected static final String ENV_UNCOMMITTED_ARTIFACT_EXPIRATION = "REPO_UNCOMMITTED_ARTIFACT_EXPIRATION";
   protected static final long DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION = TimeUtil.WEEK;
   protected long uncommittedArtifactExpiration;
@@ -232,6 +236,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Set WARC threshold size to use
     setThresholdWarcSize(NumberUtils.toLong(System.getenv(ENV_THRESHOLD_WARC_SIZE), DEFAULT_THRESHOLD_WARC_SIZE));
+
+    // Set WARC artifacts threshold to use
+    setThresholdArtifacts(NumberUtils.toInt(System.getenv(ENV_THRESHOLD_ARTIFACTS), DEFAULT_THRESHOLD_ARTIFACTS));
 
     // Set uncommitted artifact expiration interval
     setUncommittedArtifactExpiration(
@@ -1427,8 +1434,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * it is closed from further writes.
    */
   public int getMaxArtifactsThreshold() {
-    // TODO: Parameterize this
-    return 1000;
+    return thresholdArtifacts;
   }
 
   /**
@@ -1447,6 +1453,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     thresholdWarcSize = threshold;
+  }
+
+  public void setThresholdArtifacts(int artifacts) {
+    if (artifacts < 0) {
+      throw new IllegalArgumentException("Threshold number of artifacts must be a positive integer");
+    }
+
+    thresholdArtifacts = artifacts;
   }
 
   public void setLockssRepository(BaseLockssRepository repository) {

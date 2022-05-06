@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import org.archive.format.warc.WARCConstants;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.mockito.ArgumentMatchers;
@@ -124,6 +125,7 @@ class TestWarcFilePool extends LockssTestCase5 {
     WarcArtifactDataStore mockedStore = mock(WarcArtifactDataStore.class);
     when(mockedStore.getBlockSize()).thenReturn(4096L);
     when(mockedStore.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+    when(mockedStore.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
     Path tmpWarcPath = Paths.get("/tmp");
     when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{tmpWarcPath});
@@ -165,10 +167,17 @@ class TestWarcFilePool extends LockssTestCase5 {
 
   @Test
   public void testReturnWarcFile() throws Exception {
-    WarcFilePool pool = spy(new WarcFilePool(null));
+    WarcArtifactDataStore store = mock(WarcArtifactDataStore.class);
+    when(store.getBlockSize()).thenReturn(4096L);
+    when(store.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+    when(store.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
+
+    WarcFilePool pool = spy(new WarcFilePool(store));
 
     WarcFile warcFile = mock(WarcFile.class);
     when(warcFile.getPath()).thenReturn(Paths.get("/tmp/foo.warc"));
+    when(warcFile.getArtifacts()).thenReturn(0);
+    when(warcFile.getLength()).thenReturn(0L);
 
     // Verify adding an unknown WarcFile to the pool causes it to be added to the pool
     pool.returnWarcFile(warcFile);
