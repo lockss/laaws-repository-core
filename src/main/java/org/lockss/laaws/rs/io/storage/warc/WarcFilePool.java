@@ -181,8 +181,9 @@ public class WarcFilePool {
    * @param warcFile The {@link WarcFile} to add back to this pool.
    */
   public void returnWarcFile(WarcFile warcFile) {
-    // boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
+    boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
     boolean isArtifactsReached = warcFile.getArtifacts() >= store.getMaxArtifactsThreshold();
+    boolean retireWarc = isSizeReached || isArtifactsReached;
 
     synchronized (allWarcs) {
       if (isInPool(warcFile)) {
@@ -196,9 +197,9 @@ public class WarcFilePool {
         }
 
         // Remove from pool if full
-        if (isArtifactsReached) allWarcs.remove(warcFile);
+        if (retireWarc) allWarcs.remove(warcFile);
 
-      } else if (!isArtifactsReached) {
+      } else if (!retireWarc) {
 
         // Add WARC file to this pool (for the first time?)
         addWarcFile(warcFile);
