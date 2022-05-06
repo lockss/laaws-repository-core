@@ -48,9 +48,9 @@ public class WarcFilePool {
   }
 
   /**
-   * Creates a new {@code WarcFile} and adds it to this pool.
+   * Creates a new {@link WarcFile} under the given path and adds it to this pool.
    *
-   * @return The new {@code WarcFile} instance.
+   * @return The new {@link WarcFile} instance.
    */
   protected WarcFile createWarcFile(Path basePath) throws IOException {
     Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
@@ -82,9 +82,9 @@ public class WarcFilePool {
   }
 
   /**
-   * Adds one or more {@code WarcFile} objects to this pool.
+   * Adds one or more {@link WarcFile} objects to this pool.
    *
-   * @param warcFile One or more {@code WarcFile} objects to add to this pool.
+   * @param warcFile One or more {@link WarcFile} objects to add to this pool.
    */
   public void addWarcFile(WarcFile... warcFile) {
     synchronized (allWarcs) {
@@ -93,11 +93,11 @@ public class WarcFilePool {
   }
 
   /**
-   * Gets a suitable {@code WarcFile} for the number of bytes pending to be written, or creates one if one could not be
+   * Gets a suitable {@link WarcFile} for the number of bytes pending to be written, or creates one if one could not be
    * found.
    *
    * @param bytesExpected A {@code long} representing the number of bytes expected to be written.
-   * @return A {@code WarcFile} from this pool.
+   * @return A {@link WarcFile} from this pool.
    */
   public WarcFile findWarcFile(Path basePath, long bytesExpected) throws IOException {
     if (bytesExpected < 0) {
@@ -208,10 +208,10 @@ public class WarcFilePool {
   }
 
   /**
-   * Checks whether a {@code WarcFile} object is in this pool but in use by another thread.
+   * Checks whether a {@link WarcFile} object is in this pool but in use by another thread.
    *
-   * @param warcFile The {@code WarcFile} to check.
-   * @return A {@code boolean} indicating whether the {@code WarcFile} is in use.
+   * @param warcFile The {@link WarcFile} to check.
+   * @return A {@code boolean} indicating whether the {@link WarcFile} is in use.
    */
   public boolean isInUse(WarcFile warcFile) {
     synchronized (usedWarcs) {
@@ -222,8 +222,8 @@ public class WarcFilePool {
   /**
    * Checks whether a WARC file at a given path is a member of this pool but in use by another thread.
    *
-   * @param warcFilePath A {@code String} containing the path to a {@code WarcFile} object in this pool.
-   * @return A {@code boolean} indicating whether the {@code WarcFile} is in use.
+   * @param warcFilePath A {@link String} containing the path to a {@link WarcFile} object in this pool.
+   * @return A {@code boolean} indicating whether the {@link WarcFile} is in use.
    */
   public boolean isInUse(Path warcFilePath) {
     synchronized (allWarcs) {
@@ -233,10 +233,10 @@ public class WarcFilePool {
   }
 
   /**
-   * Checks whether a {@code WarcFile} object is a member of this pool.
+   * Checks whether a {@link WarcFile} object is a member of this pool.
    *
-   * @param warcFile The {@code WarcFile} to check.
-   * @return A {@code boolean} indicating whether the {@code WarcFile} is a member of this pool.
+   * @param warcFile The {@link WarcFile} to check.
+   * @return A {@code boolean} indicating whether the {@link WarcFile} is a member of this pool.
    */
   public boolean isInPool(WarcFile warcFile) {
     synchronized (allWarcs) {
@@ -247,8 +247,8 @@ public class WarcFilePool {
   /**
    * Checks whether a WARC file at a given path is a member of this pool.
    *
-   * @param warcFilePath A {@code String} containing the path to a {@code WarcFile} object in this pool.
-   * @return A {@code boolean} indicating whether the {@code WarcFile} is a member of this pool.
+   * @param warcFilePath A {@link String} containing the path to a {@link WarcFile} object in this pool.
+   * @return A {@code boolean} indicating whether the {@link WarcFile} is a member of this pool.
    */
   public boolean isInPool(Path warcFilePath) {
     synchronized (allWarcs) {
@@ -261,8 +261,8 @@ public class WarcFilePool {
    * Search for the WarcFile object in this pool that matches the given path. Returns {@code null} if one could not be
    * found.
    *
-   * @param warcFilePath A {@code String} containing the path to the {@code WarcFile} to find.
-   * @return The {@code WarcFile}, or {@code null} if one could not be found.
+   * @param warcFilePath A {@link String} containing the path to the {@link WarcFile} to find.
+   * @return The {@link WarcFile}, or {@code null} if one could not be found.
    */
   public WarcFile lookupWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
@@ -274,12 +274,12 @@ public class WarcFilePool {
   }
 
   /**
-   * Removes the {@code WarcFile} matching the given path from this pool and returns it.
+   * Removes the {@link WarcFile} matching the given path from this pool and returns it.
    * <p>
    * May return {@code null} if none in the pool match.
    *
-   * @param warcFilePath A {@code String} containing the WARC file path of the {@code WarcFile} to remove.
-   * @return The {@code WarcFile} removed from this pool. May be {@code null} if not found.
+   * @param warcFilePath A {@link String} containing the WARC file path of the {@link WarcFile} to remove.
+   * @return The {@link WarcFile} removed from this pool. May be {@code null} if not found.
    */
   public WarcFile removeWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
@@ -318,7 +318,7 @@ public class WarcFilePool {
   }
 
   /**
-   * Dumps a snapshot of all {@code WarcFile} objects in this pool.
+   * Dumps a snapshot of all {@link WarcFile} objects in this pool.
    */
   public void dumpWarcFilesPoolInfo() {
     long totalBlocksAllocated = 0;
