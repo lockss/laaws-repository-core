@@ -69,7 +69,6 @@ import org.lockss.util.Constants;
 import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
-import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
 import org.lockss.util.time.TimeBase;
@@ -1424,6 +1423,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
+   * Returns the maximum number of artifacts that should be added to a temporary WARC file before
+   * it is closed from further writes.
+   */
+  public int getMaxArtifactsThreshold() {
+    // TODO: Parameterize this
+    return 1000;
+  }
+
+  /**
    * <p>
    * Sets the threshold size above which a new WARC file should be started.
    * Legal values are a positive number of bytes and zero for unlimited;
@@ -1513,115 +1521,56 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Write artifact to temporary WARC
       // ********************************
 
-      // A DFOS is used here to determine the length of the record, for use in determining which temporary file to
-      // write to the record to (an attempt at a slightly more optimal temporary file packing than first-fit)
-      DeferredTempFileOutputStream dfos =
-          new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "addArtifactData");
+      // Get a temporary WARC from the temporary WARC pool
+      WarcFile tmpWarc = tmpWarcPool.findWarcFile();
+      Path tmpWarcPath = tmpWarc.getPath();
 
-      // Length of the uncompressed WARC record
+      // Record will be appended to the WARC file; its offset is the current length of the WARC
+      long offset = getWarcLength(tmpWarcPath);
       long recordLength = 0;
-
-      if (useCompression) {
-        // Yes - wrap DFOS in GZIPOutputStream then write to it
-        try (GZIPOutputStream gzipOutput = new GZIPOutputStream(dfos)) {
-          recordLength = writeArtifactData(artifactData, gzipOutput);
-        }
-      } else {
-        // No - write to DFOS directly
-        recordLength = writeArtifactData(artifactData, dfos);
-      }
-
-      // Close DFOS
-      dfos.flush();
-      dfos.close();
-
-      // Length of the gzipped WARC record (should match uncompressed record length if compression is not used)
-      long compressedRecordLength = dfos.getByteCount();
-
-      // Record length in storage (compressed or uncompressed)
-      long storedRecordLength = useCompression ? compressedRecordLength : recordLength;
-
-      // Determine which base path to use based on which has the most available space
-      Path basePath = Arrays.stream(basePaths)
-          .max((a, b) -> (int) (getFreeSpace(b) - getFreeSpace(a)))
-          .filter(bp -> getFreeSpace(bp) >= storedRecordLength)
-          .orElse(null);
-
-      if (basePath == null) {
-        // Could also be null if there are no base paths but we checked that earlier
-        log.error("No base path available with enough space for this new artifact");
-        throw new IOException("No space left");
-      }
-
-      // Get a temporary WARC from the temporary WARC pool for this base path
-      WarcFile tmpWarcFile = tmpWarcPool.findWarcFile(basePath, recordLength);
-      Path tmpWarcFilePath = tmpWarcFile.getPath();
-
-      log.trace("tmpWarcFile = {}", tmpWarcFile);
-
-      // Initialize the WARC
-      initWarc(tmpWarcFilePath);
-
-      // The offset for the record to be appended to this WARC is the length of the WARC file (i.e., its end)
-      long offset = getWarcLength(tmpWarcFilePath);
-
-      // Keep track of the number of bytes written to this WARC
-      long bytesWritten = 0;
+      long storedRecordLength = 0;
 
       // Write serialized artifact to temporary WARC file
-      try (OutputStream warcOutput = getAppendableOutputStream(tmpWarcFilePath)) {
-//        TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcFilePath);
+      try (OutputStream output = getAppendableOutputStream(tmpWarcPath)) {
 
-        // Get an InputStream containing the serialized artifact from the DFOS
-        try (InputStream input = dfos.getDeleteOnCloseInputStream()) {
-
-          // Write the serialized artifact to the temporary WARC file
-          bytesWritten = IOUtils.copyLarge(input, warcOutput);
-
-          // Debugging
-          log.debug2("Wrote {} of {} bytes starting at byte offset {} to {}; size is now {}",
-              bytesWritten,
-              storedRecordLength,
-              offset,
-              tmpWarcFilePath,
-              offset + bytesWritten
-          );
-
+        // Use a CountingOutputStream to track number of bytes written to the WARC (i.e., size
+        // of the WARC record compressed or uncompressed)
+        try (CountingOutputStream cos = new CountingOutputStream(output)) {
           if (useCompression) {
-            log.debug2("WARC record compression ratio: {} [compressed: {}, uncompressed: {}]",
-                (float) recordLength / compressedRecordLength,
-                compressedRecordLength,
-                recordLength
-            );
+            // Yes - wrap DFOS in GZIPOutputStream then write to it
+            try (GZIPOutputStream gzipOutput = new GZIPOutputStream(cos)) {
+              recordLength = writeArtifactData(artifactData, gzipOutput);
+            }
+          } else {
+            // No - write to DFOS directly
+            recordLength = writeArtifactData(artifactData, cos);
           }
 
-          // Sanity check on bytes written
-          if (bytesWritten != storedRecordLength) {
-            log.error(
-                "Wrote unexpected number of bytes [bytesWritten: {}, recordLength: {}, artifactId: {}, tmpWarcPath: {}]",
-                bytesWritten,
-                storedRecordLength,
-                artifactId.getId(),
-                tmpWarcFilePath
-            );
+          // Flush buffer then get count of bytes written - this is the stored record length
+          cos.flush();
+          storedRecordLength = cos.getCount();
+        }
 
-            // TODO: Rollback? Subsequent appends are pointed to by storage URL, which has an offset, so we don't care
-            //       but serial parsers of WARC files might be confused by an incomplete WARC record.
+        // Update WARC file stats
+        tmpWarc.incrementLength(storedRecordLength);
+        tmpWarc.incrementArtifacts();
 
-            throw new IOException("Wrote unexpected number of bytes");
-          }
+        // Debugging
+        log.debug2("Wrote {} bytes offset {} to {}; size is now {}",
+            storedRecordLength, offset, tmpWarcPath, offset + recordLength);
 
+        if (useCompression) {
+          log.debug2("WARC record compression ratio: {} [compressed: {}, uncompressed: {}]",
+              (float) recordLength / storedRecordLength, storedRecordLength, recordLength);
         }
       } finally {
-        // Always update the temporary WARC's stats and return it to the pool
-        tmpWarcFile.setLength(offset + bytesWritten);
-        tmpWarcPool.returnWarcFile(tmpWarcFile);
-//        TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarcFilePath);
+        // Return temporary WARC file to pool
+        tmpWarcPool.returnWarcFile(tmpWarc);
       }
 
       // Update ArtifactData object with new properties
       artifactData.setArtifactRepositoryState(new ArtifactRepositoryState(artifactId, false, false));
-      artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcFilePath, offset, storedRecordLength));
+      artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcPath, offset, storedRecordLength));
 
       // **********************************
       // Write artifact metadata to journal

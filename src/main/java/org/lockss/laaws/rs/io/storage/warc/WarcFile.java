@@ -32,23 +32,18 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import java.nio.file.Path;
 
-// TODO: Replace with storage URL
+/**
+ * Class to keep track of a WARC file's length and the number of artifacts contained with it.
+ */
 public class WarcFile {
-  private final Path path;
+  // TODO: Replace with storage URL
+  private Path path;
   private long length = 0;
+  private int artifacts = 0;
   private boolean isCompressed = false;
 
-  public boolean isCompressed() {
-    return isCompressed;
-  }
-
-  public void setCompressed(boolean compressed) {
-    isCompressed = compressed;
-  }
-
-  public WarcFile(Path path, long length, boolean isCompressed) {
+  public WarcFile(Path path, boolean isCompressed) {
     this.path = path;
-    this.length = length;
     this.isCompressed = isCompressed;
   }
 
@@ -56,20 +51,48 @@ public class WarcFile {
     return path;
   }
 
+  public WarcFile setPath(Path path) {
+    this.path = path;
+    return this;
+  }
+
+  public long incrementLength(long length) {
+    this.length += length;
+    return this.length;
+  }
+
   public long getLength() {
     return length;
   }
 
-  public void setLength(long length) {
+  public WarcFile setLength(long length) {
     this.length = length;
+    return this;
   }
 
-  @Override
-  public String toString() {
-    return "WarcFile{" +
-        "path=" + path +
-        ", length=" + length +
-        ", isCompressed=" + isCompressed +
-        '}';
+  public int incrementArtifacts() {
+    return ++artifacts;
+  }
+
+  public int getArtifacts() {
+    return artifacts;
+  }
+
+  public WarcFile setArtifacts(int artifacts) {
+    this.artifacts = artifacts;
+    return this;
+  }
+
+  public boolean isCompressed() {
+    return isCompressed;
+  }
+
+  public boolean getCompressed() {
+    return isCompressed;
+  }
+
+  public WarcFile setCompressed(boolean compressed) {
+    isCompressed = compressed;
+    return this;
   }
 }

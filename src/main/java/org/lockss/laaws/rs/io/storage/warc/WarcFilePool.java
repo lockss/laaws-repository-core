@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import org.lockss.log.L4JLogger;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -51,14 +52,29 @@ public class WarcFilePool {
    *
    * @return The new {@code WarcFile} instance.
    */
-  protected WarcFile createWarcFile(Path basePath) {
+  protected WarcFile createWarcFile(Path basePath) throws IOException {
     Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
 
     WarcFile warcFile =
-        new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), 0, store.getUseWarcCompression());
+        new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), store.getUseWarcCompression());
+
+    store.initWarc(warcFile.getPath());
 
     addWarcFile(warcFile);
+
     return warcFile;
+  }
+
+  /**
+   * Creates a new temporary WARC file under one of the temporary WARC directories configured
+   * in the data store.
+   */
+  protected WarcFile createWarcFile() throws IOException {
+    Path basePath = Arrays.stream(store.getTmpWarcBasePaths())
+        .max((a, b) -> (int) (store.getFreeSpace(b) - store.getFreeSpace(a)))
+        .orElse(null);
+
+    return createWarcFile(basePath);
   }
 
   protected String generateTmpWarcFileName() {
@@ -83,7 +99,7 @@ public class WarcFilePool {
    * @param bytesExpected A {@code long} representing the number of bytes expected to be written.
    * @return A {@code WarcFile} from this pool.
    */
-  public WarcFile findWarcFile(Path basePath, long bytesExpected) {
+  public WarcFile findWarcFile(Path basePath, long bytesExpected) throws IOException {
     if (bytesExpected < 0) {
       throw new IllegalArgumentException("bytesExpected must be a positive integer");
     }
@@ -121,6 +137,35 @@ public class WarcFilePool {
   }
 
   /**
+   * Returns a WARC file from the pool (or first creates a new one if one is not currently available).
+   */
+  public WarcFile findWarcFile() throws IOException {
+    synchronized (allWarcs) {
+      // Build set of available WARCs
+      Set<WarcFile> availableWarcs = new HashSet<>(allWarcs);
+
+      synchronized (usedWarcs) {
+        availableWarcs.removeAll(usedWarcs);
+
+        Optional<WarcFile> optWarc = availableWarcs.stream()
+            .filter(warc -> warc.getArtifacts() < store.getMaxArtifactsThreshold())
+            // Q: Do we care which temporary WARC directory we use?
+//            .filter(warc -> warc.getPath().startsWith(basePath))
+            .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
+            .findAny();
+
+        WarcFile warcFile = optWarc.isPresent() ?
+            optWarc.get() : createWarcFile();
+
+        usedWarcs.add(warcFile);
+        TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
+
+        return warcFile;
+      }
+    }
+  }
+
+  /**
    * Computes the bytes used in the last block, assuming all previous blocks are maximally filled.
    *
    * @param size
@@ -136,20 +181,28 @@ public class WarcFilePool {
    * @param warcFile The {@link WarcFile} to add back to this pool.
    */
   public void returnWarcFile(WarcFile warcFile) {
+    // boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
+    boolean isArtifactsReached = warcFile.getArtifacts() >= store.getMaxArtifactsThreshold();
+
     synchronized (allWarcs) {
       if (isInPool(warcFile)) {
+
+        // Remove from internal set of used WARCs
         synchronized (usedWarcs) {
           if (isInUse(warcFile)) {
             TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
             usedWarcs.remove(warcFile);
-          } else {
-            log.warn("WARC file is a member of this pool but was not in use [warcFile: {}]", warcFile);
           }
         }
-      } else {
-        // FIXME: It's not clear that adding the WarcFile anyway is a good idea
-        log.warn("WARC file is not a member of this pool; adding it [warcFile: {}]", warcFile);
+
+        // Remove from pool if full
+        if (isArtifactsReached) allWarcs.remove(warcFile);
+
+      } else if (!isArtifactsReached) {
+
+        // Add WARC file to this pool (for the first time?)
         addWarcFile(warcFile);
+
       }
     }
   }
