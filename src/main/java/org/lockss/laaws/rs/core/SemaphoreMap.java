@@ -126,8 +126,13 @@ public class SemaphoreMap<T> {
       snc.incrementCounter();
     }
 
-    // May block until it can be acquired
-    snc.getSemaphore().acquire();
+    try {
+      // May block until it can be acquired
+      snc.getSemaphore().acquire();
+    } catch (InterruptedException e) {
+      log.warn("Interrupted in acquire()", e);
+      throw e;
+    }
   }
 
   /**
