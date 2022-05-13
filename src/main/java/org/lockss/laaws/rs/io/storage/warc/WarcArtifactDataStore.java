@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -69,6 +70,7 @@ import org.lockss.util.Constants;
 import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
+import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
 import org.lockss.util.time.TimeBase;
@@ -2851,24 +2853,54 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 Instant.ofEpochMilli(artifactData.getStoredDate()).atZone(ZoneOffset.UTC) :
                 Instant.now().atZone(ZoneOffset.UTC)));
 
-    // Set the artifact data length (i.e., WARC payload length)
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(artifactData.getContentLength()));
+    byte[] headers = ArtifactDataUtil.getHttpResponseHeader(artifactData);
+
+    try {
+      // FIXME: Assumption is artifact (WARC payload) length and digest have been set by the caller
+
+      // WARC block length and stream
+      record.setContentLength(headers.length + artifactData.getContentLength());
+      record.setContentStream(
+          ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
+              ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)));
+
+    // FIXME: Thrown by getContentLength() - use a better signal than throwing RuntimeException:
+    } catch (RuntimeException e) {
+      // Compute length by exhausting the InputStream
+      try (DeferredTempFileOutputStream dfos =
+          new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {
+
+        artifactData.setComputeDigestOnRead(true);
+
+        // Create a HTTP response stream from the ArtifactData
+        InputStream httpResponse =
+            ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
+                ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData));
+
+        IOUtils.copyLarge(httpResponse, dfos);
+
+        // WARC block length and stream
+        record.setContentLength(dfos.getByteCount());
+        record.setContentStream(dfos.getDeleteOnCloseInputStream());
+
+        String contentDigest = String.format("%s:%s",
+            artifactData.getMessageDigest().getAlgorithm(),
+            new String(Hex.encodeHex(artifactData.getMessageDigest().digest())));
+
+        // Artifact (i.e., WARC payload) length and digest
+        artifactData.setContentLength(artifactData.getBytesRead());
+        artifactData.setContentDigest(contentDigest);
+      }
+    }
+
+    // Set WARC payload (artifact) length (i.e., WARC block length minus HTTP headers)
+    record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY,
+        String.valueOf(record.getContentLength() - headers.length));
 
     // Set WARC-Payload-Digest and our custom artifact digest key. Both represent the digest of the
-    // artifact data.Our custom artifact digest key is added here for backward compatibility.
+    // artifact data. Our custom artifact digest key is added here for backward compatibility.
     record.addExtraHeader(WARCConstants.HEADER_KEY_PAYLOAD_DIGEST, artifactData.getContentDigest());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY, artifactData.getContentDigest());
-
-    // Create an HTTP response stream from the ArtifactData
-    InputStream httpResponse = ArtifactDataUtil
-        .getHttpResponseStreamFromHttpResponse(ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData));
-
-    // Set WARC block
-    record.setContentStream(httpResponse);
-
-    // Set WARC block length
-    byte[] headers = ArtifactDataUtil.getHttpResponseHeader(artifactData);
-    record.setContentLength(headers.length + artifactData.getContentLength());
 
     // TODO: Set WARC-Block-Digest header
     // record.addExtraHeader(WARCConstants.HEADER_KEY_BLOCK_DIGEST, artifactData.getHttpResponseDigest());
