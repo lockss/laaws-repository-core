@@ -311,7 +311,6 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     return new BufferedOutputStream(new FileOutputStream(filePath.toFile(),
                                                          true),
                                     (256 * 1024));
-//     return new FileOutputStream(filePath.toFile(), true);
   }
 
   @Override
