@@ -752,7 +752,9 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
 
         AuSize auSize2 = repository.auSize(uspec.getCollection(), uspec.getAuid());
 
-        assertEquals(auSize1, auSize2, "AU size changed after deleting uncommitted");
+        assertEquals(auSize1.getTotalLatestVersions(), auSize2.getTotalLatestVersions(), "Latest versions size changed after deleting uncommitted");
+        assertEquals(auSize1.getTotalAllVersions(), auSize2.getTotalAllVersions(), "All versions size changed after deleting uncommitted");
+        // Can't compare totalWarcSize as it changes asynchronously
       }
     }
   }
