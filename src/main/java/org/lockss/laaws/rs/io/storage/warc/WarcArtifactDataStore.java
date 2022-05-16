@@ -1556,15 +1556,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // Yes - wrap DFOS in GZIPOutputStream then write to it
             try (GZIPOutputStream gzipOutput = new GZIPOutputStream(cos)) {
               recordLength = writeArtifactData(artifactData, gzipOutput);
-              gzipOutput.flush();
             }
           } else {
             // No - write to DFOS directly
             recordLength = writeArtifactData(artifactData, cos);
-            cos.flush();
           }
 
           // Flush buffer then get count of bytes written - this is the stored record length
+          cos.flush();
           storedRecordLength = cos.getCount();
         }
 
@@ -1943,6 +1942,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
+          // Ensure entire record written before updating storage URL
           output.flush();
           log.debug2("Copied artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is" +
                   " now {}",
@@ -2485,7 +2485,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
         WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
         writeWarcRecord(journalRecord, output);
-        output.flush();
       }
     } finally {
       auLocks.releaseLock(auStem);
@@ -2631,7 +2630,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Append WARC metadata record to the new journal
         WARCRecordInfo metadataRecord = createWarcMetadataRecord(journalEntry.getArtifactId(), journalEntry);
         writeWarcRecord(metadataRecord, output);
-        output.flush();
       }
     }
   }
@@ -3089,7 +3087,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     /*
     try (OutputStream output = getAppendableOutputStream(warcPath)) {
       writeWarcRecord(record, output);
-      output.flush();
     }
     */
   }
