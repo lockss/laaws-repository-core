@@ -308,7 +308,10 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
   @Override
   public OutputStream getAppendableOutputStream(Path filePath) throws IOException {
-    return new FileOutputStream(filePath.toFile(), true);
+    return new BufferedOutputStream(new FileOutputStream(filePath.toFile(),
+                                                         true),
+                                    (32 * 1024));
+//     return new FileOutputStream(filePath.toFile(), true);
   }
 
   @Override
