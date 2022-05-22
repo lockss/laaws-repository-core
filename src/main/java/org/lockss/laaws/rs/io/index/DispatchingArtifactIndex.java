@@ -42,6 +42,7 @@ import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.concurrent.CopyOnWriteMap;
 
 /**
  * ArtifactIndex that dispatches all operations to either a permanent
@@ -54,7 +55,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   private ArtifactIndex masterIndex;
-  private Map<String,ArtifactIndex> tempIndexMap = new HashMap<>();
+  private Map<String,ArtifactIndex> tempIndexMap = new CopyOnWriteMap<>();
   private BaseLockssRepository repository;
 
   public DispatchingArtifactIndex(ArtifactIndex master) {
@@ -86,15 +87,12 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     return findIndexHolding(id.getCollection(), id.getAuid());
   }
 
-  /** Return true if the artifactId is found in the temp index.  (This
-   * is a heuristic - checks whether the artifactId is known to the
-   * temp index*/
+  /** Return the temp index in which the artifactId is found, or the
+   * masterIndex */
   private ArtifactIndex findIndexHolding(String artifactId) throws IOException{
-    synchronized (tempIndexMap) {
-      for (ArtifactIndex ind : tempIndexMap.values()) {
-        if (ind.getArtifact(artifactId) != null) {
-          return ind;
-        }
+    for (ArtifactIndex ind : tempIndexMap.values()) {
+      if (ind.getArtifact(artifactId) != null) {
+        return ind;
       }
     }
     return masterIndex;
@@ -116,10 +114,8 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   public void setLockssRepository(BaseLockssRepository repository) {
     this.repository = repository;
     masterIndex.setLockssRepository(repository);
-    synchronized (tempIndexMap) {
-      for (ArtifactIndex ind : tempIndexMap.values()) {
-        ind.setLockssRepository(repository);
-      }
+    for (ArtifactIndex ind : tempIndexMap.values()) {
+      ind.setLockssRepository(repository);
     }
   }
 
@@ -301,9 +297,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     volInd.init();
     volInd.start();
     volInd.setLockssRepository(repository);
-    synchronized (tempIndexMap) {
-      tempIndexMap.put(key(collection, auid), volInd);
-    }
+    tempIndexMap.put(key(collection, auid), volInd);
   }
 
   @Override
@@ -323,14 +317,11 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     }
     // copy Artifacts to master index
     ArtifactIndex volInd;
-    synchronized (tempIndexMap) {
-      volInd = tempIndexMap.get(key(collection, auid));
-      if (volInd == null) {
-        throw new IllegalStateException("Attempt to finishBulkStore of AU not in bulk store mode: " + collection + ", " + auid);
-      }
-      volInd.stop();
-      tempIndexMap.remove(key(collection, auid));
+    volInd = tempIndexMap.remove(key(collection, auid));
+    if (volInd == null) {
+      throw new IllegalStateException("Attempt to finishBulkStore of AU not in bulk store mode: " + collection + ", " + auid);
     }
+    volInd.stop();
     try {
       Iterable<Artifact> artifacts = volInd.getArtifactsAllVersions(collection, auid, true);
       ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts, copyBatchSize);
