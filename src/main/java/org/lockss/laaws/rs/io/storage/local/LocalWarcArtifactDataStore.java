@@ -366,37 +366,38 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
       PlatformUtil.DF df = putil.getDF(basePath.toString());
       if (df != null) {
         mnts.put(df.getMnt(), df);
-  StorageInfo si = StorageInfo.fromDF(df);
-  si.setPath(basePath.toString());
-  basePathSis.add(si);
-}
+        StorageInfo si = StorageInfo.fromDF(df);
+        si.setPath(basePath.toString());
+        basePathSis.add(si);
+      }
     }
     PlatformUtil.DF oneDF = null;
     // Compute sum of DFs
     for (PlatformUtil.DF df : mnts.values()) {
-oneDF = df;
-sum.setSize(sum.getSize() + (df.getSize() * 1024)); // From DF in KB, here in bytes.
-sum.setUsed(sum.getUsed() + (df.getUsed() * 1024)); // From DF in KB, here in bytes.
-sum.setAvail(sum.getAvail() + (df.getAvail() * 1024)); // From DF in KB, here in bytes.
+      oneDF = df;
+      // Sizes in DF are KB, StorageInfo is bytes
+      sum.setSize(sum.getSize() + (df.getSize() * 1024));
+      sum.setUsed(sum.getUsed() + (df.getUsed() * 1024));
+      sum.setAvail(sum.getAvail() + (df.getAvail() * 1024));
     }
 
     // Set one-time StorageInfo fields
     sum.setName(String.join(",", mnts.keySet()));
     if (mnts.size() == 1) {
-// If only one, use percentages returns by DF
-sum.setPercentUsed(oneDF.getPercent());
-sum.setPercentUsedString(oneDF.getPercentString());
+      // If only one, use percentages returns by DF
+      sum.setPercentUsed(oneDF.getPercent());
+      sum.setPercentUsedString(oneDF.getPercentString());
     } else {
-// Compute percent used as 1.0 - avail / size, as some FSs have a
-// "full" threshold that's lower than the total size
-sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
-sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
-               sum.getPercentUsed())) + "%");
+      // Compute percent used as 1.0 - avail / size, as some FSs have a
+      // "full" threshold that's lower than the total size
+      sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
+      sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
+                                                         sum.getPercentUsed())) + "%");
     }
     if (basePathSis.size() > 1) {
-sum.setComponents(basePathSis);
+      sum.setComponents(basePathSis);
     } else {
-sum.setPath(basePathSis.get(0).getPath());
+      sum.setPath(basePathSis.get(0).getPath());
     }
     // Return the sum
     return sum;
