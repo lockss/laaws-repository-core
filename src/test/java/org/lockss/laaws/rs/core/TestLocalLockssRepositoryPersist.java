@@ -79,10 +79,10 @@ public class TestLocalLockssRepositoryPersist extends AbstractLockssRepositoryTe
     StorageInfo ind = ri.getIndexInfo();
     StorageInfo sto = ri.getStoreInfo();
     assertEquals(LocalArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
-    assertTrue(ind.getSize() > 0);
+    assertTrue(ind.getSizeKB() > 0);
     assertEquals(LocalWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
 		 sto.getType());
-    assertTrue(sto.getSize() > 0);
+    assertTrue(sto.getSizeKB() > 0);
 
     // FIXME: This needs more thought
     // assertTrue(sto.isSameDevice(ind));

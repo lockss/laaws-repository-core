@@ -142,6 +142,6 @@ public class TestSolrArtifactIndex extends AbstractArtifactIndexTest<SolrArtifac
     StorageInfo si = index.getStorageInfo();
     log.debug("storeinfo: {}", si);
     assertEquals(SolrArtifactIndex.ARTIFACT_INDEX_TYPE, si.getType());
-    assertTrue(si.getSize() > 0);
+    assertTrue(si.getSizeKB() > 0);
   }
 }
