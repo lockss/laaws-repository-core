@@ -149,8 +149,6 @@ public class WarcFilePool {
 
         Optional<WarcFile> optWarc = availableWarcs.stream()
             .filter(warc -> warc.getArtifacts() < store.getMaxArtifactsThreshold())
-            // Q: Do we care which temporary WARC directory we use?
-//            .filter(warc -> warc.getPath().startsWith(basePath))
             .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
             .findAny();
 
@@ -193,6 +191,8 @@ public class WarcFilePool {
           if (isInUse(warcFile)) {
             TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
             usedWarcs.remove(warcFile);
+          } else {
+            log.warn("WARC file is a member of this pool but was not in use [warcFile: {}]", warcFile);
           }
         }
 
@@ -200,10 +200,9 @@ public class WarcFilePool {
         if (retireWarc) allWarcs.remove(warcFile);
 
       } else if (!retireWarc) {
-
         // Add WARC file to this pool (for the first time?)
+        log.warn("WARC file is not a member of this pool; adding it [warcFile: {}]", warcFile);
         addWarcFile(warcFile);
-
       }
     }
   }
