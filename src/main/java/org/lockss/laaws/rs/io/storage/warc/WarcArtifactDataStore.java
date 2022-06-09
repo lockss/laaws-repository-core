@@ -87,6 +87,7 @@ import org.springframework.util.StreamUtils;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -130,7 +131,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected static final String WARCID_SCHEME = "urn:uuid";
   protected static final String CRLF = "\r\n";
-  protected static byte[] CRLF_BYTES;
+  protected static byte[] CRLF_BYTES = CRLF.getBytes(StandardCharsets.US_ASCII);
+  protected static byte[] TWO_CRLF_BYTES = (CRLF + CRLF).getBytes(StandardCharsets.US_ASCII);
 
   public static final Path DEFAULT_BASEPATH = Paths.get("/lockss");
   public final static String DEFAULT_TMPWARCBASEPATH = TMP_WARCS_DIR;
@@ -179,19 +181,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     INITIALIZED,
     RUNNING,
     STOPPED
-  }
-
-  // *******************************************************************************************************************
-  // * STATIC
-  // *******************************************************************************************************************
-
-  static {
-    try {
-      CRLF_BYTES = CRLF.getBytes(DEFAULT_ENCODING);
-    } catch (UnsupportedEncodingException e) {
-      // This should never happen
-      throw new RuntimeException(e);
-    }
   }
 
   // *******************************************************************************************************************
@@ -1954,13 +1943,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               warcLength + recordLength
           );
 
-          // ******************
-          // Update storage URL
-          // ******************
+      // ******************
+      // Update storage URL
+      // ******************
 
-          // Set the artifact's new storage URL and update the index
-          artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
-          getArtifactIndex().updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
+      // Set the artifact's new storage URL and update the index
+      artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
+      getArtifactIndex().updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
           log.debug2("Updated storage URL [artifactId: {}, storageUrl: {}]",
               artifact.getId(), artifact.getStorageUrl()
@@ -3116,8 +3105,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Write the two CRLF blocks required at end of every record (per the spec)
-    out.write(CRLF_BYTES);
-    out.write(CRLF_BYTES);
+    out.write(TWO_CRLF_BYTES);
   }
 
   public static void writeWarcRecordHeader(WARCRecordInfo record, OutputStream out) throws IOException {
