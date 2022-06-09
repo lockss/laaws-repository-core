@@ -378,9 +378,9 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     for (PlatformUtil.DF df : mnts.values()) {
       oneDF = df;
       // Sizes in DF are KB, StorageInfo is bytes
-      sum.setSize(sum.getSize() + (df.getSize() * 1024));
-      sum.setUsed(sum.getUsed() + (df.getUsed() * 1024));
-      sum.setAvail(sum.getAvail() + (df.getAvail() * 1024));
+      sum.setSizeKB(sum.getSizeKB() + df.getSize());
+      sum.setUsedKB(sum.getUsedKB() + df.getUsed());
+      sum.setAvailKB(sum.getAvailKB() + df.getAvail());
     }
 
     // Set one-time StorageInfo fields
@@ -392,7 +392,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
     } else {
       // Compute percent used as 1.0 - avail / size, as some FSs have a
       // "full" threshold that's lower than the total size
-      sum.setPercentUsed(1.0d - (double)sum.getAvail() / (double)sum.getSize());
+      sum.setPercentUsed(1.0d - (double)sum.getAvailKB() / (double)sum.getSizeKB());
       sum.setPercentUsedString(String.valueOf(Math.round(100.0 *
                                                          sum.getPercentUsed())) + "%");
     }

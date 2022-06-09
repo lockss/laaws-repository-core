@@ -153,9 +153,9 @@ public class TestMetricsResponse extends LockssTestCase5 {
 
     log.trace("StorageInfo = {}", info);
 
-    assertEquals(1234L, info.getSize());
-    assertEquals(5678L, info.getAvail());
-    assertEquals(4321L, info.getUsed());
+    assertEquals(1L, info.getSizeKB());
+    assertEquals(6L, info.getAvailKB());
+    assertEquals(4L, info.getUsedKB());
     assertEquals("/lockss/test", info.getName());
   }
 

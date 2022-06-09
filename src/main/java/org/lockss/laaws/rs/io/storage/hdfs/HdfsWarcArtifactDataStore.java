@@ -423,15 +423,15 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         FsStatus status = fs.getStatus(new org.apache.hadoop.fs.Path(basePath.toString()));
 
         uris.add(fs.getUri().resolve(basePath.toUri()));
-        sum.setSize(sum.getSize() + status.getCapacity());
-        sum.setUsed(sum.getUsed() + status.getUsed());
-        sum.setAvail(sum.getAvail() + status.getRemaining());
+        sum.setSizeKB(sum.getSizeKB() + StorageInfo.toKBRounded(status.getCapacity()));
+        sum.setUsedKB(sum.getUsedKB() + StorageInfo.toKBRounded(status.getUsed()));
+        sum.setAvailKB(sum.getAvailKB() + StorageInfo.toKBRounded(status.getRemaining()));
       }
 
       // Set one-time StorageInfo fields
       sum.setName(fs.getUri().toString());
 //      sum.setName(String.join(",", uris));
-      sum.setPercentUsed((double)sum.getUsed() / (double)sum.getSize());
+      sum.setPercentUsed((double)sum.getUsedKB() / (double)sum.getSizeKB());
       sum.setPercentUsedString(String.valueOf(100 * Math.round(sum.getPercentUsed())) + "%");
 
       // Return the sum

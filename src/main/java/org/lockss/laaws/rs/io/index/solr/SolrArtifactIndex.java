@@ -531,10 +531,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       // Populate StorageInfo from Solr core metrics
       info.setName(metrics.getIndexDir());
-      info.setSize(metrics.getTotalSpace());
-      info.setUsed(metrics.getIndexSizeInBytes());
-      info.setAvail(metrics.getUsableSpace());
-      info.setPercentUsed((double) info.getUsed() / (double) info.getSize());
+      info.setSizeKB(StorageInfo.toKBRounded(metrics.getTotalSpace()));
+      info.setUsedKB(StorageInfo.toKBRounded(metrics.getIndexSizeInBytes()));
+      info.setAvailKB(StorageInfo.toKBRounded(metrics.getUsableSpace()));
+      info.setPercentUsed((double) info.getUsedKB() / (double) info.getSizeKB());
       info.setPercentUsedString(Math.round(100 * info.getPercentUsed()) + "%");
 
       // Return populated StorageInfo
