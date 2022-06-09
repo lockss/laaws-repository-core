@@ -2460,11 +2460,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.trace("auJournalPath = {}", auJournalPath);
 
     try {
-      // Initialize journal WARC file
-      initWarc(auJournalPath);
-
       // Append an entry (a WARC metadata record) to the journal
-      try (OutputStream output = getAppendableOutputStream(auJournalPath)) {
+      try (OutputStream output = initWarcAndGetAppendableOutputStream(auJournalPath)) {
         WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getId(), state);
         writeWarcRecord(journalRecord, output);
       }
@@ -2475,6 +2472,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.debug2("Updated artifact repository state [artifactId: {}, state: {}]", artifactId, state.toJson());
 
     return state;
+  }
+
+  /**
+   * Returns an appendable {@link OutputStream} or initializes the WARC first if a {@link FileNotFoundException}
+   * is thrown trying to open it.
+   */
+  private OutputStream initWarcAndGetAppendableOutputStream(Path warcPath) throws IOException {
+    try {
+      return getAppendableOutputStream(warcPath);
+    } catch (FileNotFoundException e) {
+      initWarc(warcPath);
+      return getAppendableOutputStream(warcPath);
+    }
   }
 
   /**

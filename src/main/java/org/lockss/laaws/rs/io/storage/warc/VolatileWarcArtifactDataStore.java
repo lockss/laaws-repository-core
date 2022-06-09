@@ -164,8 +164,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public OutputStream getAppendableOutputStream(Path path) {
+  public OutputStream getAppendableOutputStream(Path path) throws IOException {
     synchronized (warcs) {
+      if (!warcs.containsKey(path)) {
+        throw new FileNotFoundException("File not found");
+      }
+
       return warcs.get(path);
     }
   }
