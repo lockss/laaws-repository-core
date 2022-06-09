@@ -34,14 +34,20 @@ import java.nio.file.Path;
 
 /**
  * Class to keep track of a WARC file's length and the number of artifacts contained with it.
- * This class is not thread-safe because there can only be one user of a temporary WARC file.
+ * This class is not thread-safe. The assumption is there is only one user of a WARC file at
+ * a time.
  */
 public class WarcFile {
   // TODO: Replace with storage URL
-  private Path path;
+  private final Path path;
+  private final boolean isCompressed;
   private long length = 0;
   private int artifacts = 0;
-  private boolean isCompressed = false;
+
+  // TODO:
+  // Counter for deleted artifacts
+  // Counter for copied artifacts
+  // Expiration time for the last artifact added to this WARC
 
   public WarcFile(Path path, boolean isCompressed) {
     this.path = path;
@@ -50,11 +56,6 @@ public class WarcFile {
 
   public Path getPath() {
     return path;
-  }
-
-  public WarcFile setPath(Path path) {
-    this.path = path;
-    return this;
   }
 
   public long incrementLength(long length) {
@@ -86,14 +87,5 @@ public class WarcFile {
 
   public boolean isCompressed() {
     return isCompressed;
-  }
-
-  public boolean getCompressed() {
-    return isCompressed;
-  }
-
-  public WarcFile setCompressed(boolean compressed) {
-    isCompressed = compressed;
-    return this;
   }
 }
