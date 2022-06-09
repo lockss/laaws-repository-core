@@ -1551,8 +1551,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             recordLength = writeArtifactData(artifactData, cos);
           }
 
-          // Flush buffer then get count of bytes written - this is the stored record length
-          cos.flush();
           storedRecordLength = cos.getCount();
         }
 
@@ -1931,8 +1929,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           long bytesWritten = StreamUtils.copyRange(is, output, 0, recordLength - 1);
 
-          // Ensure entire record written before updating storage URL
-          output.flush();
           log.debug2("Copied artifact {}: Wrote {} of {} bytes starting at byte offset {} to {}; size of WARC file is" +
                   " now {}",
               artifact.getIdentifier().getId(),
@@ -1942,6 +1938,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               dst,
               warcLength + recordLength
           );
+        }
+      }
 
       // ******************
       // Update storage URL
@@ -1951,11 +1949,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
       getArtifactIndex().updateStorageUrl(artifact.getId(), artifact.getStorageUrl());
 
-          log.debug2("Updated storage URL [artifactId: {}, storageUrl: {}]",
-              artifact.getId(), artifact.getStorageUrl()
-          );
-        }
-      }
+      log.debug2("Updated storage URL [artifactId: {}, storageUrl: {}]",
+          artifact.getId(), artifact.getStorageUrl());
 
       // Seal active permanent WARC if we've gone over the size threshold
       if (warcLength + recordLength >= getThresholdWarcSize()) {
@@ -3106,6 +3101,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Write the two CRLF blocks required at end of every record (per the spec)
     out.write(TWO_CRLF_BYTES);
+    out.flush();
   }
 
   public static void writeWarcRecordHeader(WARCRecordInfo record, OutputStream out) throws IOException {
