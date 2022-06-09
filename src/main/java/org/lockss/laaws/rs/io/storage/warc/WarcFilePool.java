@@ -70,7 +70,7 @@ public class WarcFilePool {
    * in the data store.
    */
   protected WarcFile createWarcFile() throws IOException {
-    Path basePath = Arrays.stream(store.getTmpWarcBasePaths())
+    Path basePath = Arrays.stream(store.getBasePaths())
         .max((a, b) -> (int) (store.getFreeSpace(b) - store.getFreeSpace(a)))
         .orElse(null);
 
