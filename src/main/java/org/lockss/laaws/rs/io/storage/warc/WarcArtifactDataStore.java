@@ -1258,9 +1258,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             case DELETED:
               return true;
 
+            case UNKNOWN:
+              log.warn("Unknown artifact state [artifact: {}, state: {}]", indexed, state);
             case INDEXED:
             case PENDING_COMMIT:
-            case UNKNOWN:
             default:
               return false;
           }
