@@ -34,6 +34,7 @@ import java.nio.file.Path;
 
 /**
  * Class to keep track of a WARC file's length and the number of artifacts contained with it.
+ * This class is not thread-safe because there can only be one user of a temporary WARC file.
  */
 public class WarcFile {
   // TODO: Replace with storage URL

@@ -2857,7 +2857,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     byte[] headers = ArtifactDataUtil.getHttpResponseHeader(artifactData);
 
     try {
-      // FIXME: Assumption is artifact (WARC payload) length and digest have been set by the caller
+      // Assumption is artifact (WARC payload) length and digest have been set by the caller
 
       // WARC block length and stream
       record.setContentLength(headers.length + artifactData.getContentLength());
@@ -2872,7 +2872,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         artifactData.setComputeDigestOnRead(true);
 
-        // Create a HTTP response stream from the ArtifactData
+        // Create an HTTP response stream from the ArtifactData
         InputStream httpResponse =
             ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
                 ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData));
