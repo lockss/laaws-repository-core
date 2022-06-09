@@ -51,6 +51,9 @@ import static org.mockito.Mockito.*;
 class TestWarcFilePool extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
+  /**
+   * Tests for {@link WarcFilePool#createWarcFile()} and {@link WarcFilePool#createWarcFile(Path)}.
+   */
   @Test
   public void testCreateWarcFile() throws Exception {
     WarcFile warcFile;

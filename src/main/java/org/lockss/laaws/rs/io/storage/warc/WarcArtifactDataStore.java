@@ -354,7 +354,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return
    * @throws URISyntaxException
    */
-  protected Path getBasePathFromStorageUrl(URI storageUrl) throws URISyntaxException {
+  protected Path getBasePathFromStorageUrl(URI storageUrl) {
     Path warcPath = Paths.get(storageUrl.getPath());
 
     return Arrays.stream(getBasePaths())
@@ -1539,18 +1539,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Write serialized artifact to temporary WARC file
       try (OutputStream output = getAppendableOutputStream(tmpWarcPath)) {
 
-        // Use a CountingOutputStream to track number of bytes written to the WARC (i.e., size
-        // of the WARC record compressed or uncompressed)
-        try (CountingOutputStream cos = new CountingOutputStream(output)) {
-          if (useCompression) {
-            // Yes - wrap DFOS in GZIPOutputStream then write to it
-            try (GZIPOutputStream gzipOutput = new GZIPOutputStream(cos)) {
-              recordLength = writeArtifactData(artifactData, gzipOutput);
-            }
-          } else {
-            // No - write to DFOS directly
-            recordLength = writeArtifactData(artifactData, cos);
+      // Use a CountingOutputStream to track number of bytes written to the WARC (i.e., size
+      // of the WARC record compressed or uncompressed)
+      try (CountingOutputStream cos = new CountingOutputStream(output)) {
+        if (useCompression) {
+          // Yes - wrap COS in GZIPOutputStream then write to it
+          try (GZIPOutputStream gzipOutput = new GZIPOutputStream(cos)) {
+            recordLength = writeArtifactData(artifactData, gzipOutput);
           }
+        } else {
+          // No - write to COS directly
+          recordLength = writeArtifactData(artifactData, cos);
+        }
 
           storedRecordLength = cos.getCount();
         }
@@ -1607,14 +1607,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Return the artifact
       // *******************
 
-      // Create a new Artifact object to return
-      Artifact artifact = new Artifact(
-          artifactId,
-          false,
-          artifactData.getStorageUrl().toString(),
-          artifactData.getContentLength(),
-          artifactData.getContentDigest()
-      );
+    // Create a new Artifact object to return
+    Artifact artifact = new Artifact(
+        artifactId,
+        false,
+        artifactData.getStorageUrl().toString(),
+        artifactData.getContentLength(),
+        artifactData.getContentDigest());
 
       // Set the artifact collection date
       artifact.setCollectionDate(artifactData.getCollectionDate());
@@ -1968,8 +1967,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       updateArtifactRepositoryState(
           getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
           artifact.getIdentifier(),
-          state
-      );
+          state);
 
       // Set committed bit on artifact
       artifact.setCommitted(true);
@@ -2009,8 +2007,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       updateArtifactRepositoryState(
           getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
           artifact.getIdentifier(),
-          state
-      );
+          state);
 
       // TODO: Splice out or zero artifact from storage?
 

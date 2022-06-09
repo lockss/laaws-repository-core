@@ -88,4 +88,14 @@ public class WarcFile {
   public boolean isCompressed() {
     return isCompressed;
   }
+
+  @Override
+  public String toString() {
+    return "WarcFile{" +
+        "path=" + path +
+        ", isCompressed=" + isCompressed +
+        ", length=" + length +
+        ", artifacts=" + artifacts +
+        '}';
+  }
 }
