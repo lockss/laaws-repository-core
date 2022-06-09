@@ -690,9 +690,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
       boolean isAuEmpty = !index.values()
           .stream()
-          .filter(q.build())
-          .findFirst()
-          .isPresent();
+          .anyMatch(q.build());
 
       if (isAuEmpty) {
         auSize.setTotalWarcSize(0L);
