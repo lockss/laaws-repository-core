@@ -2865,9 +2865,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
               ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)));
 
-    // FIXME: Thrown by getContentLength() - use a better signal than throwing RuntimeException:
-    } catch (RuntimeException e) {
-      // Compute length by exhausting the InputStream
+    } catch (IllegalStateException e) {
+      // Compute length and digest by exhausting the InputStream
       try (DeferredTempFileOutputStream dfos =
           new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {
 

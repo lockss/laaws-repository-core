@@ -356,7 +356,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
   public long getContentLength() {
     if (contentLength < 0) {
-      throw new RuntimeException("Content length has not been set");
+      throw new IllegalStateException("Content length has not been set");
     }
     return contentLength;
   }
