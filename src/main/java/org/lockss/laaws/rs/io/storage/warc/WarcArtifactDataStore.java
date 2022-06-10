@@ -3097,13 +3097,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Write the WARC record payload
       long bytesWritten = IOUtils.copyLarge(record.getContentStream(), out);
 
-      // Sanity check
+      // Sanity check: The number of bytes read from the WARC record should match its declared Content-Length
       if (bytesWritten != record.getContentLength()) {
         log.warn(
             "Number of bytes written did not match Content-Length header (expected: {} bytes, wrote: {} bytes)",
             record.getContentLength(),
-            bytesWritten
-        );
+            bytesWritten);
       }
     }
 
