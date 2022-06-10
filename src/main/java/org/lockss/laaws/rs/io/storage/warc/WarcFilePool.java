@@ -181,28 +181,25 @@ public class WarcFilePool {
   public void returnWarcFile(WarcFile warcFile) {
     boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
     boolean isArtifactsReached = warcFile.getArtifacts() >= store.getMaxArtifactsThreshold();
-    boolean retireWarc = isSizeReached || isArtifactsReached;
+    boolean closeWarcFile = isSizeReached || isArtifactsReached;
 
     synchronized (allWarcs) {
-      if (isInPool(warcFile)) {
-
-        // Remove from internal set of used WARCs
-        synchronized (usedWarcs) {
-          if (isInUse(warcFile)) {
-            TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
-            usedWarcs.remove(warcFile);
-          } else {
-            log.warn("WARC file is a member of this pool but was not in use [warcFile: {}]", warcFile);
-          }
-        }
-
-        // Remove from pool if full
-        if (retireWarc) allWarcs.remove(warcFile);
-
-      } else if (!retireWarc) {
-        // Add WARC file to this pool (for the first time?)
-        log.warn("WARC file is not a member of this pool; adding it [warcFile: {}]", warcFile);
+      if (closeWarcFile) {
+        // Remove from this WARC file pool
+        removeWarcFile(warcFile);
+      } else if (!isInPool(warcFile)) {
+        // Add WARC file to this pool (possibly for the first time)
+        log.warn("WARC file was not yet a member of this pool [warcFile: {}]", warcFile);
         addWarcFile(warcFile);
+      } else if (isInUse(warcFile)) {
+        // Mark end-of-use of this WarcFile
+        synchronized (usedWarcs) {
+          TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
+          usedWarcs.remove(warcFile);
+        }
+      } else {
+        // Nothing else to do
+        log.warn("WARC file is a member but not marked in-use in this pool [warcFile: {}]", warcFile);
       }
     }
   }
@@ -303,11 +300,8 @@ public class WarcFilePool {
   protected void removeWarcFile(WarcFile warcFile) {
     synchronized (allWarcs) {
       synchronized (usedWarcs) {
-        if (isInUse(warcFile)) {
-          // Pay attention to this log message - it may indicate a problem with the code
-          log.warn("Forceful removal of WARC file from pool [warcFile: {}]", warcFile);
-
-          // Q: What should we do if it's currently in use?
+        if (isInPool(warcFile) && isInUse(warcFile)) {
+          log.warn("Forcefully removing WARC file from pool [warcFile: {}]", warcFile);
         }
 
         usedWarcs.remove(warcFile);

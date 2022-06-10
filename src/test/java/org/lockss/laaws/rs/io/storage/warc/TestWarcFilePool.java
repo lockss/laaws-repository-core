@@ -168,40 +168,58 @@ class TestWarcFilePool extends LockssTestCase5 {
     assertEquals(warcFile2, warcFile4);
   }
 
+  /**
+   * Test for {@link WarcFilePool#returnWarcFile(WarcFile)}.
+   */
   @Test
   public void testReturnWarcFile() throws Exception {
+    // Mock parameters (from a WarcArtifactDataStore) to the WarcFilePool
     WarcArtifactDataStore store = mock(WarcArtifactDataStore.class);
     when(store.getBlockSize()).thenReturn(4096L);
     when(store.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
     when(store.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
-    WarcFilePool pool = spy(new WarcFilePool(store));
+    // WarcFilePool construction
+    WarcFilePool pool = new WarcFilePool(store);
 
-    WarcFile warcFile = mock(WarcFile.class);
-    when(warcFile.getPath()).thenReturn(Paths.get("/tmp/foo.warc"));
-    when(warcFile.getArtifacts()).thenReturn(0);
-    when(warcFile.getLength()).thenReturn(0L);
+    WarcFile warcFile = new WarcFile(Paths.get("/lockss/test.warc"), false);
+    warcFile.setLength(0L);
+    warcFile.setArtifacts(0);
 
-    // Verify adding an unknown WarcFile to the pool causes it to be added to the pool
-    pool.returnWarcFile(warcFile);
-    InOrder inOrder = Mockito.inOrder(pool);
-    inOrder.verify(pool).isInPool(warcFile);
-    inOrder.verify(pool).addWarcFile(warcFile);
+    // Assert adding an unknown WarcFile to the pool causes it to be added to the pool
+    {
+      assertFalse(pool.isInPool(warcFile));
+      pool.returnWarcFile(warcFile);
+      assertTrue(pool.isInPool(warcFile));
+    }
 
-    // Assert no changes returning a WarcFile already not in use
-    pool.returnWarcFile(warcFile);
-    assertTrue(pool.isInPool(warcFile));
-    assertFalse(pool.isInUse(warcFile));
+    // Assert WarcFile is removed from pool if artifact counter threshold is met
+    {
+      warcFile.setArtifacts(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
-    // Remove the file
-    pool.removeWarcFile(warcFile);
-    assertFalse(pool.isInPool(warcFile));
-    assertFalse(pool.isInUse(warcFile));
+      pool.returnWarcFile(warcFile);
+      assertFalse(pool.isInPool(warcFile));
+      assertFalse(pool.isInUse(warcFile));
+    }
 
-    // Return the WarcFile
-    pool.returnWarcFile(warcFile);
-    assertTrue(pool.isInPool(warcFile));
-    assertFalse(pool.isInUse(warcFile));
+    // Assert WarcFile is removed from pool if temporary WARC file size threshold is met
+    {
+      warcFile.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+
+      pool.returnWarcFile(warcFile);
+      assertFalse(pool.isInPool(warcFile));
+      assertFalse(pool.isInUse(warcFile));
+    }
+
+    // Assert WarcFile is removed from pool if temporary WARC file size and artifact counter thresholds are met
+    {
+      // warcFile.setArtifacts(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
+      // warcFile.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+
+      pool.returnWarcFile(warcFile);
+      assertFalse(pool.isInPool(warcFile));
+      assertFalse(pool.isInUse(warcFile));
+    }
   }
 
   @Test
