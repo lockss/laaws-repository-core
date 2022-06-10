@@ -334,13 +334,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
-  /** Wait for all background commits for an AU to finish */
+  /**
+   * Wait for all background commits for an AU to finish
+   */
   public boolean waitForCommitTasks(String collection, String auid) {
-    log.debug2("Waiting for stripe " + new CollectionAuidPair(collection,
-                                                              auid));
+    log.debug2("Waiting for stripe " + new CollectionAuidPair(collection, auid));
 
-    return stripedExecutor.waitForStripeToEmpty(new CollectionAuidPair(collection,
-                                                                       auid));
+    return stripedExecutor.waitForStripeToEmpty(new CollectionAuidPair(collection, auid));
   }
 
   // *******************************************************************************************************************
@@ -596,7 +596,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   /**
    * Internal convenience method for use in Streams.
-   *
+   * <p>
    * Returns length of WARC file in bytes or zero if the WARC file doesn't exist or there was some
    * other issue accessing its length.
    */
@@ -1463,7 +1463,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Configures the artifact index associated with this WARC artifact data store.
    * <p>
    * Should only be used in testing.
-   *
+   * <p>
    * Deprecated. Use internal handle to {@link BaseLockssRepository} instead.
    *
    * @param artifactIndex The {@code ArtifactIndex} instance to associate with this WARC artifact data store.
@@ -1539,18 +1539,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Write serialized artifact to temporary WARC file
       try (OutputStream output = getAppendableOutputStream(tmpWarcPath)) {
 
-      // Use a CountingOutputStream to track number of bytes written to the WARC (i.e., size
-      // of the WARC record compressed or uncompressed)
-      try (CountingOutputStream cos = new CountingOutputStream(output)) {
-        if (useCompression) {
-          // Yes - wrap COS in GZIPOutputStream then write to it
-          try (GZIPOutputStream gzipOutput = new GZIPOutputStream(cos)) {
-            recordLength = writeArtifactData(artifactData, gzipOutput);
+        // Use a CountingOutputStream to track number of bytes written to the WARC (i.e., size
+        // of the WARC record compressed or uncompressed)
+        try (CountingOutputStream cos = new CountingOutputStream(output)) {
+          if (useCompression) {
+            // Yes - wrap COS in GZIPOutputStream then write to it
+            try (GZIPOutputStream gzipOutput = new GZIPOutputStream(cos)) {
+              recordLength = writeArtifactData(artifactData, gzipOutput);
+            }
+          } else {
+            // No - write to COS directly
+            recordLength = writeArtifactData(artifactData, cos);
           }
-        } else {
-          // No - write to COS directly
-          recordLength = writeArtifactData(artifactData, cos);
-        }
 
           storedRecordLength = cos.getCount();
         }
@@ -1607,13 +1607,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Return the artifact
       // *******************
 
-    // Create a new Artifact object to return
-    Artifact artifact = new Artifact(
-        artifactId,
-        false,
-        artifactData.getStorageUrl().toString(),
-        artifactData.getContentLength(),
-        artifactData.getContentDigest());
+      // Create a new Artifact object to return
+      Artifact artifact = new Artifact(
+          artifactId,
+          false,
+          artifactData.getStorageUrl().toString(),
+          artifactData.getContentLength(),
+          artifactData.getContentDigest());
 
       // Set the artifact collection date
       artifact.setCollectionDate(artifactData.getCollectionDate());
@@ -2046,7 +2046,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * {@link WarcArtifactDataStore} implementations.
    *
    * @param collection A {@link String} of the name of the collection containing the AU.
-   * @param auid A {@link String} of the AUID of the AU.
+   * @param auid       A {@link String} of the AUID of the AU.
    * @return A {@code long} With the size in bytes of storage space used by this AU.
    */
   @Override
@@ -2286,6 +2286,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   static boolean SKIP_INDEXING_IF_MARKED_DELETED = true;
+
   public long indexArtifactsFromWarc(ArtifactIndex index, Path warcFile) throws IOException {
     boolean isWarcInTemp = isTmpStorage(warcFile);
     boolean isCompressed = isCompressedWarcFile(warcFile);
@@ -2860,7 +2861,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     } catch (IllegalStateException e) {
       // Compute length and digest by exhausting the InputStream
       try (DeferredTempFileOutputStream dfos =
-          new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {
+               new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {
 
         artifactData.setComputeDigestOnRead(true);
 
