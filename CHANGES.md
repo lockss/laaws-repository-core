@@ -1,5 +1,14 @@
 # `laaws-repository-core` Release Notes
 
+## Changes Since 2.16.0
+
+* Support for "bulk storage mode" for migration from class LOCKSS daemons.
+* Improvements to `SolrArtifactIndex` (and clients of it) to be more judicious about when and 
+    where Solr commits are performed and number of queries performed.
+* Numerous internal improvements and bug fixes. E.g., removed the use of `DeferredTempFileOputStream` 
+    in the serialization of artifacts to WARC records in `WarcArtifactDataStore`.
+* Support for filesystems larger than 8 EiB.
+
 ## Changes Since 2.15.0
 
 ### Features
