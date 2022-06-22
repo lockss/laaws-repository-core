@@ -186,7 +186,7 @@ public class WarcFilePool {
     synchronized (allWarcs) {
       if (closeWarcFile) {
         // Remove from this WARC file pool
-        removeWarcFile(warcFile);
+        removeWarcFileFromPool(warcFile);
       } else if (!isInPool(warcFile)) {
         // Add WARC file to this pool (possibly for the first time)
         log.warn("WARC file was not yet a member of this pool [warcFile: {}]", warcFile);
@@ -260,7 +260,7 @@ public class WarcFilePool {
    * @param warcFilePath A {@link String} containing the path to the {@link WarcFile} to find.
    * @return The {@link WarcFile}, or {@code null} if one could not be found.
    */
-  public WarcFile getWarcFile(Path warcFilePath) {
+  private WarcFile getWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
       return allWarcs.stream()
           .filter(x -> x.getPath().equals(warcFilePath))
@@ -270,20 +270,19 @@ public class WarcFilePool {
   }
 
   /**
-   * Removes the {@link WarcFile} matching the given path from this pool and returns it.
-   * <p>
-   * May return {@code null} if none in the pool match.
+   * Removes the {@link WarcFile} from this pool and returns it. May return {@code null} if there is no match of the
+   * given WARC file path.
    *
-   * @param warcFilePath A {@link String} containing the WARC file path of the {@link WarcFile} to remove.
+   * @param warcFilePath A {@link Path} containing the WARC file path of the {@link WarcFile} to remove.
    * @return The {@link WarcFile} removed from this pool. May be {@code null} if not found.
    */
-  public WarcFile removeWarcFile(Path warcFilePath) {
+  public WarcFile removeWarcFileFromPool(Path warcFilePath) {
     synchronized (allWarcs) {
       WarcFile warcFile = getWarcFile(warcFilePath);
 
       // If we found the WarcFile; remove it from the pool
       if (warcFile != null) {
-        removeWarcFile(warcFile);
+        removeWarcFileFromPool(warcFile);
       }
 
       // Return the WarcFile that was found and removed, or return null
@@ -296,7 +295,7 @@ public class WarcFilePool {
    *
    * @param warcFile The instance of {@link WarcFile} to remove from this pool.
    */
-  protected void removeWarcFile(WarcFile warcFile) {
+  public void removeWarcFileFromPool(WarcFile warcFile) {
     synchronized (allWarcs) {
       synchronized (usedWarcs) {
         if (isInPool(warcFile) && isInUse(warcFile)) {

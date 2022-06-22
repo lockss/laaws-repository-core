@@ -231,19 +231,19 @@ class TestWarcFilePool extends LockssTestCase5 {
     pool.allWarcs = mock(Set.class);
 
     // Mock behavior
-    doCallRealMethod().when(pool).removeWarcFile(warcPath);
-    doCallRealMethod().when(pool).removeWarcFile(warcFile);
+    doCallRealMethod().when(pool).removeWarcFileFromPool(warcPath);
+    doCallRealMethod().when(pool).removeWarcFileFromPool(warcFile);
 
     // Assert nothing is removed if not part of pool
-    when(pool.getWarcFile(warcPath)).thenReturn(null);
-    assertNull(pool.removeWarcFile(warcPath));
-    verify(pool, never()).removeWarcFile(ArgumentMatchers.any(WarcFile.class));
+    when(pool.removeWarcFileFromPool(warcPath)).thenReturn(null);
+    assertNull(pool.removeWarcFileFromPool(warcPath));
+    verify(pool, never()).removeWarcFileFromPool(ArgumentMatchers.any(WarcFile.class));
     clearInvocations(pool);
 
     // Assert WARC removed if in pool
-    when(pool.getWarcFile(warcPath)).thenReturn(warcFile);
-    assertEquals(warcFile, pool.removeWarcFile(warcPath));
-    verify(pool).removeWarcFile(warcFile);
+    when(pool.removeWarcFileFromPool(warcPath)).thenReturn(warcFile);
+    assertEquals(warcFile, pool.removeWarcFileFromPool(warcPath));
+    verify(pool).removeWarcFileFromPool(warcFile);
     verify(pool.usedWarcs).remove(warcFile);
     verify(pool.allWarcs).remove(warcFile);
     clearInvocations(pool);

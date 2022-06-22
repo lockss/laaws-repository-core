@@ -958,7 +958,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       } else if (tmpWarcPool.isInPool(tmpWarcPath)) {
         // Temporary WARC is a member of the pool but not currently in use: Remove it from
         // the pool and process it below
-        tmpWarcFile = tmpWarcPool.removeWarcFile(tmpWarcPath);
+        tmpWarcFile = tmpWarcPool.removeWarcFileFromPool(tmpWarcPath);
 
         if (tmpWarcFile == null) {
           // This message is worth paying attention to if logged - it may indicate a problem with synchronization
@@ -1790,7 +1790,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Update temporary WARC file stats
           WarcFile tmpWarcFile =
-              tmpWarcPool.getWarcFile(getPathFromStorageUrl(new URI(indexed.getStorageUrl())));
+              tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(indexed.getStorageUrl())));
 
           tmpWarcFile.decArtifactsUncommitted();
           tmpWarcFile.incArtifactsCommitted();
@@ -1982,7 +1982,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Update temporary WARC file stats
       // ********************************
 
-      WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(loc.getPath());
+      WarcFile tmpWarcFile = tmpWarcPool.removeWarcFileFromPool(loc.getPath());
       tmpWarcFile.incArtifactsCopied();
       tmpWarcPool.addWarcFile(tmpWarcFile);
 
@@ -2024,7 +2024,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       //// Update temporary WARC file stats
       if (getArtifactState(artifact, false) == ArtifactState.COMMITTED) {
         WarcFile tmpWarcFile =
-            tmpWarcPool.getWarcFile(getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
+            tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
 
         tmpWarcFile.decArtifactsUncommitted();
         tmpWarcPool.addWarcFile(tmpWarcFile);

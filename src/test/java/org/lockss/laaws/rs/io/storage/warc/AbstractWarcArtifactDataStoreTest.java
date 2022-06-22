@@ -1488,7 +1488,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Mock behavior
     doCallRealMethod().when(ds).garbageCollectTempWarc(tmpWarcPath);
-    when(ds.tmpWarcPool.removeWarcFile(tmpWarcPath)).thenReturn(tmpWarcFile);
+    when(ds.tmpWarcPool.removeWarcFileFromPool(tmpWarcPath)).thenReturn(tmpWarcFile);
 
     // Assert no processing if temporary WARC is in use in the pool
     when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(true);
