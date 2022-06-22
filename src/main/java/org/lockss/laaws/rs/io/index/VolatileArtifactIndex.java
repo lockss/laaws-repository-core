@@ -135,16 +135,15 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         }
 
         // Get artifact's repository state
-        ArtifactStateEntry state = artifactData.getArtifactRepositoryState();
+        ArtifactStateEntry stateEntry = artifactData.getArtifactRepositoryState();
 
         // Create and populate an Artifact bean for this ArtifactData
         Artifact artifact = new Artifact(
             artifactId,
-            state == null ? false : state.isCommitted(),
+            stateEntry == null ? false : stateEntry.isCommitted(),
             artifactData.getStorageUrl().toString(),
             artifactData.getContentLength(),
-            artifactData.getContentDigest()
-        );
+            artifactData.getContentDigest());
 
         // Save the artifact collection date.
         artifact.setCollectionDate(artifactData.getCollectionDate());

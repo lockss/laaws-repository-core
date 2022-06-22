@@ -38,6 +38,7 @@ import org.lockss.util.time.TimeBase;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 
@@ -381,7 +382,10 @@ public class WarcFilePool {
         ArtifactIndex index = store.getArtifactIndex();
 
         try {
-          store.readJournal(warc.getPath(), ArtifactStateEntry.class)
+          // TODO: Determine journal path
+          Path artifactStateJournal = Paths.get("XXX");
+
+          store.readJournal(artifactStateJournal, ArtifactStateEntry.class)
               .stream()
               .filter(ArtifactStateEntry::isCopied)
               .map(ArtifactStateEntry::getArtifactId)
