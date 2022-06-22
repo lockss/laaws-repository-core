@@ -1882,7 +1882,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Artifact's storage URL
       URI storageUrl = new URI(artifact.getStorageUrl());
-      Path storagePath = Paths.get(storageUrl.getPath());
+      Path storagePath = getPathFromStorageUrl(storageUrl);
 
       // Do not commit again if already committed (stored in permanent storage);
       // determined by examining the storage URL
@@ -2085,7 +2085,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     public static WarcRecordLocation fromStorageUrl(URI storageUri) {
       // Get path to WARC file
-      Path path = Paths.get(storageUri.getPath());
+      Path path = getPathFromStorageUrl(storageUri);
 
       // Get WARC record offset and length
       MultiValueMap queryArgs = parseQueryArgs(storageUri.getQuery());
