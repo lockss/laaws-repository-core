@@ -1549,7 +1549,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         // Update WARC file stats
         tmpWarc.incrementLength(storedRecordLength);
-        tmpWarc.incrementArtifacts();
+        tmpWarc.incArtifactsUncommitted();
+        tmpWarc.setLatestExpiration(TimeBase.nowMs() + getUncommittedArtifactExpiration());
 
         // Debugging
         log.debug2("Wrote {} bytes offset {} to {}; size is now {}",
@@ -1787,6 +1788,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               artifact.getIdentifier(),
               artifactRepoState);
 
+          // Update temporary WARC file stats
+          WarcFile tmpWarcFile =
+              tmpWarcPool.getWarcFile(getPathFromStorageUrl(new URI(indexed.getStorageUrl())));
+
+          tmpWarcFile.decArtifactsUncommitted();
+          tmpWarcFile.incArtifactsCommitted();
+
+          tmpWarcPool.addWarcFile(tmpWarcFile);
+
           // Fall-through...
 
         case COMMITTED:
@@ -1968,6 +1978,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifact.setCommitted(true);
       log.trace("CommitArtifactTask done: " + getStripe());
 
+      // ********************************
+      // Update temporary WARC file stats
+      // ********************************
+
+      WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(loc.getPath());
+      tmpWarcFile.incArtifactsCopied();
+      tmpWarcPool.addWarcFile(tmpWarcFile);
+
       return artifact;
     }
   }
@@ -2002,6 +2020,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           getBasePathFromStorageUrl(new URI(artifact.getStorageUrl())),
           artifact.getIdentifier(),
           state);
+
+      //// Update temporary WARC file stats
+      if (getArtifactState(artifact, false) == ArtifactState.COMMITTED) {
+        WarcFile tmpWarcFile =
+            tmpWarcPool.getWarcFile(getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
+
+        tmpWarcFile.decArtifactsUncommitted();
+        tmpWarcPool.addWarcFile(tmpWarcFile);
+      }
 
       // TODO: Splice out or zero artifact from storage?
 
