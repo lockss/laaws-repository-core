@@ -1696,7 +1696,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     switch (artifactState) {
       case NOT_INDEXED:
       case UNCOMMITTED:
-      case COMMITTED:
+      case PENDING_COPY:
         // The temporary WARC containing this artifact should NOT have been removed
         log.debug("storageUrl = {}", WarcArtifactDataStore.getPathFromStorageUrl(new URI(indexedRef.getStorageUrl())));
         log.debug("tmpWarcBasePath = {}", tmpWarcBasePath);
@@ -1872,7 +1872,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
           case DELETED:
             assertTrue(ds.isTempWarcRecordRemovable(record));
             continue;
-          case COMMITTED:
+          case PENDING_COPY:
           case UNCOMMITTED:
           case UNKNOWN:
           default:
@@ -1945,7 +1945,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         isExpired = true;
         break;
 
-      case COMMITTED:
+      case PENDING_COPY:
         // Artifact is indexed, committed, but in temporary storage
         artifact.setCommitted(true);
         artifact.setStorageUrl(store.getTmpWarcBasePaths()[0].resolve("test").toString());
@@ -3031,7 +3031,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Generate two journal records for the same artifact
     ArtifactIdentifier aid = new ArtifactIdentifier("artifact", "collection", "auid", "url", 1);
     ArtifactStateEntry am1 = new ArtifactStateEntry(aid, ArtifactState.UNCOMMITTED);
-    ArtifactStateEntry am2 = new ArtifactStateEntry(aid, ArtifactState.COMMITTED);
+    ArtifactStateEntry am2 = new ArtifactStateEntry(aid, ArtifactState.PENDING_COPY);
 
     WARCRecordInfo r1 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am1);
     WARCRecordInfo r2 = WarcArtifactDataStore.createWarcMetadataRecord(aid.getId(), am2);

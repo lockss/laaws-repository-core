@@ -41,7 +41,7 @@ public enum ArtifactState {
   UNKNOWN,
   NOT_INDEXED,
   UNCOMMITTED,
-  COMMITTED,
+  PENDING_COPY,
   COPIED,
   EXPIRED,
   DELETED

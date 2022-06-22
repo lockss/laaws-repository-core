@@ -1113,7 +1113,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         try {
           // Resume artifact lifecycle based on the artifact's state
           switch (state) {
-            case COMMITTED:
+            case PENDING_COPY:
               // Requeue the copy of this artifact from temporary to permanent storage
               try {
                 // Only reschedule a copy to permanent storage if the artifact is still in temporary storage
@@ -1267,7 +1267,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             case UNKNOWN:
               log.warn("Unknown artifact state [artifact: {}, state: {}]", indexed, state);
             case UNCOMMITTED:
-            case COMMITTED:
+            case PENDING_COPY:
             default:
               return false;
           }
@@ -1311,7 +1311,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         return ArtifactState.COPIED;
       } else if (artifact.isCommitted()) {
         // Artifact is marked committed but not copied to permanent storage
-        return ArtifactState.COMMITTED;
+        return ArtifactState.PENDING_COPY;
       } else if (!artifact.isCommitted() && !isExpired) {
         // Uncommitted and not copied but indexed
         return ArtifactState.UNCOMMITTED;
@@ -1734,7 +1734,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       if (!isTmpStorage) {
         state.setArtifactState(ArtifactState.COPIED);
       } else if (isArtifactCommitted(indexedArtifactId)) {
-        state.setArtifactState(ArtifactState.COMMITTED);
+        state.setArtifactState(ArtifactState.PENDING_COPY);
       } else {
         // Q: Do we need to distinguish UNCOMMITTED from EXPIRED here? DELETED and NOT_INDEXED
         //  don't make sense since we needed a non-null Artifact to get to this point.
@@ -1794,7 +1794,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Mark artifact as committed in the journal
           ArtifactStateEntry artifactRepoState =
-              new ArtifactStateEntry(artifact.getIdentifier(), ArtifactState.COMMITTED);
+              new ArtifactStateEntry(artifact.getIdentifier(), ArtifactState.PENDING_COPY);
 
           // Write new state to journal
           updateArtifactStateJournal(
@@ -1802,18 +1802,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               artifact.getIdentifier(),
               artifactRepoState);
 
-          // Update temporary WARC file stats
-          WarcFile tmpWarcFile =
-              tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(indexed.getStorageUrl())));
-
-          tmpWarcFile.decArtifactsUncommitted();
-          tmpWarcFile.incArtifactsCommitted();
-
-          tmpWarcPool.addWarcFile(tmpWarcFile);
-
           // Fall-through...
 
-        case COMMITTED:
+        case PENDING_COPY:
           // Submit the task to copy the artifact data from temporary to permanent storage
           // Q: Is it possible for multiple commit tasks to be scheduled for the same artifact?
           return stripedExecutor.submit(new CopyArtifactTask(artifact));
@@ -2036,7 +2027,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           state);
 
       //// Update temporary WARC file stats
-      if (getArtifactState(artifact, false) == ArtifactState.COMMITTED) {
+      if (getArtifactState(artifact, false) == ArtifactState.PENDING_COPY) {
         WarcFile tmpWarcFile =
             tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
 
@@ -2627,7 +2618,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     ArtifactState state = ArtifactState.UNKNOWN;
 
     if (flags.get(INDEX_COMMITTED))
-      state = ArtifactState.COMMITTED;
+      state = ArtifactState.PENDING_COPY;
 
     if (flags.get(INDEX_DELETED))
       state = ArtifactState.DELETED;

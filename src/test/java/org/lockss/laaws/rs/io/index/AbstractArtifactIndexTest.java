@@ -336,7 +336,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     spec.generateContent();
 
     ArtifactState state = ArtifactState.UNKNOWN;
-    if (spec.isCommitted()) state = ArtifactState.COMMITTED;
+    if (spec.isCommitted()) state = ArtifactState.PENDING_COPY;
     if (spec.isDeleted()) state = ArtifactState.DELETED;
     ArtifactStateEntry stateEntry = new ArtifactStateEntry(spec.getArtifactIdentifier(), state);
 

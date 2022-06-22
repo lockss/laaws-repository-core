@@ -123,7 +123,7 @@ public class ArtifactStateEntry implements AuJournalEntry {
    * Returns a {@code boolean} indicating whether the state in this entry is {@code COMMITTED}.
    */
   public boolean isCommitted() {
-    return this.state == ArtifactState.COMMITTED;
+    return this.state == ArtifactState.PENDING_COPY;
   }
 
   /**

@@ -466,7 +466,7 @@ public class ArtifactDataFactory {
           ArtifactState state = ArtifactState.UNKNOWN;
 
           if (Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED))) {
-            state = ArtifactState.COMMITTED;
+            state = ArtifactState.PENDING_COPY;
           }
 
           if (Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))) {
