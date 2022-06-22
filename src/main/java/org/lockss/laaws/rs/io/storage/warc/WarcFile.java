@@ -30,6 +30,8 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.lockss.laaws.rs.impl.ArtifactContainerStats;
+
 import java.nio.file.Path;
 
 /**
@@ -37,12 +39,11 @@ import java.nio.file.Path;
  * This class is not thread-safe. The assumption is there is only one user of a WARC file at
  * a time.
  */
-public class WarcFile {
+public class WarcFile extends ArtifactContainerStats {
   // TODO: Replace with storage URL
   private final Path path;
   private final boolean isCompressed;
   private long length = 0;
-  private int artifacts = 0;
 
   /**
    * Constructor.
@@ -73,19 +74,6 @@ public class WarcFile {
     return this;
   }
 
-  public int incrementArtifacts() {
-    return ++artifacts;
-  }
-
-  public int getArtifacts() {
-    return artifacts;
-  }
-
-  public WarcFile setArtifacts(int artifacts) {
-    this.artifacts = artifacts;
-    return this;
-  }
-
   public boolean isCompressed() {
     return isCompressed;
   }
@@ -96,7 +84,7 @@ public class WarcFile {
         "path=" + path +
         ", isCompressed=" + isCompressed +
         ", length=" + length +
-        ", artifacts=" + artifacts +
+        ", stats=" + super.toString() +
         '}';
   }
 }

@@ -184,7 +184,7 @@ class TestWarcFilePool extends LockssTestCase5 {
 
     WarcFile warcFile = new WarcFile(Paths.get("/lockss/test.warc"), false);
     warcFile.setLength(0L);
-    warcFile.setArtifacts(0);
+    warcFile.setArtifactsUncommitted(0);
 
     // Assert adding an unknown WarcFile to the pool causes it to be added to the pool
     {
@@ -195,7 +195,7 @@ class TestWarcFilePool extends LockssTestCase5 {
 
     // Assert WarcFile is removed from pool if artifact counter threshold is met
     {
-      warcFile.setArtifacts(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
+      warcFile.setArtifactsUncommitted(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
       pool.returnWarcFile(warcFile);
       assertFalse(pool.isInPool(warcFile));

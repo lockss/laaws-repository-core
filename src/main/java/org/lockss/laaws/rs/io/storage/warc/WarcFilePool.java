@@ -148,7 +148,7 @@ public class WarcFilePool {
         availableWarcs.removeAll(usedWarcs);
 
         Optional<WarcFile> optWarc = availableWarcs.stream()
-            .filter(warc -> warc.getArtifacts() < store.getMaxArtifactsThreshold())
+            .filter(warc -> warc.getArtifactsUncommitted() < store.getMaxArtifactsThreshold())
             .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
             .findAny();
 
@@ -180,7 +180,7 @@ public class WarcFilePool {
    */
   public void returnWarcFile(WarcFile warcFile) {
     boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
-    boolean isArtifactsReached = warcFile.getArtifacts() >= store.getMaxArtifactsThreshold();
+    boolean isArtifactsReached = warcFile.getArtifactsUncommitted() >= store.getMaxArtifactsThreshold();
     boolean closeWarcFile = isSizeReached || isArtifactsReached;
 
     synchronized (allWarcs) {
