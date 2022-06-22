@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.JmsFactorySource;
 import org.lockss.log.L4JLogger;
@@ -59,7 +60,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
 
   private File repoStateDir;
 
-  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactRepositoryState> store;
+  protected ArtifactDataStore<ArtifactIdentifier, ArtifactData, ArtifactStateEntry> store;
   protected ArtifactIndex index;
   protected JmsFactory jmsFact;
 

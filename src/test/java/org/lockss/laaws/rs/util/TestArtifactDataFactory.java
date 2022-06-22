@@ -40,7 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
@@ -158,8 +158,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
-            assertNull(repositoryState);
+            ArtifactStateEntry stateEntry = artifact.getArtifactRepositoryState();
+            assertNull(stateEntry);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         }
@@ -214,8 +214,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
-            assertNull(repositoryState);
+            ArtifactStateEntry stateEntry = artifact.getArtifactRepositoryState();
+            assertNull(stateEntry);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         } catch (HttpException e) {

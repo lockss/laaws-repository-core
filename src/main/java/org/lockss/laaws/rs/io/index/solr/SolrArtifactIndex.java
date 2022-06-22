@@ -51,6 +51,7 @@ import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
@@ -683,12 +684,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throw new IllegalArgumentException("ArtifactData has null identifier");
     }
 
-    ArtifactRepositoryState state = artifactData.getArtifactRepositoryState();
+    ArtifactStateEntry stateEntry = artifactData.getArtifactRepositoryState();
 
     // Create an instance of Artifact to represent the artifact
     Artifact artifact = new Artifact(
         artifactId,
-        state == null ? false : state.isCommitted(),
+        stateEntry == null ? false : stateEntry.isCommitted(),
         artifactData.getStorageUrl().toString(),
         artifactData.getContentLength(),
         artifactData.getContentDigest()

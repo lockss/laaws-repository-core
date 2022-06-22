@@ -39,6 +39,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
@@ -331,11 +333,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     spec.generateContent();
 
-    ArtifactRepositoryState state =
-        new ArtifactRepositoryState(spec.getArtifactIdentifier(), spec.isCommitted(), spec.isDeleted());
+    ArtifactState state = ArtifactState.UNKNOWN;
+    if (spec.isCommitted()) state = ArtifactState.COMMITTED;
+    if (spec.isDeleted()) state = ArtifactState.DELETED;
+    ArtifactStateEntry stateEntry = new ArtifactStateEntry(spec.getArtifactIdentifier(), state);
 
     ArtifactData ad = spec.getArtifactData();
-    ad.setArtifactRepositoryState(state);
+    ad.setArtifactRepositoryState(stateEntry);
 
     Artifact indexed = index.indexArtifact(ad);
 

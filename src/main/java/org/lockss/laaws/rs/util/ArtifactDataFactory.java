@@ -45,9 +45,10 @@ import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.core.RestLockssRepository;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
@@ -459,11 +460,18 @@ public class ArtifactDataFactory {
         String deletedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED);
 
         if (!(StringUtils.isEmpty(committedHeaderValue) || StringUtils.isEmpty(deletedHeaderValue))) {
-          ArtifactRepositoryState artifactState = new ArtifactRepositoryState(
-              id,
-              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-          );
+          // FIXME: This was left for compatibility's sake but should be removed since state is internal
+          ArtifactState state = ArtifactState.UNKNOWN;
+
+          if (Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED))) {
+            state = ArtifactState.COMMITTED;
+          }
+
+          if (Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))) {
+            state = ArtifactState.DELETED;
+          }
+
+          ArtifactStateEntry artifactState = new ArtifactStateEntry(id, state);
           result.setArtifactRepositoryState(artifactState);
         }
 

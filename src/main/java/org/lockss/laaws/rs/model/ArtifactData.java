@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.io.EofRememberingInputStream;
@@ -86,7 +87,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private String contentDigest;
 
   // Internal repository state
-  private ArtifactRepositoryState artifactRepositoryState;
+  private ArtifactStateEntry artifactStateEntry;
   private URI storageUrl;
 
   // The collection date.
@@ -146,11 +147,11 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
                       InputStream inputStream,
                       StatusLine httpStatus,
                       URI storageUrl,
-                      ArtifactRepositoryState state) {
+                      ArtifactStateEntry state) {
     this.identifier = identifier;
     this.httpStatus = httpStatus;
     this.storageUrl = storageUrl;
-    this.artifactRepositoryState = state;
+    this.artifactStateEntry = state;
     stats.totalAllocated++;
 
     this.setInputStream(inputStream);
@@ -297,8 +298,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    *
    * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
    */
-  public ArtifactRepositoryState getArtifactRepositoryState() {
-    return artifactRepositoryState;
+  public ArtifactStateEntry getArtifactRepositoryState() {
+    return artifactStateEntry;
   }
 
   /**
@@ -307,8 +308,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * @param metadata A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
    * @return
    */
-  public ArtifactData setArtifactRepositoryState(ArtifactRepositoryState metadata) {
-    this.artifactRepositoryState = metadata;
+  public ArtifactData setArtifactRepositoryState(ArtifactStateEntry metadata) {
+    this.artifactStateEntry = metadata;
     return this;
   }
 
@@ -435,7 +436,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   public String toString() {
     return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
         + artifactMetadata + ", httpStatus=" + httpStatus
-        + ", artifactRepositoryState=" + artifactRepositoryState + ", storageUrl="
+        + ", artifactRepositoryState=" + artifactStateEntry + ", storageUrl="
         + storageUrl + ", contentDigest=" + contentDigest
         + ", contentLength=" + contentLength + ", collectionDate="
         + getCollectionDate() + "]";

@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.io.index;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.lockss.laaws.rs.core.SemaphoreMap;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
@@ -132,7 +133,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         }
 
         // Get artifact's repository state
-        ArtifactRepositoryState state = artifactData.getArtifactRepositoryState();
+        ArtifactStateEntry state = artifactData.getArtifactRepositoryState();
 
         // Create and populate an Artifact bean for this ArtifactData
         Artifact artifact = new Artifact(
