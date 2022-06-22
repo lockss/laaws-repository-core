@@ -224,7 +224,7 @@ public class WarcFilePool {
    */
   public boolean isInUse(Path warcFilePath) {
     synchronized (allWarcs) {
-      WarcFile warcFile = lookupWarcFile(warcFilePath);
+      WarcFile warcFile = getWarcFile(warcFilePath);
       return isInUse(warcFile);
     }
   }
@@ -249,8 +249,7 @@ public class WarcFilePool {
    */
   public boolean isInPool(Path warcFilePath) {
     synchronized (allWarcs) {
-      WarcFile warcFile = lookupWarcFile(warcFilePath);
-      return isInPool(warcFile);
+      return getWarcFile(warcFilePath) != null;
     }
   }
 
@@ -261,7 +260,7 @@ public class WarcFilePool {
    * @param warcFilePath A {@link String} containing the path to the {@link WarcFile} to find.
    * @return The {@link WarcFile}, or {@code null} if one could not be found.
    */
-  public WarcFile lookupWarcFile(Path warcFilePath) {
+  public WarcFile getWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
       return allWarcs.stream()
           .filter(x -> x.getPath().equals(warcFilePath))
@@ -280,7 +279,7 @@ public class WarcFilePool {
    */
   public WarcFile removeWarcFile(Path warcFilePath) {
     synchronized (allWarcs) {
-      WarcFile warcFile = lookupWarcFile(warcFilePath);
+      WarcFile warcFile = getWarcFile(warcFilePath);
 
       // If we found the WarcFile; remove it from the pool
       if (warcFile != null) {

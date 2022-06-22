@@ -32,12 +32,9 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import org.archive.format.warc.WARCConstants;
 import org.junit.jupiter.api.Test;
-import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.mockito.ArgumentMatchers;
-import org.mockito.InOrder;
-import org.mockito.Mockito;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -238,13 +235,13 @@ class TestWarcFilePool extends LockssTestCase5 {
     doCallRealMethod().when(pool).removeWarcFile(warcFile);
 
     // Assert nothing is removed if not part of pool
-    when(pool.lookupWarcFile(warcPath)).thenReturn(null);
+    when(pool.getWarcFile(warcPath)).thenReturn(null);
     assertNull(pool.removeWarcFile(warcPath));
     verify(pool, never()).removeWarcFile(ArgumentMatchers.any(WarcFile.class));
     clearInvocations(pool);
 
     // Assert WARC removed if in pool
-    when(pool.lookupWarcFile(warcPath)).thenReturn(warcFile);
+    when(pool.getWarcFile(warcPath)).thenReturn(warcFile);
     assertEquals(warcFile, pool.removeWarcFile(warcPath));
     verify(pool).removeWarcFile(warcFile);
     verify(pool.usedWarcs).remove(warcFile);
