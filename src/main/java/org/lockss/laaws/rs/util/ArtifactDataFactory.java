@@ -520,20 +520,4 @@ public class ArtifactDataFactory {
       throw new IOException("Error processing multipart response");
     }
   }
-
-  private static ArtifactRepositoryState buildRepositoryMetadata(HttpHeaders headers) {
-    return new ArtifactRepositoryState(
-        buildArtifactIdentifier(headers),
-        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-    );
-  }
-
-  private static boolean getBooleanHeaderValue(String value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Header value is null");
-    }
-
-    return value.equalsIgnoreCase(String.valueOf(true));
-  }
 }
