@@ -729,6 +729,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param storageUrl A {@link URI} containing the storage URL.
    * @return A {@link Path} containing the path component of the storage URL.
    */
+  // FIXME: Processes calling this is probably aren't utilizing storage URLs correctly
   @Deprecated
   public static Path getPathFromStorageUrl(URI storageUrl) {
     return Paths.get(storageUrl.getPath());
@@ -1107,7 +1108,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                   log.debug("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
 
                   // TODO Rename this task and remove second mark-as-committed
-                  stripedExecutor.submit(new CommitArtifactTask(artifact));
+                  stripedExecutor.submit(new CopyArtifactTask(artifact));
                 }
               } catch (RejectedExecutionException e) {
                 log.warn("Could not re-queue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
@@ -1566,9 +1567,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Update ArtifactData object with new properties
       artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcPath, offset, storedRecordLength));
 
-      // **********************************
-      // Write artifact metadata to journal
-      // **********************************
+      // ******************
+      // Index the artifact
+      // ******************
+
+      getArtifactIndex().indexArtifact(artifactData);
+
+      // *******************************
+      // Write artifact state to journal
+      // *******************************
 
       // Write journal entry to journal file under an existing AU path
       List<Path> auPaths = getAuPaths(artifactId.getCollection(), artifactId.getAuid());
@@ -1832,20 +1839,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Implementation of {@link Callable} that commits an artifact from temporary to permanent storage.
+   * Implementation of {@link Callable} that copies an artifact from temporary to permanent storage.
    * <p>
-   * This is implemented as a {@link StripedCallable} because we maintain one active WARC file per AU in which to commit
-   * artifacts permanently.
+   * This is implemented as a {@link StripedCallable} because we maintain one active WARC file per AU.
    */
-  protected class CommitArtifactTask implements StripedCallable<Artifact> {
+  protected class CopyArtifactTask implements StripedCallable<Artifact> {
     protected Artifact artifact;
 
     /**
-     * Constructor of {@link CommitArtifactTask}.
+     * Constructor of {@link CopyArtifactTask}.
      *
      * @param artifact The {@link Artifact} whose artifact data should be copied from temporary to permanent storage.
      */
-    public CommitArtifactTask(Artifact artifact) {
+    public CopyArtifactTask(Artifact artifact) {
       if (artifact == null) {
         throw new IllegalArgumentException("Artifact is null");
       }
@@ -1887,7 +1893,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       // Get the temporary WARC record location from the artifact's storage URL
-      // FIXME: Resolves only path of storage URL
       WarcRecordLocation loc = WarcRecordLocation.fromStorageUrl(new URI(artifact.getStorageUrl()));
       long recordOffset = loc.getOffset();
       long recordLength = loc.getLength();
@@ -2655,6 +2660,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             journalEntry.getEntryDate().equals(state.getEntryDate()) ||
             journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
 
+          // Update latest journal entry map
           artifactStates.put(journalEntry.getArtifactId(), journalEntry);
         }
       }

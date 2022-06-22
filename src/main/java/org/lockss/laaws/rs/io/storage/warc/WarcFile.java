@@ -44,11 +44,12 @@ public class WarcFile {
   private long length = 0;
   private int artifacts = 0;
 
-  // TODO:
-  // Counter for deleted artifacts
-  // Counter for copied artifacts
-  // Expiration time for the last artifact added to this WARC
-
+  /**
+   * Constructor.
+   *
+   * @param path A {@link Path} containing the path to the WARC file.
+   * @param isCompressed A {@code boolean} indicating whether the WARC file is GZIP compressed.
+   */
   public WarcFile(Path path, boolean isCompressed) {
     this.path = path;
     this.isCompressed = isCompressed;

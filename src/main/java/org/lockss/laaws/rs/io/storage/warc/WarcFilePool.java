@@ -345,7 +345,7 @@ public class WarcFilePool {
         totalBlocksAllocated * store.getBlockSize(),
         totalBlocksAllocated,
         totalBytesUsed,
-        100.0f * new Float(totalBytesUsed) / new Float(totalBlocksAllocated * store.getBlockSize()),
+        100.0f * (float) totalBytesUsed / (float) (totalBlocksAllocated * store.getBlockSize()),
         numWarcFiles
     ));
   }

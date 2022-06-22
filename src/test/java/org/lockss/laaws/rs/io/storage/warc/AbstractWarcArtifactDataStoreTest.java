@@ -32,6 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
@@ -55,7 +56,6 @@ import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore.ArtifactState;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
 import org.lockss.log.L4JLogger;
@@ -2916,13 +2916,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    * Test for {@link WarcArtifactDataStore#truncateAuJournalFile(Path)}.
    * <p>
    * Q: What do we want to demonstrate here? It seems to me any test of this method is really testing
-   * {@link WarcArtifactDataStore#readAuJournalEntries(Path, Class)}.
+   * {@link WarcArtifactDataStore#readJournal(Path, Class)}.
    * <p>
    * Discussion:
    * <p>
    * {@link WarcArtifactDataStore#truncateAuJournalFile(Path)} should replace the journal file with a new file
    * containing only the most recent entry per artifact ID. It relies on
-   * {@link WarcArtifactDataStore#readAuJournalEntries(Path, Class)} to read the journal and compile a
+   * {@link WarcArtifactDataStore#readJournal(Path, Class)} to read the journal and compile a
    * {@link Map<String, JSONObject>} from artifact ID to most recent journal entry (i.e., a {@link JSONObject} object).
    * <p>
    * Each entry is then deserialized into a {@link ArtifactStateEntry} object then immediately serialized to the
