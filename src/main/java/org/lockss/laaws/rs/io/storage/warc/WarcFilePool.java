@@ -30,10 +30,13 @@
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.time.TimeBase;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.*;
 
 public class WarcFilePool {
@@ -346,5 +349,62 @@ public class WarcFilePool {
         100.0f * (float) totalBytesUsed / (float) (totalBlocksAllocated * store.getBlockSize()),
         numWarcFiles
     ));
+  }
+
+  public void runGC() {
+    // WARCs to GC
+    List<WarcFile> removedWarcs = new LinkedList<>();
+
+    // Determine which WARCs to GC; remove from pool while synchronized
+    synchronized (allWarcs) {
+      for (WarcFile warc : allWarcs) {
+        Instant now = Instant.ofEpochMilli(TimeBase.nowMs());
+        Instant expiration = Instant.ofEpochMilli(warc.getLatestExpiration());
+
+        int uncommitted = warc.getArtifactsUncommitted();
+        int committed = warc.getArtifactsCommitted();
+        int copied = warc.getArtifactsCopied();
+
+        if (committed == copied && (uncommitted == 0 || now.isAfter(expiration))) {
+          removeWarcFileFromPool(warc);
+          removedWarcs.add(warc);
+        }
+      }
+    }
+
+    // GC removed WARCs from the index (if necessary) and data store
+    for (WarcFile warc : removedWarcs) {
+      // Remove index references if there are any uncommitted
+      if (warc.getArtifactsUncommitted() != 0) {
+        ArtifactIndex index = store.getArtifactIndex();
+
+        try {
+          store.readJournal(warc.getPath(), ArtifactStateEntry.class)
+              .stream()
+              .filter(ArtifactStateEntry::isCopied)
+              .map(ArtifactStateEntry::getArtifactId)
+              .forEach(artifactId -> {
+                try {
+                  index.deleteArtifact(artifactId);
+                } catch (IOException e) {
+                  log.error("Could not remove index reference [artifactId: " + artifactId + ", warc: " + warc + "]", e);
+                  // TODO: Do not leave the index in an inconsistent state!
+                  throw new RuntimeException(e);
+                }
+              });
+        } catch (IOException e) {
+          log.error("Error reading journal [journal: " + warc.getPath() + "]", e);
+          return;
+        }
+      }
+
+      // Remove WARC from the data store
+      try {
+        store.removeWarc(warc.getPath());
+      } catch (IOException e) {
+        // Log error and leave to reload
+        log.error("Could not remove WARC file " + warc.getPath(), e);
+      }
+    }
   }
 }

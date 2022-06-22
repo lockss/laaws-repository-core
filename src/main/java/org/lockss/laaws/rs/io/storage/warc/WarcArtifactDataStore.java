@@ -937,6 +937,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.debug("Finished GC of temporary WARC files [tmpWarcBasePath: {}]", tmpWarcBasePath);
   }
 
+  private class GCTemporaryWarcsTask implements Runnable {
+
+    private final WarcFilePool pool;
+
+    public GCTemporaryWarcsTask(WarcFilePool pool) {
+      this.pool = pool;
+    }
+
+    @Override
+    public void run() {
+      pool.runGC();
+    }
+  }
+
   /**
    * Removes a temporary WARC if it is not in use and eligible to be deleted (as determined by
    * {@link WarcArtifactDataStore#isTempWarcRemovable(Path)}.
