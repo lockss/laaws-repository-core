@@ -1695,8 +1695,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     switch (artifactState) {
       case NOT_INDEXED:
-      case INDEXED:
-      case PENDING_COMMIT:
+      case UNCOMMITTED:
+      case COMMITTED:
         // The temporary WARC containing this artifact should NOT have been removed
         log.debug("storageUrl = {}", WarcArtifactDataStore.getPathFromStorageUrl(new URI(indexedRef.getStorageUrl())));
         log.debug("tmpWarcBasePath = {}", tmpWarcBasePath);
@@ -1710,7 +1710,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         assertEquals(0, tmpWarcs.size());
         break;
 
-      case COMMITTED:
+      case COPIED:
         // The temporary WARC containing only this artifact should have been removed
         assertEquals(0, tmpWarcs.size());
 
@@ -1867,13 +1867,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         // Assert expected return based on artifact state
         switch (state) {
           case NOT_INDEXED:
-          case COMMITTED:
+          case COPIED:
           case EXPIRED:
           case DELETED:
             assertTrue(ds.isTempWarcRecordRemovable(record));
             continue;
-          case PENDING_COMMIT:
-          case INDEXED:
+          case COMMITTED:
+          case UNCOMMITTED:
           case UNKNOWN:
           default:
             assertFalse(ds.isTempWarcRecordRemovable(record));
@@ -1937,7 +1937,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         artifact.setCommitted(true);
         break;
 
-      case INDEXED:
+      case UNCOMMITTED:
         // Default state for newly added artifacts
         break;
 
@@ -1945,14 +1945,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         isExpired = true;
         break;
 
-      case PENDING_COMMIT:
+      case COMMITTED:
         // Artifact is indexed, committed, but in temporary storage
         artifact.setCommitted(true);
         artifact.setStorageUrl(store.getTmpWarcBasePaths()[0].resolve("test").toString());
         // TODO Mark as committed in journal?
         break;
 
-      case COMMITTED:
+      case COPIED:
         // Needed to emulate behavior of BaseLockssRepository
         index.commitArtifact(artifact.getId());
 

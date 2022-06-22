@@ -166,16 +166,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected StripedExecutorService stripedExecutor;
 
-  // The Artifact life cycle states.
-  protected enum ArtifactState {
-    UNKNOWN,
-    NOT_INDEXED,
-    INDEXED,
-    PENDING_COMMIT,
-    COMMITTED,
-    EXPIRED,
-    DELETED
-  }
+
 
   public enum DataStoreState {
     INITIALIZED,
@@ -1107,7 +1098,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         try {
           // Resume artifact lifecycle based on the artifact's state
           switch (state) {
-            case PENDING_COMMIT:
+            case COMMITTED:
               // Requeue the copy of this artifact from temporary to permanent storage
               try {
                 // Only reschedule a copy to permanent storage if the artifact is still in temporary storage
@@ -1126,7 +1117,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 break;
               }
 
-            case INDEXED:
+            case UNCOMMITTED:
               // Nothing to do
               break;
 
@@ -1144,7 +1135,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               // If this artifact in temporary storage was not indexed then it was interrupted
               // and did not succeed being added to the repository: Treat it as removable.
 
-            case COMMITTED:
+            case COPIED:
               log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
                   record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), state);
 
@@ -1253,15 +1244,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           switch (state) {
             case NOT_INDEXED:
-            case COMMITTED:
+            case COPIED:
             case EXPIRED:
             case DELETED:
               return true;
 
             case UNKNOWN:
               log.warn("Unknown artifact state [artifact: {}, state: {}]", indexed, state);
-            case INDEXED:
-            case PENDING_COMMIT:
+            case UNCOMMITTED:
+            case COMMITTED:
             default:
               return false;
           }
@@ -1302,13 +1293,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       if (artifact.isCommitted() && !isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
         // Artifact is marked committed and in permanent storage
-        return ArtifactState.COMMITTED;
+        return ArtifactState.COPIED;
       } else if (artifact.isCommitted()) {
         // Artifact is marked committed but not copied to permanent storage
-        return ArtifactState.PENDING_COMMIT;
+        return ArtifactState.COMMITTED;
       } else if (!artifact.isCommitted() && !isExpired) {
         // Uncommitted and not copied but indexed
-        return ArtifactState.INDEXED;
+        return ArtifactState.UNCOMMITTED;
       } else if (isExpired) {
         return ArtifactState.EXPIRED;
       }
@@ -1778,7 +1769,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       ArtifactState state = getArtifactState(indexed, false);
 
       switch (state) {
-        case INDEXED:
+        case UNCOMMITTED:
           artifact.setCommitted(true);
 
           // Mark artifact as committed in the journal
@@ -1793,12 +1784,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Fall-through...
 
-        case PENDING_COMMIT:
+        case COMMITTED:
           // Submit the task to copy the artifact data from temporary to permanent storage
           // Q: Is it possible for multiple commit tasks to be scheduled for the same artifact?
-          return stripedExecutor.submit(new CommitArtifactTask(artifact));
+          return stripedExecutor.submit(new CopyArtifactTask(artifact));
 
-        case COMMITTED:
+        case COPIED:
           // This artifact is already marked committed and is in permanent storage. Wrap in Future and return it.
           return new CompletedFuture<>(artifact);
 
@@ -1884,6 +1875,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     @Override
     public Artifact call() throws Exception {
       log.trace("Starting CommitArtifactTask: " + getStripe());
+
       // Artifact's storage URL
       URI storageUrl = new URI(artifact.getStorageUrl());
       Path storagePath = Paths.get(storageUrl.getPath());
