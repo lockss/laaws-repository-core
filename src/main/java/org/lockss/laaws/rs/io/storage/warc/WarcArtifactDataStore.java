@@ -3110,6 +3110,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Write a CRLF block to separate header from body
     out.write(CRLF_BYTES);
+    out.flush();
   }
 
   /**
