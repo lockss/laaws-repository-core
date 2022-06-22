@@ -2652,13 +2652,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Get existing state from map
         ArtifactStateEntry state = artifactStates.get(journalEntry.getArtifactId());
 
-        // Update map if entry not found or if the journal entry (for an artifact) is equal to or newer
-        // FIXME Any finite resolution implementation of Instant is going to be problematic here, given a sufficiently
-        //       fast machine. The effect of equals() here is, falling back to the order in which the journal
-        //       entries appear (appended) in a journal file and the order in which journal files are read.
+        Instant journalEntryDate = Instant.ofEpochMilli(journalEntry.getEntryDate());
+        Instant latestEntryDate = Instant.ofEpochMilli(state == null ? 0 : state.getEntryDate());
+
         if (state == null ||
-            journalEntry.getEntryDate().equals(state.getEntryDate()) ||
-            journalEntry.getEntryDate().isAfter(state.getEntryDate())) {
+            journalEntryDate.equals(latestEntryDate) || journalEntryDate.isAfter(latestEntryDate)) {
 
           // Update latest journal entry map
           artifactStates.put(journalEntry.getArtifactId(), journalEntry);
