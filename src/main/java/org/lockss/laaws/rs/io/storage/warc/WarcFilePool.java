@@ -361,14 +361,13 @@ public class WarcFilePool {
     // Determine which WARCs to GC; remove from pool while synchronized
     synchronized (allWarcs) {
       for (WarcFile warc : allWarcs) {
-        Instant now = Instant.ofEpochMilli(TimeBase.nowMs());
-        Instant expiration = Instant.ofEpochMilli(warc.getLatestExpiration());
+        boolean pastExpiration = warc.getLatestExpiration() < TimeBase.nowMs();
 
         int uncommitted = warc.getArtifactsUncommitted();
         int committed = warc.getArtifactsCommitted();
         int copied = warc.getArtifactsCopied();
 
-        if (committed == copied && (uncommitted == 0 || now.isAfter(expiration))) {
+        if (committed == copied && (uncommitted == 0 || pastExpiration)) {
           removeWarcFileFromPool(warc);
           warc.setMarkedForGC();
           removedWarcs.add(warc);
@@ -376,33 +375,13 @@ public class WarcFilePool {
       }
     }
 
-    // GC removed WARCs from the index (if necessary) and data store
+    // GC removed WARCs from data store and the index (if necessary)
     for (WarcFile warc : removedWarcs) {
       // Remove index references if there are any uncommitted
       if (warc.getArtifactsUncommitted() != 0) {
         ArtifactIndex index = store.getArtifactIndex();
 
-        try {
-          // TODO: Determine journal path
-          Path artifactStateJournal = Paths.get("XXX");
-
-          store.readJournal(artifactStateJournal, ArtifactStateEntry.class)
-              .stream()
-              .filter(ArtifactStateEntry::isCopied)
-              .map(ArtifactStateEntry::getArtifactId)
-              .forEach(artifactId -> {
-                try {
-                  index.deleteArtifact(artifactId);
-                } catch (IOException e) {
-                  log.error("Could not remove index reference [artifactId: " + artifactId + ", warc: " + warc + "]", e);
-                  // TODO: Do not leave the index in an inconsistent state!
-                  throw new RuntimeException(e);
-                }
-              });
-        } catch (IOException e) {
-          log.error("Error reading journal [journal: " + warc.getPath() + "]", e);
-          return;
-        }
+        // TODO
       }
 
       // Remove WARC from the data store
