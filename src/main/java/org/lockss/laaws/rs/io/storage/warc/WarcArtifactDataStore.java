@@ -249,14 +249,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     setDataStoreState(DataStoreState.RUNNING);
   }
 
-  // TODO: Parameterize
-  protected void scheduleGarbageCollector() {
-    log.debug("Scheduling temporary WARC garbage collection");
-
-    repo.getScheduledExecutorService()
-        .scheduleAtFixedRate(new GarbageCollectTempWarcsTask(), 1, 1, TimeUnit.DAYS);
-  }
-
   /**
    * Shutdowns the data store.
    *
@@ -881,64 +873,15 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // * TEMPORARY WARCS LIFECYCLE
   // *******************************************************************************************************************
 
-  /**
-   * Submits a {@link GarbageCollectTempWarcsTask} for execution by the {@link ScheduledExecutorService}.
-   */
-  protected void runGarbageCollector() {
+  // TODO: Parameterize
+  protected void scheduleGarbageCollector() {
+    log.debug("Scheduling temporary WARC garbage collection");
+
     repo.getScheduledExecutorService()
-        .submit(new GarbageCollectTempWarcsTask());
-  }
-
-  protected class GarbageCollectTempWarcsTask implements Runnable {
-    @Override
-    public void run() {
-      garbageCollectTempWarcs();
-    }
-  }
-
-  /**
-   * Removes temporary WARCs in this data store that are no longer needed by the data store.
-   *
-   * @throws IOException
-   */
-  protected void garbageCollectTempWarcs() {
-    log.debug("Starting garbage collection of all temporary WARCs");
-
-    Path[] tmpWarcBasePaths = getTmpWarcBasePaths();
-
-    Arrays.stream(tmpWarcBasePaths)
-        .forEach(this::garbageCollectTempWarcs);
-  }
-
-  /**
-   * Removes temporary WARCs under the given temporary WARCs directory that are no longer needed by the data store.
-   *
-   * @param tmpWarcBasePath
-   */
-  protected void garbageCollectTempWarcs(Path tmpWarcBasePath) {
-    try {
-      // Find all temporary WARCs under this temporary WARC base path
-      Collection<Path> tmpWarcs = findWarcs(tmpWarcBasePath);
-
-      // Debugging
-      log.debug2("Found {} temporary WARCs [tmpWarcBasePath: {}]", tmpWarcs.size(), tmpWarcBasePath);
-      log.trace("tmpWarcs = {}", tmpWarcs);
-
-      tmpWarcs.forEach(this::garbageCollectTempWarc);
-
-    } catch (IOException e) {
-      log.error(
-          "Caught IOException while trying to find temporary WARC files [tmpWarcBasePath: {}]: {}",
-          tmpWarcBasePath,
-          e
-      );
-    }
-
-    log.debug("Finished GC of temporary WARC files [tmpWarcBasePath: {}]", tmpWarcBasePath);
+        .scheduleAtFixedRate(new GCTemporaryWarcsTask(tmpWarcPool), 5, 5, TimeUnit.MINUTES);
   }
 
   private class GCTemporaryWarcsTask implements Runnable {
-
     private final WarcFilePool pool;
 
     public GCTemporaryWarcsTask(WarcFilePool pool) {

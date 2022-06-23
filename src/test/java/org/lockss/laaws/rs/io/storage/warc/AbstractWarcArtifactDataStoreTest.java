@@ -1439,41 +1439,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link WarcArtifactDataStore#runGarbageCollector()}.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testRunGarbageCollector() throws Exception {
-    // Mocks
-    BaseLockssRepository repository = mock(BaseLockssRepository.class);
-    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
-
-    // Mock behavior
-    doCallRealMethod()
-        .when(ds).setLockssRepository(ArgumentMatchers.any());
-
-    doCallRealMethod()
-        .when(ds).runGarbageCollector();
-
-    when(repository.getScheduledExecutorService())
-        .thenReturn(executor);
-
-    // Set data store's repository context
-    ds.setLockssRepository(repository);
-
-    // Call runGarbageCollector()
-    ds.runGarbageCollector();
-
-    // Assert instance of GarbageCollectTempWarcsTask is submitted to scheduledExecutor
-    verify(executor)
-        .submit(ArgumentMatchers.any(WarcArtifactDataStore.GarbageCollectTempWarcsTask.class));
-
-    verifyNoMoreInteractions(executor);
-  }
-
-  /**
    * Test for {@link WarcArtifactDataStore#garbageCollectTempWarc(Path)}.
    *
    * @throws Exception
