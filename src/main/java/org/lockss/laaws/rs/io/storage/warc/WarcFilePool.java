@@ -370,6 +370,7 @@ public class WarcFilePool {
 
         if (committed == copied && (uncommitted == 0 || now.isAfter(expiration))) {
           removeWarcFileFromPool(warc);
+          warc.setMarkedForGC();
           removedWarcs.add(warc);
         }
       }

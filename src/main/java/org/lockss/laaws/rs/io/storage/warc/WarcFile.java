@@ -46,6 +46,7 @@ public class WarcFile extends ArtifactContainerStats {
   private final Path path;
   private final boolean isCompressed;
   private long length = 0;
+  private boolean isMarkedForGC = false;
 
   /**
    * Constructor.
@@ -78,6 +79,14 @@ public class WarcFile extends ArtifactContainerStats {
 
   public boolean isCompressed() {
     return isCompressed;
+  }
+
+  public boolean isMarkedForGC() {
+    return isMarkedForGC;
+  }
+
+  public void setMarkedForGC() {
+    this.isMarkedForGC = true;
   }
 
   @Override

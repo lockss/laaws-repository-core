@@ -1739,9 +1739,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           WarcFile tmpWarcFile =
               tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(indexed.getStorageUrl())));
 
-//          if (tmpWarcFile == null || tmpWarcFile.markedForGC()) {
-//            // TODO: Fail
-//          }
+          if (tmpWarcFile == null) {
+            // Q: Do what? Could be null because another thread
+          } else if (tmpWarcFile.isMarkedForGC()) {
+            // Q: Fail?
+          }
 
           tmpWarcFile.decArtifactsUncommitted();
           tmpWarcFile.incArtifactsCommitted();
