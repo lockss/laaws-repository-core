@@ -1564,7 +1564,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Update WARC file stats
         tmpWarc.incrementLength(storedRecordLength);
         tmpWarc.incArtifactsUncommitted();
-        tmpWarc.setLatestExpiration(TimeBase.nowMs() + getUncommittedArtifactExpiration());
+        tmpWarc.setLatestExpiration(artifactData.getStoredDate() + getUncommittedArtifactExpiration());
 
         // Debugging
         log.debug2("Wrote {} bytes offset {} to {}; size is now {}",
@@ -1791,6 +1791,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       switch (state) {
         case UNCOMMITTED:
           artifact.setCommitted(true);
+
+          // Update temporary WARC file stats
+          WarcFile tmpWarcFile =
+              tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(indexed.getStorageUrl())));
+
+//          if (tmpWarcFile == null || tmpWarcFile.markedForGC()) {
+//            // TODO: Fail
+//          }
+
+          tmpWarcFile.decArtifactsUncommitted();
+          tmpWarcFile.incArtifactsCommitted();
+
+          tmpWarcPool.addWarcFile(tmpWarcFile);
 
           // Mark artifact as committed in the journal
           ArtifactStateEntry artifactRepoState =
@@ -2030,6 +2043,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       if (getArtifactState(artifact, false) == ArtifactState.PENDING_COPY) {
         WarcFile tmpWarcFile =
             tmpWarcPool.removeWarcFileFromPool(getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
+
+        // Q: What to do about already queued copies?
 
         tmpWarcFile.decArtifactsUncommitted();
         tmpWarcPool.addWarcFile(tmpWarcFile);
