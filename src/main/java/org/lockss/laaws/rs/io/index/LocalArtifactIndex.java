@@ -150,7 +150,7 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
     }
 
     @Override
-    public Artifact updateStorageUrl(String artifactId, String storageUrl) {
+    public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
       Artifact artifact = super.updateStorageUrl(artifactId, storageUrl);
       if (artifact != null) {
         persist();

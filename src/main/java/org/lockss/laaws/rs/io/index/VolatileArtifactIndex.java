@@ -281,7 +281,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
     
     @Override
-    public Artifact updateStorageUrl(String artifactId, String storageUrl) {
+    public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
       if (StringUtils.isEmpty(artifactId)) {
         throw new IllegalArgumentException("Invalid artifact ID");
       }
@@ -296,7 +296,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       // Return null if the artifact could not be found
       if (artifact == null) {
         log.warn("Could not update storage URL: Artifact not found [artifactId: " + artifactId + "]");
-        return null;
+        throw new IOException("Artifact not found in volatile index");
       }
 
       // Update the storage URL of this Artifact in the internal artifacts map

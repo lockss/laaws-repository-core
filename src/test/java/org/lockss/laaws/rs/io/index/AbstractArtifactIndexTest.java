@@ -862,7 +862,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertThrowsMatch(IllegalArgumentException.class, "Invalid artifact ID", () -> index.updateStorageUrl(null, "xxx"));
 
     // Attempt to update the storage URL of an unknown artifact ID
-    assertNull(index.updateStorageUrl("xyzzy", "xxx"));
+    // assertThrowsMatch(IOException.class, "Artifact not found", () -> index.updateStorageUrl("xyzzy", "xxx"));
+    assertThrows(IOException.class, () -> index.updateStorageUrl("xyzzy", "xxx"));
 
     // Assert we're able to update the storage URLs of all existing artifacts
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {

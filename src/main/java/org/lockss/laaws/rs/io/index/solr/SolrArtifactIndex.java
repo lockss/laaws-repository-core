@@ -1066,11 +1066,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throw new IllegalArgumentException("Invalid storage URL: Must not be null or empty");
     }
 
-    if (!artifactExists(artifactId)) {
-      log.debug("Artifact does not exist [artifactId: {}]", artifactId);
-      return null;
-    }
-
     // Perform a partial update of an existing Solr document
     SolrInputDocument document = new SolrInputDocument();
     document.addField("id", artifactId);
@@ -1094,7 +1089,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "document '" + document + "' to Solr");
-    } catch (SolrResponseErrorException | SolrServerException e) {
+    } catch (SolrException | SolrResponseErrorException | SolrServerException e) {
       throw new IOException(e);
     }
 
