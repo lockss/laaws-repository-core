@@ -408,19 +408,17 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     log.trace("artifact.getCommitted = {}", artifact.getCommitted());
 
-    // Mark the artifact as committed in index
-    index.commitArtifact(artifactId);
+    // Commit the artifact
+    Future<Artifact> future = store.commitArtifactData(artifact);
+    assertNotNull(future);
 
     // Assert committed status in index
+    index.commitArtifact(artifactId);
     indexed = index.getArtifact(artifactId);
     assertNotNull(indexed);
     assertTrue(indexed.getCommitted());
 
     log.trace("artifact.getCommitted = {}", artifact.getCommitted());
-
-    // Commit the artifact data in the data store
-    Future<Artifact> future = store.commitArtifactData(artifact);
-    assertNotNull(future);
 
     Artifact committedArtifact = null;
 
@@ -1439,63 +1437,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   /**
-   * Test for {@link WarcArtifactDataStore#garbageCollectTempWarc(Path)}.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testGarbageCollectTempWarcs() throws Exception {
-    // Mocks
-    WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    Path tmpWarcPath = mock(Path.class);
-    ds.tmpWarcPool = mock(WarcFilePool.class);
-    WarcFile tmpWarcFile = mock(WarcFile.class);
-
-    // Mock behavior
-    doCallRealMethod().when(ds).garbageCollectTempWarc(tmpWarcPath);
-    when(ds.tmpWarcPool.removeWarcFileFromPool(tmpWarcPath)).thenReturn(tmpWarcFile);
-
-    // Assert no processing if temporary WARC is in use in the pool
-    when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(true);
-    ds.garbageCollectTempWarc(tmpWarcPath);
-    verify(ds, never()).isTempWarcRemovable(tmpWarcPath);
-
-    // Assert WARC marked in use -> not removable
-    TempWarcInUseTracker.INSTANCE.markUseStart(tmpWarcPath);
-    ds.garbageCollectTempWarc(tmpWarcPath);
-    verify(ds, never()).removeWarc(tmpWarcPath);
-    TempWarcInUseTracker.INSTANCE.markUseEnd(tmpWarcPath);
-    clearInvocations(ds);
-
-    // Assert temporary WARC *is* processed if it is neither in use nor a member of the pool
-    // Q: Is this the behavior we want?
-    when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(false);
-    when(ds.tmpWarcPool.isInPool(tmpWarcPath)).thenReturn(false);
-    ds.garbageCollectTempWarc(tmpWarcPath);
-    verify(ds).isTempWarcRemovable(tmpWarcPath);
-    clearInvocations(ds);
-
-    // Assert temporary WARC is processed if found in pool and not in use
-    when(ds.tmpWarcPool.isInUse(tmpWarcPath)).thenReturn(false);
-    when(ds.tmpWarcPool.isInPool(tmpWarcPath)).thenReturn(true);
-    ds.garbageCollectTempWarc(tmpWarcPath);
-    verify(ds).isTempWarcRemovable(tmpWarcPath);
-    clearInvocations(ds);
-
-    // Assert temporary WARC is not removed if the temporary WARC is not removable
-    when(ds.isTempWarcRemovable(tmpWarcPath)).thenReturn(false);
-    ds.garbageCollectTempWarc(tmpWarcPath);
-    verify(ds, never()).removeWarc(tmpWarcPath);
-    clearInvocations(ds);
-
-    // Assert temporary WARC is removed if the temporary WARC is removable
-    when(ds.isTempWarcRemovable(tmpWarcPath)).thenReturn(true);
-    ds.garbageCollectTempWarc(tmpWarcPath);
-    verify(ds).removeWarc(tmpWarcPath);
-    clearInvocations(ds);
-  }
-
-  /**
    * Test for {@link WarcArtifactDataStore#reloadTemporaryWarcs(ArtifactIndex, Path)}.
    *
    * @throws Exception
@@ -1580,14 +1521,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(WarcArtifactDataStore.getPathFromStorageUrl(new URI(indexedRef.getStorageUrl())).startsWith(tmpWarcBasePath));
 
     if (commit) {
+      // Commit to artifact data store
+      Future<Artifact> future = store.commitArtifactData(storedRef);
+      assertNotNull(future);
+
       // Commit to artifact index
       index.commitArtifact(storedRef.getId());
       indexedRef = index.getArtifact(storedRef.getId());
       assertTrue(indexedRef.isCommitted());
-
-      // Commit to artifact data store
-      Future<Artifact> future = store.commitArtifactData(storedRef);
-      assertNotNull(future);
 
       // Wait for data store commit (copy from temporary to permanent storage) to complete - 10 seconds should be plenty
       indexedRef = future.get(10, TimeUnit.SECONDS);
@@ -1914,13 +1855,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         // Artifact is indexed, committed, but in temporary storage
         artifact.setCommitted(true);
         artifact.setStorageUrl(store.getTmpWarcBasePaths()[0].resolve("test").toString());
-        // TODO Mark as committed in journal?
+        // Q: Mark as committed in journal?
         break;
 
       case COPIED:
-        // Needed to emulate behavior of BaseLockssRepository
-        index.commitArtifact(artifact.getId());
-
         Future<Artifact> future = store.commitArtifactData(artifact);
         artifact = future.get(10, TimeUnit.SECONDS);
         break;
@@ -3065,7 +3003,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // Trigger a commit replay
     clearInvocations(index);
     journal.clear();
-    String js2 = "{\"artifactId\": \"test\", \"entryDate\": 1234, \"artifactState\": \"COMMITTED\"}";
+    String js2 = "{\"artifactId\": \"test\", \"entryDate\": 1234, \"artifactState\": \"PENDING_COPY\"}";
     journal.add(mapper.readValue(js2, ArtifactStateEntry.class));
     ds.replayArtifactRepositoryStateJournal(index, journalPath);
     verify(index).commitArtifact("test");
@@ -3215,7 +3153,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testGetSetUncommittedArtifactExpiration() {
     // Assert value of default constant
-    assertEquals(TimeUtil.WEEK, WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION);
+    assertEquals(4 * TimeUtil.HOUR, WarcArtifactDataStore.DEFAULT_UNCOMMITTED_ARTIFACT_EXPIRATION);
 
     // Assert the provided store received the default
     assertEquals(

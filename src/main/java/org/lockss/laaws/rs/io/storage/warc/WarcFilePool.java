@@ -32,43 +32,35 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.storage.warc;
 
+import org.apache.commons.collections4.IterableUtils;
+import org.archive.format.warc.WARCConstants;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveRecord;
+import org.archive.io.ArchiveRecordHeader;
+import org.lockss.laaws.rs.impl.ArtifactContainerStats;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.time.TimeBase;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.*;
+import java.util.stream.Stream;
 
 public class WarcFilePool {
   private static final L4JLogger log = L4JLogger.getLogger();
 
   protected WarcArtifactDataStore store;
   protected Set<WarcFile> allWarcs = new HashSet<>();
-  protected Set<WarcFile> usedWarcs = new HashSet<>(); // TODO: Map from WarcFile to WarcFile's state (enum)
+  protected Set<WarcFile> fullWarcs = new HashSet<>();
 
   public WarcFilePool(WarcArtifactDataStore store) {
     this.store = store;
-  }
-
-  /**
-   * Creates a new {@link WarcFile} under the given path and adds it to this pool.
-   *
-   * @return The new {@link WarcFile} instance.
-   */
-  protected WarcFile createWarcFile(Path basePath) throws IOException {
-    Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
-
-    WarcFile warcFile =
-        new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), store.getUseWarcCompression());
-
-    store.initWarc(warcFile.getPath());
-
-    addWarcFile(warcFile);
-
-    return warcFile;
   }
 
   /**
@@ -80,7 +72,16 @@ public class WarcFilePool {
         .max((a, b) -> (int) (store.getFreeSpace(b) - store.getFreeSpace(a)))
         .orElse(null);
 
-    return createWarcFile(basePath);
+    Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
+
+    WarcFile warcFile =
+        new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), store.getUseWarcCompression());
+
+    store.initWarc(warcFile.getPath());
+
+    allWarcs.add(warcFile);
+
+    return warcFile;
   }
 
   protected String generateTmpWarcFileName() {
@@ -88,84 +89,37 @@ public class WarcFilePool {
   }
 
   /**
-   * Adds one or more {@link WarcFile} objects to this pool.
-   *
-   * @param warcFile One or more {@link WarcFile} objects to add to this pool.
+   * Checks out an existing WARC file from the pool or creates a new one.
    */
-  public void addWarcFile(WarcFile... warcFile) {
-    synchronized (allWarcs) {
-      allWarcs.addAll(Arrays.asList(warcFile));
+  public WarcFile checkoutWarcFileForWrite() throws IOException {
+    synchronized (this) {
+      Optional<WarcFile> optWarc = allWarcs.stream()
+          .filter(warc -> warc.getStats().getArtifactsUncommitted() <= store.getMaxArtifactsThreshold())
+          .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
+          .filter(warc -> !warc.isCheckedOut())
+          .findAny();
+
+      WarcFile warc = optWarc.isPresent() ?
+          optWarc.get() : createWarcFile();
+
+      warc.setCheckedOut(true);
+      return warc;
     }
   }
 
   /**
-   * Gets a suitable {@link WarcFile} for the number of bytes pending to be written, or creates one if one could not be
+   * Search for the WarcFile object in this pool that matches the given path. Returns {@code null} if one could not be
    * found.
    *
-   * @param bytesExpected A {@code long} representing the number of bytes expected to be written.
-   * @return A {@link WarcFile} from this pool.
+   * @param warcFilePath A {@link String} containing the path to the {@link WarcFile} to find.
+   * @return The {@link WarcFile}, or {@code null} if one could not be found.
    */
-  public WarcFile findWarcFile(Path basePath, long bytesExpected) throws IOException {
-    if (bytesExpected < 0) {
-      throw new IllegalArgumentException("bytesExpected must be a positive integer");
-    }
-
-    synchronized (allWarcs) {
-      // Build set of available WARCs
-      Set<WarcFile> availableWarcs = new HashSet<>(allWarcs);
-
-      synchronized (usedWarcs) {
-        availableWarcs.removeAll(usedWarcs);
-
-        Optional<WarcFile> opt = availableWarcs.stream()
-            .filter(warc -> warc.getPath().startsWith(basePath))
-            .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
-            .filter(warc -> warc.getLength() + bytesExpected <= store.getThresholdWarcSize())
-            .max((w1, w2) ->
-                (int) (
-                    getBytesUsedLastBlock(w1.getLength() + bytesExpected) -
-                        getBytesUsedLastBlock(w2.getLength() + bytesExpected)
-                )
-            );
-
-        // Create a new WARC if no WarcFiles are available that can hold the expected number of bytes
-        WarcFile warcFile = opt.isPresent() ? opt.get() : createWarcFile(basePath);
-
-        // Add this WarcFile to the set of WarcFiles currently in use
-        usedWarcs.add(warcFile);
-
-        // Mark the WARC file as in use
-        TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
-
-        return warcFile;
-      }
-    }
-  }
-
-  /**
-   * Returns a WARC file from the pool (or first creates a new one if one is not currently available).
-   */
-  public WarcFile findWarcFile() throws IOException {
-    synchronized (allWarcs) {
-      // Build set of available WARCs
-      Set<WarcFile> availableWarcs = new HashSet<>(allWarcs);
-
-      synchronized (usedWarcs) {
-        availableWarcs.removeAll(usedWarcs);
-
-        Optional<WarcFile> optWarc = availableWarcs.stream()
-            .filter(warc -> warc.getArtifactsUncommitted() < store.getMaxArtifactsThreshold())
-            .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
-            .findAny();
-
-        WarcFile warcFile = optWarc.isPresent() ?
-            optWarc.get() : createWarcFile();
-
-        usedWarcs.add(warcFile);
-        TempWarcInUseTracker.INSTANCE.markUseStart(warcFile.getPath());
-
-        return warcFile;
-      }
+  public WarcFile getWarcFile(Path warcFilePath) {
+    synchronized (this) {
+      return Stream.concat(allWarcs.stream(), fullWarcs.stream())
+          .filter(x -> x.getPath().equals(warcFilePath))
+          .findFirst()
+          .orElse(null);
     }
   }
 
@@ -185,53 +139,18 @@ public class WarcFilePool {
    * @param warcFile The {@link WarcFile} to add back to this pool.
    */
   public void returnWarcFile(WarcFile warcFile) {
-    boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
-    boolean isArtifactsReached = warcFile.getArtifactsUncommitted() >= store.getMaxArtifactsThreshold();
-    boolean closeWarcFile = isSizeReached || isArtifactsReached;
+    // Q: Synchronize on the WarcFile? Should be unnecessary since this thread should have it exclusively
+    boolean isSizeReached = warcFile.getLength() > store.getThresholdWarcSize();
+    boolean isArtifactsReached = warcFile.getStats().getArtifactsTotal() >= store.getMaxArtifactsThreshold();
+    boolean isFullWarcFile = isSizeReached || isArtifactsReached;
 
-    synchronized (allWarcs) {
-      if (closeWarcFile) {
-        // Remove from this WARC file pool
-        removeWarcFileFromPool(warcFile);
-      } else if (!isInPool(warcFile)) {
-        // Add WARC file to this pool (possibly for the first time)
-        log.warn("WARC file was not yet a member of this pool [warcFile: {}]", warcFile);
-        addWarcFile(warcFile);
-      } else if (isInUse(warcFile)) {
-        // Mark end-of-use of this WarcFile
-        synchronized (usedWarcs) {
-          TempWarcInUseTracker.INSTANCE.markUseEnd(warcFile.getPath());
-          usedWarcs.remove(warcFile);
-        }
-      } else {
-        // Nothing else to do
-        log.warn("WARC file is a member but not marked in-use in this pool [warcFile: {}]", warcFile);
+    synchronized (this) {
+      warcFile.setCheckedOut(false);
+
+      if (isFullWarcFile) {
+        fullWarcs.add(warcFile);
+        allWarcs.remove(warcFile);
       }
-    }
-  }
-
-  /**
-   * Checks whether a {@link WarcFile} object is in this pool but in use by another thread.
-   *
-   * @param warcFile The {@link WarcFile} to check.
-   * @return A {@code boolean} indicating whether the {@link WarcFile} is in use.
-   */
-  public boolean isInUse(WarcFile warcFile) {
-    synchronized (usedWarcs) {
-      return usedWarcs.contains(warcFile);
-    }
-  }
-
-  /**
-   * Checks whether a WARC file at a given path is a member of this pool but in use by another thread.
-   *
-   * @param warcFilePath A {@link String} containing the path to a {@link WarcFile} object in this pool.
-   * @return A {@code boolean} indicating whether the {@link WarcFile} is in use.
-   */
-  public boolean isInUse(Path warcFilePath) {
-    synchronized (allWarcs) {
-      WarcFile warcFile = getWarcFile(warcFilePath);
-      return isInUse(warcFile);
     }
   }
 
@@ -242,7 +161,7 @@ public class WarcFilePool {
    * @return A {@code boolean} indicating whether the {@link WarcFile} is a member of this pool.
    */
   public boolean isInPool(WarcFile warcFile) {
-    synchronized (allWarcs) {
+    synchronized (this) {
       return allWarcs.contains(warcFile);
     }
   }
@@ -254,45 +173,8 @@ public class WarcFilePool {
    * @return A {@code boolean} indicating whether the {@link WarcFile} is a member of this pool.
    */
   public boolean isInPool(Path warcFilePath) {
-    synchronized (allWarcs) {
+    synchronized (this) {
       return getWarcFile(warcFilePath) != null;
-    }
-  }
-
-  /**
-   * Search for the WarcFile object in this pool that matches the given path. Returns {@code null} if one could not be
-   * found.
-   *
-   * @param warcFilePath A {@link String} containing the path to the {@link WarcFile} to find.
-   * @return The {@link WarcFile}, or {@code null} if one could not be found.
-   */
-  private WarcFile getWarcFile(Path warcFilePath) {
-    synchronized (allWarcs) {
-      return allWarcs.stream()
-          .filter(x -> x.getPath().equals(warcFilePath))
-          .findFirst()
-          .orElse(null);
-    }
-  }
-
-  /**
-   * Removes the {@link WarcFile} from this pool and returns it. May return {@code null} if there is no match of the
-   * given WARC file path.
-   *
-   * @param warcFilePath A {@link Path} containing the WARC file path of the {@link WarcFile} to remove.
-   * @return The {@link WarcFile} removed from this pool. May be {@code null} if not found.
-   */
-  public WarcFile removeWarcFileFromPool(Path warcFilePath) {
-    synchronized (allWarcs) {
-      WarcFile warcFile = getWarcFile(warcFilePath);
-
-      // If we found the WarcFile; remove it from the pool
-      if (warcFile != null) {
-        removeWarcFileFromPool(warcFile);
-      }
-
-      // Return the WarcFile that was found and removed, or return null
-      return warcFile;
     }
   }
 
@@ -301,18 +183,9 @@ public class WarcFilePool {
    *
    * @param warcFile The instance of {@link WarcFile} to remove from this pool.
    */
-  public void removeWarcFileFromPool(WarcFile warcFile) {
-    synchronized (allWarcs) {
-      synchronized (usedWarcs) {
-        if (isInPool(warcFile) && isInUse(warcFile)) {
-          log.warn("Forcefully removing WARC file from pool [warcFile: {}]", warcFile);
-        }
-
-        usedWarcs.remove(warcFile);
-      }
-
-      allWarcs.remove(warcFile);
-    }
+  private void removeWarcFileFromPool(WarcFile warcFile) {
+    fullWarcs.remove(warcFile);
+    allWarcs.remove(warcFile);
   }
 
   /**
@@ -324,7 +197,7 @@ public class WarcFilePool {
     long numWarcFiles = 0;
 
     // Iterate over WarcFiles in this pool
-    synchronized (allWarcs) {
+    synchronized (this) {
       for (WarcFile warcFile : allWarcs) {
         long blocks = (long) Math.ceil(new Float(warcFile.getLength()) / new Float(store.getBlockSize()));
         totalBlocksAllocated += blocks;
@@ -336,7 +209,7 @@ public class WarcFilePool {
             warcFile.getPath(),
             warcFile.getLength(),
             blocks,
-            usedWarcs.contains(warcFile)
+            fullWarcs.contains(warcFile)
         );
 
         numWarcFiles++;
@@ -356,41 +229,112 @@ public class WarcFilePool {
 
   public void runGC() {
     // WARCs to GC
-    List<WarcFile> removedWarcs = new LinkedList<>();
+    List<WarcFile> removableWarcs = new LinkedList<>();
 
     // Determine which WARCs to GC; remove from pool while synchronized
-    synchronized (allWarcs) {
-      for (WarcFile warc : allWarcs) {
-        boolean pastExpiration = warc.getLatestExpiration() < TimeBase.nowMs();
+    synchronized (this) {
+      for (WarcFile warc : IterableUtils.chainedIterable(allWarcs, fullWarcs)) {
+        boolean inUse = TempWarcInUseTracker.INSTANCE.isInUse(warc.getPath());
+        boolean isCheckedOut = warc.isCheckedOut();
 
-        int uncommitted = warc.getArtifactsUncommitted();
-        int committed = warc.getArtifactsCommitted();
-        int copied = warc.getArtifactsCopied();
+        if (TempWarcInUseTracker.INSTANCE.isInUse(warc.getPath()) || warc.isCheckedOut()) {
+          continue;
+        }
 
-        if (committed == copied && (uncommitted == 0 || pastExpiration)) {
-          removeWarcFileFromPool(warc);
-          warc.setMarkedForGC();
-          removedWarcs.add(warc);
+        synchronized (warc) {
+          ArtifactContainerStats stats = warc.getStats();
+
+          boolean pastExpiration = stats.getLatestExpiration() <= TimeBase.nowMs();
+
+          int uncommitted = stats.getArtifactsUncommitted();
+          int committed = stats.getArtifactsCommitted();
+          int copied = stats.getArtifactsCopied();
+
+          if (committed == copied && (uncommitted == 0 || pastExpiration)) {
+            warc.setMarkedForGC();
+            removableWarcs.add(warc);
+          }
+        }
+      }
+
+      // Remove WARCs from pool while synchronized on the pool
+      for (WarcFile warc : removableWarcs) {
+        removeWarcFileFromPool(warc);
+      }
+    }
+
+    // Remove WARCs marked for GC from data store and the index
+    for (WarcFile warc : removableWarcs) {
+      synchronized (warc) {
+        ArtifactContainerStats stats = warc.getStats();
+
+        try {
+          // Remove index references if there are any uncommitted
+          if (stats.getArtifactsUncommitted() != 0) {
+            ArtifactIndex index = store.getArtifactIndex();
+
+            Map<ArtifactIdentifier, Artifact> indexedArtifacts =
+                scanForIndexedArtifacts(warc.getPath(), index);
+
+            for (Artifact artifact : indexedArtifacts.values()) {
+              if (!artifact.isCommitted()) {
+                index.deleteArtifact(artifact.getId());
+              }
+            }
+          }
+
+          // Remove WARC file from the data store
+          store.removeWarc(warc.getPath());
+        } catch (IOException e) {
+          // Log error and leave to reload
+          log.error("Could not remove WARC file " + warc.getPath(), e);
+        }
+      }
+    }
+  }
+
+  /**
+   * Builds a {@link Map<ArtifactIdentifier, Artifact>} where the keys are determined from the records contained
+   * within a WARC file and mapped to their respective {@link Artifact} within the provided {@link ArtifactIndex}.
+   * See {@link ArtifactDataFactory#buildArtifactIdentifier(ArchiveRecordHeader)} for how the
+   * {@link ArtifactIdentifier} is constructed from a WARC record. If the WARC record (i.e., artifact) is not indexed,
+   * the map will contain a {@code null} for that identifier.
+   *
+   * @param warcPath A {@link Path} to the WARC file to scan.
+   * @param index    The {@link ArtifactIndex} to query for {@link Artifact}s.
+   * @return A {@link Map<ArtifactIdentifier, Artifact>} as described above.
+   * @throws IOException thrown upon I/O errors iterating over WARC records in the file.
+   */
+  private Map<ArtifactIdentifier, Artifact> scanForIndexedArtifacts(Path warcPath, ArtifactIndex index) throws IOException {
+    Map<ArtifactIdentifier, Artifact> indexedArtifacts = new HashMap<>();
+
+    try (InputStream warcStream = new BufferedInputStream(store.getInputStreamAndSeek(warcPath, 0L))) {
+      ArchiveReader reader = store.getArchiveReader(warcPath, warcStream);
+      reader.setDigest(false);
+
+      for (ArchiveRecord record : reader) {
+        // Get the WARC record type from its headers
+        ArchiveRecordHeader headers = record.getHeader();
+        String recordType = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE);
+
+        switch (WARCConstants.WARCRecordType.valueOf(recordType)) {
+          case response:
+          case resource:
+            // Get Artifact from index and add to map
+            ArtifactIdentifier artifactId = ArtifactDataFactory.buildArtifactIdentifier(headers);
+            // FIXME: This could be made faster if the API allowed getting artifacts for more than
+            //  one artifact ID at a time:
+            Artifact indexed = index.getArtifact(artifactId);
+            indexedArtifacts.put(artifactId, indexed);
+            break;
+
+          default:
+            // WARC record does not contain an artifact
+            break;
         }
       }
     }
 
-    // GC removed WARCs from data store and the index (if necessary)
-    for (WarcFile warc : removedWarcs) {
-      // Remove index references if there are any uncommitted
-      if (warc.getArtifactsUncommitted() != 0) {
-        ArtifactIndex index = store.getArtifactIndex();
-
-        // TODO
-      }
-
-      // Remove WARC from the data store
-      try {
-        store.removeWarc(warc.getPath());
-      } catch (IOException e) {
-        // Log error and leave to reload
-        log.error("Could not remove WARC file " + warc.getPath(), e);
-      }
-    }
+    return indexedArtifacts;
   }
 }

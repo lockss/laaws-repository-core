@@ -34,14 +34,24 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import org.archive.format.warc.WARCConstants;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactSpec;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.test.LockssTestCase5;
+import org.lockss.util.time.TimeBase;
 import org.mockito.ArgumentMatchers;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import static org.lockss.laaws.rs.io.storage.warc.ArtifactState.PENDING_COPY;
 import static org.mockito.Mockito.*;
 
 /**
@@ -51,7 +61,7 @@ class TestWarcFilePool extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   /**
-   * Tests for {@link WarcFilePool#createWarcFile()} and {@link WarcFilePool#createWarcFile(Path)}.
+   * Tests for {@link WarcFilePool#createWarcFile()}.
    */
   @Test
   public void testCreateWarcFile() throws Exception {
@@ -120,52 +130,52 @@ class TestWarcFilePool extends LockssTestCase5 {
     assertTrue(tmpWarcFileName.endsWith(WARCConstants.COMPRESSED_WARC_FILE_EXTENSION));
   }
 
-  @Test
-  public void testFindWarcFile() throws Exception {
-    WarcFile warcFile1;
-
-    WarcArtifactDataStore mockedStore = mock(WarcArtifactDataStore.class);
-    when(mockedStore.getBlockSize()).thenReturn(4096L);
-    when(mockedStore.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
-    when(mockedStore.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
-
-    Path tmpWarcPath = Paths.get("/tmp");
-    when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{tmpWarcPath});
-
-    WarcFilePool pool = spy(new WarcFilePool(mockedStore));
-
-    // Assert a new temporary WARC is created if there are no temporary WARCs in the pool
-    warcFile1 = pool.findWarcFile(tmpWarcPath, 0L);
-    verify(pool).createWarcFile(tmpWarcPath);
-    assertTrue(pool.isInPool(warcFile1));
-    assertTrue(pool.isInUse(warcFile1));
-
-    // Return WarcFile to pool
-    pool.returnWarcFile(warcFile1);
-    assertTrue(pool.isInPool(warcFile1));
-    assertFalse(pool.isInUse(warcFile1));
-
-    // Assert we get back the same WarcFile since it is available again
-    assertEquals(warcFile1, pool.findWarcFile(tmpWarcPath, 0L));
-
-    // Assert the next call results in a different WarcFile since the first WARC is in use
-    WarcFile warcFile2 = pool.findWarcFile(tmpWarcPath, 0L);
-    assertNotEquals(warcFile1, warcFile2);
-
-    // Return both WarcFiles
-    pool.returnWarcFile(warcFile1);
-    pool.returnWarcFile(warcFile2);
-
-    // Assert that if the available WarcFiles don't have enough space, a new WarcFile is created
-    WarcFile warcFile3 = pool.findWarcFile(tmpWarcPath, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE + 1);
-    assertNotEquals(warcFile1, warcFile3);
-    assertNotEquals(warcFile2, warcFile3);
-
-    // Assert findWarcFile() returns the WarcFile whose last block would be maximally filled by adding a record
-    warcFile2.setLength(1234L);
-    WarcFile warcFile4 = pool.findWarcFile(tmpWarcPath, 1000L);
-    assertEquals(warcFile2, warcFile4);
-  }
+//  @Test
+//  public void testFindWarcFile() throws Exception {
+//    WarcFile warcFile1;
+//
+//    WarcArtifactDataStore mockedStore = mock(WarcArtifactDataStore.class);
+//    when(mockedStore.getBlockSize()).thenReturn(4096L);
+//    when(mockedStore.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+//    when(mockedStore.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
+//
+//    Path tmpWarcPath = Paths.get("/tmp");
+//    when(mockedStore.getTmpWarcBasePaths()).thenReturn(new Path[]{tmpWarcPath});
+//
+//    WarcFilePool pool = spy(new WarcFilePool(mockedStore));
+//
+//    // Assert a new temporary WARC is created if there are no temporary WARCs in the pool
+//    warcFile1 = pool.findWarcFile(tmpWarcPath, 0L);
+//    verify(pool).createWarcFile(tmpWarcPath);
+//    assertTrue(pool.isInPool(warcFile1));
+//    assertTrue(pool.isInUse(warcFile1));
+//
+//    // Return WarcFile to pool
+//    pool.returnWarcFile(warcFile1);
+//    assertTrue(pool.isInPool(warcFile1));
+//    assertFalse(pool.isInUse(warcFile1));
+//
+//    // Assert we get back the same WarcFile since it is available again
+//    assertEquals(warcFile1, pool.findWarcFile(tmpWarcPath, 0L));
+//
+//    // Assert the next call results in a different WarcFile since the first WARC is in use
+//    WarcFile warcFile2 = pool.findWarcFile(tmpWarcPath, 0L);
+//    assertNotEquals(warcFile1, warcFile2);
+//
+//    // Return both WarcFiles
+//    pool.returnWarcFile(warcFile1);
+//    pool.returnWarcFile(warcFile2);
+//
+//    // Assert that if the available WarcFiles don't have enough space, a new WarcFile is created
+//    WarcFile warcFile3 = pool.findWarcFile(tmpWarcPath, WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE + 1);
+//    assertNotEquals(warcFile1, warcFile3);
+//    assertNotEquals(warcFile2, warcFile3);
+//
+//    // Assert findWarcFile() returns the WarcFile whose last block would be maximally filled by adding a record
+//    warcFile2.setLength(1234L);
+//    WarcFile warcFile4 = pool.findWarcFile(tmpWarcPath, 1000L);
+//    assertEquals(warcFile2, warcFile4);
+//  }
 
   /**
    * Test for {@link WarcFilePool#returnWarcFile(WarcFile)}.
@@ -178,76 +188,140 @@ class TestWarcFilePool extends LockssTestCase5 {
     when(store.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
     when(store.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
-    // WarcFilePool construction
     WarcFilePool pool = new WarcFilePool(store);
-
-    WarcFile warcFile = new WarcFile(Paths.get("/lockss/test.warc"), false);
-    warcFile.setLength(0L);
-    warcFile.setArtifactsUncommitted(0);
 
     // Assert adding an unknown WarcFile to the pool causes it to be added to the pool
     {
-      assertFalse(pool.isInPool(warcFile));
-      pool.returnWarcFile(warcFile);
-      assertTrue(pool.isInPool(warcFile));
+      WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
+
+      assertFalse(pool.isInPool(warc));
+      pool.returnWarcFile(warc);
+      assertTrue(pool.isInPool(warc));
     }
 
-    // Assert WarcFile is removed from pool if artifact counter threshold is met
+    // Assert WarcFile is not returned to the pool if artifact counter threshold is met
     {
-      warcFile.setArtifactsUncommitted(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
+      WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
+      warc.getStats().setArtifactsTotal(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
-      pool.returnWarcFile(warcFile);
-      assertFalse(pool.isInPool(warcFile));
-      assertFalse(pool.isInUse(warcFile));
+      pool.returnWarcFile(warc);
+      assertFalse(pool.isInPool(warc));
     }
 
-    // Assert WarcFile is removed from pool if temporary WARC file size threshold is met
+    // Assert WarcFile is not returned to the pool if temporary WARC file size threshold is met
     {
-      warcFile.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+      WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
+      warc.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
 
-      pool.returnWarcFile(warcFile);
-      assertFalse(pool.isInPool(warcFile));
-      assertFalse(pool.isInUse(warcFile));
+      pool.returnWarcFile(warc);
+      assertFalse(pool.isInPool(warc));
     }
 
     // Assert WarcFile is removed from pool if temporary WARC file size and artifact counter thresholds are met
     {
-      // warcFile.setArtifacts(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
-      // warcFile.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+      WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
+      warc.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
+      warc.getStats().setArtifactsUncommitted(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
-      pool.returnWarcFile(warcFile);
-      assertFalse(pool.isInPool(warcFile));
-      assertFalse(pool.isInUse(warcFile));
+      pool.returnWarcFile(warc);
+      assertFalse(pool.isInPool(warc));
     }
   }
 
+  /**
+   * Test for {@link WarcFilePool#runGC()}.
+   */
   @Test
-  public void testRemoveWarcFile() throws Exception {
-    // Mocks
-    WarcFilePool pool = mock(WarcFilePool.class);
-    WarcFile warcFile = mock(WarcFile.class);
-    Path warcPath = mock(Path.class);
+  public void testRunGC() throws Exception {
+    BaseLockssRepository repository = mock(BaseLockssRepository.class);
 
-    // Inject mocks
-    pool.usedWarcs = mock(Set.class);
-    pool.allWarcs = mock(Set.class);
+    WarcArtifactDataStore ds = new VolatileWarcArtifactDataStore();
+    ds.setLockssRepository(repository);
 
-    // Mock behavior
-    doCallRealMethod().when(pool).removeWarcFileFromPool(warcPath);
-    doCallRealMethod().when(pool).removeWarcFileFromPool(warcFile);
+    ArtifactIndex index = new VolatileArtifactIndex();
+    index.setLockssRepository(repository);
 
-    // Assert nothing is removed if not part of pool
-    when(pool.removeWarcFileFromPool(warcPath)).thenReturn(null);
-    assertNull(pool.removeWarcFileFromPool(warcPath));
-    verify(pool, never()).removeWarcFileFromPool(ArgumentMatchers.any(WarcFile.class));
-    clearInvocations(pool);
+    when(repository.getArtifactIndex()).thenReturn(index);
+    when(repository.getArtifactDataStore()).thenReturn(ds);
 
-    // Assert WARC removed if in pool
-    when(pool.removeWarcFileFromPool(warcPath)).thenReturn(warcFile);
-    assertEquals(warcFile, pool.removeWarcFileFromPool(warcPath));
-    verify(pool).removeWarcFileFromPool(warcFile);
-    verify(pool.usedWarcs).remove(warcFile);
-    verify(pool.allWarcs).remove(warcFile);
-    clearInvocations(pool);
+    WarcFilePool pool = ds.tmpWarcPool;
+
+    // Assert an uncommitted and unexpired artifact results in a no-op and deleting
+    // the artifact results in a removal of the temporary WARC
+    {
+      ArtifactSpec spec = new ArtifactSpec()
+          .setArtifactId("test")
+          .setUrl("http://lockss.org/test/")
+          .setCollectionDate(1234L)
+          .generateContent();
+
+      Artifact a = ds.addArtifactData(spec.getArtifactData());
+      pool.runGC();
+      assertEquals(1, pool.allWarcs.size());
+
+      ds.deleteArtifactData(a);
+      pool.runGC();
+      assertEquals(0, pool.allWarcs.size());
+    }
+
+    // Assert a copied artifact results in removal of the temporary WARC
+    {
+      ArtifactSpec spec = new ArtifactSpec()
+          .setArtifactId("test")
+          .setUrl("http://lockss.org/test/")
+          .setCollectionDate(1234L)
+          .generateContent();
+
+      Artifact a = ds.addArtifactData(spec.getArtifactData());
+      Future<Artifact> f = ds.commitArtifactData(a);
+      f.get(TIMEOUT_SHOULDNT, TimeUnit.MILLISECONDS);
+
+      pool.runGC();
+      assertEquals(0, pool.allWarcs.size());
+    }
+
+    // Assert an expired artifact results in removal of the temporary WARC
+    {
+      TimeBase.setSimulated(1234L);
+
+      ArtifactSpec spec = new ArtifactSpec()
+          .setArtifactId("test")
+          .setUrl("http://lockss.org/test/")
+          .setCollectionDate(1234L)
+          .generateContent();
+
+      ds.addArtifactData(spec.getArtifactData());
+      pool.runGC();
+      assertEquals(1, pool.allWarcs.size());
+
+      TimeBase.step(ds.getUncommittedArtifactExpiration());
+      pool.runGC();
+      assertEquals(0, pool.allWarcs.size());
+    }
+
+    // Assert artifact in PENDING_COPY does not result in the removal of the temporary WARC
+    {
+      // Replace striped executor service with mock that does nothing
+      ds.stripedExecutor =
+          mock(WarcArtifactDataStore.FutureRecordingStripedExecutorService.class);
+
+      ArtifactSpec spec = new ArtifactSpec()
+          .setArtifactId("test")
+          .setUrl("http://lockss.org/test/")
+          .setCollectionDate(1234L)
+          .generateContent();
+
+      // Add and commit artifact
+      Artifact uncommitted = ds.addArtifactData(spec.getArtifactData());
+      ds.commitArtifactData(uncommitted);
+
+      // Assert artifact's status is (stuck at) PENDING_COPY
+      Artifact indexed = index.getArtifact(spec.getArtifactIdentifier());
+      assertEquals(PENDING_COPY, ds.getArtifactState(indexed, false));
+
+      // Assert temporary WARC remains after running GC
+      pool.runGC();
+      assertEquals(1, pool.allWarcs.size());
+    }
   }
 }

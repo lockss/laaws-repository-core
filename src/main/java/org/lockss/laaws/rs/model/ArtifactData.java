@@ -391,16 +391,6 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   /**
-   * Returns a closable version of this artifact's byte stream.
-   *
-   * @return an {@code InputStream} with the underlying, closable, byte
-   * stream.
-   */
-  public InputStream getClosableInputStream() {
-    return closableInputStream;
-  }
-
-  /**
    * Sets the closable version of this artifact's byte stream.
    *
    * @param closableInputStream A {@code InputStream} containing the underlying, closable, byte

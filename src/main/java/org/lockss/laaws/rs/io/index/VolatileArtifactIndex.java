@@ -151,7 +151,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         // Add Artifact to the index
         addToIndex(id, artifact);
 
-        log.debug("Added artifact to index: {}", artifact);
+        log.debug2("Added artifact to index: {}", artifact);
 
         return artifact;
     }

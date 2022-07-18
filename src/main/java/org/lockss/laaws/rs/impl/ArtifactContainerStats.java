@@ -41,20 +41,43 @@ import org.lockss.laaws.rs.model.Artifact;
  * subclassed by {@link WarcFile} and support processes within {@link WarcArtifactDataStore}.
  */
 public class ArtifactContainerStats {
+  private int total = 0;
   private int uncommitted = 0;
   private int committed = 0;
   private int copied = 0;
   private long expiration = 0;
 
   /**
-   * Increments the number of uncommitted artifacts by one.
+   * Increments the total number of artifacts.
+   */
+  public int incArtifactsTotal() {
+    return ++total;
+  }
+
+  /**
+   * Returns the total number of artifacts.
+   */
+  public int getArtifactsTotal() {
+    return total;
+  }
+
+  /**
+   * Sets the number of uncommitted artifacts to the number provided.
+   */
+  public ArtifactContainerStats setArtifactsTotal(int artifacts) {
+    this.total = artifacts;
+    return this;
+  }
+
+  /**
+   * Increments the number of uncommitted artifacts.
    */
   public int incArtifactsUncommitted() {
     return ++uncommitted;
   }
 
   /**
-   * Decrements the number of uncommitted artifacts by one.
+   * Decrements the number of uncommitted artifacts.
    */
   public int decArtifactsUncommitted() {
     return --uncommitted;
@@ -83,14 +106,14 @@ public class ArtifactContainerStats {
   }
 
   /**
-   * Increments the number of committed (but not copied) artifacts by one.
+   * Increments the number of committed (but not copied) artifacts.
    */
   public int incArtifactsCommitted() {
     return ++committed;
   }
 
   /**
-   * Decrements the number of committed (but not copied) artifacts by one.
+   * Decrements the number of committed (but not copied) artifacts.
    */
   public int decArtifactsCommitted() {
     return --committed;
@@ -112,7 +135,7 @@ public class ArtifactContainerStats {
   }
 
   /**
-   * Increments by one, the number of artifacts in this WARC that have been copied to permanent storage.
+   * Increments the number of artifacts in this WARC that have been copied to permanent storage.
    */
   public int incArtifactsCopied() {
     return ++copied;
@@ -144,7 +167,8 @@ public class ArtifactContainerStats {
   @Override
   public String toString() {
     return "ArtifactContainerStats{" +
-        "uncommitted=" + uncommitted +
+        "total=" + total +
+        ", uncommitted=" + uncommitted +
         ", committed=" + committed +
         ", copied=" + copied +
         ", expiration=" + expiration +

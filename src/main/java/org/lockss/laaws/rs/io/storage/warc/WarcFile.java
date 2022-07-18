@@ -41,12 +41,26 @@ import java.nio.file.Path;
  * This class is not thread-safe. The assumption is there is only one user of a WARC file at
  * a time.
  */
-public class WarcFile extends ArtifactContainerStats {
+public class WarcFile {
   // TODO: Replace with storage URL
   private final Path path;
   private final boolean isCompressed;
   private long length = 0;
   private boolean isMarkedForGC = false;
+  private boolean isCheckedOut = false;
+  private final ArtifactContainerStats stats = new ArtifactContainerStats();
+
+  public boolean isCheckedOut() {
+    return isCheckedOut;
+  }
+
+  public void setCheckedOut(boolean checkedOut) {
+    isCheckedOut = checkedOut;
+  }
+
+  public ArtifactContainerStats getStats() {
+    return stats;
+  }
 
   /**
    * Constructor.
