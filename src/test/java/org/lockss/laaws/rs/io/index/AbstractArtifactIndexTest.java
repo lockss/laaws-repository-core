@@ -49,6 +49,7 @@ import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.Deadline;
+import org.lockss.util.time.TimeBase;
 
 import java.io.IOException;
 import java.net.URI;
@@ -327,7 +328,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         .setAuid("auid")
         .setUrl("url")
         .setVersion(1)
-        .setCollectionDate(Instant.now().toEpochMilli())
+        .setCollectionDate(TimeBase.nowMs())
         .setStorageUrl(new URI("storageUrl"))
         .setContentLength(1232L)
         .setCommitted(true)
