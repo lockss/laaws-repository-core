@@ -54,15 +54,19 @@ import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
-import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.time.TimeBase;
 import org.lockss.util.time.TimeUtil;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -446,7 +450,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         // Get uptime from Solr core status request
         CoreAdminResponse response = req.process(solrClient);
         Long uptimeMs = response.getUptime(getSolrCollection());
-        Long startTime = Instant.now().toEpochMilli() - uptimeMs;
+        Long startTime = TimeBase.nowMs() - uptimeMs;
 
         // Initial case
         if (lastStartTime <= 0) {
@@ -687,12 +691,12 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throw new IllegalArgumentException("ArtifactData has null identifier");
     }
 
-    ArtifactStateEntry stateEntry = artifactData.getArtifactRepositoryState();
+    ArtifactState state = artifactData.getArtifactState();
 
     // Create an instance of Artifact to represent the artifact
     Artifact artifact = new Artifact(
         artifactId,
-        stateEntry == null ? false : stateEntry.isCommitted(),
+        state == null ? false : state.isCommitted(),
         artifactData.getStorageUrl().toString(),
         artifactData.getContentLength(),
         artifactData.getContentDigest()

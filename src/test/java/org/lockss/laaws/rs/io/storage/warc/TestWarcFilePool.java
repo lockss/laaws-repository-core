@@ -190,15 +190,6 @@ class TestWarcFilePool extends LockssTestCase5 {
 
     WarcFilePool pool = new WarcFilePool(store);
 
-    // Assert adding an unknown WarcFile to the pool causes it to be added to the pool
-    {
-      WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
-
-      assertFalse(pool.isInPool(warc));
-      pool.returnWarcFile(warc);
-      assertTrue(pool.isInPool(warc));
-    }
-
     // Assert WarcFile is not returned to the pool if artifact counter threshold is met
     {
       WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);

@@ -44,5 +44,13 @@ public enum ArtifactState {
   PENDING_COPY,
   COPIED,
   EXPIRED,
-  DELETED
+  DELETED;
+
+  public boolean isCommitted() {
+    return this == PENDING_COPY || this == COPIED;
+  }
+
+  public boolean isDeleted() {
+    return this == DELETED;
+  }
 }

@@ -53,7 +53,6 @@ import org.lockss.util.time.TimeBase;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -339,10 +338,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactState state = ArtifactState.UNKNOWN;
     if (spec.isCommitted()) state = ArtifactState.PENDING_COPY;
     if (spec.isDeleted()) state = ArtifactState.DELETED;
-    ArtifactStateEntry stateEntry = new ArtifactStateEntry(spec.getArtifactIdentifier(), state);
 
     ArtifactData ad = spec.getArtifactData();
-    ad.setArtifactRepositoryState(stateEntry);
+    ad.setArtifactState(state);
 
     Artifact indexed = index.indexArtifact(ad);
 

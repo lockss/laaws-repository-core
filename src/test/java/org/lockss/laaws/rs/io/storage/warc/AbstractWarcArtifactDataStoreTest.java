@@ -2755,12 +2755,12 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       if (!spec.isDeleted()) {
         // Get artifact's repository state
         ArtifactData ad = store.getArtifactData(spec.getArtifact());
-        ArtifactStateEntry stateEntry = ad.getArtifactRepositoryState();
+        ArtifactState state = ad.getArtifactState();
 
         // Assert it matches the artifact spec
         // FIXME: Extends ArtifactSpec to return an ArtifactState and assert that
-        assertEquals(spec.isCommitted(), stateEntry.isCopied() || stateEntry.isCommitted());
-        assertEquals(spec.isDeleted(), stateEntry.isDeleted());
+        assertEquals(spec.isCommitted(), state.isCommitted());
+        assertEquals(spec.isDeleted(), state.isDeleted());
       } else {
         assertThrows(LockssNoSuchArtifactIdException.class,
             () -> store.getArtifactData(spec.getArtifact()));

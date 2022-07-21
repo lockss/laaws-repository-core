@@ -40,6 +40,7 @@ import org.apache.http.StatusLine;
 import org.archive.io.warc.WARCRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
@@ -160,8 +161,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactStateEntry stateEntry = artifact.getArtifactRepositoryState();
-            assertNull(stateEntry);
+            ArtifactState state = artifact.getArtifactState();
+            assertNull(state);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         }
@@ -216,8 +217,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactStateEntry stateEntry = artifact.getArtifactRepositoryState();
-            assertNull(stateEntry);
+            ArtifactState state = artifact.getArtifactState();
+            assertNull(state);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         } catch (HttpException e) {

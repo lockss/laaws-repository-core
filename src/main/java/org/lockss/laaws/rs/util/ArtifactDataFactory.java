@@ -473,8 +473,7 @@ public class ArtifactDataFactory {
             state = ArtifactState.DELETED;
           }
 
-          ArtifactStateEntry artifactState = new ArtifactStateEntry(id, state);
-          result.setArtifactRepositoryState(artifactState);
+          result.setArtifactState(state);
         }
 
         // Set misc. artifact properties

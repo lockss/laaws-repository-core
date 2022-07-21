@@ -50,8 +50,11 @@ public class ArtifactStateEntry implements AuJournalEntry {
   private long entryDate;
   private ArtifactState state;
 
+  /**
+   * Constructor. Necessary for JSON serialization.
+   */
   public ArtifactStateEntry() {
-
+    // Intentionally left blank
   }
 
   /**
@@ -85,14 +88,21 @@ public class ArtifactStateEntry implements AuJournalEntry {
     return artifactId;
   }
 
+  /**
+   * Returns the date of this journal entry.
+   *
+   * @return A {@code long} representing the date of the journal entry.
+   */
   @Override
   public long getEntryDate() {
     return this.entryDate;
   }
 
   /**
-   * @param time
-   * @return
+   * Sets the date and time of this journal entry.
+   *
+   * @param time A {@code long} representing the date of the journal entry.
+   * @return This {@link ArtifactStateEntry} object.
    */
   public ArtifactStateEntry setEntryDate(long time) {
     this.entryDate = time;

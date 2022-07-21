@@ -554,17 +554,17 @@ public class RestLockssRepository implements LockssRepository {
 
     if (cached != null) {
       // Artifact found in cache; return its headers
-      return cached.getArtifactRepositoryState().isCommitted();
+      return cached.getArtifactState().isCommitted();
     }
 
     ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
 
-    if (ad.getArtifactRepositoryState() == null ) {
+    if (ad.getArtifactState() == null ) {
       throw new LockssRestInvalidResponseException("Missing artifact repository state");
     }
 
-    return ad.getArtifactRepositoryState().isCommitted();
+    return ad.getArtifactState().isCommitted();
   }
 
   /**

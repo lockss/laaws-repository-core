@@ -234,9 +234,6 @@ public class WarcFilePool {
     // Determine which WARCs to GC; remove from pool while synchronized
     synchronized (this) {
       for (WarcFile warc : IterableUtils.chainedIterable(allWarcs, fullWarcs)) {
-        boolean inUse = TempWarcInUseTracker.INSTANCE.isInUse(warc.getPath());
-        boolean isCheckedOut = warc.isCheckedOut();
-
         if (TempWarcInUseTracker.INSTANCE.isInUse(warc.getPath()) || warc.isCheckedOut()) {
           continue;
         }
