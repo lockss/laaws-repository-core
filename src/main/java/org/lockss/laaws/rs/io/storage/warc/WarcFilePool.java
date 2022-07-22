@@ -260,6 +260,15 @@ public class WarcFilePool {
       }
     }
 
+    if (log.isDebug2Enabled()) {
+      log.debug2("allWarcs.size() = {}, fullWarcs.size(), removableWarcs.size = {}",
+          allWarcs.size(), fullWarcs.size(), removableWarcs.size());
+
+      log.debug2("allWarcs = {}", allWarcs);
+      log.debug2("fullWarcs = {}", fullWarcs);
+      log.debug2("removableWarcs = {}", removableWarcs);
+    }
+
     // Remove WARCs marked for GC from data store and the index
     for (WarcFile warc : removableWarcs) {
       synchronized (warc) {
