@@ -1930,21 +1930,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Update temporary WARC file stats
       // ********************************
 
+      // tmpWarcFile could be null if this CopyArtifactTask was queued by the reload process
       WarcFile tmpWarcFile = tmpWarcPool.getWarcFile(loc.getPath());
 
-      if (tmpWarcFile == null) {
-        log.warn("No tmpWarcFile found from pool?");
-      }
+      if (tmpWarcFile != null) {
+        synchronized (tmpWarcFile) {
+          // This WarcFile cannot have already been GCed because the number of copied
+          // has not been incremented yet:
+          // If this doesn't happen due to an IOException during copy then it's okay because:
+          // 1. It will then never be GCed (counters will not allow that) and so artifact references
+          //    will still resolve.
+          // 2. Upon restart it should notice there is an artifact pending copy and requeue it.
 
-      synchronized (tmpWarcFile) {
-        // This WarcFile cannot have already been GCed because the number of copied
-        // has not been incremented yet:
-        // If this doesn't happen due to an IOException during copy then it's okay because:
-        // 1. It will then never be GCed (counters will not allow that) and so artifact references
-        //    will still resolve.
-        // 2. Upon restart it should notice there is an artifact pending copy and requeue it.
-
-        tmpWarcFile.getStats().incArtifactsCopied();
+          tmpWarcFile.getStats().incArtifactsCopied();
+        }
       }
 
       // Save an index lookup by just setting committed to true
