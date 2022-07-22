@@ -943,32 +943,29 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
   }
 
+  /**
+   * Reloads artifacts from a temporary WARC file and resumes their lifecycle in this WARC artifact data store. If
+   * the artifacts in this data store are no longer needed, the temporary WARC file is deleted.
+   *
+   * @param index The {@link ArtifactIndex} used to determine artifact state.
+   * @param tmpWarc A {@link Path} to the temporary WARC file to examine.
+   * @throws IOException Thrown if there are any I/O errors.
+   */
   protected void reloadOrRemoveTemporaryWarc(ArtifactIndex index, Path tmpWarc) throws IOException {
     log.trace("tmpWarc = {}", tmpWarc);
-
-    // Q: In what situation can this happen?
-    if (tmpWarcPool.isInPool(tmpWarc)) {
-      log.debug("Temporary WARC already in pool [tmpWarc: {}]", tmpWarc);
-      return;
-    }
-
-    // ********************************************************
-    // Determine whether all records in this WARC are removable
-    // ********************************************************
 
     boolean isWarcFileRemovable = true;
 
     // Open WARC file
     try (InputStream warcStream = markAndGetInputStream(tmpWarc)) {
 
-      // Get an ArchiveReader (an implementation of Iterable) over ArchiveRecord objects
       ArchiveReader archiveReader =
           getArchiveReader(tmpWarc, new IgnoreCloseInputStream(warcStream));
 
       // Do not perform digest calculations
       archiveReader.setDigest(false);
 
-      // Iterate over the WARC records
+      // ArchiveReader is an iterable over ArchiveRecord objects
       for (ArchiveRecord record : archiveReader) {
         boolean isRecordRemovable = false;
 
@@ -980,58 +977,38 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         Artifact artifact = getArtifactIndex().getArtifact(aid);
         ArtifactState state = getArtifactState(artifact, isArtifactExpired(record));
 
+        // Resume artifact lifecycle based on the artifact's state
         try {
-          // Resume artifact lifecycle based on the artifact's state
           switch (state) {
+            case UNCOMMITTED:
+              break;
+
             case PENDING_COPY:
               // Requeue the copy of this artifact from temporary to permanent storage
-              try {
-                // Only reschedule a copy to permanent storage if the artifact is still in temporary storage
-                // according to the artifact index
-                if (isTmpStorage(getPathFromStorageUrl(new URI(artifact.getStorageUrl())))) {
-                  log.debug("Re-queuing move to permanent storage for artifact [artifactId: {}]", aid.getId());
-
-                  stripedExecutor.submit(new CopyArtifactTask(artifact));
-                }
-              } catch (RejectedExecutionException e) {
-                log.warn("Could not re-queue copy of artifact to permanent storage [artifactId: {}]", aid.getId(), e);
-              } catch (URISyntaxException e) {
-                // This should never happen
-                log.error("Bad storage URL [artifactId: {}]", aid.getId());
-                break;
-              }
-
-            case UNCOMMITTED:
-              // Nothing to do
+              CopyArtifactTask task = new CopyArtifactTask(artifact);
+              queuedCopyTasks.put(artifact.getIdentifier(), task);
+              stripedExecutor.submit(task);
               break;
 
             case EXPIRED:
-            case DELETED:
               // Remove artifact reference from index if it exists
-              if (index.deleteArtifact(aid.getId())) {
-                // This would be noteworthy since we only get DELETED if the artifact is not indexed
-                log.warn("Removed artifact from index [artifactId: {}]", aid.getId());
+              if (!index.deleteArtifact(aid.getId())) {
+                log.warn("Could not remove expired artifact from index [artifactId: {}]", aid.getId());
               }
 
-              // Fall-through to next case
-
+            case UNKNOWN:
             case NOT_INDEXED:
-              // If this artifact in temporary storage was not indexed then it was interrupted
-              // and did not succeed being added to the repository: Treat it as removable.
-
             case COPIED:
-              log.trace("Temporary WARC record is removable [warcId: {}, state: {}]",
-                  record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), state);
+            case DELETED:
+              log.debug2("WARC record is removable [state: {}, warcId: {}, tmpWarc: {}]",
+                  state, record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID), tmpWarc);
 
               // Mark this temporary WARC record as removable
               isRecordRemovable = true;
               break;
 
-            case UNKNOWN:
-              // TODO Introduce more robustness
-
             default:
-              log.warn("Could not determine artifact state; aborting reload [artifactId: {}]", aid.getId());
+              log.warn("Unknown artifact state [artifactId: {}, state: {}]", artifact.getId(), state);
               break;
           }
         } finally {
@@ -1046,24 +1023,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw e;
     }
 
-    // ****************************************
-    // Handle the result of isWarcFileRemovable
-    // ****************************************
+    boolean isInUse = TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
 
-    if (isWarcFileRemovable && !TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc)) {
+    log.debug2("tmpWarc: {}, isWarcFileRemovable: {}, isInUse: {}",
+        tmpWarc, isWarcFileRemovable, isInUse);
+
+    // Remove file depending on results
+    if (isWarcFileRemovable && !isInUse) {
       try {
-        log.debug2("Removing temporary WARC file [tmpWarc: {}]", tmpWarc);
+        log.debug("Removing temporary WARC file [tmpWarc: {}]", tmpWarc);
         removeWarc(tmpWarc);
       } catch (IOException e) {
         log.warn("Could not remove a removable temporary WARC file", e);
-        // TODO: Mark as removable and try again later
+        // Try again later - avoid reprocessing by marking as already processed and removable?
       }
-    } else {
-      // WARC file is not removable: It either contains one or more records that are
-      // not removable or some other process is actively using it. Try again later.
-      // Previously these files were re-added to the temporary WARC pool, but we now
-      // keep these files frozen / as-is to encourage their GC.
-      log.debug("Ignoring temporary WARC file [tmpWarc: {}]", tmpWarc);
     }
   }
 
