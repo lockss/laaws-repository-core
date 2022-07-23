@@ -261,7 +261,7 @@ public class WarcFilePool {
     }
 
     if (log.isDebug2Enabled()) {
-      log.debug2("allWarcs.size() = {}, fullWarcs.size(), removableWarcs.size = {}",
+      log.debug2("allWarcs.size() = {}, fullWarcs.size() = {}, removableWarcs.size = {}",
           allWarcs.size(), fullWarcs.size(), removableWarcs.size());
 
       log.debug2("allWarcs = {}", allWarcs);
