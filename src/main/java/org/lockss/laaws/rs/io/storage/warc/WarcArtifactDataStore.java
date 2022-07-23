@@ -156,7 +156,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   protected long uncommittedArtifactExpiration;
 
   protected static final String ENV_TMPWARCGC_INTERVAL = "REPO_TMPWARCGC_INTERVAL";
-  protected static final long DEFAULT_TMPWARCGC_INTERVAL = 1 * TimeUtil.MINUTE;
+  protected static final long DEFAULT_TMPWARCGC_INTERVAL = 10 * TimeUtil.MINUTE;
   protected long tmpWarcGCInterval;
 
   protected Path[] basePaths;
@@ -887,7 +887,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.debug("Scheduling temporary WARC garbage collection");
 
     repo.getScheduledExecutorService().scheduleWithFixedDelay(
-        new GCTemporaryWarcsTask(tmpWarcPool), tmpWarcGCInterval, tmpWarcGCInterval, TimeUnit.SECONDS);
+        new GCTemporaryWarcsTask(tmpWarcPool), tmpWarcGCInterval, tmpWarcGCInterval, TimeUnit.MILLISECONDS);
   }
 
   private class GCTemporaryWarcsTask implements Runnable {
