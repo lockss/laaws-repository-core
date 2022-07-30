@@ -69,6 +69,7 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.util.*;
@@ -276,6 +277,61 @@ public class RestLockssRepository implements LockssRepository {
           artifactData);
 
       return res;
+
+    } catch (LockssRestException e) {
+      log.error("Could not add artifact", e);
+      throw e;
+    }
+  }
+
+  private final MediaType APPLICATION_WARC = MediaType.valueOf("application/warc");
+
+  /**
+   * Adds artifacts from an archive to the remote LOCKSS Repository Service.
+   *
+   * @param collectionId A {@link String} containing the collection ID of the artifacts.
+   * @param auId         A {@link String} containing the AUID of the artifacts.
+   * @param inputStream  The {@link InputStream} of the archive.
+   * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
+   * @return
+   */
+  @Override
+  public Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
+                                             boolean isCompressed) throws IOException {
+
+    MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+
+    // Attach AUID part
+    parts.add("auid", auId);
+
+    // Attach archive part
+    HttpHeaders archivePartHeaders = new HttpHeaders();
+
+    archivePartHeaders.setContentLength(0);
+    archivePartHeaders.setContentType(APPLICATION_WARC);
+
+    Resource artifactPartResource = new NamedInputStreamResource("artifact.warc", inputStream);
+
+    parts.add("archive", new HttpEntity<>(artifactPartResource, archivePartHeaders));
+
+    // Prepare the endpoint URI
+    String archivesEndpoint = repositoryUrl + "/collections/{collectionId}/archives";
+
+    Map<String, String> uriVariables = new HashMap<>();
+    uriVariables.put("collectionId", collectionId);
+
+    try {
+      ResponseEntity<String> response =
+          RestUtil.callRestService(restTemplate,
+              RestUtil.getRestUri(archivesEndpoint, uriVariables, null),
+              HttpMethod.POST,
+              new HttpEntity<>(parts, getInitializedHttpHeaders()),
+              String.class, "Error calling remote addArtifacts() over REST");
+
+      checkStatusOk(response);
+
+      // TODO
+      return null;
 
     } catch (LockssRestException e) {
       log.error("Could not add artifact", e);

@@ -37,6 +37,7 @@ import org.lockss.util.time.Deadline;
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -45,6 +46,18 @@ import java.util.concurrent.TimeoutException;
  * This is the interface of the abstract LOCKSS repository service.
  */
 public interface LockssRepository extends Ready {
+
+  /**
+   * Imports artifacts from an archive.
+   *
+   * @param collectionId A {@link String} containing the collection ID of the artifacts.
+   * @param auId         A {@link String} containing the AUID of the artifacts.
+   * @param inputStream  The {@link InputStream} of the archive.
+   * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
+   * @return
+   */
+  Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
+                                      boolean isCompressed) throws IOException;
 
   /**
    * NEVER: Artifact content should never be included. The client does not want it, period.

@@ -74,6 +74,18 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
         return collection;
     }
 
+    public void setCollection(String collection) {
+        this.collection = collection;
+    }
+
+    public void setAuid(String auid) {
+        this.auid = auid;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
     /**
      * Returns the Archival Unit ID (AUID) encoded in this artifact identifier.
      *

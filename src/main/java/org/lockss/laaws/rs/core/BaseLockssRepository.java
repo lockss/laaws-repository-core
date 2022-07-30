@@ -32,10 +32,15 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.core;
 
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveRecord;
+import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.JmsFactorySource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.jms.JmsFactory;
@@ -44,6 +49,7 @@ import org.springframework.http.HttpHeaders;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -275,6 +281,47 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     } finally {
       index.releaseVersionLock(artifactId.getArtifactStem());
     }
+  }
+
+  /**
+   * Imports artifacts from an archive into this LOCKSS repository.
+   *
+   * @param collectionId A {@link String} containing the collection ID of the artifacts.
+   * @param auId         A {@link String} containing the AUID of the artifacts.
+   * @param inputStream  The {@link InputStream} of the archive.
+   * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
+   * @return
+   */
+  @Override
+  public Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
+                                             boolean isCompressed) throws IOException {
+
+    ArchiveReader archiveReader = isCompressed ?
+        new WarcArtifactDataStore.CompressedWARCReader("XXX", inputStream) :
+        new WarcArtifactDataStore.UncompressedWARCReader("XXX", inputStream);
+
+    archiveReader.setDigest(true);
+
+    // ArchiveReader is an iterable over ArchiveRecord objects
+      for (ArchiveRecord record : archiveReader) {
+        try {
+          ArchiveRecordHeader header = record.getHeader();
+          ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(record);
+
+          ArtifactIdentifier aid = ad.getIdentifier();
+          aid.setCollection(collectionId);
+          aid.setAuid(auId);
+          aid.setUri(header.getUrl());
+
+          addArtifact(ad);
+        } catch (IOException e) {
+          log.error("Could not add artifact from WARC record", e);
+          // TODO
+        }
+      }
+
+    // TODO
+    return null;
   }
 
   /**
