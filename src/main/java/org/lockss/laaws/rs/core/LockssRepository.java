@@ -56,6 +56,7 @@ public interface LockssRepository extends Ready {
    * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
    * @return
    */
+  // FIXME: This may need an enum or MIME type specifying the type of archive
   Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
                                       boolean isCompressed) throws IOException;
 

@@ -307,9 +307,11 @@ public class RestLockssRepository implements LockssRepository {
     // Attach archive part
     HttpHeaders archivePartHeaders = new HttpHeaders();
 
+    // FIXME:
     archivePartHeaders.setContentLength(0);
     archivePartHeaders.setContentType(APPLICATION_WARC);
 
+    // TODO: Look at isCompressed for appropriate .warc or .warc.gz file extension
     Resource artifactPartResource = new NamedInputStreamResource("artifact.warc", inputStream);
 
     parts.add("archive", new HttpEntity<>(artifactPartResource, archivePartHeaders));
