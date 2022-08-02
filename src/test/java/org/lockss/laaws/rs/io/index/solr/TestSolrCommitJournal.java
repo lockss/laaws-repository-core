@@ -409,7 +409,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
         ArgumentCaptor<SolrRequest> requests = ArgumentCaptor.forClass(SolrRequest.class);
         ArgumentCaptor<String> collections = ArgumentCaptor.forClass(String.class);
 
-        verify(solrClient, times(3))
+        verify(solrClient, times(2))
             .request(requests.capture(), collections.capture());
 
         // Verify all SolrRequests made were of type UpdateRequest
@@ -424,17 +424,11 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
         UpdateRequest r0 = (UpdateRequest) requests.getAllValues().get(0);
         assertable.runAssert(r0);
 
-        // Assert soft commit
+        // Assert hard commit
         UpdateRequest r1 = (UpdateRequest) requests.getAllValues().get(1);
         assertEquals("true", r1.getParams().get("commit"));
-        assertEquals("true", r1.getParams().get("softCommit"));
+        assertEquals("false", r1.getParams().get("softCommit"));
         assertEquals("true", r1.getParams().get("waitSearcher"));
-
-        // Assert hard commit
-        UpdateRequest r2 = (UpdateRequest) requests.getAllValues().get(2);
-        assertEquals("true", r2.getParams().get("commit"));
-        assertEquals("false", r2.getParams().get("softCommit"));
-        assertEquals("true", r2.getParams().get("waitSearcher"));
 
         // Reset mock
         clearInvocations(solrClient);
