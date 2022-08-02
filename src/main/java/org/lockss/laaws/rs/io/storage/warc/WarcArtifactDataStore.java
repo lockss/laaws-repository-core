@@ -923,7 +923,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Iterate over the temporary WARC files that were found
     for (Path tmpWarc : tmpWarcs) {
-      // Q: Use file lock to prevent other processes or threads from modifying file?
+      // Do not reload if temporary WARC is active in temporary WARC pool
+      if (tmpWarcPool.isInPool(tmpWarc)) {
+        continue;
+      }
+
       reloadOrRemoveTemporaryWarc(index, tmpWarc);
     }
 
