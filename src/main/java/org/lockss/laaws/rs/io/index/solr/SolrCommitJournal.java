@@ -258,8 +258,8 @@ public class SolrCommitJournal {
       index.handleSolrResponse(
           req.process(index.getSolrClient(), index.getSolrCollection()), "Error with UpdateRequest");
 
-      index.handleSolrResponse(
-          index.handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.SOFT), "Error with Commit request");
+//      index.handleSolrResponse(
+//          index.handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.SOFT), "Error with Commit request");
     }
   }
 
