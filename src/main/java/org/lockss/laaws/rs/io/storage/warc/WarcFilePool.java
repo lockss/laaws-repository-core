@@ -67,7 +67,7 @@ public class WarcFilePool {
    * Creates a new temporary WARC file under one of the temporary WARC directories configured
    * in the data store.
    */
-  protected WarcFile createWarcFile() throws IOException {
+  protected WarcFile createAndCheckoutWarcFile() throws IOException {
     Path basePath = Arrays.stream(store.getBasePaths())
         .max((a, b) -> (int) (store.getFreeSpace(b) - store.getFreeSpace(a)))
         .orElse(null);
@@ -76,6 +76,8 @@ public class WarcFilePool {
 
     WarcFile warcFile =
         new WarcFile(tmpWarcDir.resolve(generateTmpWarcFileName()), store.getUseWarcCompression());
+
+    warcFile.setCheckedOut(true);
 
     store.initWarc(warcFile.getPath());
 
@@ -100,9 +102,8 @@ public class WarcFilePool {
           .findAny();
 
       WarcFile warc = optWarc.isPresent() ?
-          optWarc.get() : createWarcFile();
+          optWarc.get() : createAndCheckoutWarcFile();
 
-      warc.setCheckedOut(true);
       return warc;
     }
   }

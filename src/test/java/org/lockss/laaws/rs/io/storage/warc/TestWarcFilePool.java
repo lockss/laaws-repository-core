@@ -40,14 +40,11 @@ import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactSpec;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.time.TimeBase;
-import org.mockito.ArgumentMatchers;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -61,7 +58,7 @@ class TestWarcFilePool extends LockssTestCase5 {
   private final static L4JLogger log = L4JLogger.getLogger();
 
   /**
-   * Tests for {@link WarcFilePool#createWarcFile()}.
+   * Tests for {@link WarcFilePool#createAndCheckoutWarcFile()}.
    */
   @Test
   public void testCreateWarcFile() throws Exception {
