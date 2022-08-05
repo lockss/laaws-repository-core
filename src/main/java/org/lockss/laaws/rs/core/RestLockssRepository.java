@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -307,12 +308,16 @@ public class RestLockssRepository implements LockssRepository {
     // Attach archive part
     HttpHeaders archivePartHeaders = new HttpHeaders();
 
-    // FIXME:
+    // FIXME: This must be set to avoid the InputStream from being read to determine Content-Length
     archivePartHeaders.setContentLength(0);
+
     archivePartHeaders.setContentType(APPLICATION_WARC);
 
-    // TODO: Look at isCompressed for appropriate .warc or .warc.gz file extension
-    Resource artifactPartResource = new NamedInputStreamResource("artifact.warc", inputStream);
+    String archiveExt = isCompressed ?
+        WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION :
+        WARCConstants.DOT_WARC_FILE_EXTENSION;
+
+    Resource artifactPartResource = new NamedInputStreamResource("archive" + archiveExt, inputStream);
 
     parts.add("archive", new HttpEntity<>(artifactPartResource, archivePartHeaders));
 

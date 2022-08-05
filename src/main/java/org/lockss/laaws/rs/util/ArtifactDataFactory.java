@@ -352,10 +352,8 @@ public class ArtifactDataFactory {
     switch (recordType) {
       case response:
         if (!headers.getMimetype().startsWith("application/http")) {
-          log.warn(String.format(
-              "Unexpected content MIME type (%s) from a WARC response record",
-              headers.getMimetype()
-          ));
+          log.warn("Unexpected content MIME type from a WARC response record",
+              headers.getMimetype());
 
           // TODO: Return null or throw?
           return null;
@@ -419,10 +417,8 @@ public class ArtifactDataFactory {
 
       default:
         log.warn(
-            "Cannot instantiate ArtifactData object: Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
-            headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-            recordType
-        );
+            "Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
+            headers.getHeaderValue(WARCConstants.HEADER_KEY_ID), recordType);
     }
 
     // Could not return an artifact elsewhere

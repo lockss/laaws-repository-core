@@ -300,8 +300,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
         new WarcArtifactDataStore.CompressedWARCReader("XXX", inputStream) :
         new WarcArtifactDataStore.UncompressedWARCReader("XXX", inputStream);
 
-    // Q: Is this redundant?
-    // archiveReader.setDigest(true);
+    archiveReader.setDigest(false);
 
     // ArchiveReader is an iterable over ArchiveRecord objects
       for (ArchiveRecord record : archiveReader) {
