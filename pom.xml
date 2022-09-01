@@ -80,6 +80,18 @@ POSSIBILITY OF SUCH DAMAGE.
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -89,6 +101,20 @@ POSSIBILITY OF SUCH DAMAGE.
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <version>${version.group.hadoop}</version>
+      <exclusions>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -199,6 +225,20 @@ POSSIBILITY OF SUCH DAMAGE.
       <groupId>org.apache.solr</groupId>
       <artifactId>solr-core</artifactId>
       <version>${version.group.solr}</version>
+      <exclusions>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Needed for Solr testing -->
@@ -207,6 +247,20 @@ POSSIBILITY OF SUCH DAMAGE.
       <artifactId>solr-test-framework</artifactId>
       <version>${version.group.solr}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
