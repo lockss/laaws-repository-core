@@ -186,6 +186,8 @@ public class SolrCommitJournal {
      * @throws IOException
      */
     public void replaySolrJournal(SolrArtifactIndex index) throws IOException {
+      // TODO: Wait for Solr to come up
+
       try (FileReader reader = new FileReader(journalPath.toFile())) {
         // Read Solr journal as CSV
         Iterable<CSVRecord> records = CSVFormat.DEFAULT

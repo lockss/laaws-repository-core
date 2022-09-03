@@ -84,6 +84,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
   private StatusLine httpStatus;
   private InputStream origInputStream;
+  private boolean inputStreamUsed = false;
   private boolean hadAnInputStream = false;
   private long contentLength = -1;
   private String contentDigest;
@@ -217,7 +218,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
       if (!hadAnInputStream) {
 	throw new IllegalStateException("Attempt to get InputStream from ArtifactData that was created without one");
       }
-      if (origInputStream == null) {
+      if (inputStreamUsed) {
 	throw new IllegalStateException("Attempt to get InputStream from ArtifactData whose InputStream has been used");
       }
       cis = new CountingInputStream(origInputStream);
@@ -240,7 +241,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
             }
           },
           this);
-      origInputStream = null;
+      // origInputStream = null;
+      inputStreamUsed = true;
     } catch (NoSuchAlgorithmException e) {
       String errMsg = String.format(
           "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM

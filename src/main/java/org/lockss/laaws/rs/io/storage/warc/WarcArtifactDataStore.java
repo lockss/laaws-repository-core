@@ -64,7 +64,10 @@ import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.impl.ArtifactContainerStats;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
-import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.model.Artifact;
+import org.lockss.laaws.rs.model.ArtifactData;
+import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.CollectionAuidPair;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
@@ -2899,9 +2902,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // record.addExtraHeader(WARCConstants.HEADER_KEY_BLOCK_DIGEST, artifactData.getHttpResponseDigest());
 
     // Write record to output stream and return number of bytes written
-    CountingOutputStream cout = new CountingOutputStream(outputStream);
-    writeWarcRecord(record, cout);
-    return cout.getCount();
+    try (CountingOutputStream cout = new CountingOutputStream(outputStream)) {
+      writeWarcRecord(record, cout);
+      return cout.getCount();
+    } finally {
+      record.getContentStream().close();
+    }
   }
 
   /**
@@ -3014,7 +3020,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Circumvents an bug in WARC record length calculation. See {@link SimpleRepositionableStream} for details.
    */
   public static class UncompressedWARCReader extends WARCReader {
-    public UncompressedWARCReader(final String f, final InputStream is) {
+    public UncompressedWARCReader(final String f, final InputStream is) throws IOException {
       setIn(new CountingInputStream(is));
       initialize(f);
     }

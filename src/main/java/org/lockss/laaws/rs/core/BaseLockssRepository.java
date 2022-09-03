@@ -32,21 +32,29 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.core;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.NotImplementedException;
+import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
-import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
+import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.JmsFactorySource;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.http.HttpHeaders;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -289,39 +297,80 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @param collectionId A {@link String} containing the collection ID of the artifacts.
    * @param auId         A {@link String} containing the AUID of the artifacts.
    * @param inputStream  The {@link InputStream} of the archive.
+   * @param type         A {@link ArchiveType} indicating the type of archive.
    * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
    * @return
    */
   @Override
   public Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
-                                             boolean isCompressed) throws IOException {
+                                             ArchiveType type, boolean isCompressed) throws IOException {
 
-    ArchiveReader archiveReader = isCompressed ?
-        new WarcArtifactDataStore.CompressedWARCReader("XXX", inputStream) :
-        new WarcArtifactDataStore.UncompressedWARCReader("XXX", inputStream);
+    if (type != ArchiveType.WARC) {
+      throw new NotImplementedException("Archive not supported");
+    }
 
-    archiveReader.setDigest(false);
+    try {
+      BufferedInputStream input = new BufferedInputStream(inputStream);
+      ArchiveReader archiveReader = isCompressed ?
+          new WarcArtifactDataStore.CompressedWARCReader("archive.warc.gz", input) :
+          new WarcArtifactDataStore.UncompressedWARCReader("archive.warc", input);
 
-    // ArchiveReader is an iterable over ArchiveRecord objects
-      for (ArchiveRecord record : archiveReader) {
-        try {
-          ArchiveRecordHeader header = record.getHeader();
-          ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(record);
+      archiveReader.setDigest(false);
+      archiveReader.setStrict(true);
 
-          ArtifactIdentifier aid = ad.getIdentifier();
-          aid.setCollection(collectionId);
-          aid.setAuid(auId);
-          aid.setUri(header.getUrl());
+      try (DeferredTempFileOutputStream out =
+               new DeferredTempFileOutputStream((int) (16 * FileUtils.ONE_MB), null)) {
 
-          addArtifact(ad);
-        } catch (IOException e) {
-          log.error("Could not add artifact from WARC record", e);
-          // TODO
+        ObjectMapper objMapper = new ObjectMapper();
+        objMapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+        ObjectWriter objWriter = objMapper.writerFor(ImportStatus.class);
+
+        // ArchiveReader is an iterable over ArchiveRecord objects
+        for (ArchiveRecord record : archiveReader) {
+          ImportStatus status = new ImportStatus();
+
+          try {
+            ArchiveRecordHeader header = record.getHeader();
+
+            status.setWarcId((String) header.getHeaderValue(WARCConstants.HEADER_KEY_ID));
+            status.setOffset(header.getOffset());
+            status.url(header.getUrl());
+
+            // Transform WARC record to ArtifactData
+            ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(record);
+            assert ad != null;
+
+            ArtifactIdentifier aid = ad.getIdentifier();
+            aid.setCollection(collectionId);
+            aid.setAuid(auId);
+            aid.setUri(header.getUrl());
+
+            // TODO: Write to permanent storage directly
+            Artifact artifact = addArtifact(ad);
+            commitArtifact(artifact);
+
+            status.setArtifactId(artifact.getId());
+            status.setStatus(ImportStatus.StatusEnum.OK);
+          } catch (Exception e) {
+            log.error("Could not import artifact from archive", e);
+            status.setStatus(ImportStatus.StatusEnum.ERROR);
+          }
+
+          objWriter.writeValue(out, status);
         }
-      }
 
-    // TODO
-    return null;
+        out.flush();
+
+        return new ImportStatusIterable(out.getDeleteOnCloseInputStream());
+      } catch (IOException e) {
+        log.error("Could not open temporary CSV file", e);
+        throw e;
+      }
+    } catch (IOException e) {
+      // Error while opening an ArchiveReader for the archive
+      log.error("Error importing archive", e);
+      throw e;
+    }
   }
 
   /**

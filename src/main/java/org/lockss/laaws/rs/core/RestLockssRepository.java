@@ -34,6 +34,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
 import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.model.*;
@@ -43,7 +44,8 @@ import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.LockssUncheckedIOException;
-import org.lockss.util.auth.*;
+import org.lockss.util.auth.AuthUtil;
+import org.lockss.util.io.FileUtil;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
@@ -69,6 +71,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -111,7 +114,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, String userName, String password) {
+  public RestLockssRepository(URL repositoryUrl, String userName, String password) throws IOException {
     this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
@@ -129,7 +132,9 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
+  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password)
+      throws IOException {
+
     // Set RestTemplate used by RestLockssRepository
     this.restTemplate = restTemplate;
 
@@ -146,9 +151,11 @@ public class RestLockssRepository implements LockssRepository {
     // Install our custom ResponseErrorHandler in the RestTemplate used by this RestLockssRepository
     restTemplate.setErrorHandler(new LockssResponseErrorHandler(restTemplate.getMessageConverters()));
 
+    File tmpDir = FileUtil.createTempDir("repo-client", null);
+
     // Add the multipart/form-data converter to the RestTemplate
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
-    messageConverters.add(new MultipartMessageHttpMessageConverter());
+    messageConverters.add(new MultipartMessageHttpMessageConverter(tmpDir));
   }
 
 
@@ -293,12 +300,17 @@ public class RestLockssRepository implements LockssRepository {
    * @param collectionId A {@link String} containing the collection ID of the artifacts.
    * @param auId         A {@link String} containing the AUID of the artifacts.
    * @param inputStream  The {@link InputStream} of the archive.
+   * @param type         A {@link ArchiveType} indicating the type of archive.
    * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
    * @return
    */
   @Override
   public Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
-                                             boolean isCompressed) throws IOException {
+                                             ArchiveType type, boolean isCompressed) throws IOException {
+
+    if (type != ArchiveType.WARC) {
+      throw new NotImplementedException("Archive not supported");
+    }
 
     MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
 
@@ -306,20 +318,20 @@ public class RestLockssRepository implements LockssRepository {
     parts.add("auid", auId);
 
     // Attach archive part
-    HttpHeaders archivePartHeaders = new HttpHeaders();
+    HttpHeaders archiveHeaders = new HttpHeaders();
 
-    // FIXME: This must be set to avoid the InputStream from being read to determine Content-Length
-    archivePartHeaders.setContentLength(0);
-
-    archivePartHeaders.setContentType(APPLICATION_WARC);
+    // FIXME: Content-Length must be set to avoid the InputStream from being read to
+    //  determine the Content-Length
+    archiveHeaders.setContentLength(0);
+    archiveHeaders.setContentType(APPLICATION_WARC);
 
     String archiveExt = isCompressed ?
         WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION :
         WARCConstants.DOT_WARC_FILE_EXTENSION;
 
-    Resource artifactPartResource = new NamedInputStreamResource("archive" + archiveExt, inputStream);
+    Resource archiveResource = new NamedInputStreamResource("archive" + archiveExt, inputStream);
 
-    parts.add("archive", new HttpEntity<>(artifactPartResource, archivePartHeaders));
+    parts.add("archive", new HttpEntity<>(archiveResource, archiveHeaders));
 
     // Prepare the endpoint URI
     String archivesEndpoint = repositoryUrl + "/collections/{collectionId}/archives";
@@ -328,20 +340,20 @@ public class RestLockssRepository implements LockssRepository {
     uriVariables.put("collectionId", collectionId);
 
     try {
-      ResponseEntity<String> response =
+      ResponseEntity<Resource> response =
           RestUtil.callRestService(restTemplate,
               RestUtil.getRestUri(archivesEndpoint, uriVariables, null),
               HttpMethod.POST,
               new HttpEntity<>(parts, getInitializedHttpHeaders()),
-              String.class, "Error calling remote addArtifacts() over REST");
+              Resource.class, "Error calling remote addArtifacts() over REST");
 
       checkStatusOk(response);
 
-      // TODO
-      return null;
+      Resource resource = response.getBody();
 
+      return new ImportStatusIterable(resource.getInputStream());
     } catch (LockssRestException e) {
-      log.error("Could not add artifact", e);
+      log.error("Could not add archive", e);
       throw e;
     }
   }
@@ -417,7 +429,7 @@ public class RestLockssRepository implements LockssRepository {
           HttpMethod.GET,
           new HttpEntity<>(requestHeaders),
           MultipartMessage.class,
-          "Call from RestLockssRepository#getArtifactData() failed"
+          "REST call from RestLockssRepository#getArtifactData() failed"
       );
 
       checkStatusOk(response);
@@ -978,7 +990,9 @@ public class RestLockssRepository implements LockssRepository {
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   @Override
-  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
+  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version,
+                                     boolean includeUncommitted) throws IOException {
+
     if ((collection == null) || (auid == null) ||
         (url == null) || version == null)
       throw new IllegalArgumentException("Null collection id, au id, url or version");
@@ -1044,7 +1058,7 @@ public class RestLockssRepository implements LockssRepository {
   /** Start a bulk store operation for the collection/auid.
    * Substantially speeds Artifact creation, but the index isn't
    * permanently updated until a matching {@link
-   * #finishBulk(String,String)} completes) */
+   * #finishBulkStore(String, String)} completes) */
   public void startBulkStore(String collection, String auid)
       throws IOException {
     doBulkOp(collection, auid, "start");

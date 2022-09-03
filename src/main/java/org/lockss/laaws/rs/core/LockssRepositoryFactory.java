@@ -187,7 +187,7 @@ public class LockssRepositoryFactory {
      * @return A {@code RestLockssRepository}.
      */
     public static RestLockssRepository createRestLockssRepository(
-	URL repositoryServiceUrl, String userName, String password) {
+	URL repositoryServiceUrl, String userName, String password) throws IOException {
         return new RestLockssRepository(repositoryServiceUrl, userName,
             password);
     }

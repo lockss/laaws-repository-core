@@ -47,18 +47,23 @@ import java.util.concurrent.TimeoutException;
  */
 public interface LockssRepository extends Ready {
 
+  enum ArchiveType {
+    ARC,
+    WARC
+  }
+
   /**
    * Imports artifacts from an archive.
    *
    * @param collectionId A {@link String} containing the collection ID of the artifacts.
    * @param auId         A {@link String} containing the AUID of the artifacts.
    * @param inputStream  The {@link InputStream} of the archive.
+   * @param type         A {@link ArchiveType} indicating the type of archive.
    * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
    * @return
    */
-  // FIXME: This may need an enum or MIME type specifying the type of archive
   Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
-                                      boolean isCompressed) throws IOException;
+                                      ArchiveType type, boolean isCompressed) throws IOException;
 
   /**
    * NEVER: Artifact content should never be included. The client does not want it, period.
