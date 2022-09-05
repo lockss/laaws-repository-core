@@ -167,7 +167,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   public OutputStream getAppendableOutputStream(Path path) throws IOException {
     synchronized (warcs) {
       if (!warcs.containsKey(path)) {
-        throw new FileNotFoundException("File not found");
+        throw new FileNotFoundException("Volatile WARC not in map: " + path);
       }
 
       return warcs.get(path);
@@ -181,7 +181,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
       if (warc == null) {
         // Translate to FileNotFound exception if the WARC could not be found in the map
-        throw new FileNotFoundException(path.toString());
+        throw new FileNotFoundException("Volatile WARC not in map: " + path);
       } else {
         InputStream is = warc.toInputStream();
         long skipped = is.skip(seek);
