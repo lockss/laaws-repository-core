@@ -350,6 +350,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
             commitArtifact(artifact);
 
             status.setArtifactId(artifact.getId());
+            status.setVersion(artifact.getVersion());
             status.setStatus(ImportStatus.StatusEnum.OK);
           } catch (Exception e) {
             log.error("Could not import artifact from archive", e);
