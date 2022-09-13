@@ -306,7 +306,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
                                              ArchiveType type, boolean isCompressed) throws IOException {
 
     if (type != ArchiveType.WARC) {
-      throw new NotImplementedException("Archive not supported");
+      throw new NotImplementedException("Archive type not supported: " + type);
     }
 
     try {
