@@ -302,8 +302,8 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @return
    */
   @Override
-  public Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
-                                             ArchiveType type, boolean isCompressed) throws IOException {
+  public ImportStatusIterable addArtifacts(String collectionId, String auId, InputStream inputStream,
+                                           ArchiveType type, boolean isCompressed) throws IOException {
 
     if (type != ArchiveType.WARC) {
       throw new NotImplementedException("Archive type not supported: " + type);

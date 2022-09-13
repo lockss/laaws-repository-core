@@ -62,7 +62,7 @@ public interface LockssRepository extends Ready {
    * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
    * @return
    */
-  Iterable<ImportStatus> addArtifacts(String collectionId, String auId, InputStream inputStream,
+  ImportStatusIterable addArtifacts(String collectionId, String auId, InputStream inputStream,
                                       ArchiveType type, boolean isCompressed) throws IOException;
 
   /**
