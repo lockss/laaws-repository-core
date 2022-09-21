@@ -1026,6 +1026,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw e;
     }
 
+    // Protect against a reader still/already reading from temporary WARC even if WARC is now removable
     boolean isInUse = TempWarcInUseTracker.INSTANCE.isInUse(tmpWarc);
 
     log.debug2("tmpWarc: {}, isWarcFileRemovable: {}, isInUse: {}",
@@ -1530,6 +1531,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           WarcFile warcFile = tmpWarcPool.getWarcFile(warcFilePath);
 
+          // If the WARC file is now gone, it means that the temp WARC GC decided it could be delete
+          // in which case this artifact must be expired:
           if (warcFile == null) {
             log.error(expiredErrorMsg);
             throw new LockssNoSuchArtifactIdException(expiredErrorMsg);
@@ -1540,7 +1543,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               log.error(expiredErrorMsg);
               throw new LockssNoSuchArtifactIdException(expiredErrorMsg);
             } else {
-              // Increment usage counter of temporary WARC
+              // Increment usage counter of temporary WARC -- cannot now mark for GC
               TempWarcInUseTracker.INSTANCE.markUseStart(warcFilePath);
             }
           }
@@ -1693,8 +1696,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           return stripedExecutor.submit(task);
 
         case PENDING_COPY:
+          // Duplicate commit call on this artifact - find and return the Future of the existing CopyArtifactTask
           CopyArtifactTask queuedTask = queuedCopyTasks.get(artifactId);
 
+          // Could be null if CopyArtifactTask completed
           return queuedTask == null ?
               new CompletedFuture<>(indexed) : queuedTask.getFuture();
 
@@ -1862,6 +1867,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // 3. Update storage URL
       // 4. Unmark
 
+      // Skip copy into permanent storage if artifact was deleted while this CopyArtifactTask was
+      // sitting in the queue
       if (!isDeleted()) {
         // TODO: What to do about IOExceptions thrown here?
         try (OutputStream output = getAppendableOutputStream(dst)) {
@@ -1921,8 +1928,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           log.trace("CopyArtifactTask done: " + getStripe());
 
-          // Thrown by updateStorageUrl call:
+        // Thrown by updateStorageUrl call:
         } catch (SolrException | IOException e) {
+          // Could not update storage URL so leave its state untouched and allow a re-copy
           if (!isDeleted()) {
             log.warn("Error updating storage URL for artifact", e);
           }
@@ -2005,7 +2013,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             tmpWarcPool.getWarcFile(getPathFromStorageUrl(new URI(artifact.getStorageUrl())));
 
         if (tmpWarcFile == null) {
-          // Q: Does this indicate a bug?
           log.warn("No temporary WARC file in pool for uncommitted artifact [artifact: {}]", artifact);
         } else {
           synchronized (tmpWarcFile) {

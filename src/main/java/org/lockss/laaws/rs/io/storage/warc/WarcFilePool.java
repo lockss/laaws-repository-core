@@ -124,16 +124,6 @@ public class WarcFilePool {
   }
 
   /**
-   * Computes the bytes used in the last block, assuming all previous blocks are maximally filled.
-   *
-   * @param size
-   * @return
-   */
-  protected long getBytesUsedLastBlock(long size) {
-    return ((size - 1) % store.getBlockSize()) + 1;
-  }
-
-  /**
    * Makes an existing {@link WarcFile} available to this pool.
    *
    * @param warcFile The {@link WarcFile} to add back to this pool.
@@ -167,18 +157,6 @@ public class WarcFilePool {
   }
 
   /**
-   * Checks whether a WARC file at a given path is a member of this pool.
-   *
-   * @param warcFilePath A {@link String} containing the path to a {@link WarcFile} object in this pool.
-   * @return A {@code boolean} indicating whether the {@link WarcFile} is a member of this pool.
-   */
-  public boolean isInPool(Path warcFilePath) {
-    synchronized (this) {
-      return getWarcFile(warcFilePath) != null;
-    }
-  }
-
-  /**
    * Removes an existing {@link WarcFile} from this pool.
    *
    * @param warcFile The instance of {@link WarcFile} to remove from this pool.
@@ -189,7 +167,7 @@ public class WarcFilePool {
   }
 
   /**
-   * Dumps a snapshot of all {@link WarcFile} objects in this pool.
+   * Dumps a snapshot of all {@link WarcFile} objects in this pool. For debugging.
    */
   public void dumpWarcFilesPoolInfo() {
     long totalBlocksAllocated = 0;
@@ -254,7 +232,8 @@ public class WarcFilePool {
         }
       }
 
-      // Remove WARCs from pool while synchronized on the pool
+      // Remove WARCs from pool while synchronized on the pool - we do this to avoid concurrent
+      // modification exceptions/errors
       for (WarcFile warc : removableWarcs) {
         removeWarcFileFromPool(warc);
       }
@@ -275,7 +254,7 @@ public class WarcFilePool {
         ArtifactContainerStats stats = warc.getStats();
 
         try {
-          // Remove index references if there are any uncommitted
+          // Remove index references if there are any expired artifacts
           if (stats.getArtifactsUncommitted() != 0) {
             ArtifactIndex index = store.getArtifactIndex();
 

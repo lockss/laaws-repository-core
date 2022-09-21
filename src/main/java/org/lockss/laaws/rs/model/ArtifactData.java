@@ -241,7 +241,6 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
             }
           },
           this);
-      // origInputStream = null;
       inputStreamUsed = true;
     } catch (NoSuchAlgorithmException e) {
       String errMsg = String.format(
