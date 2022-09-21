@@ -69,7 +69,7 @@ public class WarcFilePool {
    */
   protected WarcFile createWarcFile() throws IOException {
     Path basePath = Arrays.stream(store.getBasePaths())
-        .max((a, b) -> (int) (store.getFreeSpace(b) - store.getFreeSpace(a)))
+        .max((a, b) -> (int) (store.getFreeSpace(a) - store.getFreeSpace(b)))
         .orElse(null);
 
     Path tmpWarcDir = basePath.resolve(WarcArtifactDataStore.TMP_WARCS_DIR);
@@ -94,7 +94,9 @@ public class WarcFilePool {
   public WarcFile checkoutWarcFileForWrite() throws IOException {
     synchronized (this) {
       Optional<WarcFile> optWarc = allWarcs.stream()
-          .filter(warc -> warc.getStats().getArtifactsUncommitted() <= store.getMaxArtifactsThreshold())
+          .filter(warc -> warc.getStats().getArtifactsTotal() < store.getMaxArtifactsThreshold())
+          // TODO: Implement separate thresholds for temp and permanent WARCs
+          .filter(warc -> warc.getLength() < store.getThresholdWarcSize())
           .filter(warc -> warc.isCompressed() == store.getUseWarcCompression())
           .filter(warc -> !warc.isCheckedOut())
           .findAny();
@@ -162,8 +164,10 @@ public class WarcFilePool {
    * @param warcFile The instance of {@link WarcFile} to remove from this pool.
    */
   private void removeWarcFileFromPool(WarcFile warcFile) {
-    fullWarcs.remove(warcFile);
-    allWarcs.remove(warcFile);
+    synchronized (this) {
+      fullWarcs.remove(warcFile);
+      allWarcs.remove(warcFile);
+    }
   }
 
   /**
@@ -207,7 +211,7 @@ public class WarcFilePool {
 
   public void runGC() {
     // WARCs to GC
-    List<WarcFile> removableWarcs = new LinkedList<>();
+    List<WarcFile> removableWarcs = new ArrayList<>();
 
     // Determine which WARCs to GC; remove from pool while synchronized
     synchronized (this) {
@@ -310,7 +314,9 @@ public class WarcFilePool {
             // FIXME: This could be made faster if the API allowed getting artifacts for more than
             //  one artifact ID at a time:
             Artifact indexed = index.getArtifact(artifactId);
-            indexedArtifacts.put(artifactId, indexed);
+            if (indexed != null) {
+              indexedArtifacts.put(artifactId, indexed);
+            }
             break;
 
           default:

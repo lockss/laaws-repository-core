@@ -1672,7 +1672,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           synchronized (tmpWarcFile) {
             if (tmpWarcFile.isMarkedForGC()) {
               // Fail - too late to commit; we've already committed to GCing this WARC
-              // TODO
+              // TODO: Revisit whether to return null or throw
+              return null;
             }
 
             ArtifactContainerStats tmpWarcStats = tmpWarcFile.getStats();
@@ -1701,7 +1702,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Could be null if CopyArtifactTask completed
           return queuedTask == null ?
-              new CompletedFuture<>(indexed) : queuedTask.getFuture();
+              new CompletedFuture<>(getArtifactIndex().getArtifact(artifactId)) :
+              queuedTask.getFuture();
 
         case COPIED:
           // This artifact is already in permanent storage. Wrap in Future and return it.
@@ -1779,8 +1781,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       return isDeleted;
     }
 
-    public void setDeleted(boolean deleted) {
-      isDeleted = deleted;
+    public void setDeleted() {
+      isDeleted = true;
     }
 
     public Future<Artifact> getFuture() {
@@ -1932,7 +1934,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         } catch (SolrException | IOException e) {
           // Could not update storage URL so leave its state untouched and allow a re-copy
           if (!isDeleted()) {
-            log.warn("Error updating storage URL for artifact", e);
+            log.error("Error updating storage URL for artifact", e);
+            // Q: Is this correct for the reload process?
+            return artifact;
           }
         }
       }
@@ -1991,7 +1995,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       CopyArtifactTask queuedTask = queuedCopyTasks.get(artifactId);
 
       if (queuedTask != null) {
-        queuedTask.setDeleted(true);
+        queuedTask.setDeleted();
       }
 
       //// Delete artifact reference from the index
@@ -2913,7 +2917,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       writeWarcRecord(record, cout);
       return cout.getCount();
     } finally {
-      record.getContentStream().close();
+      IOUtils.closeQuietly(record.getContentStream());
     }
   }
 

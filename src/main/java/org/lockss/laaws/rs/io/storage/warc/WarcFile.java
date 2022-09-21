@@ -54,8 +54,9 @@ public class WarcFile {
     return isCheckedOut;
   }
 
-  public void setCheckedOut(boolean checkedOut) {
+  public WarcFile setCheckedOut(boolean checkedOut) {
     isCheckedOut = checkedOut;
+    return this;
   }
 
   public ArtifactContainerStats getStats() {
