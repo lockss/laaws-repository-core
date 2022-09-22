@@ -1422,6 +1422,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           log.debug2("WARC record compression ratio: {} [compressed: {}, uncompressed: {}]",
               (float) recordLength / storedRecordLength, storedRecordLength, recordLength);
         }
+      } catch (IOException e) {
+        // Error writing artifact to WARC: Close WARC from further writes
+        log.error("Could not write artifact to temporary WARC", e);
+        tmpWarc.release();
+        throw e;
       } finally {
         // Return temporary WARC file to pool
         tmpWarcPool.returnWarcFile(tmpWarc);

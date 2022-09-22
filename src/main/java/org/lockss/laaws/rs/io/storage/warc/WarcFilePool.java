@@ -134,12 +134,12 @@ public class WarcFilePool {
     // Q: Synchronize on the WarcFile? Should be unnecessary since this thread should have it exclusively
     boolean isSizeReached = warcFile.getLength() > store.getThresholdWarcSize();
     boolean isArtifactsReached = warcFile.getStats().getArtifactsTotal() >= store.getMaxArtifactsThreshold();
-    boolean isFullWarcFile = isSizeReached || isArtifactsReached;
+    boolean readyForGC = isSizeReached || isArtifactsReached || warcFile.isReleased();
 
     synchronized (this) {
       warcFile.setCheckedOut(false);
 
-      if (isFullWarcFile) {
+      if (readyForGC) {
         fullWarcs.add(warcFile);
         allWarcs.remove(warcFile);
       }

@@ -49,6 +49,7 @@ public class WarcFile {
   private boolean isMarkedForGC = false;
   private boolean isCheckedOut = false;
   private final ArtifactContainerStats stats = new ArtifactContainerStats();
+  private boolean isReleased = false;
 
   public boolean isCheckedOut() {
     return isCheckedOut;
@@ -102,6 +103,14 @@ public class WarcFile {
 
   public void setMarkedForGC() {
     this.isMarkedForGC = true;
+  }
+
+  public void release() {
+    this.isReleased = true;
+  }
+
+  public boolean isReleased() {
+    return isReleased;
   }
 
   @Override
