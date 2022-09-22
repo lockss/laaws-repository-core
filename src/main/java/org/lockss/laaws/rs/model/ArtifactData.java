@@ -184,7 +184,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * @return true if this artifact's byte stream is available
    */
   public boolean hasContentInputStream() {
-    return origInputStream != null;
+    return origInputStream != null && !inputStreamUsed;
   }
 
   /**
