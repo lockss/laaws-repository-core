@@ -119,7 +119,10 @@ public class WarcFile {
         "path=" + path +
         ", isCompressed=" + isCompressed +
         ", length=" + length +
-        ", stats=" + super.toString() +
+        ", isMarkedForGC=" + isMarkedForGC +
+        ", isCheckedOut=" + isCheckedOut +
+        ", stats=" + stats +
+        ", isReleased=" + isReleased +
         '}';
   }
 }
