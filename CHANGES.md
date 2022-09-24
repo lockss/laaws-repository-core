@@ -2,11 +2,14 @@
 
 ## Changes Since 2.16.0
 
-* Support for "bulk storage mode" for migration from class LOCKSS daemons.
+* Added addArtifacts REST endpoint to allow bulk import of artifacts from (WARC) archives.
+* Significantly improved temporary WARC garbage collection performance, which allows it to be 
+    performed far more frequently.
+* Support for "bulk storage mode" for migration from the classic LOCKSS daemon (1.76).
 * Improvements to `SolrArtifactIndex` (and clients of it) to be more judicious about when and 
     where Solr commits are performed and number of queries performed.
 * Numerous internal improvements and bug fixes. E.g., removed the use of `DeferredTempFileOputStream` 
-    in the serialization of artifacts to WARC records in `WarcArtifactDataStore`.
+    in the serialization of artifacts to WARC records in `WarcArtifactDataStore`. 
 * Support for filesystems larger than 8 EiB.
 
 ## Changes Since 2.15.0
