@@ -132,7 +132,7 @@ public class WarcFilePool {
    */
   public void returnWarcFile(WarcFile warcFile) {
     // Q: Synchronize on the WarcFile? Should be unnecessary since this thread should have it exclusively
-    boolean isSizeReached = warcFile.getLength() > store.getThresholdWarcSize();
+    boolean isSizeReached = warcFile.getLength() >= store.getThresholdWarcSize();
     boolean isArtifactsReached = warcFile.getStats().getArtifactsTotal() >= store.getMaxArtifactsThreshold();
     boolean readyForGC = isSizeReached || isArtifactsReached || warcFile.isReleased();
 
@@ -154,8 +154,18 @@ public class WarcFilePool {
    */
   public boolean isInPool(WarcFile warcFile) {
     synchronized (this) {
-      return allWarcs.contains(warcFile);
+      return allWarcs.contains(warcFile) || fullWarcs.contains(warcFile);
     }
+  }
+
+  /**
+   * Checks whether a {@link WarcFile} of a given path is a member of this pool.
+   *
+   * @param warcFilePath The {@link Path} to check.
+   * @return A {@code boolean} indicating whether the {@link WarcFile} is a member of this pool.
+   */
+  public boolean isInPool(Path warcFilePath) {
+    return isInPool(getWarcFile(warcFilePath));
   }
 
   /**

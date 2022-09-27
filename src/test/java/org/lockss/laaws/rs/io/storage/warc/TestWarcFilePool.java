@@ -215,33 +215,42 @@ class TestWarcFilePool extends LockssTestCase5 {
     when(store.getThresholdWarcSize()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
     when(store.getMaxArtifactsThreshold()).thenReturn(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
-    WarcFilePool pool = new WarcFilePool(store);
-
-    // Assert WarcFile is not returned to the pool if artifact counter threshold is met
+    // Assert WarcFile membership in the pool when artifact counter threshold is met and returned
     {
+      WarcFilePool pool = new WarcFilePool(store);
       WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
       warc.getStats().setArtifactsTotal(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
 
       pool.returnWarcFile(warc);
+      assertTrue(pool.isInPool(warc));
+
+      pool.runGC();
       assertFalse(pool.isInPool(warc));
     }
 
-    // Assert WarcFile is not returned to the pool if temporary WARC file size threshold is met
+    // Assert WarcFile membership in the pool when file size threshold is met and returned
     {
+      WarcFilePool pool = new WarcFilePool(store);
       WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
       warc.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
 
       pool.returnWarcFile(warc);
+      assertTrue(pool.isInPool(warc));
+
+      pool.runGC();
       assertFalse(pool.isInPool(warc));
     }
 
-    // Assert WarcFile is removed from pool if temporary WARC file size and artifact counter thresholds are met
+    // Assert WarcFile membership in the pool when marked for release and returned
     {
+      WarcFilePool pool = new WarcFilePool(store);
       WarcFile warc = new WarcFile(Paths.get("/lockss/test.warc"), false);
-      warc.setLength(WarcArtifactDataStore.DEFAULT_THRESHOLD_WARC_SIZE);
-      warc.getStats().setArtifactsUncommitted(WarcArtifactDataStore.DEFAULT_THRESHOLD_ARTIFACTS);
+      warc.release();
 
       pool.returnWarcFile(warc);
+      assertTrue(pool.isInPool(warc));
+
+      pool.runGC();
       assertFalse(pool.isInPool(warc));
     }
   }
