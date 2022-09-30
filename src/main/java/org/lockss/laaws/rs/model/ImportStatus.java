@@ -61,6 +61,9 @@ public class ImportStatus   {
   @JsonProperty("artifactId")
   private String artifactId = null;
 
+  @JsonProperty("digest")
+  private String digest = null;
+
   @JsonProperty("version")
   private Integer version = null;
 
@@ -181,6 +184,26 @@ public class ImportStatus   {
     this.artifactId = artifactId;
   }
 
+  public ImportStatus digest(String digest) {
+    this.digest = digest;
+    return this;
+  }
+
+  /**
+   * Get digest
+   * @return digest
+  **/
+  @ApiModelProperty(value = "")
+
+
+  public String getDigest() {
+    return digest;
+  }
+
+  public void setDigest(String digest) {
+    this.digest = digest;
+  }
+
   public ImportStatus version(Integer version) {
     this.version = version;
     return this;
@@ -255,6 +278,7 @@ public class ImportStatus   {
         Objects.equals(this.offset, importStatus.offset) &&
         Objects.equals(this.url, importStatus.url) &&
         Objects.equals(this.artifactId, importStatus.artifactId) &&
+        Objects.equals(this.digest, importStatus.digest) &&
         Objects.equals(this.version, importStatus.version) &&
         Objects.equals(this.status, importStatus.status) &&
         Objects.equals(this.statusMessage, importStatus.statusMessage);
@@ -262,7 +286,7 @@ public class ImportStatus   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(warcId, offset, url, artifactId, version, status, statusMessage);
+    return Objects.hash(warcId, offset, url, artifactId, digest, version, status, statusMessage);
   }
 
   @Override
@@ -274,6 +298,7 @@ public class ImportStatus   {
     sb.append("    offset: ").append(toIndentedString(offset)).append("\n");
     sb.append("    url: ").append(toIndentedString(url)).append("\n");
     sb.append("    artifactId: ").append(toIndentedString(artifactId)).append("\n");
+    sb.append("    digest: ").append(toIndentedString(digest)).append("\n");
     sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    statusMessage: ").append(toIndentedString(statusMessage)).append("\n");
