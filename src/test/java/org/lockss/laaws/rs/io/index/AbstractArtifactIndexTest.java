@@ -169,6 +169,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete().thenCommit());
         specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit().thenDelete());
         break;
+      case "unicode":
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "111").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "ZZZ").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "zzz").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "\u03BA\u1F79\u03C3\u03BC\u03B5").thenCommit());
+        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung").thenCommit());
+        break;
     }
 
     return specs;
@@ -326,6 +333,33 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         .setCollection("collection")
         .setAuid("auid")
         .setUrl("url")
+        .setVersion(1)
+        .setCollectionDate(TimeBase.nowMs())
+        .setStorageUrl(new URI("storageUrl"))
+        .setContentLength(1232L)
+        .setCommitted(true)
+        .setDeleted(false);
+
+    spec.generateContent();
+
+    ArtifactState state = ArtifactState.UNKNOWN;
+    if (spec.isCommitted()) state = ArtifactState.PENDING_COPY;
+    if (spec.isDeleted()) state = ArtifactState.DELETED;
+
+    ArtifactData ad = spec.getArtifactData();
+    ad.setArtifactState(state);
+
+    Artifact indexed = index.indexArtifact(ad);
+
+    assertEquals(spec.isCommitted(), indexed.isCommitted());
+  }
+
+  public void testIndexUnicodeArtfact_artifactRepoState() throws Exception {
+    ArtifactSpec spec = new ArtifactSpec()
+        .setArtifactId(UUID.randomUUID().toString())
+        .setCollection("collection")
+        .setAuid("auid")
+        .setUrl("Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung") // Heizölrückstoßabdämpfung
         .setVersion(1)
         .setCollectionDate(TimeBase.nowMs())
         .setStorageUrl(new URI("storageUrl"))
