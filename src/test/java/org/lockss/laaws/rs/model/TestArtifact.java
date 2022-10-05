@@ -62,7 +62,7 @@ public class TestArtifact extends LockssTestCase5 {
       }
 
       expectedMessage =
-	  "Cannot create Artifact with null or empty collection";
+	  "Cannot create Artifact with null or empty namespace";
 
       try {
 	new Artifact("aidid", null, null, null, null, null, null, 0, null);
@@ -172,7 +172,7 @@ public class TestArtifact extends LockssTestCase5 {
 
       Artifact aidata = new Artifact("aidid", "coll", "auid", "uri", 0, Boolean.TRUE, "surl", 0, null);
       assertEquals("aidid", aidata.getId());
-      assertEquals("coll", aidata.getCollection());
+      assertEquals("coll", aidata.getNamespace());
       assertEquals("auid", aidata.getAuid());
       assertEquals("uri", aidata.getUri());
       assertEquals(0, (int)aidata.getVersion());
@@ -184,10 +184,10 @@ public class TestArtifact extends LockssTestCase5 {
     public void testSetters() {
       Artifact aidata = new Artifact("aidid", "coll", "auid", "uri", 0, Boolean.TRUE, "surl", 0, null);
 
-      String expectedMessage = "Cannot set null or empty collection";
+      String expectedMessage = "Cannot set null or empty namespace";
 
       try {
-	aidata.setCollection(null);
+	aidata.setNamespace(null);
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
@@ -195,15 +195,15 @@ public class TestArtifact extends LockssTestCase5 {
       }
 
       try {
-	aidata.setCollection("");
+	aidata.setNamespace("");
         fail("Should have thrown IllegalArgumentException(" + expectedMessage
   	  + ")");
       } catch (IllegalArgumentException iae) {
         assertEquals(expectedMessage, iae.getMessage());
       }
 
-      aidata.setCollection("newColl");
-      assertEquals("newColl", aidata.getCollection());
+      aidata.setNamespace("newColl");
+      assertEquals("newColl", aidata.getNamespace());
 
       expectedMessage = "Cannot set null or empty auid";
 

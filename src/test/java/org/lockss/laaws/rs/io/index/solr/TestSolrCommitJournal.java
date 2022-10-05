@@ -83,7 +83,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
     public void testLogOperation() throws Exception {
       ArtifactIdentifier artifactId = new ArtifactIdentifier(
           "test-artifact",
-          "test-collection",
+          "test-namespace",
           "test-auid",
           "test-url",
           1
@@ -122,7 +122,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
 
         String json = "{\n" +
             "  \"id\":\"test-artifact\",\n" +
-            "  \"collection\":\"test-collection\",\n" +
+            "  \"namespace\":\"test-namespace\",\n" +
             "  \"auid\":\"test-auid\",\n" +
             "  \"uri\":\"test-url\",\n" +
             "  \"sortUri\":\"test-url\",\n" +
@@ -292,7 +292,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
     private void testReplaySolrJournal_ADD() throws Exception {
       ArtifactIdentifier ADD_ARTIFACTID = new ArtifactIdentifier(
           "test-artifact",
-          "test-collection",
+          "test-namespace",
           "test-auid",
           "test-url",
           1
@@ -316,7 +316,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
 
       Path ADD_FILE = writeTmpFile(CSV_HEADERS + "1636690761743,test-artifact,ADD,\"{\n" +
           "  \"\"id\"\":\"\"test-artifact\"\",\n" +
-          "  \"\"collection\"\":\"\"test-collection\"\",\n" +
+          "  \"\"namespace\"\":\"\"test-namespace\"\",\n" +
           "  \"\"auid\"\":\"\"test-auid\"\",\n" +
           "  \"\"uri\"\":\"\"test-url\"\",\n" +
           "  \"\"sortUri\"\":\"\"test-url\"\",\n" +

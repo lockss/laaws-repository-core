@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.*;
 
-import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -71,20 +70,20 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   /** Return true if the artifactId's {collection,auid} is declared to
    * be in the temp index */
   private ArtifactIndex findIndexHolding(ArtifactIdentifier artifactId) {
-    return findIndexHolding(artifactId.getCollection(), artifactId.getAuid());
+    return findIndexHolding(artifactId.getNamespace(), artifactId.getAuid());
   }
 
   /** Return true if the stem's {collection,auid} is declared to be in
    * the temp index */
   private ArtifactIndex findIndexHolding(ArtifactIdentifier.ArtifactStem stem) {
-    return findIndexHolding(stem.getCollection(), stem.getAuid());
+    return findIndexHolding(stem.getNamespace(), stem.getAuid());
   }
 
   /** Return true if the ArtifactData's {collection,auid} is declared
    * to be in the temp index */
   private ArtifactIndex findIndexHolding(ArtifactData ad) {
     ArtifactIdentifier id = ad.getIdentifier();
-    return findIndexHolding(id.getCollection(), id.getAuid());
+    return findIndexHolding(id.getNamespace(), id.getAuid());
   }
 
   /** Return the temp index in which the artifactId is found, or the

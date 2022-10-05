@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
@@ -139,7 +138,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactIdentifier identifier = artifact.getIdentifier();
             assertNotNull(identifier);
             assertEquals("id1", identifier.getId());
-            assertEquals("coll1", identifier.getCollection());
+            assertEquals("coll1", identifier.getNamespace());
             assertEquals("auid1", identifier.getAuid());
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
@@ -195,7 +194,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactIdentifier identifier = artifact.getIdentifier();
             assertNotNull(identifier);
             assertEquals("id1", identifier.getId());
-            assertEquals("coll1", identifier.getCollection());
+            assertEquals("coll1", identifier.getNamespace());
             assertEquals("auid1", identifier.getAuid());
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
@@ -252,7 +251,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 ArtifactIdentifier identifier = artifact.getIdentifier();
                 assertNotNull(identifier);
                 assertEquals("id1", identifier.getId());
-                assertEquals("coll1", identifier.getCollection());
+                assertEquals("coll1", identifier.getNamespace());
                 assertEquals("auid1", identifier.getAuid());
                 assertEquals("url1", identifier.getUri());
                 assertEquals("v1", identifier.getVersion());

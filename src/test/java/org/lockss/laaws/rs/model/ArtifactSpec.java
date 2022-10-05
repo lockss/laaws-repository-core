@@ -85,7 +85,7 @@ public class ArtifactSpec implements Comparable<Object> {
     }
   }
 
-  protected static String COLL1 = "coll1";
+  protected static String NS1 = "ns1";
   protected static String AUID1 = "auid1";
 
   protected static StatusLine STATUS_LINE_OK =
@@ -100,21 +100,21 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR =
-      Comparator.comparing(ArtifactSpec::getCollection)
+      Comparator.comparing(ArtifactSpec::getNamespace)
       .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
       .thenComparing(
 	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
   public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR_BY_URL =
-      Comparator.comparing(ArtifactSpec::getCollection)
+      Comparator.comparing(ArtifactSpec::getNamespace)
       .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
       .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(
 	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
   // Identifying fields used in lookups
-  String coll = COLL1;
+  String ns = NS1;
   String auid = AUID1;
   String url;
   int fixedVer = -1;
@@ -151,23 +151,23 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactSpec copy() {
-    return ArtifactSpec.forCollAuUrl(coll, auid, url)
+    return ArtifactSpec.forNsAuUrl(ns, auid, url)
         .setStatusLine(getStatusLine())
         .setHeaders(new HashMap<String, String>(getHeaders()))
         .setContent(getContent())
         .setContentLength(len);
   }
 
-  public static ArtifactSpec forCollAuUrl(String coll, String auid, String url) {
+  public static ArtifactSpec forNsAuUrl(String ns, String auid, String url) {
     return new ArtifactSpec()
-        .setCollection(coll)
+        .setNamespace(ns)
         .setAuid(auid)
         .setUrl(url);
   }
 
-  public static ArtifactSpec forCollAuUrlVer(String coll, String auid,
+  public static ArtifactSpec forCollAuUrlVer(String ns, String auid,
                                         String url, int version) {
-    return ArtifactSpec.forCollAuUrl(coll, auid, url).setVersion(version);
+    return ArtifactSpec.forNsAuUrl(ns, auid, url).setVersion(version);
   }
 
   public ArtifactSpec setUrl(String url) {
@@ -180,8 +180,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return this;
   }
 
-  public ArtifactSpec setCollection(String coll) {
-    this.coll = coll;
+  public ArtifactSpec setNamespace(String ns) {
+    this.ns = ns;
     return this;
   }
 
@@ -290,8 +290,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return url;
   }
 
-  public String getCollection() {
-    return coll;
+  public String getNamespace() {
+    return ns;
   }
 
   public String getAuid() {
@@ -451,13 +451,13 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactIdentifier getArtifactIdentifier() {
-    return new ArtifactIdentifier(artId, coll, auid, url, getVersion());
+    return new ArtifactIdentifier(artId, ns, auid, url, getVersion());
   }
 
   public Artifact getArtifact() {
     Artifact artifact = new Artifact(
         getArtifactId(),
-        getCollection(),
+        getNamespace(),
         getAuid(),
         getUrl(),
         getVersion(),
@@ -503,7 +503,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   /**
-   * Order agrees with repository enumeration order: collection, auid,
+   * Order agrees with repository enumeration order: namespace, auid,
    * url, version high-to-low
    */
   public int compareTo(Object o) {
@@ -513,29 +513,29 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   /**
-   * Return a key that's unique to the collection,au,url
+   * Return a key that's unique to the namespace,au,url
    */
   public String artButVerKey() {
-    return getCollection() + "|" + getAuid() + "|" + getUrl();
+    return getNamespace() + "|" + getAuid() + "|" + getUrl();
   }
 
   /**
-   * true if other refers to an artifact with the same collection, auid
+   * true if other refers to an artifact with the same namespace, auid
    * and url, independent of version.
    */
   public boolean sameArtButVer(ArtifactSpec other) {
     return artButVerKey().equals(other.artButVerKey());
   }
 
-  /** true if other refers to an artifact with the same collection
+  /** true if other refers to an artifact with the same namespace
    * and url, independent of AU and version. */
   public boolean sameArtButVerAllAus(ArtifactSpec other) {
     return artButVerKeyAllAus().equals(other.artButVerKeyAllAus());
   }
 
-  /** Return a key that's unique to the collection,url */
+  /** Return a key that's unique to the namespace,url */
   public String artButVerKeyAllAus() {
-    return getCollection() + "|" + getUrl();
+    return getNamespace() + "|" + getUrl();
   }
 
   /**
@@ -554,7 +554,7 @@ public class ArtifactSpec implements Comparable<Object> {
       }
 
       // Test for getArtifactData(String, String)
-      try (ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId())) {
+      try (ArtifactData ad2 = repository.getArtifactData(getNamespace(), art.getId())) {
         Assertions.assertEquals(getContentLength(), ad2.getContentLength());
         Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
         assertArtifactData(ad2);
@@ -586,7 +586,7 @@ public class ArtifactSpec implements Comparable<Object> {
     Assertions.assertNotNull(art, "Comparing with " + this);
 
 //    Assertions.assertEquals(getArtifactId(), art.getId());
-    Assertions.assertEquals(getCollection(), art.getCollection(), "Collection");
+    Assertions.assertEquals(getNamespace(), art.getNamespace(), "Namespace");
     Assertions.assertEquals(getUrl(), art.getUri(), "URL");
     Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
     Assertions.assertEquals(isCommitted(), art.getCommitted(),
@@ -644,7 +644,7 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(String.format("[ArtifactSpec: (%s,%s,%s,%d)", url, coll, auid, fixedVer));
+    sb.append(String.format("[ArtifactSpec: (%s,%s,%s,%d)", url, ns, auid, fixedVer));
     if (isCommitted()) {
       sb.append("C");
     }

@@ -264,7 +264,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     try {
       // Retrieve latest version in this URL lineage
       Artifact latestVersion = index.getArtifact(
-          artifactId.getCollection(),
+          artifactId.getNamespace(),
           artifactId.getAuid(),
           artifactId.getUri(),
           true
@@ -274,7 +274,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       ArtifactIdentifier newId = new ArtifactIdentifier(
           // Assign a new artifact ID
           UUID.randomUUID().toString(), // FIXME: Namespace collision unlikely but possible
-          artifactId.getCollection(),
+          artifactId.getNamespace(),
           artifactId.getAuid(),
           artifactId.getUri(),
           // Set the next version
@@ -341,7 +341,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
             assert ad != null;
 
             ArtifactIdentifier aid = ad.getIdentifier();
-            aid.setCollection(collectionId);
+            aid.setNamespace(collectionId);
             aid.setAuid(auId);
             aid.setUri(header.getUrl());
 
@@ -394,9 +394,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String collection, String artifactId) throws IOException {
-    if (collection == null || artifactId == null) {
-      throw new IllegalArgumentException("Null collection ID or artifact ID");
+  public ArtifactData getArtifactData(String namespace, String artifactId) throws IOException {
+    if (namespace == null || artifactId == null) {
+      throw new IllegalArgumentException("Null namespace ID or artifact ID");
     }
 
     // FIXME: Change WarcArtifactDataStore#getArtifactData signature to take an artifactId.
@@ -429,7 +429,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public Artifact commitArtifact(String collection, String artifactId) throws IOException {
     if ((collection == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+      throw new IllegalArgumentException("Null namespace or artifact id");
     }
 
     // Get artifact as it is currently
@@ -457,9 +457,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @throws IOException
    */
   @Override
-  public void deleteArtifact(String collection, String artifactId) throws IOException {
-    if (collection == null || artifactId == null) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+  public void deleteArtifact(String namespace, String artifactId) throws IOException {
+    if (namespace == null || artifactId == null) {
+      throw new IllegalArgumentException("Null namespace or artifact id");
     }
 
     Artifact artifact = index.getArtifact(artifactId);
@@ -480,9 +480,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @return A boolean indicating whether the artifact is committed.
    */
   @Override
-  public Boolean isArtifactCommitted(String collectionId, String artifactId) throws IOException {
-    if (collectionId == null || artifactId == null) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+  public Boolean isArtifactCommitted(String namespace, String artifactId) throws IOException {
+    if (namespace == null || artifactId == null) {
+      throw new IllegalArgumentException("Null namespace or artifact id");
     }
 
     Artifact artifact = index.getArtifact(artifactId);
@@ -502,7 +502,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * collection identifiers.
    */
   @Override
-  public Iterable<String> getCollectionIds() throws IOException {
+  public Iterable<String> getNamespaces() throws IOException {
     return index.getCollectionIds();
   }
 
@@ -516,7 +516,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public Iterable<String> getAuIds(String collection) throws IOException {
     if (collection == null) {
-      throw new IllegalArgumentException("Null collection");
+      throw new IllegalArgumentException("Null namespace");
     }
 
     return index.getAuIds(collection);
@@ -525,34 +525,34 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the collection ID.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
    * @throws IOException
    */
   @Override
-  public Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
-    if (collection == null || auid == null) {
-      throw new IllegalArgumentException("Null collection id or au id");
+  public Iterable<Artifact> getArtifacts(String namespace, String auid) throws IOException {
+    if (namespace == null || auid == null) {
+      throw new IllegalArgumentException("Null namespace or au id");
     }
 
-    return index.getArtifacts(collection, auid);
+    return index.getArtifacts(namespace, auid);
   }
 
   /**
    * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the collection identifier.
    * @param auid       A String with the Archival Unit identifier.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) throws IOException {
-    if (collection == null || auid == null) {
-      throw new IllegalArgumentException("Null collection id or au id");
+  public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid) throws IOException {
+    if (namespace == null || auid == null) {
+      throw new IllegalArgumentException("Null namespace or au id");
     }
 
-    return index.getArtifactsAllVersions(collection, auid);
+    return index.getArtifactsAllVersions(namespace, auid);
   }
 
   /**
@@ -568,7 +568,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
     if (collection == null || auid == null || prefix == null) {
-      throw new IllegalArgumentException("Null collection id, au id or prefix");
+      throw new IllegalArgumentException("Null namespace, au id or prefix");
     }
 
     return index.getArtifactsWithPrefix(collection, auid, prefix);
@@ -587,7 +587,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
     if (collection == null || auid == null || prefix == null) {
-      throw new IllegalArgumentException("Null collection id, au id or prefix");
+      throw new IllegalArgumentException("Null namespace, au id or prefix");
     }
 
     return index.getArtifactsWithPrefixAllVersions(collection, auid, prefix);
@@ -608,7 +608,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
                                                                 ArtifactVersions versions) throws IOException {
 
     if (collection == null || prefix == null) {
-      throw new IllegalArgumentException("Null collection id or prefix");
+      throw new IllegalArgumentException("Null namespace or prefix");
     }
 
     return index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, versions);
@@ -617,39 +617,39 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
    *
-   * @param collection A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the collection identifier.
    * @param auid       A {@code String} with the Archival Unit identifier.
    * @param url        A {@code String} with the URL to be matched.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
    * Archival Unit.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
-    if (collection == null || auid == null || url == null) {
-      throw new IllegalArgumentException("Null collection id, au id or url");
+  public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid, String url) throws IOException {
+    if (namespace == null || auid == null || url == null) {
+      throw new IllegalArgumentException("Null namespace, au id or url");
     }
 
-    return index.getArtifactsAllVersions(collection, auid, url);
+    return index.getArtifactsAllVersions(namespace, auid, url);
   }
 
   /**
    * Returns the committed artifacts of all versions of a given URL, from a specified collection.
    *
-   * @param collection A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the collection identifier.
    * @param url        A {@code String} with the URL to be matched.
    * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
    *                   versions of an artifact.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions)
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String namespace, String url, ArtifactVersions versions)
       throws IOException {
 
-    if (collection == null || url == null) {
-      throw new IllegalArgumentException("Null collection id or url");
+    if (namespace == null || url == null) {
+      throw new IllegalArgumentException("Null namespace or url");
     }
 
-    return index.getArtifactsWithUrlFromAllAus(collection, url, versions);
+    return index.getArtifactsWithUrlFromAllAus(namespace, url, versions);
   }
 
   /**
@@ -664,7 +664,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public Artifact getArtifact(String collection, String auid, String url) throws IOException {
     if (collection == null || auid == null || url == null) {
-      throw new IllegalArgumentException("Null collection id, au id or url");
+      throw new IllegalArgumentException("Null namespace, au id or url");
     }
 
     return index.getArtifact(collection, auid, url);
@@ -673,7 +673,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the collection identifier.
    * @param auid       A String with the Archival Unit identifier.
    * @param url        A String with the URL to be matched.
    * @param version    A String with the version.
@@ -683,30 +683,30 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
    */
   @Override
-  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
-    if (collection == null || auid == null || url == null || version == null) {
-      throw new IllegalArgumentException("Null collection id, au id, url or version");
+  public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
+    if (namespace == null || auid == null || url == null || version == null) {
+      throw new IllegalArgumentException("Null namespace, au id, url or version");
     }
 
-    return index.getArtifactVersion(collection, auid, url, version,
+    return index.getArtifactVersion(namespace, auid, url, version,
         includeUncommitted);
   }
 
   /**
    * Returns the size, in bytes, of AU in a collection.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the collection ID.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return A {@link AuSize} with byte size statistics of the specified AU.
    */
   @Override
-  public AuSize auSize(String collection, String auid) throws IOException {
-    if (collection == null || auid == null) {
-      throw new IllegalArgumentException("Null collection id or au id");
+  public AuSize auSize(String namespace, String auid) throws IOException {
+    if (namespace == null || auid == null) {
+      throw new IllegalArgumentException("Null namespace or au id");
     }
 
     // Get AU size from index query
-    AuSize auSize = index.auSize(collection, auid);
+    AuSize auSize = index.auSize(namespace, auid);
 
 //    long allVersionSize = index.auSize(collection, auid, true);
 //    auSize.setTotalAllVersions();
@@ -714,7 +714,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
 //    long latestVersionsSize = index.auSize(collection, auid, false);
 //    auSize.setTotalLatestVersions();
 
-    long totalWarcSize = getArtifactDataStore().auWarcSize(collection, auid);
+    long totalWarcSize = getArtifactDataStore().auWarcSize(namespace, auid);
     auSize.setTotalWarcSize(totalWarcSize);
 
     return auSize;

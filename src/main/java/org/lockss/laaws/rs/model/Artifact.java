@@ -50,8 +50,8 @@ public class Artifact implements Serializable {
     @Field("id")
     private String id;
 
-    @Field("collection")
-    private String collection;
+    @Field("namespace")
+    private String namespace;
 
     @Field("auid")
     private String auid;
@@ -91,7 +91,7 @@ public class Artifact implements Serializable {
 
     public Artifact(ArtifactIdentifier aid, Boolean committed, String storageUrl, long contentLength, String contentDigest) {
         this(
-                aid.getId(), aid.getCollection(), aid.getAuid(), aid.getUri(), aid.getVersion(),
+                aid.getId(), aid.getNamespace(), aid.getAuid(), aid.getUri(), aid.getVersion(),
                 committed,
                 storageUrl,
                 contentLength,
@@ -99,19 +99,19 @@ public class Artifact implements Serializable {
         );
     }
 
-    public Artifact(String id, String collection, String auid, String uri, Integer version, Boolean committed,
-                             String storageUrl, long contentLength, String contentDigest) {
+    public Artifact(String id, String namespace, String auid, String uri, Integer version, Boolean committed,
+                    String storageUrl, long contentLength, String contentDigest) {
         if (StringUtils.isEmpty(id)) {
           throw new IllegalArgumentException(
               "Cannot create Artifact with null or empty id");
         }
         this.id = id;
 
-        if (StringUtils.isEmpty(collection)) {
+        if (StringUtils.isEmpty(namespace)) {
           throw new IllegalArgumentException(
-              "Cannot create Artifact with null or empty collection");
+              "Cannot create Artifact with null or empty namespace");
         }
-        this.collection = collection;
+        this.namespace = namespace;
 
         if (StringUtils.isEmpty(auid)) {
           throw new IllegalArgumentException(
@@ -148,19 +148,19 @@ public class Artifact implements Serializable {
     }
 
     public ArtifactIdentifier getIdentifier() {
-        return new ArtifactIdentifier(id, collection, auid, uri, version);
+        return new ArtifactIdentifier(id, namespace, auid, uri, version);
     }
 
-    public String getCollection() {
-        return collection;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public void setCollection(String collection) {
-        if (StringUtils.isEmpty(collection)) {
+    public void setNamespace(String namespace) {
+        if (StringUtils.isEmpty(namespace)) {
           throw new IllegalArgumentException(
-              "Cannot set null or empty collection");
+              "Cannot set null or empty namespace");
         }
-        this.collection = collection;
+        this.namespace = namespace;
     }
 
     public String getAuid() {
@@ -288,7 +288,7 @@ public class Artifact implements Serializable {
     public String toString() {
         return "Artifact{" +
                 "id='" + id + '\'' +
-                ", collection='" + collection + '\'' +
+                ", namespace='" + namespace + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +
 //                 ", sortUri='" + sortUri + '\'' +
@@ -328,10 +328,10 @@ public class Artifact implements Serializable {
 
     /** Return a String that uniquely identifies the Artifact with the
      * specified values.  version -1 means latest version */
-    public static String makeKey(String collection, String auid,
+    public static String makeKey(String namespace, String auid,
 				 String uri, int version) {
 	StringBuilder sb = new StringBuilder(200);
-	sb.append(collection);
+	sb.append(namespace);
 	sb.append(":");
 	sb.append(auid);
 	sb.append(":");
@@ -343,21 +343,21 @@ public class Artifact implements Serializable {
 
     /** Return a String that uniquely identifies "the latest committed
      * version of the Artifact with the specified values" */
-    public static String makeLatestKey(String collection, String auid,
+    public static String makeLatestKey(String namespace, String auid,
 				       String uri) {
-	return makeKey(collection, auid, uri, -1);
+	return makeKey(namespace, auid, uri, -1);
     }
 
     /** Return a String that uniquely identifies this Artifact */
     public String makeKey() {
-	return Artifact.makeKey(getCollection(), getAuid(),
+	return Artifact.makeKey(getNamespace(), getAuid(),
 				getUri(), getVersion());
     }
 
     /** Return a String that uniquely identifies "the latest committed
      * version of the Artifact" */
     public String makeLatestKey() {
-	return Artifact.makeLatestKey(getCollection(), getAuid(), getUri());
+	return Artifact.makeLatestKey(getNamespace(), getAuid(), getUri());
     }
 
     // matches ":<ver>" at the end
@@ -377,7 +377,7 @@ public class Artifact implements Serializable {
 
     Artifact ret = new Artifact(
         this.getId(),
-        this.getCollection(),
+        this.getNamespace(),
         this.getAuid(),
         this.getUri(),
         this.getVersion(),

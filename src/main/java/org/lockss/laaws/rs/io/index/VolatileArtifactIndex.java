@@ -315,7 +315,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     @Override
     public Iterable<String> getCollectionIds() {
       List<String> res = index.values().stream()
-        .map(x -> x.getCollection())
+        .map(x -> x.getNamespace())
         .distinct()
         .sorted()
         .collect(Collectors.toList());

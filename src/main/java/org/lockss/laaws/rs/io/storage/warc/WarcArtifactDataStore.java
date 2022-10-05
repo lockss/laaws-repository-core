@@ -1447,7 +1447,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // *******************************
 
       // Write journal entry to journal file under an existing AU path
-      List<Path> auPaths = getAuPaths(artifactId.getCollection(), artifactId.getAuid());
+      List<Path> auPaths = getAuPaths(artifactId.getNamespace(), artifactId.getAuid());
 
       Path auPath = auPaths.stream()
           .sorted((a, b) -> (int) (getFreeSpace(b) - getFreeSpace(a)))
@@ -1819,7 +1819,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      */
     @Override
     public Object getStripe() {
-      return new CollectionAuidPair(artifact.getCollection(), artifact.getAuid());
+      return new CollectionAuidPair(artifact.getNamespace(), artifact.getAuid());
     }
 
     @Override
@@ -1861,7 +1861,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       boolean warcCompressionTarget = isCompressedWarcFile(loc.getPath());
 
       // Get an active WARC of this AU to append the artifact to
-      Path dst = getAuActiveWarcPath(artifact.getCollection(), artifact.getAuid(), recordLength, warcCompressionTarget);
+      Path dst = getAuActiveWarcPath(artifact.getNamespace(), artifact.getAuid(), recordLength, warcCompressionTarget);
 
       // Artifact will be appended as a WARC record to this WARC file so its offset is the current length of the file
       long warcLength = getWarcLength(dst);
@@ -1918,7 +1918,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Seal active permanent WARC if we've gone over the size threshold
           if (warcLength + recordLength >= getThresholdWarcSize()) {
-            sealActiveWarc(artifact.getCollection(), artifact.getAuid(), dst);
+            sealActiveWarc(artifact.getNamespace(), artifact.getAuid(), dst);
           }
 
           // *****************************
@@ -2463,7 +2463,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Objects.requireNonNull(artifactId, "Artifact identifier is null");
     Objects.requireNonNull(state, "Repository artifact metadata is null");
 
-    ArchivalUnitStem auStem = new ArchivalUnitStem(artifactId.getCollection(), artifactId.getAuid());
+    ArchivalUnitStem auStem = new ArchivalUnitStem(artifactId.getNamespace(), artifactId.getAuid());
 
     try {
       auLocks.getLock(auStem);
@@ -2471,7 +2471,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       throw new InterruptedIOException("Interrupted while waiting to acquire AU lock");
     }
 
-    Path auJournalPath = getAuJournalPath(basePath, artifactId.getCollection(), artifactId.getAuid(),
+    Path auJournalPath = getAuJournalPath(basePath, artifactId.getNamespace(), artifactId.getAuid(),
         ArtifactStateEntry.LOCKSS_JOURNAL_ID);
 
     log.trace("auJournalPath = {}", auJournalPath);
@@ -2671,7 +2671,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     Map<String, ArtifactStateEntry> artifactStates = new HashMap<>();
 
     for (Path journalPath :
-        getAuJournalPaths(aid.getCollection(), aid.getAuid(), ArtifactStateEntry.LOCKSS_JOURNAL_ID)) {
+        getAuJournalPaths(aid.getNamespace(), aid.getAuid(), ArtifactStateEntry.LOCKSS_JOURNAL_ID)) {
 
       // Get journal entries from file
       List<ArtifactStateEntry> journal = readJournal(journalPath, ArtifactStateEntry.class);
@@ -2854,7 +2854,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Add LOCKSS-specific WARC headers to record (Note: X-LockssRepo-Artifact-Id and X-LockssRepo-Artifact-Uri are
     // redundant because the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
     record.addExtraHeader(ArtifactConstants.ARTIFACT_ID_KEY, artifactId.getId());
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY, artifactId.getCollection());
+    record.addExtraHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY, artifactId.getNamespace());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_AUID_KEY, artifactId.getAuid());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_URI_KEY, artifactId.getUri());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));

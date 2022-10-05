@@ -240,7 +240,7 @@ public class TestArtifactCache extends LockssTestCase5 {
     if (headers == null) {
       headers = MapUtil.map("H1", "v1", "h2", "V2");
     }
-    ArtifactSpec s1 = ArtifactSpec.forCollAuUrl(COLL1, AUID1, url)
+    ArtifactSpec s1 = ArtifactSpec.forNsAuUrl(COLL1, AUID1, url)
       .setArtifactId(id)
       .setContent(content)
       .setHeaders(headers)

@@ -54,7 +54,7 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
 
     @Test
     public void getCollection() {
-        assertEquals(ARTIFACT_COLLECTION, identifier.getCollection());
+        assertEquals(ARTIFACT_COLLECTION, identifier.getNamespace());
     }
 
     @Test
