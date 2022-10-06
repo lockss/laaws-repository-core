@@ -129,12 +129,12 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   }
 
   /**
-   * Test for {@link VolatileWarcArtifactDataStore#initCollection(String)}.
+   * Test for {@link VolatileWarcArtifactDataStore#initNamespace(String)}.
    *
    * @throws Exception
    */
   @Override
-  public void testInitCollectionImpl() throws Exception {
+  public void testInitNamespaceImpl() throws Exception {
     // NOP
   }
 
@@ -145,8 +145,6 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
    */
   @Override
   public void testInitAuImpl() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
     List<Path> auPaths;
 
     // Mocks
@@ -156,20 +154,20 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
 
     // Mock behavior
     doCallRealMethod().when(ds).initAu(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
-    when(ds.initAuDir(collectionId, auid)).thenReturn(auPath);
+    when(ds.initAuDir(NS1, AUID1)).thenReturn(auPath);
 
     // Assert initAuDir() called if a list of AU paths does not exist in the map
-    auPaths = ds.initAu(collectionId, auid);
+    auPaths = ds.initAu(NS1, AUID1);
     assertNotNull(auPaths);
     assertTrue(auPaths.contains(auPath));
-    verify(ds).initAuDir(collectionId, auid);
+    verify(ds).initAuDir(NS1, AUID1);
     clearInvocations(ds);
 
     // Assert initAuDir() is not called if a list of AU paths exists in the map
-    auPaths = ds.initAu(collectionId, auid);
+    auPaths = ds.initAu(NS1, AUID1);
     assertNotNull(auPaths);
     assertTrue(auPaths.contains(auPath));
-    verify(ds).initAuDir(collectionId, auid);
+    verify(ds).initAuDir(NS1, AUID1);
     clearInvocations(ds);
   }
 
@@ -180,7 +178,7 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
    */
   @Override
   public void testMakeStorageUrlImpl() throws Exception {
-    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+    ArtifactIdentifier aid = new ArtifactIdentifier(NS1, AUID1, "http://example.com/u1", 1);
 
     Path activeWarcPath = store.getAuActiveWarcPath(aid.getNamespace(), aid.getAuid(), 4321L, false);
 
@@ -351,9 +349,6 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
   // FIXME: This test seems kind of pointless - we're effectively exercising the mocks
   @Override
   public void testInitAuDirImpl() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-
     // Mocks
     VolatileWarcArtifactDataStore ds = mock(VolatileWarcArtifactDataStore.class);
     Path basePath = mock(Path.class);
@@ -362,9 +357,9 @@ public class TestVolatileWarcArtifactStore extends AbstractWarcArtifactDataStore
     // Mock behavior
     doCallRealMethod().when(ds).initAuDir(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
     when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath);
 
     // Assert initAuDir() returns expected result
-    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    assertEquals(auPath, ds.initAuDir(NS1, AUID1));
   }
 }

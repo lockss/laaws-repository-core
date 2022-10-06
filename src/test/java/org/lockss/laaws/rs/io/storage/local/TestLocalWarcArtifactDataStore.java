@@ -141,7 +141,7 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
 
   @Override
   public void testMakeStorageUrlImpl() throws Exception {
-    ArtifactIdentifier aid = new ArtifactIdentifier("coll1", "auid1", "http://example.com/u1", 1);
+    ArtifactIdentifier aid = new ArtifactIdentifier(NS1, AUID1,"http://example.com/u1", 1);
     long pendingArtifactSize = 1234L;
 
     Path activeWarcPath = store.getAuActiveWarcPath(aid.getNamespace(), aid.getAuid(), pendingArtifactSize, false);
@@ -316,9 +316,6 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
    */
   @Override
   public void testInitAuDirImpl() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-
     // Mocks
     LocalWarcArtifactDataStore ds = mock(LocalWarcArtifactDataStore.class);
     Path basePath = mock(Path.class);
@@ -328,25 +325,25 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     // Mock behavior
     doCallRealMethod().when(ds).initAuDir(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
     when(auPath.toFile()).thenReturn(auPathFile);
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath);
 
     // Assert IllegalStateException thrown if getBasePaths() returns null or is empty
     when(ds.getBasePaths()).thenReturn(null);
-    assertThrows(IllegalStateException.class, () -> ds.initAuDir(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAuDir(NS1, AUID1));
     when(ds.getBasePaths()).thenReturn(new Path[]{});
-    assertThrows(IllegalStateException.class, () -> ds.initAuDir(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAuDir(NS1, AUID1));
 
     when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
 
     // Assert directory created if not directory
     when(auPathFile.isDirectory()).thenReturn(false);
-    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    assertEquals(auPath, ds.initAuDir(NS1, AUID1));
     verify(ds).mkdirs(auPath);
     clearInvocations(ds);
 
     // Assert directory is *not* created if directory
     when(auPathFile.isDirectory()).thenReturn(true);
-    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    assertEquals(auPath, ds.initAuDir(NS1, AUID1));
     verify(ds, never()).mkdirs(auPath);
     clearInvocations(ds);
   }
@@ -361,22 +358,21 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
   }
 
   @Override
-  public void testInitCollectionImpl() throws Exception {
-    final String collectionId = "collection";
-    final Path[] collectionPaths = new Path[]{Paths.get("/a"), Paths.get("/b")};
+  public void testInitNamespaceImpl() throws Exception {
+    final Path[] nsPaths = new Path[]{Paths.get("/a"), Paths.get("/b")};
 
     // Mocks
     LocalWarcArtifactDataStore ds = mock(LocalWarcArtifactDataStore.class);
 
     // Mock behavior
-    when(ds.getCollectionPaths(collectionId)).thenReturn(collectionPaths);
+    when(ds.getNamespacePaths(NS1)).thenReturn(nsPaths);
 
-    // Initialize a collection
-    doCallRealMethod().when(ds).initCollection(collectionId);
-    ds.initCollection(collectionId);
+    // Initialize a namespace
+    doCallRealMethod().when(ds).initNamespace(NS1);
+    ds.initNamespace(NS1);
 
     // Assert directory structures were created
-    verify(ds).mkdirs(collectionPaths);
+    verify(ds).mkdirs(nsPaths);
   }
 
   /**
@@ -386,24 +382,21 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
    */
   @Override
   public void testInitAuImpl() throws Exception {
-    final String collectionId = "collection";
-    final String auid = "auid";
-
     // Mocks
     LocalWarcArtifactDataStore ds = mock(LocalWarcArtifactDataStore.class);
     Path basePath = mock(Path.class);
 
     // Mock behavior
     doCallRealMethod().when(ds).clearAuMaps();
-    doCallRealMethod().when(ds).initAu(collectionId, auid);
+    doCallRealMethod().when(ds).initAu(NS1, AUID1);
 
     // Assert IllegalStateException thrown if no base paths configured in data store
     when(ds.getBasePaths()).thenReturn(null);
-    assertThrows(IllegalStateException.class, () -> ds.initAu(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAu(NS1, AUID1));
 
     // Assert IllegalStateException thrown if empty base paths
     when(ds.getBasePaths()).thenReturn(new Path[]{});
-    assertThrows(IllegalStateException.class, () -> ds.initAu(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAu(NS1, AUID1));
 
     // FIXME: Initialize maps
 //    FieldSetter.setField(ds, ds.getClass().getDeclaredField("auPathsMap"), new HashMap<>());
@@ -413,18 +406,18 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     // Assert if no AU paths found then a new one is created
     when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
     Path auPath = mockPathFile(false);
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
-    ds.initAu(collectionId, auid);
-    verify(ds).initAuDir(collectionId, auid);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath);
+    ds.initAu(NS1, AUID1);
+    verify(ds).initAuDir(NS1, AUID1);
     clearInvocations(ds);
 
     // Assert if existing AU paths are found on disk then they are just returned
     auPath = mockPathFile(true);
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath);
     List<Path> auPaths = new ArrayList<>();
     auPaths.add(auPath);
-    assertIterableEquals(auPaths, ds.initAu(collectionId, auid));
-    verify(ds, never()).initAuDir(collectionId, auid);
+    assertIterableEquals(auPaths, ds.initAu(NS1, AUID1));
+    verify(ds, never()).initAuDir(NS1, AUID1);
     clearInvocations(ds);
   }
 

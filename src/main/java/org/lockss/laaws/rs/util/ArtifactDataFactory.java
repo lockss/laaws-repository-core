@@ -50,7 +50,6 @@ import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.io.storage.warc.ArtifactStateEntry;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
@@ -195,7 +194,7 @@ public class ArtifactDataFactory {
 
     return new ArtifactIdentifier(
         getHeaderValue(headers, ArtifactConstants.ARTIFACT_ID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+        getHeaderValue(headers, ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
         getHeaderValue(headers, ArtifactConstants.ARTIFACT_AUID_KEY),
         getHeaderValue(headers, ArtifactConstants.ARTIFACT_URI_KEY),
         version
@@ -220,7 +219,7 @@ public class ArtifactDataFactory {
     return new ArtifactIdentifier(
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
@@ -242,7 +241,7 @@ public class ArtifactDataFactory {
 
     return new ArtifactIdentifier(
         headers.get(ArtifactConstants.ARTIFACT_ID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+        headers.get(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
         headers.get(ArtifactConstants.ARTIFACT_AUID_KEY),
         headers.get(ArtifactConstants.ARTIFACT_URI_KEY),
         version
@@ -445,7 +444,7 @@ public class ArtifactDataFactory {
         // Set ArtifactIdentifier
         ArtifactIdentifier id = new ArtifactIdentifier(
             headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+            headers.getFirst(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
             headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
             headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
             Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY))

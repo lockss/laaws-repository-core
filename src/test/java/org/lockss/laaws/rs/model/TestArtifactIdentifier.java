@@ -34,7 +34,7 @@ import org.junit.jupiter.api.*;
 import org.lockss.util.test.LockssTestCase5;
 
 public class TestArtifactIdentifier extends LockssTestCase5 {
-    private final static String ARTIFACT_COLLECTION = "collection123";
+    private final static String ARTIFACT_NAMESPACE = "ns1";
     private final static String ARTIFACT_AUID = "auid123";
     private final static String ARTIFACT_URI = "uri123";
     private final static Integer ARTIFACT_VERSION = 1;
@@ -45,7 +45,7 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     public void setUp() throws Exception {
         // Instantiate an ArtifactInstance to test getters against
         this.identifier = new ArtifactIdentifier(
-                ARTIFACT_COLLECTION,
+            ARTIFACT_NAMESPACE,
                 ARTIFACT_AUID,
                 ARTIFACT_URI,
                 ARTIFACT_VERSION
@@ -53,8 +53,8 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     }
 
     @Test
-    public void getCollection() {
-        assertEquals(ARTIFACT_COLLECTION, identifier.getNamespace());
+    public void getNamespace() {
+        assertEquals(ARTIFACT_NAMESPACE, identifier.getNamespace());
     }
 
     @Test
@@ -132,8 +132,8 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     }
 
   
-  ArtifactIdentifier artId(String coll, String auid, String uri, int version) {
-    return new ArtifactIdentifier(coll, auid, uri, version);
+  ArtifactIdentifier artId(String namespace, String auid, String uri, int version) {
+    return new ArtifactIdentifier(namespace, auid, uri, version);
   }
 
   @Test
@@ -143,5 +143,4 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     assertTrue(artId("c", "a", "foo/", 1).compareTo(artId("c", "a", "foo/a", 1)) <= -1);
     assertTrue(artId("c", "a", "bar", 1).compareTo(artId("c", "a", "foo", 1)) <= -1);
   };
-
 }

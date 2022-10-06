@@ -56,10 +56,10 @@ public class RepoUtil {
     return res;
   }
 
-//   public static Artifact storeArt(LockssRepository repo, String coll,
+//   public static Artifact storeArt(LockssRepository repo, String ns,
 // 				  String auid, String url, InputStream in,
 // 				  CIProperties props) throws IOException {
-//     ArtifactIdentifier id = new ArtifactIdentifier(coll, auid,
+//     ArtifactIdentifier id = new ArtifactIdentifier(ns, auid,
 // 						   url, null);
 //     CIProperties propsCopy  = CIProperties.fromProperties(props);
 //     propsCopy.setProperty(CachedUrl.PROPERTY_NODE_URL, url);

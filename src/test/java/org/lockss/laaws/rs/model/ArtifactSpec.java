@@ -165,8 +165,8 @@ public class ArtifactSpec implements Comparable<Object> {
         .setUrl(url);
   }
 
-  public static ArtifactSpec forCollAuUrlVer(String ns, String auid,
-                                        String url, int version) {
+  public static ArtifactSpec forNsAuUrlVer(String ns, String auid,
+                                           String url, int version) {
     return ArtifactSpec.forNsAuUrl(ns, auid, url).setVersion(version);
   }
 

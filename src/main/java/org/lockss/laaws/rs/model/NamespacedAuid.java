@@ -32,12 +32,12 @@ package org.lockss.laaws.rs.model;
 
 import org.apache.commons.lang3.tuple.MutablePair;
 
-public class CollectionAuidPair extends MutablePair<String, String> {
-  public CollectionAuidPair(String collection, String auid) {
-    super(collection, auid);
+public class NamespacedAuid extends MutablePair<String, String> {
+  public NamespacedAuid(String namespace, String auid) {
+    super(namespace, auid);
   }
 
-  public String getCollection() {
+  public String getNamespace() {
     return getLeft();
   }
 
@@ -45,8 +45,8 @@ public class CollectionAuidPair extends MutablePair<String, String> {
     return getRight();
   }
 
-  public void setCollection(String collection) {
-    setLeft(collection);
+  public void setNamespace(String namespace) {
+    setLeft(namespace);
   }
 
   public void setAuid(String auid) {

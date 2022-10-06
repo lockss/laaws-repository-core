@@ -72,7 +72,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "ETag: \"595f57cc-76\"\n" +
             "Accept-Ranges: bytes\n" +
             "X-LockssRepo-Artifact-Id: id1\n" +
-            "X-LockssRepo-Artifact-Collection: coll1\n" +
+            "X-LockssRepo-Artifact-Namespace: ns1\n" +
             "X-LockssRepo-Artifact-AuId: auid1\n" +
             "X-LockssRepo-Artifact-Uri: url1\n" +
             "X-LockssRepo-Artifact-Version: 1\n" +
@@ -88,7 +88,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "WARC-Target-URI: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
             "Content-Type: application/http; msgtype=response\n" +
             "X-LockssRepo-Artifact-Id: 74e3b795-c1e6-49ce-8b27-de7e747322b7\n" +
-            "X-LockssRepo-Artifact-Collection: demo\n" +
+            "X-LockssRepo-Artifact-Namespace: demo\n" +
             "X-LockssRepo-Artifact-AuId: testauid\n" +
             "X-LockssRepo-Artifact-Uri: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
             "X-LockssRepo-Artifact-Version: 1" +
@@ -138,7 +138,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactIdentifier identifier = artifact.getIdentifier();
             assertNotNull(identifier);
             assertEquals("id1", identifier.getId());
-            assertEquals("coll1", identifier.getNamespace());
+            assertEquals("ns1", identifier.getNamespace());
             assertEquals("auid1", identifier.getAuid());
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
@@ -194,7 +194,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactIdentifier identifier = artifact.getIdentifier();
             assertNotNull(identifier);
             assertEquals("id1", identifier.getId());
-            assertEquals("coll1", identifier.getNamespace());
+            assertEquals("ns1", identifier.getNamespace());
             assertEquals("auid1", identifier.getAuid());
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
@@ -251,7 +251,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 ArtifactIdentifier identifier = artifact.getIdentifier();
                 assertNotNull(identifier);
                 assertEquals("id1", identifier.getId());
-                assertEquals("coll1", identifier.getNamespace());
+                assertEquals("ns1", identifier.getNamespace());
                 assertEquals("auid1", identifier.getAuid());
                 assertEquals("url1", identifier.getUri());
                 assertEquals("v1", identifier.getVersion());

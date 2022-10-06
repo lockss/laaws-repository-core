@@ -273,7 +273,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
       // Create a new artifact identifier for this artifact
       ArtifactIdentifier newId = new ArtifactIdentifier(
           // Assign a new artifact ID
-          UUID.randomUUID().toString(), // FIXME: Namespace collision unlikely but possible
+          UUID.randomUUID().toString(), // FIXME: Artifact ID collision unlikely but possible
           artifactId.getNamespace(),
           artifactId.getAuid(),
           artifactId.getUri(),
@@ -294,7 +294,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Imports artifacts from an archive into this LOCKSS repository.
    *
-   * @param collectionId A {@link String} containing the collection ID of the artifacts.
+   * @param namespace A {@link String} containing the namespace of the artifacts.
    * @param auId         A {@link String} containing the AUID of the artifacts.
    * @param inputStream  The {@link InputStream} of the archive.
    * @param type         A {@link ArchiveType} indicating the type of archive.
@@ -302,7 +302,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * @return
    */
   @Override
-  public ImportStatusIterable addArtifacts(String collectionId, String auId, InputStream inputStream,
+  public ImportStatusIterable addArtifacts(String namespace, String auId, InputStream inputStream,
                                            ArchiveType type, boolean isCompressed) throws IOException {
 
     if (type != ArchiveType.WARC) {
@@ -341,7 +341,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
             assert ad != null;
 
             ArtifactIdentifier aid = ad.getIdentifier();
-            aid.setNamespace(collectionId);
+            aid.setNamespace(namespace);
             aid.setAuid(auId);
             aid.setUri(header.getUrl());
 
@@ -412,7 +412,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   @Override
-  public HttpHeaders getArtifactHeaders(String collection, String artifactId) throws IOException {
+  public HttpHeaders getArtifactHeaders(String namespace, String artifactId) throws IOException {
     try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
       return ad.getMetadata();
     }
@@ -421,14 +421,14 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
    *
-   * @param collection A {code String} containing the collection ID containing the artifact to commit.
+   * @param namespace A {code String} containing the namespace.
    * @param artifactId A {@code String} with the artifact ID of the artifact to commit to the repository.
    * @return An {@code Artifact} containing the updated artifact state information.
    * @throws IOException
    */
   @Override
-  public Artifact commitArtifact(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null)) {
+  public Artifact commitArtifact(String namespace, String artifactId) throws IOException {
+    if (namespace == null || artifactId == null) {
       throw new IllegalArgumentException("Null namespace or artifact id");
     }
 
@@ -496,36 +496,35 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   /**
-   * Provides the collection identifiers of the committed artifacts in the index.
+   * Provides the namespace of the committed artifacts in the index.
    *
-   * @return An {@code Iterator<String>} with the index committed artifacts
-   * collection identifiers.
+   * @return An {@code Iterator<String>} with namespaces in this repository.
    */
   @Override
   public Iterable<String> getNamespaces() throws IOException {
-    return index.getCollectionIds();
+    return index.getNamespaces();
   }
 
   /**
-   * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+   * Returns a list of Archival Unit IDs (AUIDs) in a namespace.
    *
-   * @param collection A {@code String} containing the LOCKSS repository collection ID.
-   * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+   * @param namespace A {@code String} containing the namespace.
+   * @return A {@code Iterator<String>} iterating over the AUIDs in a namespace.
    * @throws IOException
    */
   @Override
-  public Iterable<String> getAuIds(String collection) throws IOException {
-    if (collection == null) {
+  public Iterable<String> getAuIds(String namespace) throws IOException {
+    if (namespace == null) {
       throw new IllegalArgumentException("Null namespace");
     }
 
-    return index.getAuIds(collection);
+    return index.getAuIds(namespace);
   }
 
   /**
-   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and namespace.
    *
-   * @param namespace A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
    * @throws IOException
@@ -540,9 +539,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   /**
-   * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and namespace.
    *
-   * @param namespace A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param auid       A String with the Archival Unit identifier.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
    */
@@ -557,46 +556,46 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
 
   /**
    * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
-   * Unit and collection.
+   * Unit and namespace.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @param prefix     A {@code String} containing a URL prefix.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
    * @throws IOException
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
-    if (collection == null || auid == null || prefix == null) {
+  public Iterable<Artifact> getArtifactsWithPrefix(String namespace, String auid, String prefix) throws IOException {
+    if (namespace == null || auid == null || prefix == null) {
       throw new IllegalArgumentException("Null namespace, au id or prefix");
     }
 
-    return index.getArtifactsWithPrefix(collection, auid, prefix);
+    return index.getArtifactsWithPrefix(namespace, auid, prefix);
   }
 
   /**
    * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
-   * collection.
+   * namespace.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param auid       A String with the Archival Unit identifier.
    * @param prefix     A String with the URL prefix.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix from an AU.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
-    if (collection == null || auid == null || prefix == null) {
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String namespace, String auid, String prefix) throws IOException {
+    if (namespace == null || auid == null || prefix == null) {
       throw new IllegalArgumentException("Null namespace, au id or prefix");
     }
 
-    return index.getArtifactsWithPrefixAllVersions(collection, auid, prefix);
+    return index.getArtifactsWithPrefixAllVersions(namespace, auid, prefix);
   }
 
   /**
-   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a collection.
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a namespace.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param prefix     A String with the URL prefix.
    * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
    *                   versions of an artifact.
@@ -604,20 +603,20 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix,
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String namespace, String prefix,
                                                                 ArtifactVersions versions) throws IOException {
 
-    if (collection == null || prefix == null) {
+    if (namespace == null || prefix == null) {
       throw new IllegalArgumentException("Null namespace or prefix");
     }
 
-    return index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, versions);
+    return index.getArtifactsWithUrlPrefixFromAllAus(namespace, prefix, versions);
   }
 
   /**
-   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and namespace.
    *
-   * @param namespace A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the namespace.
    * @param auid       A {@code String} with the Archival Unit identifier.
    * @param url        A {@code String} with the URL to be matched.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
@@ -633,9 +632,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   /**
-   * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+   * Returns the committed artifacts of all versions of a given URL, from a specified namespace.
    *
-   * @param namespace A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the namespace.
    * @param url        A {@code String} with the URL to be matched.
    * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
    *                   versions of an artifact.
@@ -653,34 +652,34 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   /**
-   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and namespace.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @param url        A {@code String} containing a URL.
    * @return The {@code Artifact} representing the latest version of the URL in the AU.
    * @throws IOException
    */
   @Override
-  public Artifact getArtifact(String collection, String auid, String url) throws IOException {
-    if (collection == null || auid == null || url == null) {
+  public Artifact getArtifact(String namespace, String auid, String url) throws IOException {
+    if (namespace == null || auid == null || url == null) {
       throw new IllegalArgumentException("Null namespace, au id or url");
     }
 
-    return index.getArtifact(collection, auid, url);
+    return index.getArtifact(namespace, auid, url);
   }
 
   /**
-   * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+   * Returns the artifact of a given version of a URL, from a specified Archival Unit and namespace.
    *
-   * @param namespace A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param auid       A String with the Archival Unit identifier.
    * @param url        A String with the URL to be matched.
    * @param version    A String with the version.
    * @param includeUncommitted
    *          A boolean with the indication of whether an uncommitted artifact
    *          may be returned.
-   * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+   * @return The {@code Artifact} of a given version of a URL, from a specified AU and namespace.
    */
   @Override
   public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
@@ -693,9 +692,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   /**
-   * Returns the size, in bytes, of AU in a collection.
+   * Returns the size, in bytes, of AU in a namespace.
    *
-   * @param namespace A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return A {@link AuSize} with byte size statistics of the specified AU.
    */
@@ -708,10 +707,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     // Get AU size from index query
     AuSize auSize = index.auSize(namespace, auid);
 
-//    long allVersionSize = index.auSize(collection, auid, true);
+//    long allVersionSize = index.auSize(namespace, auid, true);
 //    auSize.setTotalAllVersions();
 
-//    long latestVersionsSize = index.auSize(collection, auid, false);
+//    long latestVersionsSize = index.auSize(namespace, auid, false);
 //    auSize.setTotalLatestVersions();
 
     long totalWarcSize = getArtifactDataStore().auWarcSize(namespace, auid);

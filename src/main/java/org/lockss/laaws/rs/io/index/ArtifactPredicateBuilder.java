@@ -70,14 +70,14 @@ public class ArtifactPredicateBuilder {
     }
 
     /**
-     * Adds a filtering predicate by repository collection.
+     * Adds a filtering predicate by namespace.
      * 
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @return an ArtifactPredicateBuilder with this object.
      */
-    public ArtifactPredicateBuilder filterByCollection(String collection) {
-        predicates.add(artifact -> artifact.getNamespace().equals(collection));
+    public ArtifactPredicateBuilder filterByNamespace(String namespace) {
+        predicates.add(artifact -> artifact.getNamespace().equals(namespace));
         return this;
     }
 

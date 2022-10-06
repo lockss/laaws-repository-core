@@ -307,13 +307,12 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Provides the collection identifiers of the committed artifacts in the index.
+     * Provides the namespaces of the committed artifacts in the index.
      *
-     * @return An {@code Iterator<String>} with the index committed artifacts
-     * collection identifiers.
+     * @return An {@code Iterator<String>} with the index committed artifacts namespaces.
      */
     @Override
-    public Iterable<String> getCollectionIds() {
+    public Iterable<String> getNamespaces() {
       List<String> res = index.values().stream()
         .map(x -> x.getNamespace())
         .distinct()
@@ -323,17 +322,17 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+     * Returns a list of Archival Unit IDs (AUIDs) in a namespace.
      *
-     * @param collection
-     *          A {@code String} containing the LOCKSS repository collection ID.
-     * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+     * @param namespace
+     *          A {@code String} containing the namespace.
+     * @return A {@code Iterator<String>} iterating over the AUIDs in this namespace.
      * @throws IOException
      */
     @Override
-    public Iterable<String> getAuIds(String collection) throws IOException {
+    public Iterable<String> getAuIds(String namespace) throws IOException {
       ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
-      query.filterByCollection(collection);
+      query.filterByNamespace(namespace);
 
       List<String> res = index.values().stream()
         .filter(query.build())
@@ -344,24 +343,24 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+     * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) {
+    public Iterable<Artifact> getArtifacts(String namespace, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
 
         // Filter by committed status equal to true?
         if (!includeUncommitted)
             q.filterByCommitStatus(true);
 
-        q.filterByCollection(collection);
+        q.filterByNamespace(namespace);
         q.filterByAuid(auid);
 
         // Filter, then group the Artifacts by URI, and pick the Artifacts with max version from each group
@@ -378,10 +377,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param includeUncommitted
@@ -390,14 +389,14 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the artifacts of all version of all URLs in an AU.
      */
     @Override
-    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
+    public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid, boolean includeUncommitted) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
 
         if (!includeUncommitted) {
             query.filterByCommitStatus(true);
         }
 
-        query.filterByCollection(collection);
+        query.filterByNamespace(namespace);
         query.filterByAuid(auid);
 
         // Apply the filter, sort by artifact URL then descending version, and return an iterator over the Artifacts
@@ -407,10 +406,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
     /**
      * Returns the artifacts of the latest committed version of all URLs matching a prefix, from a specified Archival
-     * Unit and collection.
+     * Unit and namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @param prefix
@@ -419,10 +418,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
+    public Iterable<Artifact> getArtifactsWithPrefix(String namespace, String auid, String prefix) throws IOException {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
         q.filterByCommitStatus(true);
-        q.filterByCollection(collection);
+        q.filterByNamespace(namespace);
         q.filterByAuid(auid);
         q.filterByURIPrefix(prefix);
 
@@ -441,10 +440,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
     /**
      * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified Archival Unit and
-     * collection.
+     * namespace.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param prefix
@@ -453,10 +452,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *         prefix from an AU.
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) {
+    public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String namespace, String auid, String prefix) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
-        query.filterByCollection(collection);
+        query.filterByNamespace(namespace);
         query.filterByAuid(auid);
         query.filterByURIPrefix(prefix);
 
@@ -466,10 +465,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified namespace.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param urlPrefix
      *          A String with the URL prefix.
      * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
@@ -478,7 +477,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *         prefix.
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String urlPrefix,
+    public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String namespace, String urlPrefix,
                                                                   ArtifactVersions versions) {
 
       if (!(versions == ArtifactVersions.ALL ||
@@ -486,13 +485,13 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         throw new IllegalArgumentException("Versions must be ALL or LATEST");
       }
 
-      if (collection == null) {
-        throw new IllegalArgumentException("Collection is null");
+      if (namespace == null) {
+        throw new IllegalArgumentException("Namespace is null");
       }
 
       ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
       query.filterByCommitStatus(true);
-      query.filterByCollection(collection);
+      query.filterByNamespace(namespace);
 
       if (urlPrefix != null) {
         query.filterByURIPrefix(urlPrefix);
@@ -520,10 +519,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+     * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A {@code String} with the collection identifier.
+     * @param namespace
+     *          A {@code String} with the namespace.
      * @param auid
      *          A {@code String} with the Archival Unit identifier.
      * @param url
@@ -532,10 +531,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      *         Archival Unit.
      */
     @Override
-    public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) {
+    public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid, String url) {
         ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
-        query.filterByCollection(collection);
+        query.filterByNamespace(namespace);
         query.filterByAuid(auid);
         query.filterByURIMatch(url);
 
@@ -545,10 +544,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+     * Returns the committed artifacts of all versions of a given URL, from a specified namespace.
      *
-     * @param collection
-     *          A {@code String} with the collection identifier.
+     * @param namespace
+     *          A {@code String} with the namespace.
      * @param url
      *          A {@code String} with the URL to be matched.
      * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
@@ -556,19 +555,19 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
     @Override
-    public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions) {
+    public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String namespace, String url, ArtifactVersions versions) {
       if (!(versions == ArtifactVersions.ALL ||
           versions == ArtifactVersions.LATEST)) {
         throw new IllegalArgumentException("Versions must be ALL or LATEST");
       }
 
-      if (collection == null || url == null) {
-        throw new IllegalArgumentException("Collection or URL is null");
+      if (namespace == null || url == null) {
+        throw new IllegalArgumentException("Namespace or URL is null");
       }
 
       ArtifactPredicateBuilder query = new ArtifactPredicateBuilder();
         query.filterByCommitStatus(true);
-        query.filterByCollection(collection);
+        query.filterByNamespace(namespace);
         query.filterByURIMatch(url);
 
         // Apply predicates filter to Artifact stream
@@ -591,10 +590,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @param url
@@ -606,14 +605,14 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      * @throws IOException
      */
     @Override
-    public Artifact getArtifact(String collection, String auid, String url, boolean includeUncommitted) {
+    public Artifact getArtifact(String namespace, String auid, String url, boolean includeUncommitted) {
         ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
 
         if (!includeUncommitted) {
             q.filterByCommitStatus(true);
         }
 
-        q.filterByCollection(collection);
+        q.filterByNamespace(namespace);
         q.filterByAuid(auid);
         q.filterByURIMatch(url);
 
@@ -625,10 +624,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param url
@@ -638,10 +637,10 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      * @param includeUncommitted
      *          A boolean with the indication of whether an uncommitted artifact
      *          may be returned.
-     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and namespace.
      */
     @Override
-    public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) {
+    public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version, boolean includeUncommitted) {
       ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
 
       // Only filter by commit status when no uncommitted artifact is to be returned.
@@ -649,7 +648,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 	q.filterByCommitStatus(true);
       }
 
-      q.filterByCollection(collection);
+      q.filterByNamespace(namespace);
       q.filterByAuid(auid);
       q.filterByURIMatch(url);
       q.filterByVersion(version);
@@ -669,16 +668,16 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     }
 
     /**
-     * Returns the size, in bytes, of AU in a collection.
+     * Returns the size, in bytes, of AU in a namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @return A {@link AuSize} with byte size statistics of the specified AU.
      */
     @Override
-    public AuSize auSize(String collection, String auid) {
+    public AuSize auSize(String namespace, String auid) {
       AuSize auSize = new AuSize();
 
       auSize.setTotalAllVersions(0L);
@@ -687,7 +686,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
 
       ArtifactPredicateBuilder q = new ArtifactPredicateBuilder();
       q.filterByCommitStatus(true);
-      q.filterByCollection(collection);
+      q.filterByNamespace(namespace);
       q.filterByAuid(auid);
 
       boolean isAuEmpty = !index.values()

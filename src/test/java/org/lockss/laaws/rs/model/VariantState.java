@@ -127,9 +127,9 @@ public class VariantState {
         .count();
   }
 
-  public List<String> activeAuids(String collectionId) {
+  public List<String> activeAuids(String namespace) {
     return addedSpecStream()
-        .filter(spec -> spec.getNamespace().equals(collectionId))
+        .filter(spec -> spec.getNamespace().equals(namespace))
         .map(spec -> spec.getAuid())
         .distinct()
         .sorted()
@@ -143,9 +143,9 @@ public class VariantState {
         .collect(Collectors.toList());
   }
 
-  public List<String> allAuids(String collection) {
+  public List<String> allAuids(String namespace) {
     return addedSpecStream()
-        .filter(spec -> spec.getNamespace().equals(collection))
+        .filter(spec -> spec.getNamespace().equals(namespace))
         .map(ArtifactSpec::getAuid)
         .distinct()
         .collect(Collectors.toList());
@@ -167,7 +167,7 @@ public class VariantState {
         .collect(Collectors.toList());
   }
 
-  public List<String> allCollections() {
+  public List<String> allNamespaces() {
     return collectionsOf(addedSpecStream())
         .collect(Collectors.toList());
   }
@@ -190,9 +190,9 @@ public class VariantState {
         .distinct();
   }
 
-  Stream<String> auidsOf(Stream<ArtifactSpec> specStream, String collection) {
+  Stream<String> auidsOf(Stream<ArtifactSpec> specStream, String namespace) {
     return specStream
-        .filter(s -> s.getNamespace().equals(collection))
+        .filter(s -> s.getNamespace().equals(namespace))
         .map(ArtifactSpec::getAuid)
         .distinct();
   }
@@ -228,42 +228,40 @@ public class VariantState {
         .sorted(BY_DATE_BY_AUID_BY_DECREASING_VERSION);
   }
 
-  public Stream<ArtifactSpec> orderedAllNsIncludeUncommitted(String coll) {
+  public Stream<ArtifactSpec> orderedAllNsIncludeUncommitted(String namespace) {
     return addedSpecStream()
-        .filter(s -> s.getNamespace().equals(coll))
+        .filter(s -> s.getNamespace().equals(namespace))
         .sorted();
   }
 
-  public Stream<ArtifactSpec> orderedAllColl(String coll) {
+  public Stream<ArtifactSpec> orderedAllColl(String namespace) {
     return committedSpecStream()
-        .filter(s -> s.getNamespace().equals(coll))
+        .filter(s -> s.getNamespace().equals(namespace))
         .sorted();
   }
 
-  public Stream<ArtifactSpec> orderedAllNsAllAus(String coll) {
+  public Stream<ArtifactSpec> orderedAllNsAllAus(String namespace) {
     return committedSpecStream()
-        .filter(s -> s.getNamespace().equals(coll))
+        .filter(s -> s.getNamespace().equals(namespace))
         .sorted(BY_URI_BY_AUID_BY_DECREASING_VERSION);
   }
 
-  public Stream<ArtifactSpec> orderedAllAu(String coll, String auid) {
+  public Stream<ArtifactSpec> orderedAllAu(String namespace, String auid) {
     return committedSpecStream()
-        .filter(s -> s.getNamespace().equals(coll))
+        .filter(s -> s.getNamespace().equals(namespace))
         .filter(s -> s.getAuid().equals(auid))
         .sorted();
   }
 
-  public AuSize auSize(String collection, String auid) {
+  public AuSize auSize(String namespace, String auid) {
     AuSize auSize = new AuSize();
 
     auSize.setTotalAllVersions(0L);
     auSize.setTotalLatestVersions(0L);
 
     boolean isAuEmpty = !committedSpecStream()
-        .filter(s -> s.getNamespace().equals(collection))
-        .filter(s -> s.getAuid().equals(auid))
-        .findFirst()
-        .isPresent();
+        .filter(s -> s.getNamespace().equals(namespace))
+        .anyMatch(s -> s.getAuid().equals(auid));
 
     if (isAuEmpty) {
       auSize.setTotalWarcSize(0L);
@@ -272,14 +270,14 @@ public class VariantState {
 
     auSize.setTotalAllVersions(
         committedSpecStream()
-            .filter(s -> s.getNamespace().equals(collection))
+            .filter(s -> s.getNamespace().equals(namespace))
             .filter(s -> s.getAuid().equals(auid))
             .mapToLong(ArtifactSpec::getContentLength)
             .sum());
 
     auSize.setTotalLatestVersions(
         committedSpecStream()
-            .filter(s -> s.getNamespace().equals(collection))
+            .filter(s -> s.getNamespace().equals(namespace))
             .filter(s -> s.getAuid().equals(auid))
             .collect(Collectors.groupingBy(ArtifactSpec::getUrl,
                 Collectors.maxBy(Comparator.comparingInt(ArtifactSpec::getVersion))))
@@ -293,9 +291,9 @@ public class VariantState {
     return auSize;
   }
 
-  Stream<ArtifactSpec> orderedAllUrl(String coll, String auid, String url) {
+  Stream<ArtifactSpec> orderedAllUrl(String namespace, String auid, String url) {
     return committedSpecStream()
-        .filter(s -> s.getNamespace().equals(coll))
+        .filter(s -> s.getNamespace().equals(namespace))
         .filter(s -> s.getAuid().equals(auid))
         .filter(s -> s.getUrl().equals(url))
         .sorted();
@@ -375,9 +373,9 @@ public class VariantState {
     return highestCommittedVerSpec.containsKey(artButVerKey);
   }
 
-  public Stream<ArtifactSpec> getArtifactsAllVersions(String collection, String auid, boolean includeUncommitted) {
+  public Stream<ArtifactSpec> getArtifactsAllVersions(String namespace, String auid, boolean includeUncommitted) {
     return addedSpecStream()
-        .filter(s -> s.getNamespace().equals(collection))
+        .filter(s -> s.getNamespace().equals(namespace))
         .filter(s -> s.getAuid().equals(auid))
         .filter(s -> includeUncommitted || s.isCommitted())
         .filter(s -> !s.isDeleted())
@@ -388,15 +386,15 @@ public class VariantState {
     return specStream.map(s -> s.getArtifact()).collect(Collectors.toList());
   }
 
-  public ArtifactSpec getLatestArtifactSpec(String collection, String auid, String uri, boolean includeUncommitted) {
-    return getArtifactsAllVersions(collection, auid, includeUncommitted)
+  public ArtifactSpec getLatestArtifactSpec(String namespace, String auid, String uri, boolean includeUncommitted) {
+    return getArtifactsAllVersions(namespace, auid, includeUncommitted)
         .filter(s -> s.getUrl().equals(uri))
         .max(Comparator.comparingInt(ArtifactSpec::getVersion)).orElse(null);
   }
 
-  public Stream<ArtifactSpec> getLatestArtifactSpecs(String collection, String auid, boolean includeUncommitted) {
+  public Stream<ArtifactSpec> getLatestArtifactSpecs(String namespace, String auid, boolean includeUncommitted) {
     return getHighestVerSpecs().stream()
-        .filter(spec -> spec.getNamespace().equals(collection))
+        .filter(spec -> spec.getNamespace().equals(namespace))
         .filter(spec -> spec.getAuid().equals(auid))
         .filter(s -> includeUncommitted || s.isCommitted())
         .sorted();

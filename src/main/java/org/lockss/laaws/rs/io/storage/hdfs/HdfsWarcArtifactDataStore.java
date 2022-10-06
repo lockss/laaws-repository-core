@@ -36,7 +36,7 @@ import org.apache.hadoop.fs.*;
 import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
+import org.lockss.laaws.rs.model.NamespacedAuid;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
@@ -260,32 +260,31 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   /**
-   * Initializes a new AU collection under this LOCKSS repository.
+   * Initializes a new namespace under this LOCKSS repository.
    *
-   * @param collectionId A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @throws IOException
    */
   @Override
-  public void initCollection(String collectionId) throws IOException {
-    if (collectionId == null || collectionId.isEmpty()) {
-      throw new IllegalArgumentException("Collection ID is null or empty");
+  public void initNamespace(String namespace) throws IOException {
+    if (namespace == null || namespace.isEmpty()) {
+      throw new IllegalArgumentException("Namespace is null or empty");
     }
 
-    mkdirs(getCollectionPaths(collectionId));
+    mkdirs(getNamespacePaths(namespace));
   }
 
   /**
-   * Initializes an AU in the specified AU collection.
+   * Initializes an AU in the specified namespace.
    *
-   * @param collectionId A {@code String} containing the collection ID of this AU.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid         A {@code String} containing the AUID of this AU.
    * @throws IOException
    */
   @Override
-  public List<Path> initAu(String collectionId, String auid) throws IOException {
-    //// Initialize collection on each filesystem
-
-    initCollection(collectionId);
+  public List<Path> initAu(String namespace, String auid) throws IOException {
+    //// Initialize the namespace on each filesystem
+    initNamespace(namespace);
 
     //// Reload any existing AU base paths
 
@@ -298,7 +297,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
     // Find existing base directories of this AU
     List<Path> auPathsFound = Arrays.stream(baseDirs)
-        .map(basePath -> getAuPath(basePath, collectionId, auid))
+        .map(basePath -> getAuPath(basePath, namespace, auid))
         .filter(auPath -> {
           org.apache.hadoop.fs.Path hdfsAuPath = new org.apache.hadoop.fs.Path(auPath.toString());
           try {
@@ -314,11 +313,11 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
 
     if (auPathsFound.isEmpty()) {
       // No existing directories for this AU: Initialize a new AU directory
-      auPathsFound.add(initAuDir(collectionId, auid));
+      auPathsFound.add(initAuDir(namespace, auid));
     }
 
     // Track AU directories in internal AU paths map
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(namespace, auid);
     auPathsMap.put(key, auPathsFound);
 
     return auPathsFound;
@@ -327,13 +326,13 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
   /**
    * Creates a new AU directory in HDFS.
    *
-   * @param collectionId A {@link String} containing the collection ID.
+   * @param namespace A {@link String} containing the namespace.
    * @param auid A {@link String} containing the AUID.
    * @return A {@link Path} to a directory of this AU.
    * @throws IOException
    */
   @Override
-  protected Path initAuDir(String collectionId, String auid) throws IOException {
+  protected Path initAuDir(String namespace, String auid) throws IOException {
     Path[] basePaths = getBasePaths();
 
     if (basePaths == null || basePaths.length < 1) {
@@ -347,7 +346,7 @@ public class HdfsWarcArtifactDataStore extends WarcArtifactDataStore {
         .get();
 
     // Generate an AU path under this base path and create it on disk
-    Path auPath = getAuPath(basePath, collectionId, auid);
+    Path auPath = getAuPath(basePath, namespace, auid);
 
     // Get FileStatus of AU path in HDFS
     org.apache.hadoop.fs.Path hdfsAuPath = hdfsPathFromPath(auPath);

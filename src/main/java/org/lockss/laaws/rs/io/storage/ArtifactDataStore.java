@@ -65,23 +65,23 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
     extends LockssRepositorySubsystem, StorageInfoSource, Ready {
 
     /**
-     * Initializes a collection storage structure in an artifact data store implementation.
+     * Initializes a namespace storage structure in an artifact data store implementation.
      *
-     * @param collectionId
-     *          A {@code String} containing the collection ID of the collection to initialize.
+     * @param namespace
+     *          A {@code String} containing the namespace to initialize.
      */
-    void initCollection(String collectionId) throws IOException;
+    void initNamespace(String namespace) throws IOException;
 
     /**
      * Initializes an Archival Unit (AU) storage structure in an artifact data store implementation. Returns the AU's
      * initialized paths in storage or initializes a new one if none exist.
      *
-     * @param collectionId A {@link String} containing the collection ID of this AU.
+     * @param namespace A {@link String} containing the namespace of the AU.
      * @param auid A {@link String} containing the AU ID of the AU to initialize.
      * @return A {@link List<Path>} containing all the initialized paths of the AU.
      * @throws IOException
      */
-    List<Path> initAu(String collectionId, String auid) throws IOException;
+    List<Path> initAu(String namespace, String auid) throws IOException;
 
     /**
      * Adds an artifact to this artifact store.
@@ -175,9 +175,9 @@ public interface ArtifactDataStore<ID extends ArtifactIdentifier, AD extends Art
      * Returns the size in bytes of storage used by this AU. E.g., sum of the sizes of all WARCs in the AU, in
      * {@link WarcArtifactDataStore} implementations.
      *
-     * @param collection A {@link String} of the name of the collection containing the AU.
+     * @param namespace A {@link String} of the namespace of the AU.
      * @param auid A {@link String} of the AUID of the AU.
      * @return A {@code long} With the size in bytes of storage space used by this AU.
      */
-    long auWarcSize(String collection, String auid) throws IOException;
+    long auWarcSize(String namespace, String auid) throws IOException;
 }

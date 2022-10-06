@@ -33,7 +33,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.archive.format.warc.WARCConstants;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
+import org.lockss.laaws.rs.model.NamespacedAuid;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
@@ -79,13 +79,13 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   // *******************************************************************************************************************
 
   @Override
-  public void initCollection(String collectionId) {
+  public void initNamespace(String namespace) {
     // NOP
   }
 
   @Override
   public List<Path> initAu(String collectionId, String auid) throws IOException {
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(collectionId, auid);
     List<Path> auPaths = auPathsMap.get(key);
 
     if (auPaths == null) {

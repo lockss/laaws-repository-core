@@ -161,65 +161,64 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
     Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException;
 
     /**
-     * Provides the collection identifiers of the committed artifacts in the index.
+     * Provides the namespaces of the committed artifacts in the index.
      *
-     * @return An {@code Iterable<String>} with the index committed artifacts
-     * collection identifiers.
+     * @return An {@code Iterable<String>} with the index committed artifacts namespaces.
      */
-    Iterable<String> getCollectionIds() throws IOException;
+    Iterable<String> getNamespaces() throws IOException;
 
     /**
-     * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+     * Returns a list of Archival Unit IDs (AUIDs) in a namespace.
      *
-     * @param collection
-     *          A {@code String} containing the LOCKSS repository collection ID.
-     * @return A {@code Iterable<String>} iterating over the AUIDs in this LOCKSS repository collection.
+     * @param namespace
+     *          A {@code String} containing the namespace.
+     * @return A {@code Iterable<String>} iterating over the AUIDs in the namespace.
      * @throws IOException
      */
-    Iterable<String> getAuIds(String collection) throws IOException;
+    Iterable<String> getAuIds(String namespace) throws IOException;
 
     /**
-     * Returns the artifacts of the latest committed version of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of the latest committed version of all URLs, from a specified Archival Unit and namespace.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator}.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs in an AU.
      * @throws IOException
      */
-    default Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
-        return getArtifacts(collection, auid, false);
+    default Iterable<Artifact> getArtifacts(String namespace, String auid) throws IOException {
+        return getArtifacts(namespace, auid, false);
     }
 
-    Iterable<Artifact> getArtifacts(String collection, String auid, boolean includeUncommitted) throws IOException;
+    Iterable<Artifact> getArtifacts(String namespace, String auid, boolean includeUncommitted) throws IOException;
 
     /**
-     * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all committed versions of all URLs, from a specified Archival Unit and namespace.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
      * and for each URL, with version numbers in decreasing order.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
      * @throws IOException
      */
-    default Iterable<Artifact> getArtifactsAllVersions(String collection,
+    default Iterable<Artifact> getArtifactsAllVersions(String namespace,
                                                        String auid)
         throws IOException {
-        return getArtifactsAllVersions(collection, auid, false);
+        return getArtifactsAllVersions(namespace, auid, false);
     }
 
     /**
-     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+     * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and namespace.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
      * and for each URL, with version numbers in decreasing order.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param includeUncommitted
@@ -228,18 +227,18 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return An {@code Iterable<Artifact>} containing the artifacts of all version of all URLs in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getArtifactsAllVersions(String collection,
+    Iterable<Artifact> getArtifactsAllVersions(String namespace,
                                                String auid,
                                                boolean includeUncommitted)
         throws IOException;
 
     /**
      * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
-     * Unit and collection.
+     * Unit and namespace.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator}.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @param prefix
@@ -247,19 +246,19 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return An {@code Iterable<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
      * @throws IOException
      */
-    Iterable<Artifact> getArtifactsWithPrefix(String collection,
+    Iterable<Artifact> getArtifactsWithPrefix(String namespace,
                                               String auid,
                                               String prefix)
         throws IOException;
 
     /**
      * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified Archival Unit and
-     * collection.
+     * namespace.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
      * and for each URL, with version numbers in decreasing order.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param prefix
@@ -267,18 +266,18 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix from an AU.
      */
-    Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection,
+    Iterable<Artifact> getArtifactsWithPrefixAllVersions(String namespace,
                                                          String auid,
                                                          String prefix)
         throws IOException;
 
     /**
-     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified collection.
+     * Returns the artifacts of all committed versions of all URLs matching a prefix, from a specified namespace.
      * Returns artifacts with URLs ordered according to {@link PreOrderComparator},
      * and for each URL, with version numbers in decreasing order.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param prefix
      *          A String with the URL prefix.
      * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
@@ -286,17 +285,17 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of all URLs matching a
      *         prefix.
      */
-    Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection,
+    Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String namespace,
                                                            String prefix,
                                                            ArtifactVersions versions)
         throws IOException;
 
     /**
-     * Returns the artifacts of all committed versions of a given URL, from a specified Archival Unit and collection.
+     * Returns the artifacts of all committed versions of a given URL, from a specified Archival Unit and namespace.
      * Returns artifacts ordered with version numbers in decreasing order.
      *
-     * @param collection
-     *          A {@code String} with the collection identifier.
+     * @param namespace
+     *          A {@code String} with the namespace.
      * @param auid
      *          A {@code String} with the Archival Unit identifier.
      * @param url
@@ -304,33 +303,33 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL from an
      *         Archival Unit.
      */
-    Iterable<Artifact> getArtifactsAllVersions(String collection,
+    Iterable<Artifact> getArtifactsAllVersions(String namespace,
                                                String auid,
                                                String url)
         throws IOException;
 
     /**
-     * Returns the artifacts of all committed versions of a given URL, from a specified collection.
+     * Returns the artifacts of all committed versions of a given URL, from a specified namespace.
      * Returns artifacts ordered with version numbers in decreasing order.
      *
-     * @param collection
-     *          A {@code String} with the collection identifier.
+     * @param namespace
+     *          A {@code String} with the namespace.
      * @param url
      *          A {@code String} with the URL to be matched.
      * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
      *                   versions of an artifact.
      * @return An {@code Iterable<Artifact>} containing the committed artifacts of all versions of a given URL.
      */
-    Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection,
+    Iterable<Artifact> getArtifactsWithUrlFromAllAus(String namespace,
                                                      String url,
                                                      ArtifactVersions versions)
         throws IOException;
 
     /**
-     * Returns the artifact of the latest committed version of given URL, from a specified Archival Unit and collection.
+     * Returns the artifact of the latest committed version of given URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @param url
@@ -338,17 +337,17 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return
      * @throws IOException
      */
-    default Artifact getArtifact(String collection,
+    default Artifact getArtifact(String namespace,
                          String auid,
                          String url) throws IOException {
-        return getArtifact(collection, auid, url, false);
+        return getArtifact(namespace, auid, url, false);
     }
 
     /**
-     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+     * Returns the artifact of the latest version of given URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @param url
@@ -359,38 +358,38 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return The {@code Artifact} representing the latest version of the URL in the AU.
      * @throws IOException
      */
-    Artifact getArtifact(String collection,
+    Artifact getArtifact(String namespace,
                          String auid,
                          String url,
                          boolean includeUncommitted)
         throws IOException;
 
     /**
-     * Returns the committed artifact of a given version of a URL, from a specified Archival Unit and collection.
+     * Returns the committed artifact of a given version of a URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param url
      *          A String with the URL to be matched.
      * @param version
      *          A String with the version.
-     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and namespace.
      */
-    default Artifact getArtifactVersion(String collection,
+    default Artifact getArtifactVersion(String namespace,
                                         String auid,
                                         String url,
                                         Integer version)
         throws IOException {
-      return getArtifactVersion(collection, auid, url, version, false);
+      return getArtifactVersion(namespace, auid, url, version, false);
     }
 
     /**
-     * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+     * Returns the artifact of a given version of a URL, from a specified Archival Unit and namespace.
      *
-     * @param collection
-     *          A String with the collection identifier.
+     * @param namespace
+     *          A String with the namespace.
      * @param auid
      *          A String with the Archival Unit identifier.
      * @param url
@@ -400,9 +399,9 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @param includeUncommitted
      *          A boolean with the indication of whether an uncommitted artifact
      *          may be returned.
-     * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+     * @return The {@code Artifact} of a given version of a URL, from a specified AU and namespace.
      */
-    Artifact getArtifactVersion(String collection,
+    Artifact getArtifactVersion(String namespace,
                                 String auid,
                                 String url,
                                 Integer version,
@@ -410,15 +409,15 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
         throws IOException;
 
     /**
-     * Returns the size, in bytes, of AU in a collection.
+     * Returns the size, in bytes, of AU in a namespace.
      *
-     * @param collection
-     *          A {@code String} containing the collection ID.
+     * @param namespace
+     *          A {@code String} containing the namespace.
      * @param auid
      *          A {@code String} containing the Archival Unit ID.
      * @return A {@link AuSize} with byte size statistics of the specified AU.
      */
-    AuSize auSize(String collection, String auid) throws IOException;
+    AuSize auSize(String namespace, String auid) throws IOException;
 
     long DEFAULT_WAITREADY = 5000;
 
@@ -455,7 +454,7 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      *
      * @throws IOException if not a DispatchingArtifactIndex
      */
-    void startBulkStore(String collection, String auid) throws IOException;
+    void startBulkStore(String namespace, String auid) throws IOException;
 
     /**
      * Finish a bulk store operation (by copying the index entries
@@ -465,6 +464,6 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      *
      * @throws IOException if not a DispatchingArtifactIndex
      */
-    void finishBulkStore(String collection, String auid, int copyBatchSize)
+    void finishBulkStore(String namespace, String auid, int copyBatchSize)
         throws IOException;
 }

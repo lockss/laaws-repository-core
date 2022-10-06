@@ -151,8 +151,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   // Commonly used artifact identifiers and contents
-  protected static String COLL1 = "coll1";
-  protected static String COLL2 = "coll2";
+  protected static String NS1 = "ns1";
+  protected static String NS2 = "ns2";
   protected static String AUID1 = "auid1";
   protected static String AUID2 = "auid2";
   protected static String ARTID1 = "art_id_1";
@@ -161,16 +161,16 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected static String URL2 = "http://host2.com/file1";
 
   // Identifiers expected not to exist in the repository
-  protected static String NO_COLL = "no_coll";
+  protected static String NO_NS = "no_ns";
   protected static String NO_AUID = "no_auid";
   protected static String NO_URL = "no_url";
   protected static String NO_ARTID = "not an artifact ID";
 
   // These describe artifacts that getArtifact() should never find
   protected ArtifactSpec[] neverFoundArtifactSpecs = {
-      ArtifactSpec.forNsAuUrl(NO_COLL, AUID1, URL1),
-      ArtifactSpec.forNsAuUrl(COLL1, NO_AUID, URL1),
-      ArtifactSpec.forNsAuUrl(COLL1, AUID1, NO_URL),
+      ArtifactSpec.forNsAuUrl(NO_NS, AUID1, URL1),
+      ArtifactSpec.forNsAuUrl(NS1, NO_AUID, URL1),
+      ArtifactSpec.forNsAuUrl(NS1, AUID1, NO_URL),
   };
 
   protected List<ArtifactSpec> getArtifactSpecsForVariant(String variant) {
@@ -208,20 +208,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
         break;
 
       case "overlap":
-        // Same URLs in different collections and AUs
-        specs.add(ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1));
-        specs.add(ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL2).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL2));
-        specs.add(ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL2).thenCommit());
+        // Same URLs in different namespaces and AUs
+        specs.add(ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1));
+        specs.add(ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS1, AUID1, URL2).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS1, AUID1, URL2));
+        specs.add(ArtifactSpec.forNsAuUrl(NS1, AUID1, URL2).thenCommit());
 
-        specs.add(ArtifactSpec.forNsAuUrl(COLL2, AUID2, URL1).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL2, AUID2, URL1).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL2, AUID2, URL1));
-        specs.add(ArtifactSpec.forNsAuUrl(COLL2, AUID2, URL2).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL2, AUID2, URL2).thenCommit());
-        specs.add(ArtifactSpec.forNsAuUrl(COLL2, AUID2, URL2));
+        specs.add(ArtifactSpec.forNsAuUrl(NS2, AUID2, URL1).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS2, AUID2, URL1).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS2, AUID2, URL1));
+        specs.add(ArtifactSpec.forNsAuUrl(NS2, AUID2, URL2).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS2, AUID2, URL2).thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl(NS2, AUID2, URL2));
         break;
     }
 
@@ -524,7 +524,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   protected abstract Path[] expected_getTmpWarcBasePaths() throws Exception;
 
   public abstract void testInitDataStoreImpl() throws Exception;
-  public abstract void testInitCollectionImpl() throws Exception;
+  public abstract void testInitNamespaceImpl() throws Exception;
   public abstract void testInitAuImpl() throws Exception;
 
   protected abstract boolean pathExists(Path path) throws IOException;
@@ -535,10 +535,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // * UTILITY METHODS FOR TESTS
   // *******************************************************************************************************************
 
-  private ArtifactData generateTestArtifactData(String collection, String auid, String uri, int version, long length) throws IOException {
+  private ArtifactData generateTestArtifactData(String namespace, String auid, String uri, int version, long length) throws IOException {
     ArtifactSpec spec = new ArtifactSpec()
         .setArtifactId("test")
-        .setNamespace(collection)
+        .setNamespace(namespace)
         .setAuid(auid)
         .setUrl(uri)
         .setVersion(version)
@@ -578,8 +578,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   // *******************************************************************************************************************
 
   @Test
-  public void testInitCollection() throws Exception {
-    testInitCollectionImpl();
+  public void testInitNamespace() throws Exception {
+    testInitNamespaceImpl();
   }
 
   @Test
@@ -808,36 +808,35 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getCollectionsBasePath(Path)}.
+   * Test for {@link WarcArtifactDataStore#getNamespacesBasePath(Path)}.
    *
    * @throws Exception
    */
   @Test
-  public void testGetCollectionsBasePath() throws Exception {
+  public void testGetNamespacesBasePath() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    doCallRealMethod().when(ds).getCollectionsBasePath(ArgumentMatchers.any(Path.class));
+    doCallRealMethod().when(ds).getNamespacesBasePath(ArgumentMatchers.any(Path.class));
 
     Path basePath = Paths.get("/lockss");
-    assertEquals(basePath.resolve(WarcArtifactDataStore.COLLECTIONS_DIR), ds.getCollectionsBasePath(basePath));
+    assertEquals(basePath.resolve(WarcArtifactDataStore.NAMESPACE_DIR), ds.getNamespacesBasePath(basePath));
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#getCollectionPath(Path, String)}.
+   * Test for {@link WarcArtifactDataStore#getNamespacePath(Path, String)}.
    *
    * @throws Exception
    */
   @Test
-  public void testGetCollectionPath() throws Exception {
+  public void testGetNamespacePath() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
 
-    doCallRealMethod().when(ds).getCollectionsBasePath(ArgumentMatchers.any(Path.class));
-    doCallRealMethod().when(ds).getCollectionPath(ArgumentMatchers.any(Path.class), ArgumentMatchers.anyString());
+    doCallRealMethod().when(ds).getNamespacesBasePath(ArgumentMatchers.any(Path.class));
+    doCallRealMethod().when(ds).getNamespacePath(ArgumentMatchers.any(Path.class), ArgumentMatchers.anyString());
 
     Path basePath = Paths.get("/lockss");
-    String collectionId = "collection";
 
-    Path expectedPath = basePath.resolve(WarcArtifactDataStore.COLLECTIONS_DIR).resolve(collectionId);
-    assertEquals(expectedPath, ds.getCollectionPath(basePath, collectionId));
+    Path expectedPath = basePath.resolve(WarcArtifactDataStore.NAMESPACE_DIR).resolve(NS1);
+    assertEquals(expectedPath, ds.getNamespacePath(basePath, NS1));
   }
 
   /**
@@ -849,9 +848,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testGetAuPath() throws Exception {
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
 
-    doCallRealMethod().when(ds).getCollectionsBasePath(ArgumentMatchers.any(Path.class));
+    doCallRealMethod().when(ds).getNamespacesBasePath(ArgumentMatchers.any(Path.class));
 
-    doCallRealMethod().when(ds).getCollectionPath(ArgumentMatchers.any(Path.class), ArgumentMatchers.anyString());
+    doCallRealMethod().when(ds).getNamespacePath(ArgumentMatchers.any(Path.class), ArgumentMatchers.anyString());
 
     doCallRealMethod().when(ds).getAuPath(
         ArgumentMatchers.any(Path.class),
@@ -860,15 +859,13 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     );
 
     Path basePath = Paths.get("/lockss");
-    String collectionId = "collection";
-    String auid = "auid";
 
     Path expectedAuPath = basePath
-        .resolve(WarcArtifactDataStore.COLLECTIONS_DIR)
-        .resolve(collectionId)
-        .resolve(WarcArtifactDataStore.AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
+        .resolve(WarcArtifactDataStore.NAMESPACE_DIR)
+        .resolve(NS1)
+        .resolve(WarcArtifactDataStore.AU_DIR_PREFIX + DigestUtils.md5Hex(AUID1));
 
-    assertEquals(expectedAuPath, ds.getAuPath(basePath, collectionId, auid));
+    assertEquals(expectedAuPath, ds.getAuPath(basePath, NS1, AUID1));
   }
 
   /**
@@ -878,9 +875,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testGetAuPaths() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(NS1, AUID1);
 
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -889,18 +884,18 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Mock behavior
     doCallRealMethod().when(ds).getAuPaths(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
-    when(ds.initAu(collectionId, auid)).thenReturn(auPaths);
+    when(ds.initAu(NS1, AUID1)).thenReturn(auPaths);
 
     // Assert initAu() is called if there is no AU paths list in map
     when(ds.auPathsMap.get(key)).thenReturn(null);
-    assertEquals(auPaths, ds.getAuPaths(collectionId, auid));
-    verify(ds).initAu(collectionId, auid);
+    assertEquals(auPaths, ds.getAuPaths(NS1, AUID1));
+    verify(ds).initAu(NS1, AUID1);
     clearInvocations(ds);
 
     // Assert initAu() is not called and AU paths list is returned from map, if it exists in map
     when(ds.auPathsMap.get(key)).thenReturn(auPaths);
-    assertEquals(auPaths, ds.getAuPaths(collectionId, auid));
-    verify(ds, never()).initAu(collectionId, auid);
+    assertEquals(auPaths, ds.getAuPaths(NS1, AUID1));
+    verify(ds, never()).initAu(NS1, AUID1);
     clearInvocations(ds);
   }
 
@@ -911,8 +906,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testGetAuActiveWarcPath() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
     long minSize = 1234L;
 
     // Mocks
@@ -921,21 +914,21 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path activeWarc = mock(Path.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).getAuActiveWarcPath(collectionId, auid, minSize, false);
+    doCallRealMethod().when(ds).getAuActiveWarcPath(NS1, AUID1, minSize, false);
 
     // Assert getAuActiveWarcPath() calls initAuActiveWarc() if there are no active WARCs for this AU
     when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.anyList(), ArgumentMatchers.anyLong()))
         .thenReturn(null);
-    when(ds.initAuActiveWarc(collectionId, auid, minSize)).thenReturn(activeWarc);
-    assertEquals(activeWarc, ds.getAuActiveWarcPath(collectionId, auid, minSize, false));
-    verify(ds).initAuActiveWarc(collectionId, auid, minSize);
+    when(ds.initAuActiveWarc(NS1, AUID1, minSize)).thenReturn(activeWarc);
+    assertEquals(activeWarc, ds.getAuActiveWarcPath(NS1, AUID1, minSize, false));
+    verify(ds).initAuActiveWarc(NS1, AUID1, minSize);
     clearInvocations(ds);
 
     // Assert if active WARC path found, then it is returned
     when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.anyList(), ArgumentMatchers.anyLong()))
         .thenReturn(activeWarc);
-    assertEquals(activeWarc, ds.getAuActiveWarcPath(collectionId, auid, minSize, false));
-    verify(ds, never()).initAuActiveWarc(collectionId, auid, minSize);
+    assertEquals(activeWarc, ds.getAuActiveWarcPath(NS1, AUID1, minSize, false));
+    verify(ds, never()).initAuActiveWarc(NS1, AUID1, minSize);
   }
 
   /**
@@ -1005,9 +998,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testGetAuActiveWarcPaths() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(NS1, AUID1);
 
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -1015,20 +1006,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     List<Path> auActiveWarcs = mock(List.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).getAuActiveWarcPaths(collectionId, auid);
+    doCallRealMethod().when(ds).getAuActiveWarcPaths(NS1, AUID1);
 
     // Assert active WARCs reloaded if map contains null list for this AU
     when(ds.auActiveWarcsMap.get(key)).thenReturn(null);
-    when(ds.findAuActiveWarcs(collectionId, auid)).thenReturn(auActiveWarcs);
-    assertEquals(auActiveWarcs, ds.getAuActiveWarcPaths(collectionId, auid));
-    verify(ds).findAuActiveWarcs(collectionId, auid);
+    when(ds.findAuActiveWarcs(NS1, AUID1)).thenReturn(auActiveWarcs);
+    assertEquals(auActiveWarcs, ds.getAuActiveWarcPaths(NS1, AUID1));
+    verify(ds).findAuActiveWarcs(NS1, AUID1);
     verify(ds.auActiveWarcsMap).put(key, auActiveWarcs);
     clearInvocations(ds, ds.auActiveWarcsMap);
 
     // Assert AU active WARCs returned without reloading otherwise
     when(ds.auActiveWarcsMap.get(key)).thenReturn(auActiveWarcs);
-    assertEquals(auActiveWarcs, ds.getAuActiveWarcPaths(collectionId, auid));
-    verify(ds, never()).findAuActiveWarcs(collectionId, auid);
+    assertEquals(auActiveWarcs, ds.getAuActiveWarcPaths(NS1, AUID1));
+    verify(ds, never()).findAuActiveWarcs(NS1, AUID1);
     verify(ds.auActiveWarcsMap, never()).put(key, auActiveWarcs);
     clearInvocations(ds, ds.auActiveWarcsMap);
   }
@@ -1040,8 +1031,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testFindAuActiveWarcs() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
     List<Path> auPaths = new ArrayList<>();
 
     // Mocks
@@ -1050,10 +1039,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     auPaths.add(auPath);
 
     // Mock behavior
-    doCallRealMethod().when(ds).findAuActiveWarcs(collectionId, auid);
-    doCallRealMethod().when(ds).findAuArtifactWarcs(collectionId, auid);
-    doCallRealMethod().when(ds).findAuArtifactWarcsStream(collectionId, auid);
-    when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
+    doCallRealMethod().when(ds).findAuActiveWarcs(NS1, AUID1);
+    doCallRealMethod().when(ds).findAuArtifactWarcs(NS1, AUID1);
+    doCallRealMethod().when(ds).findAuArtifactWarcsStream(NS1, AUID1);
+    when(ds.getAuPaths(NS1, AUID1)).thenReturn(auPaths);
     when(ds.getThresholdWarcSize()).thenReturn(1000L);
     when(ds.getBlockSize()).thenReturn(100L);
 
@@ -1074,14 +1063,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(ds.findWarcs(auPath)).thenReturn(warcPaths);
 
     // Call findAuActiveWarcs()
-    assertIterableEquals(expectedResults, ds.findAuActiveWarcs(collectionId, auid));
+    assertIterableEquals(expectedResults, ds.findAuActiveWarcs(NS1, AUID1));
 
     // Assert findAuActiveWarcs() returns no more than the maximum number of active WARCs
     for (int i = 0; i < WarcArtifactDataStore.MAX_AUACTIVEWARCS_RELOADED; i++) {
       warcPaths.add(makeTestAuWarcPath(ds, String.format("artifacts_%d", i), i));
     }
 
-    List<Path> result = ds.findAuActiveWarcs(collectionId, auid);
+    List<Path> result = ds.findAuActiveWarcs(NS1, AUID1);
     assertEquals(WarcArtifactDataStore.MAX_AUACTIVEWARCS_RELOADED, result.size());
 
     log.trace("result = {}", result);
@@ -1114,8 +1103,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path auPath = Paths.get("/lockss");
 
     // Mock behavior
-    when(aid.getNamespace()).thenReturn("collection");
-    when(aid.getAuid()).thenReturn("auid");
+    when(aid.getNamespace()).thenReturn(NS1);
+    when(aid.getAuid()).thenReturn(AUID1);
 
     when(ds.getAuPath(basePath, aid.getNamespace(), aid.getAuid())).thenReturn(auPath);
 
@@ -1147,8 +1136,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testGetAuJournalPaths() throws IOException {
-    String collectionId = "collection";
-    String auid = "auid";
     String journalName = "journal";
 
     List<Path> auPaths = new ArrayList<>();
@@ -1158,14 +1145,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
 
     // Setup mock behavior
-    when(aid.getNamespace()).thenReturn(collectionId);
-    when(aid.getAuid()).thenReturn(auid);
+    when(aid.getNamespace()).thenReturn(NS1);
+    when(aid.getAuid()).thenReturn(AUID1);
     doCallRealMethod().when(ds).getAuJournalPaths(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
-    when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
+    when(ds.getAuPaths(NS1, AUID1)).thenReturn(auPaths);
 
-//    when(ds.getAuPaths(collectionId, auid)).thenReturn(null);
-//    when(ds.getAuPaths(collectionId, auid)).thenReturn(EMPTY_LIST);
-//    when(ds.getAuPaths(collectionId, auid)).thenThrow(IOException.class);
+//    when(ds.getAuPaths(NS1, AUID1)).thenReturn(null);
+//    when(ds.getAuPaths(NS1, AUID)).thenReturn(EMPTY_LIST);
+//    when(ds.getAuPaths(NS1, AUID1)).thenThrow(IOException.class);
 
     // Call real method
     Path[] actualWarcPaths = ds.getAuJournalPaths(aid.getNamespace(), aid.getAuid(), journalName);
@@ -1317,17 +1304,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testGenerateActiveWarcName() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
     ZonedDateTime zdt = ZonedDateTime.now(ZoneId.of("UTC"));
 
     // Expected active WARC file name
     String timestamp = zdt.format(WarcArtifactDataStore.FMT_TIMESTAMP);
-    String auidHash = DigestUtils.md5Hex(auid);
-    String expectedName = String.format("artifacts_%s-%s_%s", collectionId, auidHash, timestamp);
+    String auidHash = DigestUtils.md5Hex(AUID1);
+    String expectedName = String.format("artifacts_%s-%s_%s", NS1, auidHash, timestamp);
 
     // Assert generated active WARC file name matches expected file name
-    assertEquals(expectedName, WarcArtifactDataStore.generateActiveWarcName(collectionId, auid, zdt));
+    assertEquals(expectedName, WarcArtifactDataStore.generateActiveWarcName(NS1, AUID1, zdt));
   }
 
   /**
@@ -1337,9 +1322,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testInitAuActiveWarc() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(NS1, AUID1);
     long minSize = 1234L;
 
     // Mock
@@ -1352,15 +1335,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     Path auActiveWarc2 = mock(Path.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).initAuActiveWarc(collectionId, auid, minSize);
+    doCallRealMethod().when(ds).initAuActiveWarc(NS1, AUID1, minSize);
     when(auPath1.resolve(ArgumentMatchers.anyString())).thenReturn(auActiveWarc1);
     when(auPath2.resolve(ArgumentMatchers.anyString())).thenReturn(auActiveWarc2);
 
     //// Assert if no suitable AU path, then initAuDir() is called
     when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.any(), ArgumentMatchers.anyLong())).thenReturn(null);
-    when(ds.initAuDir(collectionId, auid)).thenReturn(auPath2);
-    assertEquals(auActiveWarc2, ds.initAuActiveWarc(collectionId, auid, minSize));
-    verify(ds).initAuDir(collectionId, auid);
+    when(ds.initAuDir(NS1, AUID1)).thenReturn(auPath2);
+    assertEquals(auActiveWarc2, ds.initAuActiveWarc(NS1, AUID1, minSize));
+    verify(ds).initAuDir(NS1, AUID1);
     verify(auPath1, never()).resolve(ArgumentMatchers.anyString());
     verify(auPath2).resolve(ArgumentMatchers.anyString());
     assertTrue(ds.auActiveWarcsMap.containsKey(key));
@@ -1371,20 +1354,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     //// Assert if no suitable AU path and exhausted base dirs then initAuDir() is *not* called
     List<Path> auPaths = mock(List.class);
     when(auPaths.size()).thenReturn(1); // Q: This might be implementation-specific?
-    when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
+    when(ds.getAuPaths(NS1, AUID1)).thenReturn(auPaths);
 //    when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.any(), ArgumentMatchers.anyLong())).thenReturn(null);
-    assertThrows(IOException.class, () -> ds.initAuActiveWarc(collectionId, auid, minSize));
-    verify(ds, never()).initAuDir(collectionId, auid);
+    assertThrows(IOException.class, () -> ds.initAuActiveWarc(NS1, AUID1, minSize));
+    verify(ds, never()).initAuDir(NS1, AUID1);
     assertTrue(ds.auActiveWarcsMap.isEmpty());
     ds.auActiveWarcsMap.clear();
     clearInvocations(ds, auPath1, auPath2);
 
     //// Assert if suitable AU path found
-//    when(ds.getAuPaths(collectionId, auid)).thenReturn(auPaths);
+//    when(ds.getAuPaths(NS1, AUID1)).thenReturn(auPaths);
     when(ds.getMinMaxFreeSpacePath(ArgumentMatchers.any(), ArgumentMatchers.anyLong())).thenReturn(auPath1);
 //    when(auPath1.resolve(ArgumentMatchers.anyString())).thenReturn(auActiveWarc1);
-    assertEquals(auActiveWarc1, ds.initAuActiveWarc(collectionId, auid, minSize));
-    verify(ds, never()).initAuDir(collectionId, auid);
+    assertEquals(auActiveWarc1, ds.initAuActiveWarc(NS1, AUID1, minSize));
+    verify(ds, never()).initAuDir(NS1, AUID1);
     verify(auPath1).resolve(ArgumentMatchers.anyString());
     verify(auPath2, never()).resolve(ArgumentMatchers.anyString());
     assertTrue(ds.auActiveWarcsMap.containsKey(key));
@@ -1399,9 +1382,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
    */
   @Test
   public void testSealActiveWarc() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(NS1, AUID1);
 
     // Mock
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
@@ -1415,11 +1396,11 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     );
 
     // "WARN: Attempted to seal an active WARC of an AU having no active WARCs!"
-    ds.sealActiveWarc(collectionId, auid, mock(Path.class));
+    ds.sealActiveWarc(NS1, AUID1, mock(Path.class));
 
     // "WARN: Attempted to seal an active WARC of an AU that is not active!"
     ds.auActiveWarcsMap.put(key, new ArrayList<>());
-    ds.sealActiveWarc(collectionId, auid, mock(Path.class));
+    ds.sealActiveWarc(NS1, AUID1, mock(Path.class));
 
     // Inject active WARCs list for this AU
     Path activeWarc = mock(Path.class);
@@ -1428,7 +1409,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     ds.auActiveWarcsMap.put(key, activeWarcs);
 
     // Assert sealing the active WARC succeeds
-    ds.sealActiveWarc(collectionId, auid, activeWarc);
+    ds.sealActiveWarc(NS1, AUID1, activeWarc);
     assertFalse(ds.auActiveWarcsMap.get(key).contains(activeWarc));
   }
 
@@ -1486,7 +1467,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEmpty(store.findWarcs(tmpWarcBasePath));
 
     // The artifact specification we will use in this test
-    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1);
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1);
     spec.setArtifactId(UUID.randomUUID().toString()); // FIXME Is this needed?
     spec.generateContent();
 
@@ -1830,7 +1811,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     // ************************************
 
     // Add an artifact
-    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 128);
+    ArtifactData ad = generateTestArtifactData(NS1, AUID1, "uri", 1, 128);
     Artifact artifact = store.addArtifactData(ad);
 
     boolean isExpired = false;
@@ -2010,7 +1991,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     }
 
     try {
-      ArtifactSpec spec = ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1);
+      ArtifactSpec spec = ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1);
       spec.generateContent();
       ArtifactData ad = spec.getArtifactData();
       ad.setIdentifier(null);
@@ -2045,7 +2026,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testAddArtifactData_switchCompression() throws Exception {
     // Create a new artifact specification
-    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1);
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1);
     spec.generateContent();
 
     //// Disable compression
@@ -2124,7 +2105,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     store.setUseWarcCompression(useCompression);
 
     // Create a new artifact specification
-    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1);
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1);
     spec.setArtifactId(UUID.randomUUID().toString());
     spec.generateContent();
 
@@ -2447,7 +2428,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertVariantState();
 
     // Create an artifact specification
-    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1);
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1);
     spec.setArtifactId(UUID.randomUUID().toString());
     spec.generateContent();
 
@@ -2516,19 +2497,19 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testRebuildIndex() throws Exception {
     runTestRebuildIndex(true, index -> {
       // Add first artifact to the repository - don't commit
-      ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
+      ArtifactData ad1 = generateTestArtifactData(NS1, AUID1, "uri1", 1, 1024);
       Artifact a1 = store.addArtifactData(ad1);
       assertNotNull(a1);
     });
 
     runTestRebuildIndex(true, index -> {
       // Add first artifact to the repository - don't commit
-      ArtifactData ad1 = generateTestArtifactData("collection1", "auid1", "uri1", 1, 1024);
+      ArtifactData ad1 = generateTestArtifactData(NS1, AUID1, "uri1", 1, 1024);
       Artifact a1 = store.addArtifactData(ad1);
       assertNotNull(a1);
 
       // Add second artifact to the repository - commit
-      ArtifactData ad2 = generateTestArtifactData("collection1", "auid1", "uri2", 1, 1024);
+      ArtifactData ad2 = generateTestArtifactData(NS1, AUID1, "uri2", 1, 1024);
       Artifact a2 = store.addArtifactData(ad2);
       assertNotNull(a2);
       index.commitArtifact(a2.getId());
@@ -2538,7 +2519,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertTrue(committed_a2.getCommitted());
 
       // Add another artifact to the repository - commit
-      ArtifactData ad5 = generateTestArtifactData("collection1", "auid1", "uri2", 2, 1024);
+      ArtifactData ad5 = generateTestArtifactData(NS1, AUID1, "uri2", 2, 1024);
       Artifact a5 = store.addArtifactData(ad5);
       assertNotNull(a5);
       index.commitArtifact(a5.getId());
@@ -2548,14 +2529,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertTrue(committed_a5.getCommitted());
 
       // Add third artifact to the repository - don't commit but immediately delete
-      ArtifactData ad3 = generateTestArtifactData("collection1", "auid1", "uri3", 1, 1024);
+      ArtifactData ad3 = generateTestArtifactData(NS1, AUID1, "uri3", 1, 1024);
       Artifact a3 = store.addArtifactData(ad3);
       assertNotNull(a3);
       store.deleteArtifactData(a3);
       index.deleteArtifact(a3.getId());
 
       // Add fourth artifact to the repository - commit and delete
-      ArtifactData ad4 = generateTestArtifactData("collection1", "auid1", "uri4", 1, 1024);
+      ArtifactData ad4 = generateTestArtifactData(NS1, AUID1, "uri4", 1, 1024);
       Artifact a4 = store.addArtifactData(ad4);
       assertNotNull(a4);
 
@@ -2640,25 +2621,25 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   private void assertArtifactIndexEquals(ArtifactIndex expected, ArtifactIndex actual) throws IOException {
-    // Assert both indexes have the same collections
-    List<String> collections1 = IterableUtils.toList(expected.getCollectionIds());
-    List<String> collections2 = IterableUtils.toList(actual.getCollectionIds());
-    assertIterableEquals(collections1, collections2);
+    // Assert both indexes have the same namespaces
+    List<String> nss1 = IterableUtils.toList(expected.getNamespaces());
+    List<String> nss2 = IterableUtils.toList(actual.getNamespaces());
+    assertIterableEquals(nss1, nss2);
 
-    // Assert AUs in each collection have the same artifacts
-    for (String collection : collections1) {
-      // Assert that this collection has the same set of AUIDs
-      List<String> auids1 = IteratorUtils.toList(expected.getAuIds(collection).iterator());
-      List<String> auids2 = IteratorUtils.toList(actual.getAuIds(collection).iterator());
+    // Assert AUs in each namespace have the same artifacts
+    for (String ns : nss1) {
+      // Assert that this namespace has the same set of AUIDs
+      List<String> auids1 = IteratorUtils.toList(expected.getAuIds(ns).iterator());
+      List<String> auids2 = IteratorUtils.toList(actual.getAuIds(ns).iterator());
       assertIterableEquals(auids1, auids2);
 
       // Assert set of artifacts is the same in all AUs
       for (String auid : auids1) {
         List<Artifact> artifacts1 =
-            IteratorUtils.toList(expected.getArtifacts(collection, auid, true).iterator());
+            IteratorUtils.toList(expected.getArtifacts(ns, auid, true).iterator());
 
         List<Artifact> artifacts2 =
-            IteratorUtils.toList(actual.getArtifacts(collection, auid, true).iterator());
+            IteratorUtils.toList(actual.getArtifacts(ns, auid, true).iterator());
 
         assertIterableEquals(artifacts1, artifacts2);
       }
@@ -2864,8 +2845,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     ArtifactIdentifier aid = mock(ArtifactIdentifier.class);
     when(aid.getId()).thenReturn("test");
-    when(aid.getNamespace()).thenReturn("collection");
-    when(aid.getAuid()).thenReturn("auid");
+    when(aid.getNamespace()).thenReturn(NS1);
+    when(aid.getAuid()).thenReturn(AUID1);
 
     Path j1Path = mock(Path.class);
     Path j2Path = mock(Path.class);
@@ -2932,7 +2913,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(journalPath.getFileName()).thenReturn(journalFileName);
 
     // Generate two journal records for the same artifact
-    ArtifactIdentifier aid = new ArtifactIdentifier("artifact", "collection", "auid", "url", 1);
+    ArtifactIdentifier aid = new ArtifactIdentifier("artifact", NS1, AUID1, "url", 1);
     ArtifactStateEntry am1 = new ArtifactStateEntry(aid, ArtifactState.UNCOMMITTED);
     ArtifactStateEntry am2 = new ArtifactStateEntry(aid, ArtifactState.PENDING_COPY);
 
@@ -3024,8 +3005,8 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   @Test
   public void testWriteArtifactData() throws Exception {
-    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(COLL1, AUID1, URL1);
-    ArtifactData ad = generateTestArtifactData("collection", "auid", "uri", 1, 1024);
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(NS1, AUID1, URL1);
+    ArtifactData ad = generateTestArtifactData(NS1, AUID1, "uri", 1, 1024);
     assertNotNull(ad);
 
     ArtifactIdentifier ai = ad.getIdentifier();
@@ -3066,7 +3047,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
     // Assert LOCKSS headers
     assertEquals(ai.getId(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY));
-    assertEquals(ai.getNamespace(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY));
+    assertEquals(ai.getNamespace(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY));
     assertEquals(ai.getAuid(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY));
     assertEquals(ai.getUri(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY));
     assertEquals(ai.getVersion(), Integer.valueOf((String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY)));
@@ -3222,25 +3203,23 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   @Test
   public void testSealActiveWarc_deprecated() throws Exception {
     // Constants for this test so that we can be consistent
-    final String testCollection = "testCollection";
-    final String testAuid = "testAuid";
     final String testUri = "testUri";
     long minSize = 1234L;
 
     // Asserting sealing an AU with no active WARCs results in no files being rewritten
-    store.sealActiveWarc(testCollection, testAuid, null);
-    assertEmpty(findWarcs(store.getAuPaths(testCollection, testAuid)));
+    store.sealActiveWarc(NS1, AUID1, null);
+    assertEmpty(findWarcs(store.getAuPaths(NS1, AUID1)));
 
     // Assert the active WARCs for this AU do not exist yet
-//    for (Path activeWarcPath : store.getAuActiveWarcPaths(testCollection, testAuid)) {
+//    for (Path activeWarcPath : store.getAuActiveWarcPaths(NS1, AUID1)) {
 //      assertFalse(pathExists(activeWarcPath));
 //    }
 
-    Path activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid, minSize, false);
+    Path activeWarcPath = store.getAuActiveWarcPath(NS1, AUID1, minSize, false);
     assertFalse(pathExists(activeWarcPath));
 
     // Generate and add an artifact
-    ArtifactData artifactData = generateTestArtifactData(testCollection, testAuid, testUri, 1, 1234);
+    ArtifactData artifactData = generateTestArtifactData(NS1, AUID1, testUri, 1, 1234);
     Artifact artifact = store.addArtifactData(artifactData);
 
     // Commit the artifact
@@ -3250,10 +3229,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertTrue(committed.getCommitted());
 
     // Assert the active WARC now exists
-//    for (Path activeWarcPath : store.getAuActiveWarcPaths(testCollection, testAuid)) {
+//    for (Path activeWarcPath : store.getAuActiveWarcPaths(NS1, AUID1)) {
 //      assertTrue(pathExists(activeWarcPath));
 //    }
-    activeWarcPath = store.getAuActiveWarcPath(testCollection, testAuid, minSize, false);
+    activeWarcPath = store.getAuActiveWarcPath(NS1, AUID1, minSize, false);
     assertTrue(pathExists(activeWarcPath));
 
     // Seal the AU's active WARCs

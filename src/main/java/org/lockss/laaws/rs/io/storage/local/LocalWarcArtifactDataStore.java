@@ -34,7 +34,7 @@ import org.apache.commons.io.FileUtils;
 import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcFilePool;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
+import org.lockss.laaws.rs.model.NamespacedAuid;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.FileUtil;
 import org.lockss.util.os.PlatformUtil;
@@ -146,8 +146,8 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public void initCollection(String collectionId) throws IOException {
-    mkdirs(getCollectionPaths(collectionId));
+  public void initNamespace(String namespace) throws IOException {
+    mkdirs(getNamespacePaths(namespace));
   }
 
   /**
@@ -156,16 +156,15 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    * Initializes an AU by reloading any existing directories of this AU or creates a new one if initializing this AU
    * for the first time.
    *
-   * @param collectionId A {@code String} containing the collection ID of this AU.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid
    * @return
    * @throws IOException
    */
   @Override
-  public List<Path> initAu(String collectionId, String auid) throws IOException {
-    //// Initialize collection on each filesystem
-
-    initCollection(collectionId);
+  public List<Path> initAu(String namespace, String auid) throws IOException {
+    //// Initialize namespace on each filesystem
+    initNamespace(namespace);
 
     //// Reload any existing AU base paths
 
@@ -179,17 +178,17 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
 
     // Find existing base directories of this AU
     List<Path> auPathsFound = Arrays.stream(baseDirs)
-        .map(basePath -> getAuPath(basePath, collectionId, auid))
+        .map(basePath -> getAuPath(basePath, namespace, auid))
         .filter(auPath -> auPath.toFile().isDirectory())
         .collect(Collectors.toList());
 
     if (auPathsFound.isEmpty()) {
       // No existing directories for this AU: Initialize a new AU directory
-      auPathsFound.add(initAuDir(collectionId, auid));
+      auPathsFound.add(initAuDir(namespace, auid));
     }
 
     // Track AU directories in internal AU paths map
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+    NamespacedAuid key = new NamespacedAuid(namespace, auid);
     auPathsMap.put(key, auPathsFound);
 
     return auPathsFound;
@@ -199,13 +198,13 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    * Creates a new AU base directory on the repository base directory having the most free space. No-op if the directory
    * already exists on disk.
    *
-   * @param collectionId A {@link String} containing the collection ID containing the AU
+   * @param namespace A {@link String} containing the namespace.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link Path} containing the path to the AU base directory.
    * @throws IOException
    */
   @Override
-  protected Path initAuDir(String collectionId, String auid) throws IOException {
+  protected Path initAuDir(String namespace, String auid) throws IOException {
     Path[] basePaths = getBasePaths();
 
     if (basePaths == null || basePaths.length < 1) {
@@ -220,7 +219,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
         .get();
 
     // Generate an AU path under this base path and create it on disk
-    Path auPath = getAuPath(basePath, collectionId, auid);
+    Path auPath = getAuPath(basePath, namespace, auid);
 
     // Create the AU directory if necessary
     if (!auPath.toFile().isDirectory()) {
@@ -244,7 +243,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    * Recursively finds artifact WARC files under a given base path.
    *
    * @param basePath The base path to scan recursively for WARC files.
-   * @return A collection of paths to WARC files under the given base path.
+   * @return Paths to WARC files under the given base path.
    */
   @Override
   public Collection<Path> findWarcs(Path basePath) throws IOException {

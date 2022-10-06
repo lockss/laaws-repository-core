@@ -67,7 +67,7 @@ import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
+import org.lockss.laaws.rs.model.NamespacedAuid;
 import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
@@ -131,8 +131,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected static final String AU_DIR_PREFIX = "au-";
 
-  protected static final String COLLECTIONS_DIR = "collections";
-  protected static final String TMP_WARCS_DIR = "tempwarcs";
+  protected static final String NAMESPACE_DIR = "ns";
+  protected static final String TMP_WARCS_DIR = "tmp/warcs";
 
   protected static final String WARCID_SCHEME = "urn:uuid";
   protected static final String CRLF = "\r\n";
@@ -164,8 +164,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected Path[] basePaths;
   protected WarcFilePool tmpWarcPool;
-  protected Map<CollectionAuidPair, List<Path>> auActiveWarcsMap = new HashMap<>();
-  protected Map<CollectionAuidPair, List<Path>> auPathsMap = new HashMap<>();
+  protected Map<NamespacedAuid, List<Path>> auActiveWarcsMap = new HashMap<>();
+  protected Map<NamespacedAuid, List<Path>> auPathsMap = new HashMap<>();
 
   private Map<ArtifactIdentifier, CopyArtifactTask> queuedCopyTasks = new ConcurrentHashMap<>();
 
@@ -334,9 +334,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Wait for all background commits for an AU to finish
    */
   public boolean waitForCommitTasks(String collection, String auid) {
-    log.debug2("Waiting for stripe " + new CollectionAuidPair(collection, auid));
+    log.debug2("Waiting for stripe " + new NamespacedAuid(collection, auid));
 
-    return stripedExecutor.waitForStripeToEmpty(new CollectionAuidPair(collection, auid));
+    return stripedExecutor.waitForStripeToEmpty(new NamespacedAuid(collection, auid));
   }
 
   // *******************************************************************************************************************
@@ -404,8 +404,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param basePath A {@link Path} containing a base path of this data store.
    * @return A {@link Path} containing the collections base path, under the given data store base path.
    */
-  public Path getCollectionsBasePath(Path basePath) {
-    return basePath.resolve(COLLECTIONS_DIR);
+  public Path getNamespacesBasePath(Path basePath) {
+    return basePath.resolve(NAMESPACE_DIR);
   }
 
   /**
@@ -415,7 +415,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   public Path[] getCollectionsBasePaths() {
     return Arrays.stream(getBasePaths())
-        .map(path -> getCollectionsBasePath(path))
+        .map(path -> getNamespacesBasePath(path))
         .toArray(Path[]::new);
   }
 
@@ -426,8 +426,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param collectionId A {@link String} containing the name of the collection.
    * @return A {@link Path} containing the base path of the collection, under the given data store base path.
    */
-  public Path getCollectionPath(Path basePath, String collectionId) {
-    return getCollectionsBasePath(basePath).resolve(collectionId);
+  public Path getNamespacePath(Path basePath, String collectionId) {
+    return getNamespacesBasePath(basePath).resolve(collectionId);
   }
 
   /**
@@ -436,9 +436,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param collectionId A {@link String} containing the name of the collection.
    * @return A {@link Path[]} containing all paths of this collection.
    */
-  public Path[] getCollectionPaths(String collectionId) {
+  public Path[] getNamespacePaths(String collectionId) {
     return Arrays.stream(getBasePaths())
-        .map(path -> getCollectionPath(path, collectionId))
+        .map(path -> getNamespacePath(path, collectionId))
         .toArray(Path[]::new);
   }
 
@@ -451,7 +451,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path} containing the base path of the AU, under the given data store base path.
    */
   public Path getAuPath(Path basePath, String collectionId, String auid) {
-    return getCollectionPath(basePath, collectionId).resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
+    return getNamespacePath(basePath, collectionId).resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
   }
 
   /**
@@ -464,7 +464,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public List<Path> getAuPaths(String collectionId, String auid) throws IOException {
     synchronized (auPathsMap) {
       // Get AU's initialized paths from map
-      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
       List<Path> auPaths = auPathsMap.get(key);
 
       // Initialize the AU if there is no entry in the map, or return the AU's paths
@@ -533,7 +533,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public List<Path> getAuActiveWarcPaths(String collectionId, String auid) throws IOException {
     synchronized (auActiveWarcsMap) {
       // Get the active WARCs of this AU if it exists in the map
-      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
       List<Path> auActiveWarcs = auActiveWarcsMap.get(key);
 
       log.trace("auActiveWarcs = {}", auActiveWarcs);
@@ -845,7 +845,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       initWarc(auActiveWarc);
 
       // Add WARC file path to list of active WARC paths of this AU
-      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
       List<Path> auActiveWarcs = auActiveWarcsMap.getOrDefault(key, new ArrayList<>());
       auActiveWarcs.add(auActiveWarc);
       auActiveWarcsMap.put(key, auActiveWarcs);
@@ -866,7 +866,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.trace("warcPath = {}", warcPath);
 
     synchronized (auActiveWarcsMap) {
-      CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
 
       if (auActiveWarcsMap.containsKey(key)) {
         List<Path> activeWarcs = auActiveWarcsMap.get(key);
@@ -1819,7 +1819,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
      */
     @Override
     public Object getStripe() {
-      return new CollectionAuidPair(artifact.getNamespace(), artifact.getAuid());
+      return new NamespacedAuid(artifact.getNamespace(), artifact.getAuid());
     }
 
     @Override
@@ -2069,13 +2069,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Returns the size in bytes of storage used by this AU. E.g., sum of the sizes of all WARCs in the AU, in
    * {@link WarcArtifactDataStore} implementations.
    *
-   * @param collection A {@link String} of the name of the collection containing the AU.
+   * @param namespace A {@link String} of the name of the collection containing the AU.
    * @param auid       A {@link String} of the AUID of the AU.
    * @return A {@code long} With the size in bytes of storage space used by this AU.
    */
   @Override
-  public long auWarcSize(String collection, String auid) throws IOException {
-    return getAuPaths(collection, auid).stream()
+  public long auWarcSize(String namespace, String auid) throws IOException {
+    return getAuPaths(namespace, auid).stream()
         .map(auPath -> findWarcsOrEmpty(auPath))
         .flatMap(Collection::stream)
         // FIXME: Need a better way to exclude journal files
@@ -2854,7 +2854,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Add LOCKSS-specific WARC headers to record (Note: X-LockssRepo-Artifact-Id and X-LockssRepo-Artifact-Uri are
     // redundant because the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
     record.addExtraHeader(ArtifactConstants.ARTIFACT_ID_KEY, artifactId.getId());
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY, artifactId.getNamespace());
+    record.addExtraHeader(ArtifactConstants.ARTIFACT_NAMESPACE_KEY, artifactId.getNamespace());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_AUID_KEY, artifactId.getAuid());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_URI_KEY, artifactId.getUri());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));

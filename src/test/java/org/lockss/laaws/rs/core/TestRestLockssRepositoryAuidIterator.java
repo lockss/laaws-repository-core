@@ -52,7 +52,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  */
 public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
   private final static String BASEURL = "http://localhost:24610";
-  private final static String collectionId = "collId";
+  private final static String NS1 = "ns1";
   private RestTemplate restTemplate;
   private MockRestServiceServer mockServer;
   private String endpoint;
@@ -66,8 +66,10 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
   public void makeRepoIterator() {
     restTemplate = RestUtil.getRestTemplate();
     mockServer = MockRestServiceServer.createServer(restTemplate);
-    endpoint = String.format("%s/collections/%s/aus", BASEURL, collectionId);
-    builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+    endpoint = String.format("%s/aus", BASEURL, NS1);
+    builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+        .queryParam("namespace", NS1);
+
   }
 
   /**
@@ -78,7 +80,7 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
    */
   @Test
   public void testEmptyRepository() throws Exception {
-    mockServer.expect(requestTo(endpoint)).andExpect(method(HttpMethod.GET))
+    mockServer.expect(requestTo(endpoint + "?namespace="+NS1)).andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"auids\":[],\"pageInfo\":{}}",
 	MediaType.APPLICATION_JSON));
 
@@ -97,7 +99,7 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
    */
   @Test
   public void testPopulatedRepository() throws Exception {
-    mockServer.expect(requestTo(endpoint)).andExpect(method(HttpMethod.GET))
+    mockServer.expect(requestTo(endpoint + "?namespace="+NS1)).andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess(
 	"{\"auids\":[\"auid1\",\"auid2\",\"auid3\"],\"pageInfo\":{}}",
 	MediaType.APPLICATION_JSON));
@@ -124,7 +126,7 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
   @Test
   public void testPagination() throws Exception {
     // First server call.
-    mockServer.expect(requestTo(endpoint + "?limit=2"))
+    mockServer.expect(requestTo(endpoint + "?namespace="+NS1+"&limit=2"))
     .andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"auids\":[\"auid1\",\"auid2\"],"
 	+ "\"pageInfo\":{\"continuationToken\":\"auid2:1234567\"}}",
@@ -132,7 +134,7 @@ public class TestRestLockssRepositoryAuidIterator extends LockssTestCase5 {
 
     // Second server call.
     mockServer.expect(requestTo(endpoint
-	+ "?limit=2&continuationToken=auid2:1234567"))
+	+ "?namespace="+NS1+"&limit=2&continuationToken=auid2:1234567"))
     .andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"auids\":[\"auid3\",\"auid4\"],\"pageInfo\":{}}",
 	MediaType.APPLICATION_JSON));
