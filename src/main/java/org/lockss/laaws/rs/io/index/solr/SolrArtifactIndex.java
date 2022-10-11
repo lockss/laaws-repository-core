@@ -54,6 +54,7 @@ import org.apache.solr.common.util.NamedList;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.io.index.AbstractArtifactIndex;
+import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactComparators;
@@ -1126,10 +1127,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Provides the collection identifiers of the committed artifacts in the artifactIndex.
+   * Returns the namespaces of the committed artifacts in this Solr {@link ArtifactIndex} implementation.
    *
-   * @return An {@code Iterator<String>} with the artifactIndex committed artifacts
-   * collection identifiers.
+   * @return An {@code Iterator<String>} with the artifactIndex committed artifacts namespaces.
    */
   @Override
   public Iterable<String> getNamespaces() throws IOException {
@@ -1139,19 +1139,19 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         return IterableUtils.emptyIterable();
       }
 
-      // Perform a Solr facet query on the collection ID field
+      // Perform a Solr facet query on the namespace field
       SolrQuery q = new SolrQuery();
       q.setQuery("*:*");
       q.setRows(0);
 
-      q.addFacetField("collection");
+      q.addFacetField("namespace");
       q.setFacetLimit(-1); // Unlimited
 
       // Get the facet field from the result
       QueryResponse result =
           handleSolrResponse(handleSolrQuery(q), "Problem performing Solr query");
 
-      FacetField ff = result.getFacetField("collection");
+      FacetField ff = result.getFacetField("namespace");
 
       if (log.isDebug2Enabled()) {
         log.debug2(
@@ -1177,10 +1177,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns a list of Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+   * Returns a list of Archival Unit IDs (AUIDs) in this namespace.
    *
-   * @param namespace A {@code String} containing the LOCKSS repository collection ID.
-   * @return A {@code Iterator<String>} iterating over the AUIDs in this LOCKSS repository collection.
+   * @param namespace A {@code String} containing the namespace.
+   * @return A {@code Iterator<String>} iterating over the AUIDs in this namespace.
    * @throws IOException if Solr reports problems.
    */
   @Override
@@ -1217,9 +1217,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and namespace.
    *
-   * @param namespace A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
    * @throws IOException if Solr reports problems.
@@ -1238,17 +1238,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Additional filter queries
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
 
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
-      log.debug2("Solr returned null result set after filtering by [committed: true, collection: {}, auid: {}]",
-          namespace,
-          auid
-      );
+      log.debug2("Solr returned null result set after filtering by [committed: true, namespace: {}, auid: {}]",
+          namespace, auid);
 
       return IterableUtils.emptyIterable();
     }
@@ -1262,9 +1260,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+   * Returns the artifacts of all versions of all URLs, from a specified Archival Unit and namespace.
    *
-   * @param namespace         A String with the collection identifier.
+   * @param namespace         A String with the namespace.
    * @param auid               A String with the Archival Unit identifier.
    * @param includeUncommitted A {@code boolean} indicating whether to return all the versions among both committed and uncommitted
    *                           artifacts.
@@ -1284,7 +1282,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Additional filter queries
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addSort(SORTURI_ASC);
     q.addSort(VERSION_DESC);
@@ -1295,9 +1293,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
   /**
    * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
-   * Unit and collection.
+   * Unit and namespace.
    *
-   * @param namespace A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @param prefix     A {@code String} containing a URL prefix.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
@@ -1311,7 +1309,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setQuery("*:*");
 
     q.addFilterQuery(String.format("committed:%s", true));
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
 
@@ -1321,9 +1319,8 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
       log.debug2(
-          "Solr returned null result set after filtering by (committed: true, collection: {}, auid:{}, uri (prefix): {})",
-          namespace, auid, prefix
-      );
+          "Solr returned null result set after filtering by (committed: true, namespace: {}, auid:{}, uri (prefix): {})",
+          namespace, auid, prefix);
 
       return IterableUtils.emptyIterable();
     }
@@ -1338,9 +1335,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
   /**
    * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
-   * collection.
+   * namespace.
    *
-   * @param namespace A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param auid       A String with the Archival Unit identifier.
    * @param prefix     A String with the URL prefix.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
@@ -1354,7 +1351,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setQuery("*:*");
 
     q.addFilterQuery(String.format("committed:%s", true));
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addFilterQuery(String.format("{!prefix f=uri}%s", prefix));
 
@@ -1366,9 +1363,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified collection.
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified namespace.
    *
-   * @param namespace A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param urlPrefix     A String with the URL prefix.
    * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
    *                   versions of an artifact.
@@ -1385,7 +1382,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     if (namespace == null) {
-      throw new IllegalArgumentException("Collection is null");
+      throw new IllegalArgumentException("Namespace is null");
     }
 
     SolrQuery q = new SolrQuery();
@@ -1393,7 +1390,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setQuery("*:*");
 
     q.addFilterQuery(String.format("committed:%s", true));
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
 
     if (urlPrefix != null) {
       q.addFilterQuery(String.format("{!prefix f=uri}%s", urlPrefix));
@@ -1403,7 +1400,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 //    // pagination despite group.main=true. It is left here as a reminder that
 //    // we already tried this approach.
 //    q.set("group", true);
-//    q.set("group.func", "concat(collection,auid,uri)");
+//    q.set("group.func", "concat(namespace,auid,uri)");
 //    q.set("group.sort", "version desc");
 //    q.set("group.limit", 1);
 //    q.set("group.main", true);
@@ -1420,7 +1417,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       Stream<Artifact> allVersions = StreamSupport.stream(
           Spliterators.spliteratorUnknownSize(allVersionsIterator, Spliterator.ORDERED), false);
 
-      // Group by (Collection, AUID, URL) then pick highest version from each group
+      // Group by (Namespace, AUID, URL) then pick highest version from each group
       Stream<Artifact> latestVersions = allVersions
           .collect(Collectors.groupingBy(
               artifact -> artifact.getIdentifier().getArtifactStem(),
@@ -1440,9 +1437,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and namespace.
    *
-   * @param namespace A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the namespace.
    * @param auid       A {@code String} with the Archival Unit identifier.
    * @param url        A {@code String} with the URL to be matched.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
@@ -1455,7 +1452,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setQuery("*:*");
 
     q.addFilterQuery(String.format("committed:%s", true));
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
@@ -1467,9 +1464,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+   * Returns the committed artifacts of all versions of a given URL, from a specified namespace.
    *
-   * @param namespace A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the namespace.
    * @param url        A {@code String} with the URL to be matched.
    * @param versions   A {@link ArtifactVersions} indicating whether to include all versions or only the latest
    *                   versions of an artifact.
@@ -1485,7 +1482,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     if (namespace == null || url == null) {
-      throw new IllegalArgumentException("Collection or URL is null");
+      throw new IllegalArgumentException("Namespace or URL is null");
     }
 
     SolrQuery q = new SolrQuery();
@@ -1493,14 +1490,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     q.setQuery("*:*");
 
     q.addFilterQuery(String.format("committed:%s", true));
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
 //    // This gives us the right results but does not work with CursorMark-based
 //    // pagination despite group.main=true. It is left here as a reminder that
 //    // we already tried this approach.
 //    q.set("group", true);
-//    q.set("group.func", "concat(collection,auid,uri)");
+//    q.set("group.func", "concat(namespace,auid,uri)");
 //    q.set("group.sort", "version desc");
 //    q.set("group.limit", 1);
 //    q.set("group.main", true);
@@ -1517,7 +1514,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       Stream<Artifact> allVersions = StreamSupport.stream(
           Spliterators.spliteratorUnknownSize(allVersionsIterator, Spliterator.ORDERED), false);
 
-      // Group by (Collection, AUID, URL) then pick highest version from each group
+      // Group by (Namespace, AUID, URL) then pick highest version from each group
       Stream<Artifact> latestVersions = allVersions
           .collect(Collectors.groupingBy(
               artifact -> artifact.getIdentifier().getArtifactStem(),
@@ -1537,9 +1534,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and namespace.
    *
-   * @param namespace         A {@code String} containing the collection ID.
+   * @param namespace         A {@code String} containing the namespace.
    * @param auid               A {@code String} containing the Archival Unit ID.
    * @param url                A {@code String} containing a URL.
    * @param includeUncommitted A {@code boolean} indicating whether to return the latest version among both committed and uncommitted
@@ -1558,16 +1555,15 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       q.addFilterQuery(String.format("committed:%s", true));
     }
 
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
 
     // Ensure the result is not empty for the collapse filter query
     if (isEmptyResult(q)) {
       log.debug2(
-          "Solr returned null result set after filtering by [collection: {}, auid: {}, uri: {}]",
-          namespace, auid, url
-      );
+          "Solr returned null result set after filtering by [namespace: {}, auid: {}, uri: {}]",
+          namespace, auid, url);
 
       return null;
     }
@@ -1588,7 +1584,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
       if (result.hasNext()) {
         // This should never happen if Solr is working correctly
-        String errMsg = "More than one artifact returned for the latest version of (Collection, AUID, URL)!";
+        String errMsg = "More than one artifact returned for the latest version of (Namespace, AUID, URL)!";
         log.error(errMsg);
         throw new RuntimeException(errMsg);
       }
@@ -1600,14 +1596,14 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+   * Returns the artifact of a given version of a URL, from a specified Archival Unit and namespace.
    *
-   * @param namespace         A String with the collection identifier.
+   * @param namespace         A String with the namespace.
    * @param auid               A String with the Archival Unit identifier.
    * @param url                A String with the URL to be matched.
    * @param version            A String with the version.
    * @param includeUncommitted A boolean with the indication of whether an uncommitted artifact may be returned.
-   * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+   * @return The {@code Artifact} of a given version of a URL, from a specified AU and namespace.
    */
   @Override
   public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
@@ -1620,7 +1616,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       q.addFilterQuery(String.format("committed:%s", true));
     }
 
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
     q.addFilterQuery(String.format("{!term f=uri}%s", url));
     q.addFilterQuery(String.format("version:%s", version));
@@ -1631,7 +1627,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       Artifact artifact = result.next();
 
       if (result.hasNext()) {
-        log.warn("More than one artifact found having same (Collection, AUID, URL, Version)");
+        log.warn("More than one artifact found having same (Namespace, AUID, URL, Version)");
       }
 
       return artifact;
@@ -1641,9 +1637,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   }
 
   /**
-   * Returns the size, in bytes, of AU in a collection.
+   * Returns the size, in bytes, of AU in a namepsace.
    *
-   * @param namespace A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return A {@link AuSize} with byte size statistics of the specified AU.
    */
@@ -1655,7 +1651,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     SolrQuery q = new SolrQuery();
     q.setQuery("*:*");
     q.addFilterQuery(String.format("committed:%s", true));
-    q.addFilterQuery(String.format("{!term f=collection}%s", namespace));
+    q.addFilterQuery(String.format("{!term f=namespace}%s", namespace));
     q.addFilterQuery(String.format("{!term f=auid}%s", auid));
 
     AuSize result = new AuSize();
