@@ -211,7 +211,7 @@ public class ArtifactDataFactory {
     int version = -1;
 
     String versionHeader = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);
-    if (StringUtils.isEmpty(versionHeader)) {
+    if (!StringUtils.isEmpty(versionHeader)) {
       version = Integer.parseInt(versionHeader);
     }
 
