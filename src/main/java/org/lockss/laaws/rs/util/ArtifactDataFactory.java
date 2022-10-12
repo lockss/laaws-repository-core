@@ -208,44 +208,26 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
-    Integer version = -1;
+    int version = -1;
 
     String versionHeader = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);
+    if (StringUtils.isEmpty(versionHeader)) {
+      version = Integer.parseInt(versionHeader);
+    }
 
-    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
-      version = Integer.valueOf(versionHeader);
+    String namespace = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY);
+    if (StringUtils.isEmpty(namespace)) {
+      namespace = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY);
     }
 
     return new ArtifactIdentifier(
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
+        namespace,
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-        version
-    );
-  }
-
-  @Deprecated
-  public static ArtifactIdentifier buildArtifactIdentifier(Map<String, String> headers) {
-    log.trace("headers = {}", headers);
-
-    Integer version = -1;
-
-    String versionHeader = headers.get(ArtifactConstants.ARTIFACT_VERSION_KEY);
-
-    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
-      version = Integer.valueOf(versionHeader);
-    }
-
-    return new ArtifactIdentifier(
-        headers.get(ArtifactConstants.ARTIFACT_ID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_AUID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_URI_KEY),
-        version
-    );
+        version);
   }
 
   /**
