@@ -167,7 +167,7 @@ public class RestLockssRepository implements LockssRepository {
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
   private URI artifactEndpoint(String namespace, String artifactId) {
-    return this.artifactEndpoint(namespace, artifactId, null);
+    return artifactEndpoint(namespace, artifactId, null);
   }
 
   /**
@@ -180,15 +180,22 @@ public class RestLockssRepository implements LockssRepository {
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
   private URI artifactEndpoint(String namespace, String artifactId, IncludeContent includeContent) {
-    String endpoint = String.format("%s/artifacts/%s?namespace=%s", repositoryUrl, artifactId, namespace);
-    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+    Map<String, String> uriParams = new HashMap<>();
+    uriParams.put("baseUrl", String.valueOf(repositoryUrl));
+    uriParams.put("artifactId", artifactId);
+
+    Map<String, String> queryParams = new HashMap<>();
+
+    if (namespace != null) {
+      queryParams.put("namespace", namespace);
+    }
 
     if (includeContent != null) {
       // includeContent defaults to ALWAYS but lets be explicit to avoid confusion
-      builder.queryParam("includeContent", includeContent);
+      queryParams.put("includeContent", includeContent.toString());
     }
 
-    return builder.build().encode().toUri();
+    return RestUtil.getRestUri("{baseUrl}/artifacts/{artifactId}", uriParams, queryParams);
   }
 
   /**
@@ -219,7 +226,7 @@ public class RestLockssRepository implements LockssRepository {
   @Override
   public Artifact addArtifact(ArtifactData artifactData) throws IOException {
     if (artifactData == null) {
-      throw new IllegalArgumentException("ArtifactData is null");
+      throw new IllegalArgumentException("Null ArtifactData");
     }
 
     // Get artifact identifier
@@ -262,8 +269,12 @@ public class RestLockssRepository implements LockssRepository {
         new HttpEntity<>(parts, getInitializedHttpHeaders());
 
     // Construct REST endpoint to artifacts
-    String endpoint = String.format("%s/artifacts?namespace=%s", repositoryUrl, artifactId.getNamespace());
+    String endpoint = String.format("%s/artifacts", repositoryUrl);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+
+    if (artifactId.getNamespace() != null) {
+      builder.queryParam("namespace", artifactId.getNamespace());
+    }
 
     // POST the multipart entity to the remote LOCKSS repository and return the result
     try {
@@ -397,8 +408,8 @@ public class RestLockssRepository implements LockssRepository {
   public ArtifactData getArtifactData(String namespace, String artifactId, IncludeContent includeContent)
       throws IOException {
 
-    if ((namespace == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
     }
 
     // Cache policy: Include cache content unless IncludeContent.NEVER
@@ -455,8 +466,8 @@ public class RestLockssRepository implements LockssRepository {
 
   @Override
   public HttpHeaders getArtifactHeaders(String namespace, String artifactId) throws IOException {
-    if ((namespace == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
     }
 
     // Retrieve artifact from the artifact cache if cached
@@ -482,8 +493,8 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact commitArtifact(String namespace, String artifactId) throws IOException {
-    if ((namespace == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null namespace or artifactId");
+    if (artifactId == null)
+      throw new IllegalArgumentException("Null artifact ID");
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(namespace, artifactId))
         .queryParam("committed", "true");
@@ -541,8 +552,9 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public void deleteArtifact(String namespace, String artifactId) throws IOException {
-    if ((namespace == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
+    }
 
     HttpHeaders headers = getInitializedHttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
@@ -618,8 +630,10 @@ public class RestLockssRepository implements LockssRepository {
   @Override
   public Boolean isArtifactCommitted(String namespace, String artifactId)
       throws IOException {
-    if ((namespace == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
+    }
+
     if (StringUtils.isEmpty(artifactId)) {
       throw new IllegalArgumentException("Null or empty identifier");
     }
@@ -683,13 +697,13 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<String> getAuIds(String namespace) throws IOException {
-    if (namespace == null) {
-      throw new IllegalArgumentException("Null namespace");
-    }
-
-    String endpoint = String.format("%s/aus?namespace=%s", repositoryUrl, namespace);
+    String endpoint = String.format("%s/aus", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     try {
       return IteratorUtils.asIterable(
@@ -760,12 +774,18 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifacts(String namespace, String auid) throws IOException {
-    if ((namespace == null) || (auid == null))
-      throw new IllegalArgumentException("Null namespace or au id");
-    String endpoint = String.format("%s/aus/%s/artifacts?namespace=%s", repositoryUrl, auid, namespace);
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "latest");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
@@ -779,12 +799,18 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid) throws IOException {
-    if ((namespace == null) || (auid == null))
-      throw new IllegalArgumentException("Null namespace or au id");
-    String endpoint = String.format("%s/aus/%s/artifacts?namespace=%s", repositoryUrl, auid, namespace);
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
@@ -801,12 +827,18 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefix(String namespace, String auid, String prefix) throws IOException {
-    if ((namespace == null) || (auid == null) || (prefix == null))
-      throw new IllegalArgumentException("Null namespace, au id or prefix");
-    String endpoint = String.format("%s/aus/%s/artifacts?namespace=%s", repositoryUrl, auid, namespace);
+    if (auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null AUID or URL prefix");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("urlPrefix", prefix);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
@@ -823,13 +855,19 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String namespace, String auid, String prefix) throws IOException {
-    if ((namespace == null) || (auid == null) || (prefix == null))
-      throw new IllegalArgumentException("Null namespace, au id or prefix");
-    String endpoint = String.format("%s/aus/%s/artifacts?namespace=%s", repositoryUrl, auid, namespace);
+    if (auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null AUID or URL prefix");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
@@ -846,17 +884,19 @@ public class RestLockssRepository implements LockssRepository {
   public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String namespace, String prefix,
                                                                 ArtifactVersions versions) throws IOException {
 
-    if (namespace == null || prefix == null) {
-      throw new IllegalArgumentException("Null namespace or prefix");
+    if (prefix == null) {
+      throw new IllegalArgumentException("Null URL prefix");
     }
 
     String endpoint = String.format("%s/artifacts", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("namespace", namespace)
         .queryParam("urlPrefix", prefix)
         .queryParam("versions", versions);
 
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
@@ -872,14 +912,19 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid, String url) throws IOException {
-    if ((namespace == null) || (auid == null) || (url == null))
-      throw new IllegalArgumentException("Null namespace, au id or url");
+    if (auid == null || url == null) {
+      throw new IllegalArgumentException("Null AUID or URL");
+    }
+
     String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("namespace", namespace)
         .queryParam("url", url)
         .queryParam("version", "all");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
@@ -893,16 +938,19 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String namespace, String url, ArtifactVersions versions) throws IOException {
-    if (namespace == null || url == null) {
-      throw new IllegalArgumentException("Null namespace or url");
+    if (url == null) {
+      throw new IllegalArgumentException("Null URL");
     }
 
     String endpoint = String.format("%s/artifacts", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
-        .queryParam("namespace", namespace)
         .queryParam("url", url)
         .queryParam("versions", versions);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
@@ -918,18 +966,24 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact getArtifact(String namespace, String auid, String url) throws IOException {
-    if ((namespace == null) || (auid == null) || (url == null))
-      throw new IllegalArgumentException("Null namespace, au id or url");
+    if (auid == null || url == null) {
+      throw new IllegalArgumentException("Null AUID or URL");
+    }
+
     Artifact cached = artCache.getLatest(namespace, auid, url);
     if (cached != null) {
       return cached;
     }
 
-    String endpoint = String.format("%s/aus/%s/artifacts?namespace=%s", repositoryUrl, auid, namespace);
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("url", url)
         .queryParam("version", "latest");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     try {
       ResponseEntity<String> response =
@@ -946,7 +1000,7 @@ public class RestLockssRepository implements LockssRepository {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
           false);
-      List<Artifact> artifacts = mapper.readValue((String) response.getBody(),
+      List<Artifact> artifacts = mapper.readValue(response.getBody(),
           ArtifactPageInfo.class).getArtifacts();
 
       if (!artifacts.isEmpty()) {
@@ -996,20 +1050,24 @@ public class RestLockssRepository implements LockssRepository {
   public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version,
                                      boolean includeUncommitted) throws IOException {
 
-    if ((namespace == null) || (auid == null) ||
-        (url == null) || version == null)
-      throw new IllegalArgumentException("Null namespace, au id, url or version");
+    if (auid == null || url == null || version == null) {
+      throw new IllegalArgumentException("Null AUID, URL or version");
+    }
 
     Artifact cached = artCache.get(namespace, auid, url, version);
     if (cached != null) {
       return cached;
     }
 
-    String endpoint = String.format("%s/aus/%s/artifacts?namespace=%s", repositoryUrl, auid, namespace);
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("url", url)
         .queryParam("version", version);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     if (includeUncommitted) {
       builder.queryParam("includeUncommitted", includeUncommitted);
@@ -1076,12 +1134,17 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   void doBulkOp(String namespace, String auid, String op) throws IOException {
-    if ((namespace == null) || (auid == null))
-      throw new IllegalArgumentException("Null namespace or artifactId");
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
+    }
 
-    String endpoint = String.format("%s/aus/%s/bulk?namespace=%s", repositoryUrl, auid, namespace);
+    String endpoint = String.format("%s/aus/%s/bulk", repositoryUrl, auid);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("op", op);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     // Required by REST API specification
     HttpHeaders headers = getInitializedHttpHeaders();
@@ -1111,14 +1174,18 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public AuSize auSize(String namespace, String auid) throws IOException {
-    if (namespace == null || auid == null) {
-      throw new IllegalArgumentException("Null namespace or au id");
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
     }
 
-    String endpoint = String.format("%s/aus/%s/size?namespace=%s", repositoryUrl, auid, namespace);
+    String endpoint = String.format("%s/aus/%s/size", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     ResponseEntity<String> response =
         RestUtil.callRestService(restTemplate,
