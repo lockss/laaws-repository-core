@@ -456,7 +456,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     assertNull(variantState.getLatestArtifactSpec(NS, AU_A, URL_U, false));
     assertNull(index.getArtifact(NS, AU_A, URL_U, false));
-//    assertLatestArtifactVersion(NAMESPACe, AU_A, URL_U, false, -1);
+//    assertLatestArtifactVersion(NAMESPACE, AU_A, URL_U, false, -1);
     assertLatestArtifactVersion(NS, AU_A, URL_U, true, 2);
 
     // Commit a_u_1
