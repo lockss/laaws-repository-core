@@ -169,11 +169,11 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenCommit().thenDelete());
         break;
       case "unicode":
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "111").thenCommit());
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "ZZZ").thenCommit());
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "zzz").thenCommit());
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "\u03BA\u1F79\u03C3\u03BC\u03B5").thenCommit());
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "111").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "ZZZ").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "zzz").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "\u03BA\u1F79\u03C3\u03BC\u03B5").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung").thenCommit());
         break;
     }
 
@@ -356,7 +356,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   public void testIndexUnicodeArtfact_artifactRepoState() throws Exception {
     ArtifactSpec spec = new ArtifactSpec()
         .setArtifactId(UUID.randomUUID().toString())
-        .setCollection("collection")
+        .setNamespace("namespace")
         .setAuid("auid")
         .setUrl("Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung") // Heizölrückstoßabdämpfung
         .setVersion(1)
