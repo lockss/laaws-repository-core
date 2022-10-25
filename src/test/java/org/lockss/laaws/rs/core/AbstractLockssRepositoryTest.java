@@ -330,6 +330,8 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
     Pair[] nameContPairs =
       { Pair.of("bilbo.zip", "lots of round things"),
         Pair.of("who uses names like this?", "windows users"),
+        Pair.of("unicode name: \u03BA\u1F79\u03C3\u03BC\u03B5",
+                "This has a unicode name"), // κόσμε
         Pair.of("  ", "might as well be pathological"),
         Pair.of("   ", "might as well be even more pathological")};
     List<String> names = new ArrayList<>();
