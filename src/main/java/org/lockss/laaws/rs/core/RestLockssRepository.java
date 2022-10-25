@@ -181,7 +181,6 @@ public class RestLockssRepository implements LockssRepository {
    */
   private URI artifactEndpoint(String namespace, String artifactId, IncludeContent includeContent) {
     Map<String, String> uriParams = new HashMap<>();
-    uriParams.put("baseUrl", String.valueOf(repositoryUrl));
     uriParams.put("artifactId", artifactId);
 
     Map<String, String> queryParams = new HashMap<>();
@@ -195,7 +194,7 @@ public class RestLockssRepository implements LockssRepository {
       queryParams.put("includeContent", includeContent.toString());
     }
 
-    return RestUtil.getRestUri("{baseUrl}/artifacts/{artifactId}", uriParams, queryParams);
+    return RestUtil.getRestUri(repositoryUrl + "/artifacts/{artifactId}", uriParams, queryParams);
   }
 
   /**
