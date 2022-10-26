@@ -53,6 +53,7 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.storage.StorageInfo;
+import org.lockss.util.time.TimeBase;
 import org.springframework.http.HttpHeaders;
 
 import java.io.BufferedInputStream;
@@ -296,6 +297,12 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
 
       // Set the new artifact identifier
       artifactData.setIdentifier(newId);
+
+      // Set collection date if it is not set
+      long collectionDate = artifactData.getCollectionDate();
+      if (collectionDate < 0) {
+        artifactData.setCollectionDate(TimeBase.nowMs());
+      }
 
       // Add the artifact the data store and index
       return store.addArtifactData(artifactData);
