@@ -213,7 +213,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   public abstract StorageInfo getStorageInfo();
 
-  protected abstract Path initAuDir(String collectionId, String auid) throws IOException;
+  protected abstract Path initAuDir(String namespace, String auid) throws IOException;
 
   // *******************************************************************************************************************
   // * CONSTRUCTORS
@@ -333,10 +333,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Wait for all background commits for an AU to finish
    */
-  public boolean waitForCommitTasks(String collection, String auid) {
-    log.debug2("Waiting for stripe " + new NamespacedAuid(collection, auid));
+  public boolean waitForCommitTasks(String namespace, String auid) {
+    log.debug2("Waiting for stripe " + new NamespacedAuid(namespace, auid));
 
-    return stripedExecutor.waitForStripeToEmpty(new NamespacedAuid(collection, auid));
+    return stripedExecutor.waitForStripeToEmpty(new NamespacedAuid(namespace, auid));
   }
 
   // *******************************************************************************************************************
@@ -399,94 +399,94 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   }
 
   /**
-   * Returns the collections base path, given a base path of this data store.
+   * Returns the namespaces base path, given a base path of this data store.
    *
    * @param basePath A {@link Path} containing a base path of this data store.
-   * @return A {@link Path} containing the collections base path, under the given data store base path.
+   * @return A {@link Path} containing the namespaces base path, under the given data store base path.
    */
   public Path getNamespacesBasePath(Path basePath) {
     return basePath.resolve(NAMESPACE_DIR);
   }
 
   /**
-   * Returns an array containing all the collections base paths (one for each base path of this data store).
+   * Returns an array containing all the namespaces base paths (one for each base path of this data store).
    *
-   * @return A {@link Path[]} containing all the collections base paths of this data store.
+   * @return A {@link Path[]} containing all the namespaces base paths of this data store.
    */
-  public Path[] getCollectionsBasePaths() {
+  public Path[] getNamespacesBasePaths() {
     return Arrays.stream(getBasePaths())
         .map(path -> getNamespacesBasePath(path))
         .toArray(Path[]::new);
   }
 
   /**
-   * Returns the base path of a collection, given its name and a base path of this data store.
+   * Returns the base path of a namespace, given its name and a base path of this data store.
    *
    * @param basePath     A {@link Path} containing a base path of this data store.
-   * @param collectionId A {@link String} containing the name of the collection.
-   * @return A {@link Path} containing the base path of the collection, under the given data store base path.
+   * @param namespace A {@link String} containing the name of the namespace.
+   * @return A {@link Path} containing the base path of the namespace, under the given data store base path.
    */
-  public Path getNamespacePath(Path basePath, String collectionId) {
-    return getNamespacesBasePath(basePath).resolve(collectionId);
+  public Path getNamespacePath(Path basePath, String namespace) {
+    return getNamespacesBasePath(basePath).resolve(namespace);
   }
 
   /**
-   * Returns an array containing all the paths of this collection (one for each base path of this data store).
+   * Returns an array containing all the paths of this namespace (one for each base path of this data store).
    *
-   * @param collectionId A {@link String} containing the name of the collection.
-   * @return A {@link Path[]} containing all paths of this collection.
+   * @param namespace A {@link String} containing the name of the namespace.
+   * @return A {@link Path[]} containing all paths of this namespace.
    */
-  public Path[] getNamespacePaths(String collectionId) {
+  public Path[] getNamespacePaths(String namespace) {
     return Arrays.stream(getBasePaths())
-        .map(path -> getNamespacePath(path, collectionId))
+        .map(path -> getNamespacePath(path, namespace))
         .toArray(Path[]::new);
   }
 
   /**
-   * Returns the base path of an AU, given its AUID, the collection ID it belongs to, and a base path of the data store.
+   * Returns the base path of an AU, given its AUID, the namespace it belongs to, and a base path of the data store.
    *
    * @param basePath     A {@link Path} containing a base path of this data store.
-   * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
+   * @param namespace A {@link String} containing the name of the namespace the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link Path} containing the base path of the AU, under the given data store base path.
    */
-  public Path getAuPath(Path basePath, String collectionId, String auid) {
-    return getNamespacePath(basePath, collectionId).resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
+  public Path getAuPath(Path basePath, String namespace, String auid) {
+    return getNamespacePath(basePath, namespace).resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
   }
 
   /**
    * Returns a list containing all the paths of this AU.
    *
-   * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
+   * @param namespace A {@link String} containing the name of the namespace the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link List<Path>} containing all paths of this AU.
    */
-  public List<Path> getAuPaths(String collectionId, String auid) throws IOException {
+  public List<Path> getAuPaths(String namespace, String auid) throws IOException {
     synchronized (auPathsMap) {
       // Get AU's initialized paths from map
-      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(namespace, auid);
       List<Path> auPaths = auPathsMap.get(key);
 
       // Initialize the AU if there is no entry in the map, or return the AU's paths
       // Q: Do we really want to call initAu() here?
-      return auPaths == null ? initAu(collectionId, auid) : auPaths;
+      return auPaths == null ? initAu(namespace, auid) : auPaths;
     }
   }
 
   /**
    * Returns an active WARC of an AU or initializes a new one, on the base path having the most free space.
    *
-   * @param collectionId   A {@link String} containing the name of the collection the AU belongs to.
+   * @param namespace   A {@link String} containing the name of the namespace the AU belongs to.
    * @param auid           A {@link String} containing the AUID of the AU.
    * @param minSize        A {@code long} containing the minimum available space the underlying base path must have in bytes.
    * @param compressedWarc A {@code boolean} indicating a compressed active WARC is needed.
    * @return A {@link Path} containing the path of the chosen active WARC.
    * @throws IOException
    */
-  public Path getAuActiveWarcPath(String collectionId, String auid, long minSize, boolean compressedWarc) throws IOException {
+  public Path getAuActiveWarcPath(String namespace, String auid, long minSize, boolean compressedWarc) throws IOException {
     synchronized (auActiveWarcsMap) {
       // Get all the active WARCs of this AU
-      List<Path> activeWarcs = getAuActiveWarcPaths(collectionId, auid);
+      List<Path> activeWarcs = getAuActiveWarcPaths(namespace, auid);
 
       // Filter active WARCs by compression
       List<Path> fActiveWarcs = activeWarcs.stream()
@@ -498,7 +498,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Return the active WARC or initialize a new one if there were no active WARCs or no active WARC resides under a
       // base path with enough space
-      return activeWarc == null ? initAuActiveWarc(collectionId, auid, minSize) : activeWarc;
+      return activeWarc == null ? initAuActiveWarc(namespace, auid, minSize) : activeWarc;
     }
   }
 
@@ -526,21 +526,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Returns an array containing all the active WARCs of this AU.
    *
-   * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
+   * @param namespace A {@link String} containing the name of the namespace the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link List<Path>} containing all active WARCs of this AU.
    */
-  public List<Path> getAuActiveWarcPaths(String collectionId, String auid) throws IOException {
+  public List<Path> getAuActiveWarcPaths(String namespace, String auid) throws IOException {
     synchronized (auActiveWarcsMap) {
       // Get the active WARCs of this AU if it exists in the map
-      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(namespace, auid);
       List<Path> auActiveWarcs = auActiveWarcsMap.get(key);
 
       log.trace("auActiveWarcs = {}", auActiveWarcs);
 
       if (auActiveWarcs == null) {
         // Reload the active WARCs for this AU
-        auActiveWarcs = findAuActiveWarcs(collectionId, auid);
+        auActiveWarcs = findAuActiveWarcs(namespace, auid);
         auActiveWarcsMap.put(key, auActiveWarcs);
       }
 
@@ -609,13 +609,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Finds the artifact-containing WARCs of an AU that have not met size or block-usage thresholds and are therefore
    * eligible to be reloaded as active WARCs (to have new artifacts appended to the WARC).
    *
-   * @param collectionId A {@link String} containing the collection ID.
+   * @param namespace A {@link String} containing the namespace.
    * @param auid         A {@link String} containing the the AUID.
    * @return A {@link List<Path>} containing paths to WARCs that are eligible to be reloaded as active WARCs.
    * @throws IOException
    */
-  protected List<Path> findAuActiveWarcs(String collectionId, String auid) throws IOException {
-    return findAuArtifactWarcsStream(collectionId, auid)
+  protected List<Path> findAuActiveWarcs(String namespace, String auid) throws IOException {
+    return findAuArtifactWarcsStream(namespace, auid)
         .filter(new WarcSizeThresholdPredicate())
         .sorted(new WarcLengthComparator())
         .limit(MAX_AUACTIVEWARCS_RELOADED)
@@ -625,25 +625,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Returns the paths to WARC files containing artifacts in an AU.
    *
-   * @param collectionId A {@link String} containing the collection ID of the AU.
+   * @param namespace A {@link String} containing the namespace of the AU.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link List<Path>} containing the paths to the WARC files.
    * @throws IOException
    */
-  protected List<Path> findAuArtifactWarcs(String collectionId, String auid) throws IOException {
-    return findAuArtifactWarcsStream(collectionId, auid).collect(Collectors.toList());
+  protected List<Path> findAuArtifactWarcs(String namespace, String auid) throws IOException {
+    return findAuArtifactWarcsStream(namespace, auid).collect(Collectors.toList());
   }
 
   /**
    * Returns the paths to WARC files containing artifacts in an AU.
    *
-   * @param collectionId A {@link String} containing the collection ID of the AU.
+   * @param namespace A {@link String} containing the namespace of the AU.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link List<Path>} containing the paths to the WARC files.
    * @throws IOException
    */
-  protected Stream<Path> findAuArtifactWarcsStream(String collectionId, String auid) throws IOException {
-    return getAuPaths(collectionId, auid).stream()
+  protected Stream<Path> findAuArtifactWarcsStream(String namespace, String auid) throws IOException {
+    return getAuPaths(namespace, auid).stream()
         .map(auPath -> findWarcsOrEmpty(auPath))
         .flatMap(Collection::stream)
         .filter(warcPath -> warcPath.getFileName().toString().startsWith("artifacts_"));
@@ -656,8 +656,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param journalName A {@link String} containing the name of the journal.
    * @return A {@link Path} containing the path to the journal.
    */
-  protected Path getAuJournalPath(Path basePath, String collection, String auid, String journalName) {
-    return getAuPath(basePath, collection, auid).resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION);
+  protected Path getAuJournalPath(Path basePath, String namespace, String auid, String journalName) {
+    return getAuPath(basePath, namespace, auid).resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION);
   }
 
   /**
@@ -688,8 +688,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param journalName A {@link String} containing the name of the journal.
    * @return A {@link Path[]} containing the paths to the journal on across all the configured data store base paths.
    */
-  protected Path[] getAuJournalPaths(String collection, String auid, String journalName) throws IOException {
-    return getAuPaths(collection, auid).stream()
+  protected Path[] getAuJournalPaths(String namespace, String auid, String journalName) throws IOException {
+    return getAuPaths(namespace, auid).stream()
         .map(auPath -> auPath.resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION))
         .toArray(Path[]::new);
   }
@@ -785,39 +785,39 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Generates a file name for a new active WARC of an AU. Makes no guarantee about file name uniqueness.
    *
-   * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
+   * @param namespace A {@link String} containing the name of the namespace the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @return A {@link String} containing the generated active WARC file name.
    */
-  protected static String generateActiveWarcName(String collectionId, String auid) {
+  protected static String generateActiveWarcName(String namespace, String auid) {
     ZonedDateTime zdt = ZonedDateTime.now(ZoneId.of("UTC"));
-    return generateActiveWarcName(collectionId, auid, zdt);
+    return generateActiveWarcName(namespace, auid, zdt);
   }
 
-  protected static String generateActiveWarcName(String collectionId, String auid, ZonedDateTime zdt) {
+  protected static String generateActiveWarcName(String namespace, String auid, ZonedDateTime zdt) {
     String timestamp = zdt.format(FMT_TIMESTAMP);
     String auidHash = DigestUtils.md5Hex(auid);
-    return String.format("artifacts_%s-%s_%s", collectionId, auidHash, timestamp);
+    return String.format("artifacts_%s-%s_%s", namespace, auidHash, timestamp);
   }
 
   /**
    * Initializes a new active WARC for an AU on the base path with the most free space.
    *
-   * @param collectionId A {@link String} containing the name of the collection the AU belongs to.
+   * @param namespace A {@link String} containing the name of the namespace the AU belongs to.
    * @param auid         A {@link String} containing the AUID of the AU.
    * @param minSize      A {@code long} containing the minimum amount of available space the underlying filesystem must
    *                     have available for the new active WARC, in bytes.
    * @return The {@link Path} to the new active WARC for this AU.
    * @throws IOException
    */
-  public Path initAuActiveWarc(String collectionId, String auid, long minSize) throws IOException {
+  public Path initAuActiveWarc(String namespace, String auid, long minSize) throws IOException {
     // Debugging
-    log.trace("collection = {}", collectionId);
+    log.trace("namespace = {}", namespace);
     log.trace("auid = {}", auid);
     log.trace("minSize = {}", minSize);
 
     // Get an array of the AU's initialized paths in storage
-    List<Path> auPaths = getAuPaths(collectionId, auid);
+    List<Path> auPaths = getAuPaths(namespace, auid);
 
     // Determine which existing AU path to use based on currently available space
     Path auPath = getMinMaxFreeSpacePath(auPaths, minSize);
@@ -829,7 +829,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Have we exhausted all available base paths?
       if (auPaths.size() < basePaths.length) {
         // Create a new AU base directory (or get the existing one with the most available space)
-        auPath = initAuDir(collectionId, auid);
+        auPath = initAuDir(namespace, auid);
       } else {
         log.error("No AU directory available: Configured data store base paths are full");
         throw new IOException("No AU directory available");
@@ -837,7 +837,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Generate path to new active WARC file under chosen AU path
-    Path auActiveWarc = auPath.resolve(generateActiveWarcName(collectionId, auid) + getWarcFileExtension());
+    Path auActiveWarc = auPath.resolve(generateActiveWarcName(namespace, auid) + getWarcFileExtension());
 
     // Add new active WARC to active WARCs map
     synchronized (auActiveWarcsMap) {
@@ -845,7 +845,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       initWarc(auActiveWarc);
 
       // Add WARC file path to list of active WARC paths of this AU
-      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(namespace, auid);
       List<Path> auActiveWarcs = auActiveWarcsMap.getOrDefault(key, new ArrayList<>());
       auActiveWarcs.add(auActiveWarc);
       auActiveWarcsMap.put(key, auActiveWarcs);
@@ -857,16 +857,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * "Seals" the active WARC of an AU in permanent storage from further writes.
    *
-   * @param collectionId A {@link String} containing the collection ID of the AU.
+   * @param namespace A {@link String} containing the namespace of the AU.
    * @param auid         A {@link String} containing the AUID of the AU.
    */
-  public void sealActiveWarc(String collectionId, String auid, Path warcPath) {
-    log.trace("collection = {}", collectionId);
+  public void sealActiveWarc(String namespace, String auid, Path warcPath) {
+    log.trace("namespace = {}", namespace);
     log.trace("auid = {}", auid);
     log.trace("warcPath = {}", warcPath);
 
     synchronized (auActiveWarcsMap) {
-      NamespacedAuid key = new NamespacedAuid(collectionId, auid);
+      NamespacedAuid key = new NamespacedAuid(namespace, auid);
 
       if (auActiveWarcsMap.containsKey(key)) {
         List<Path> activeWarcs = auActiveWarcsMap.get(key);
@@ -2069,7 +2069,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Returns the size in bytes of storage used by this AU. E.g., sum of the sizes of all WARCs in the AU, in
    * {@link WarcArtifactDataStore} implementations.
    *
-   * @param namespace A {@link String} of the name of the collection containing the AU.
+   * @param namespace A {@link String} of the name of the namespace containing the AU.
    * @param auid       A {@link String} of the AUID of the AU.
    * @return A {@code long} With the size in bytes of storage space used by this AU.
    */
@@ -2419,12 +2419,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
   protected SemaphoreMap<ArchivalUnitStem> auLocks = new SemaphoreMap<>();
 
+  // TODO: What is the difference between this and NamespacedAuid?
   private static class ArchivalUnitStem {
-    private final String collection;
+    private final String namespace;
     private final String auid;
 
-    public ArchivalUnitStem(String collection, String auid) {
-      this.collection = collection;
+    public ArchivalUnitStem(String namespace, String auid) {
+      this.namespace = namespace;
       this.auid = auid;
     }
 
@@ -2433,12 +2434,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       ArchivalUnitStem that = (ArchivalUnitStem) o;
-      return collection.equals(that.collection) && auid.equals(that.auid);
+      return namespace.equals(that.namespace) && auid.equals(that.auid);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(collection, auid);
+      return Objects.hash(namespace, auid);
     }
   }
 
