@@ -48,6 +48,7 @@ import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.JmsFactorySource;
+import org.lockss.laaws.rs.util.LockssRepositoryUtil;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.io.DeferredTempFileOutputStream;
 import org.lockss.util.jms.JmsFactory;
@@ -112,6 +113,18 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   public BaseLockssRepository(File repoStateDir, ArtifactIndex index, ArtifactDataStore store) {
     this(index, store);
     setRepositoryStateDir(repoStateDir);
+  }
+
+  /**
+   * Validates a namespace.
+   *
+   * @param namespace A {@link String} containing the namespace to validate.
+   * @throws IllegalArgumentException Thrown if the namespace did not pass validation.
+   */
+  private static void validateNamespace(String namespace) throws IllegalArgumentException {
+    if (!LockssRepositoryUtil.validateNamespace(namespace)) {
+      throw new IllegalArgumentException("Invalid namespace: " + namespace);
+    }
   }
 
   /**
@@ -305,6 +318,8 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   public ImportStatusIterable addArtifacts(String namespace, String auId, InputStream inputStream,
                                            ArchiveType type, boolean isCompressed) throws IOException {
 
+    validateNamespace(namespace);
+
     if (type != ArchiveType.WARC) {
       throw new NotImplementedException("Archive type not supported: " + type);
     }
@@ -395,8 +410,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public ArtifactData getArtifactData(String namespace, String artifactId) throws IOException {
-    if (namespace == null || artifactId == null) {
-      throw new IllegalArgumentException("Null namespace ID or artifact ID");
+    validateNamespace(namespace);
+
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
     }
 
     // FIXME: Change WarcArtifactDataStore#getArtifactData signature to take an artifactId.
@@ -428,8 +445,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Artifact commitArtifact(String namespace, String artifactId) throws IOException {
-    if (namespace == null || artifactId == null) {
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    validateNamespace(namespace);
+
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
     }
 
     // Get artifact as it is currently
@@ -458,8 +477,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public void deleteArtifact(String namespace, String artifactId) throws IOException {
-    if (namespace == null || artifactId == null) {
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    validateNamespace(namespace);
+
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
     }
 
     Artifact artifact = index.getArtifact(artifactId);
@@ -481,8 +502,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Boolean isArtifactCommitted(String namespace, String artifactId) throws IOException {
-    if (namespace == null || artifactId == null) {
-      throw new IllegalArgumentException("Null namespace or artifact id");
+    validateNamespace(namespace);
+
+    if (artifactId == null) {
+      throw new IllegalArgumentException("Null artifact ID");
     }
 
     Artifact artifact = index.getArtifact(artifactId);
@@ -514,10 +537,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Iterable<String> getAuIds(String namespace) throws IOException {
-    if (namespace == null) {
-      throw new IllegalArgumentException("Null namespace");
-    }
-
+    validateNamespace(namespace);
     return index.getAuIds(namespace);
   }
 
@@ -531,8 +551,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Iterable<Artifact> getArtifacts(String namespace, String auid) throws IOException {
-    if (namespace == null || auid == null) {
-      throw new IllegalArgumentException("Null namespace or au id");
+    validateNamespace(namespace);
+
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
     }
 
     return index.getArtifacts(namespace, auid);
@@ -547,8 +569,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid) throws IOException {
-    if (namespace == null || auid == null) {
-      throw new IllegalArgumentException("Null namespace or au id");
+    validateNamespace(namespace);
+
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
     }
 
     return index.getArtifactsAllVersions(namespace, auid);
@@ -566,8 +590,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefix(String namespace, String auid, String prefix) throws IOException {
-    if (namespace == null || auid == null || prefix == null) {
-      throw new IllegalArgumentException("Null namespace, au id or prefix");
+    validateNamespace(namespace);
+
+    if (auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null AUID or URL prefix");
     }
 
     return index.getArtifactsWithPrefix(namespace, auid, prefix);
@@ -585,8 +611,9 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String namespace, String auid, String prefix) throws IOException {
-    if (namespace == null || auid == null || prefix == null) {
-      throw new IllegalArgumentException("Null namespace, au id or prefix");
+    validateNamespace(namespace);
+    if (auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null AUID or URL prefix");
     }
 
     return index.getArtifactsWithPrefixAllVersions(namespace, auid, prefix);
@@ -606,8 +633,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String namespace, String prefix,
                                                                 ArtifactVersions versions) throws IOException {
 
-    if (namespace == null || prefix == null) {
-      throw new IllegalArgumentException("Null namespace or prefix");
+    validateNamespace(namespace);
+
+    if (prefix == null) {
+      throw new IllegalArgumentException("Null URL prefix");
     }
 
     return index.getArtifactsWithUrlPrefixFromAllAus(namespace, prefix, versions);
@@ -624,8 +653,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid, String url) throws IOException {
-    if (namespace == null || auid == null || url == null) {
-      throw new IllegalArgumentException("Null namespace, au id or url");
+    validateNamespace(namespace);
+
+    if (auid == null || url == null) {
+      throw new IllegalArgumentException("Null AUID or URL");
     }
 
     return index.getArtifactsAllVersions(namespace, auid, url);
@@ -644,8 +675,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String namespace, String url, ArtifactVersions versions)
       throws IOException {
 
-    if (namespace == null || url == null) {
-      throw new IllegalArgumentException("Null namespace or url");
+    validateNamespace(namespace);
+
+    if (url == null) {
+      throw new IllegalArgumentException("Null URL");
     }
 
     return index.getArtifactsWithUrlFromAllAus(namespace, url, versions);
@@ -662,8 +695,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Artifact getArtifact(String namespace, String auid, String url) throws IOException {
-    if (namespace == null || auid == null || url == null) {
-      throw new IllegalArgumentException("Null namespace, au id or url");
+    validateNamespace(namespace);
+
+    if (auid == null || url == null) {
+      throw new IllegalArgumentException("Null AUID or URL");
     }
 
     return index.getArtifact(namespace, auid, url);
@@ -683,8 +718,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
-    if (namespace == null || auid == null || url == null || version == null) {
-      throw new IllegalArgumentException("Null namespace, au id, url or version");
+    validateNamespace(namespace);
+
+    if (auid == null || url == null || version == null) {
+      throw new IllegalArgumentException("Null AUID, URL or version");
     }
 
     return index.getArtifactVersion(namespace, auid, url, version,
@@ -700,8 +737,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    */
   @Override
   public AuSize auSize(String namespace, String auid) throws IOException {
-    if (namespace == null || auid == null) {
-      throw new IllegalArgumentException("Null namespace or au id");
+    validateNamespace(namespace);
+
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
     }
 
     // Get AU size from index query

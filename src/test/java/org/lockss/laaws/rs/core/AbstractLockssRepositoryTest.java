@@ -378,16 +378,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifact() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifact(null, null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifact(null, AUID1, URL1);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AU",
 		      () -> {repository.getArtifact(NS1, null, URL1);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
+		      "URL",
 		      () -> {repository.getArtifact(NS1, AUID1, null);});
 
     // Artifact not found
@@ -444,10 +444,10 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactData() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactData((String)null, (String)null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactData(null, ARTID1);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "Null",
@@ -483,28 +483,28 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactVersion() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactVersion(null, null, null, null, false);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactVersion(null, null, null, null, true);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1, false);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactVersion(null, AUID1, URL1, 1, true);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AUID",
 		      () -> {repository.getArtifactVersion(NS1, null, URL1, 1, false);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AUID",
 		      () -> {repository.getArtifactVersion(NS1, null, URL1, 1, true);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
+		      "URL",
 		      () -> {repository.getArtifactVersion(NS1, AUID1, null, 1, false);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
+		      "URL",
 		      () -> {repository.getArtifactVersion(NS1, AUID1, null, 1, true);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "version",
@@ -577,13 +577,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testAuSize() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.auSize(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.auSize(null, AUID1);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AUID",
 		      () -> {repository.auSize(NS1, null);});
 
     // Test expected AU size for non-existent AU
@@ -657,13 +657,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testDeleteArtifact() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace or artifact id",
+		      "Invalid namespace",
 		      () -> {repository.deleteArtifact(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "artifact",
 		      () -> {repository.deleteArtifact(NS1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.deleteArtifact(null, AUID1);});
 
     // Delete non-existent artifact
@@ -844,13 +844,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifacts() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace or au id",
+		      "Invalid namespace",
 		      () -> {repository.getArtifacts(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AU",
 		      () -> {repository.getArtifacts(NS1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifacts(null, AUID1);});
 
     // Non-existent namespace & auid
@@ -892,16 +892,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactsWithPrefix() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace, au id or prefix",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithPrefix(null, null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "prefix",
+		      "URL prefix",
 		      () -> {repository.getArtifactsWithPrefix(NS1, AUID1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AUID",
 		      () -> {repository.getArtifactsWithPrefix(NS1, null, PREFIX1);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithPrefix(null, AUID1, PREFIX1);});
 
     // Non-existent namespace & auid
@@ -933,13 +933,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactsAllVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace or au id",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsAllVersions(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AU",
 		      () -> {repository.getArtifactsAllVersions(NS1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsAllVersions(null, AUID1);});
 
     // Non-existent namespace & auid
@@ -977,16 +977,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactsWithPrefixAllVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace, au id or prefix",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithPrefixAllVersions(null, null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "prefix",
+		      "URL prefix",
 		      () -> {repository.getArtifactsWithPrefixAllVersions(NS1, AUID1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AUID",
 		      () -> {repository.getArtifactsWithPrefixAllVersions(NS1, null, PREFIX1);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithPrefixAllVersions(null, AUID1, PREFIX1);});
 
     // Non-existent namespace & auid
@@ -1017,13 +1017,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactsWithUrlPrefixFromAllAus_allVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace or prefix",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithUrlPrefixFromAllAus(null, null, ArtifactVersions.ALL);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "prefix",
+		      "URL prefix",
 		      () -> {repository.getArtifactsWithUrlPrefixFromAllAus(NS1, null, ArtifactVersions.ALL);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithUrlPrefixFromAllAus(null, PREFIX1, ArtifactVersions.ALL);});
     assertThrowsMatch(IllegalArgumentException.class,
         "Versions must be ALL or LATEST",
@@ -1047,13 +1047,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactsWithUrlPrefixFromAllAus_latestVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-        "Null namespace or prefix",
+        "Invalid namespace",
         () -> {repository.getArtifactsWithUrlPrefixFromAllAus(null, null, ArtifactVersions.LATEST);});
     assertThrowsMatch(IllegalArgumentException.class,
-        "prefix",
+        "URL prefix",
         () -> {repository.getArtifactsWithUrlPrefixFromAllAus(NS1, null, ArtifactVersions.LATEST);});
     assertThrowsMatch(IllegalArgumentException.class,
-        "namespace",
+        "Invalid namespace",
         () -> {repository.getArtifactsWithUrlPrefixFromAllAus(null, PREFIX1, ArtifactVersions.LATEST);});
     assertThrowsMatch(IllegalArgumentException.class,
         "Versions must be ALL or LATEST",
@@ -1093,16 +1093,16 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactAllVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace, au id or url",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsAllVersions(null, null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
+		      "URL",
 		      () -> {repository.getArtifactsAllVersions(NS1, AUID1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "au",
+		      "AU",
 		      () -> {repository.getArtifactsAllVersions(NS1, null, URL1);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsAllVersions(null, AUID1, URL1);});
 
     // Non-existent namespace, auid or url
@@ -1128,13 +1128,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactAllVersionsAllAus_allVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace or url",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithUrlFromAllAus(null, null, ArtifactVersions.ALL);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "url",
+		      "URL",
 		      () -> {repository.getArtifactsWithUrlFromAllAus(NS1, null, ArtifactVersions.ALL);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.getArtifactsWithUrlFromAllAus(null, URL1, ArtifactVersions.ALL);});
     assertThrowsMatch(IllegalArgumentException.class,
         "Versions must be ALL or LATEST",
@@ -1161,13 +1161,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetArtifactAllVersionsAllAus_latestVersions() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-        "Null namespace or url",
+        "Invalid namespace",
         () -> {repository.getArtifactsWithUrlFromAllAus(null, null, ArtifactVersions.LATEST);});
     assertThrowsMatch(IllegalArgumentException.class,
-        "url",
+        "URL",
         () -> {repository.getArtifactsWithUrlFromAllAus(NS1, null, ArtifactVersions.LATEST);});
     assertThrowsMatch(IllegalArgumentException.class,
-        "namespace",
+        "Invalid namespace",
         () -> {repository.getArtifactsWithUrlFromAllAus(null, URL1, ArtifactVersions.LATEST);});
     assertThrowsMatch(IllegalArgumentException.class,
         "Versions must be ALL or LATEST",
@@ -1212,7 +1212,7 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testGetAuIds() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace",
+		      "Invalid namespace",
 		      () -> {repository.getAuIds(null);});
 
     // Non-existent namespace
@@ -1247,13 +1247,13 @@ public abstract class AbstractLockssRepositoryTest extends LockssTestCase5 {
   public void testIsArtifactCommitted() throws IOException {
     // Illegal args
     assertThrowsMatch(IllegalArgumentException.class,
-		      "Null namespace or artifact id",
+		      "Invalid namespace",
 		      () -> {repository.isArtifactCommitted(null, null);});
     assertThrowsMatch(IllegalArgumentException.class,
 		      "artifact",
 		      () -> {repository.isArtifactCommitted(NS1, null);});
     assertThrowsMatch(IllegalArgumentException.class,
-		      "namespace",
+		      "Invalid namespace",
 		      () -> {repository.isArtifactCommitted(null, ARTID1);});
 
     // non-existent namespace, artifact id

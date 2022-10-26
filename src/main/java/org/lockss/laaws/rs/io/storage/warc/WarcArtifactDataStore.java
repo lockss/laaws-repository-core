@@ -334,6 +334,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * Wait for all background commits for an AU to finish
    */
   public boolean waitForCommitTasks(String namespace, String auid) {
+    validateNamespace(namespace);
     log.debug2("Waiting for stripe " + new NamespacedAuid(namespace, auid));
 
     return stripedExecutor.waitForStripeToEmpty(new NamespacedAuid(namespace, auid));
@@ -427,6 +428,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path} containing the base path of the namespace, under the given data store base path.
    */
   public Path getNamespacePath(Path basePath, String namespace) {
+    validateNamespace(namespace);
     return getNamespacesBasePath(basePath).resolve(namespace);
   }
 
@@ -437,6 +439,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path[]} containing all paths of this namespace.
    */
   public Path[] getNamespacePaths(String namespace) {
+    validateNamespace(namespace);
     return Arrays.stream(getBasePaths())
         .map(path -> getNamespacePath(path, namespace))
         .toArray(Path[]::new);
@@ -451,6 +454,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path} containing the base path of the AU, under the given data store base path.
    */
   public Path getAuPath(Path basePath, String namespace, String auid) {
+    validateNamespace(namespace);
     return getNamespacePath(basePath, namespace).resolve(AU_DIR_PREFIX + DigestUtils.md5Hex(auid));
   }
 
@@ -462,6 +466,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link List<Path>} containing all paths of this AU.
    */
   public List<Path> getAuPaths(String namespace, String auid) throws IOException {
+    validateNamespace(namespace);
     synchronized (auPathsMap) {
       // Get AU's initialized paths from map
       NamespacedAuid key = new NamespacedAuid(namespace, auid);
@@ -484,6 +489,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   public Path getAuActiveWarcPath(String namespace, String auid, long minSize, boolean compressedWarc) throws IOException {
+    validateNamespace(namespace);
     synchronized (auActiveWarcsMap) {
       // Get all the active WARCs of this AU
       List<Path> activeWarcs = getAuActiveWarcPaths(namespace, auid);
@@ -531,6 +537,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link List<Path>} containing all active WARCs of this AU.
    */
   public List<Path> getAuActiveWarcPaths(String namespace, String auid) throws IOException {
+    validateNamespace(namespace);
     synchronized (auActiveWarcsMap) {
       // Get the active WARCs of this AU if it exists in the map
       NamespacedAuid key = new NamespacedAuid(namespace, auid);
@@ -615,6 +622,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected List<Path> findAuActiveWarcs(String namespace, String auid) throws IOException {
+    validateNamespace(namespace);
     return findAuArtifactWarcsStream(namespace, auid)
         .filter(new WarcSizeThresholdPredicate())
         .sorted(new WarcLengthComparator())
@@ -631,6 +639,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected List<Path> findAuArtifactWarcs(String namespace, String auid) throws IOException {
+    validateNamespace(namespace);
     return findAuArtifactWarcsStream(namespace, auid).collect(Collectors.toList());
   }
 
@@ -643,6 +652,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   protected Stream<Path> findAuArtifactWarcsStream(String namespace, String auid) throws IOException {
+    validateNamespace(namespace);
     return getAuPaths(namespace, auid).stream()
         .map(auPath -> findWarcsOrEmpty(auPath))
         .flatMap(Collection::stream)
@@ -657,6 +667,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path} containing the path to the journal.
    */
   protected Path getAuJournalPath(Path basePath, String namespace, String auid, String journalName) {
+    validateNamespace(namespace);
     return getAuPath(basePath, namespace, auid).resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION);
   }
 
@@ -689,6 +700,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link Path[]} containing the paths to the journal on across all the configured data store base paths.
    */
   protected Path[] getAuJournalPaths(String namespace, String auid, String journalName) throws IOException {
+    validateNamespace(namespace);
     return getAuPaths(namespace, auid).stream()
         .map(auPath -> auPath.resolve(journalName + WARCConstants.DOT_WARC_FILE_EXTENSION))
         .toArray(Path[]::new);
@@ -745,6 +757,18 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   // *******************************************************************************************************************
 
   /**
+   * Validates a namespace.
+   *
+   * @param namespace A {@link String} containing the namespace to validate.
+   * @throws IllegalArgumentException Thrown if the namespace did not pass validation.
+   */
+  private static void validateNamespace(String namespace) throws IllegalArgumentException {
+    if (!LockssRepositoryUtil.validateNamespace(namespace)) {
+      throw new IllegalArgumentException("Invalid namespace: " + namespace);
+    }
+  }
+
+  /**
    * Marks the file as in-use and returns an {@link InputStream} to the beginning of the file.
    *
    * @param filePath A {@link Path} containing the path to the file.
@@ -790,11 +814,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @return A {@link String} containing the generated active WARC file name.
    */
   protected static String generateActiveWarcName(String namespace, String auid) {
+    validateNamespace(namespace);
     ZonedDateTime zdt = ZonedDateTime.now(ZoneId.of("UTC"));
     return generateActiveWarcName(namespace, auid, zdt);
   }
 
   protected static String generateActiveWarcName(String namespace, String auid, ZonedDateTime zdt) {
+    validateNamespace(namespace);
     String timestamp = zdt.format(FMT_TIMESTAMP);
     String auidHash = DigestUtils.md5Hex(auid);
     return String.format("artifacts_%s-%s_%s", namespace, auidHash, timestamp);
@@ -811,6 +837,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   public Path initAuActiveWarc(String namespace, String auid, long minSize) throws IOException {
+    validateNamespace(namespace);
     // Debugging
     log.trace("namespace = {}", namespace);
     log.trace("auid = {}", auid);
@@ -861,6 +888,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param auid         A {@link String} containing the AUID of the AU.
    */
   public void sealActiveWarc(String namespace, String auid, Path warcPath) {
+    validateNamespace(namespace);
     log.trace("namespace = {}", namespace);
     log.trace("auid = {}", auid);
     log.trace("warcPath = {}", warcPath);
@@ -2075,6 +2103,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   @Override
   public long auWarcSize(String namespace, String auid) throws IOException {
+    validateNamespace(namespace);
     return getAuPaths(namespace, auid).stream()
         .map(auPath -> findWarcsOrEmpty(auPath))
         .flatMap(Collection::stream)
@@ -2425,6 +2454,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     private final String auid;
 
     public ArchivalUnitStem(String namespace, String auid) {
+      validateNamespace(namespace);
       this.namespace = namespace;
       this.auid = auid;
     }
