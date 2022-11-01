@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 public class LockssRepositoryUtil {
   private final static L4JLogger log = L4JLogger.getLogger();
 
-  private static final Pattern NAMESPACE_PATTERN = Pattern.compile("^[a-zA-Z0-9]([a-zA-Z0-9._-]+)?$");
+  private static final Pattern NAMESPACE_PATTERN = Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]*$");
 
   /**
    * Validates a namespace.
