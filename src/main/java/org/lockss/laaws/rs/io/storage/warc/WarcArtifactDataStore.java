@@ -84,6 +84,7 @@ import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.HTreeMap;
 import org.mapdb.Serializer;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -1462,6 +1463,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       // Update ArtifactData object with new properties
+      // FIXME: Avoid doing this
       artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcPath, offset, storedRecordLength));
 
       // ******************
@@ -1496,7 +1498,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Return the artifact
       // *******************
 
-      // Create a new Artifact object to return
+      // Create a new Artifact object to return (avoid an index query)
       Artifact artifact = new Artifact(
           artifactId,
           false,
@@ -1557,6 +1559,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try {
         // Get storage URL and WARC path of artifact's WARC record
         storageUrl = new URI(indexedArtifact.getStorageUrl());
+        // TODO: headerStorageUrl =
         warcFilePath = getPathFromStorageUrl(storageUrl);
         isTmpStorage = isTmpStorage(warcFilePath);
 
@@ -1584,7 +1587,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         }
       } catch (URISyntaxException e) {
         // This should never happen since storage URLs are internal
-        log.error("Malformed storage URL [storageUrl:  {}]", indexedArtifact.getStorageUrl());
+        log.error("Malformed storage URL [storageUrl: {}]", indexedArtifact.getStorageUrl());
         throw new IllegalArgumentException("Malformed storage URL");
       } finally {
         releaseArtifactLock(indexedArtifact.getIdentifier());
@@ -1617,8 +1620,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Create WARCRecord object from InputStream
       WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName(), 0L, false, false);
 
+      // Read artifact headers from WARC metadata record
+      // TODO: HttpHeaders headers = readArtifactHeaders(headerStorageUrl);
+      HttpHeaders headers = new HttpHeaders();
+
       // Convert the WARCRecord object to an ArtifactData
-      ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord); // FIXME: Move to ArtifactDataUtil or ArtifactData
+      // FIXME: Move to ArtifactDataUtil or ArtifactData
+      ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(headers, warcRecord);
 
       // Save the underlying input stream so that it can be closed when needed.
       artifactData.setClosableInputStream(warcStream);
@@ -1923,8 +1931,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 recordLength,
                 warcLength,
                 dst,
-                warcLength + recordLength
-            );
+                warcLength + recordLength);
+
+            // ***************************************
+            // Copy artifact headers record if present
+            // ***************************************
+
+            // TODO
           }
         }
 
@@ -2361,7 +2374,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         try {
           // Transform ArchiveRecord to ArtifactData
-          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
+          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(/* FIXME */ null, record);
 
           if (artifactData != null) {
             // Skip if already indexed
@@ -2834,8 +2847,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws HttpException
    */
   public static long writeArtifactData(ArtifactData artifactData, OutputStream outputStream) throws IOException {
-    // Get artifact identifier
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
+    HttpHeaders headers = artifactData.getMetadata();
 
     // Create a WARC record object
     WARCRecordInfo record = new WARCRecordInfo();
@@ -2846,7 +2859,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.setRecordId(URI.create(artifactId.getId()));
 
     // Set WARC record type
-    record.setType(WARCRecordType.response);
+    record.setType(artifactData.hasHttpStatus() ?
+        WARCRecordType.response : WARCRecordType.resource);
 
     // Use fetch time property from artifact for WARC-Date if present
     String fetchTimeValue = artifactData.getMetadata().getFirst(Constants.X_LOCKSS_FETCH_TIME);
@@ -2878,12 +2892,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Set WARC record URL
     record.setUrl(artifactId.getUri());
 
-    // Set WARC record Content-Type - hardcoded to always write an HTTP response
-    // containing the artifact headers/properties and data
-    record.setMimetype("application/http; msgtype=response");
+    // Set WARC block Content-Type
+    if (artifactData.hasHttpStatus()) {
+      record.setMimetype("application/http; msgtype=response");
+    } else {
+      // Set WARC resource record's content type to that of artifact
+      MediaType type = artifactData.getMetadata().getContentType();
+      record.setMimetype(type == null ?
+          // Q: Do we want to set a default? MIME type is not mandatory
+          MediaType.APPLICATION_OCTET_STREAM_VALUE : String.valueOf(type));
+    }
 
-    // Add LOCKSS-specific WARC headers to record (Note: X-LockssRepo-Artifact-Id and X-LockssRepo-Artifact-Uri are
-    // redundant because the same information is recorded as WARC-Record-ID and WARC-Target-URI, respectively).
+    // Add LOCKSS-specific WARC headers to record
+    // Note: WARC-Record-ID and WARC-Target-URI match the X-LockssRepo-Artifact-Id and
+    // X-LockssRepo-Artifact-Uri headers, respectively
     record.addExtraHeader(ArtifactConstants.ARTIFACT_ID_KEY, artifactId.getId());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_NAMESPACE_KEY, artifactId.getNamespace());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_AUID_KEY, artifactId.getAuid());
@@ -2896,32 +2918,39 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // Inherit stored date if set (e.g., in the temporary WARC record)
             artifactData.getStoredDate() > 0 ?
                 Instant.ofEpochMilli(artifactData.getStoredDate()).atZone(ZoneOffset.UTC) :
-                Instant.now().atZone(ZoneOffset.UTC)));
-
-    byte[] headers = ArtifactDataUtil.getHttpResponseHeader(artifactData);
+                Instant.ofEpochMilli(TimeBase.nowMs()).atZone(ZoneOffset.UTC)));
 
     try {
-      // Assumption is artifact (WARC payload) length and digest have been set by the caller
+      if (artifactData.hasHttpStatus()) {
+        // WARC record block length
+        byte[] headerBytes = ArtifactDataUtil.getHttpResponseHeader(artifactData);
+        record.setContentLength(headerBytes.length + artifactData.getContentLength());
 
-      // WARC block length and stream
-      record.setContentLength(headers.length + artifactData.getContentLength());
-      record.setContentStream(
-          ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
-              ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)));
+        // WARC record block
+        record.setContentStream(
+            ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
+                ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)));
+      } else {
+        // WARC record block length
+        record.setContentLength(artifactData.getContentLength());
+
+        // WARC record block
+        record.setContentStream(artifactData.getInputStream());
+      }
 
     } catch (IllegalStateException e) {
-      // Compute length and digest by exhausting the InputStream
+      // Thrown by getContentLength(): Determine length and digest by exhausting the InputStream
       try (DeferredTempFileOutputStream dfos =
                new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {
 
         artifactData.setComputeDigestOnRead(true);
 
-        // Create an HTTP response stream from the ArtifactData
-        InputStream httpResponse =
+        InputStream content = artifactData.hasHttpStatus()  ?
             ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
-                ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData));
+                ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)) :
+            artifactData.getInputStream();
 
-        IOUtils.copyLarge(httpResponse, dfos);
+        IOUtils.copyLarge(content, dfos);
 
         // WARC block length and stream
         record.setContentLength(dfos.getByteCount());
@@ -2937,12 +2966,19 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
     }
 
-    // Set WARC payload (artifact) length (i.e., WARC block length minus HTTP headers)
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY,
-        String.valueOf(record.getContentLength() - headers.length));
+    long len = record.getContentLength();
+
+    if (artifactData.hasHttpStatus()) {
+      byte[] headerBytes = ArtifactDataUtil.getHttpResponseHeader(artifactData);
+      len -= headerBytes.length;
+    }
+
+    // Set WARC payload (artifact) length (i.e., WARC block length minus HTTP headers, if present)
+    record.addExtraHeader(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(len));
 
     // Set WARC-Payload-Digest and our custom artifact digest key. Both represent the digest of the
     // artifact data. Our custom artifact digest key is added here for backward compatibility.
+    // Q: Is the backward compatibility still needed?
     record.addExtraHeader(WARCConstants.HEADER_KEY_PAYLOAD_DIGEST, artifactData.getContentDigest());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_DIGEST_KEY, artifactData.getContentDigest());
 
@@ -2952,10 +2988,50 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Write record to output stream and return number of bytes written
     try (CountingOutputStream cout = new CountingOutputStream(outputStream)) {
       writeWarcRecord(record, cout);
+
+      // Write a separate WARC metadata record containing artifact headers if present
+      if (!artifactData.hasHttpStatus() && !headers.isEmpty()) {
+        writeArtifactHeadersRecord(record.getRecordId(), headers, outputStream);
+      }
+
       return cout.getCount();
     } finally {
       IOUtils.closeQuietly(record.getContentStream());
     }
+  }
+
+  public static void writeArtifactHeadersRecord(URI parentRecordId, HttpHeaders headers,
+                                                OutputStream out) throws IOException {
+
+    byte[] headerBytes = getByteArrayFromHttpHeaders(headers);
+
+    WARCRecordInfo record = new WARCRecordInfo();
+
+    // Set mandatory WARC record headers
+    record.setRecordId(URI.create(String.valueOf(UUID.randomUUID())));
+    record.setType(WARCRecordType.metadata);
+    record.setContentLength(headerBytes.length);
+    record.setCreate14DigitDate(
+        DateTimeFormatter.ISO_INSTANT.format(
+            Instant.ofEpochMilli(TimeBase.nowMs()).atZone(ZoneOffset.UTC)));
+
+    // Optional WARC header headers
+    record.addExtraHeader(WARCConstants.HEADER_KEY_REFERS_TO_TARGET_URI, String.valueOf(parentRecordId));
+
+    // Set WARC block
+    record.setContentStream(new ByteArrayInputStream(headerBytes));
+
+    // Write WARC metadata record
+    writeWarcRecord(record, out);
+  }
+
+  private static byte[] getByteArrayFromHttpHeaders(HttpHeaders headers) {
+    StringBuilder sb = new StringBuilder();
+
+    headers.forEach((k,v) ->
+        sb.append(k).append(COLON_SPACE).append(v).append(CRLF));
+
+    return sb.toString().getBytes(StandardCharsets.UTF_8);
   }
 
   /**
@@ -3143,6 +3219,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @param record An instance of WARCRecordInfo to write to the OutputStream.
    * @param out    An OutputStream.
+   * @return A {@code byte[]} containing the WARC record ID.
    * @throws IOException
    */
   public static void writeWarcRecord(WARCRecordInfo record, OutputStream out) throws IOException {

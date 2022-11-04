@@ -606,7 +606,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public void assertEquals(StatusLine exp, StatusLine line) {
-    Assertions.assertEquals(exp.toString(), line.toString());
+    Assertions.assertEquals(String.valueOf(exp), String.valueOf(line));
   }
 
   /**
@@ -614,7 +614,7 @@ public class ArtifactSpec implements Comparable<Object> {
    */
   public void assertArtifactData(ArtifactData ad) {
     Assertions.assertNotNull(ad, "Didn't find ArtifactData for: " + this);
-    assertEquals(getStatusLine(), ad.getHttpStatus());
+    Assertions.assertEquals(getStatusLine(), ad.getHttpStatus());
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());
 

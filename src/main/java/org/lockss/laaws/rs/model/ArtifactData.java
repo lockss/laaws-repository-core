@@ -272,6 +272,13 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     return this.httpStatus;
   }
 
+  /**
+   * @return Returns a boolean indicating whether this artifact has an HTTP status (was therefore from a web crawl).
+   */
+  public boolean hasHttpStatus() {
+    return httpStatus != null;
+  }
+
   public void setHttpStatus(StatusLine status) {
     this.httpStatus = status;
   }

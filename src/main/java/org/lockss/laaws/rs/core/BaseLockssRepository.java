@@ -359,7 +359,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
             status.url(header.getUrl());
 
             // Transform WARC record to ArtifactData
-            ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(record);
+            ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(/*FIXME*/ null, record);
             assert ad != null;
 
             ArtifactIdentifier aid = ad.getIdentifier();

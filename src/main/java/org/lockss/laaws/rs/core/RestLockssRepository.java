@@ -231,11 +231,8 @@ public class RestLockssRepository implements LockssRepository {
     // Get artifact identifier
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-    log.debug(
-        "Adding artifact to remote repository [namespace: {}, auId: {}, uri: {}]",
-        artifactId.getNamespace(),
-        artifactId.getAuid(),
-        artifactId.getUri());
+    log.debug("Adding artifact to remote repository [namespace: {}, auId: {}, uri: {}]",
+        artifactId.getNamespace(), artifactId.getAuid(), artifactId.getUri());
 
     // Create a multivalue map to contain the multipart parts
     MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
@@ -250,24 +247,34 @@ public class RestLockssRepository implements LockssRepository {
     // Prepare artifact multipart headers
     HttpHeaders contentPartHeaders = new HttpHeaders();
 
-    // This must be set or else AbstractResource#contentLength will read the entire InputStream to determine the
-    // content length, which will exhaust the InputStream.
+    // This must be set to something or else AbstractResource#contentLength will read the entire InputStream to
+    // determine the content length, which will exhaust the InputStream.
     contentPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
-    contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
 
-    // Prepare artifact multipart body
-    Resource artifactPartResource =
-        new NamedInputStreamResource("artifact", // Maps to "filename" in Content-Disposition header
-            ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
+    if (artifactData.hasHttpStatus()) {
+      contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
+    } else {
+      MediaType type = artifactData.getMetadata().getContentType();
+      contentPartHeaders.setContentType(type == null ?
+          // Q: Do we want to use a default here?
+          MediaType.APPLICATION_OCTET_STREAM : artifactData.getMetadata().getContentType());
+    }
 
+    // Artifact content part resource
+    Resource contentPartResource = new NamedInputStreamResource("artifact",
+        artifactData.hasHttpStatus() ?
+            ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData) :
+            artifactData.getInputStream());
+
+    // Add artifact content part
     parts.add("artifact", // Maps to "name" in Content-Disposition header
-        new HttpEntity<>(artifactPartResource, contentPartHeaders));
+        new HttpEntity<>(contentPartResource, contentPartHeaders));
 
-    // POST body entity
+    // POST request body
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
         new HttpEntity<>(parts, getInitializedHttpHeaders());
 
-    // Construct REST endpoint to artifacts
+    // Build REST endpoint to /artifacts
     String endpoint = String.format("%s/artifacts", repositoryUrl);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
@@ -275,27 +282,30 @@ public class RestLockssRepository implements LockssRepository {
       builder.queryParam("namespace", artifactId.getNamespace());
     }
 
-    // POST the multipart entity to the remote LOCKSS repository and return the result
+    builder.queryParam("asHttpResponse", artifactData.hasHttpStatus());
+
+    // Perform REST call: POST the multipart entity to the remote LOCKSS repository
     try {
       ResponseEntity<String> response =
           RestUtil.callRestService(restTemplate,
               builder.build().encode().toUri(),
               HttpMethod.POST,
               multipartEntity,
+              // TODO: Change this to Artifact and remove OjectMapper below
               String.class, "addArtifact");
 
+      // Handle response
       checkStatusOk(response);
 
+      // TODO
       ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          false);
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
       Artifact res = mapper.readValue(response.getBody(), Artifact.class);
+
       artCache.put(res);
-      artCache.putArtifactData(res.getNamespace(), res.getIdentifier().getId(),
-          artifactData);
+      artCache.putArtifactData(res.getNamespace(), res.getIdentifier().getId(), artifactData);
 
       return res;
-
     } catch (LockssRestException e) {
       log.error("Could not add artifact", e);
       throw e;
