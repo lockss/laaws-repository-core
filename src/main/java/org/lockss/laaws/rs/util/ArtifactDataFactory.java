@@ -34,6 +34,7 @@ package org.lockss.laaws.rs.util;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
@@ -42,7 +43,6 @@ import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.IdentityInputStream;
 import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.apache.http.message.BasicLineParser;
-import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
@@ -184,21 +184,20 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
-    Integer version = -1;
+    int version = -1;
 
-    String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACT_VERSION_KEY);
+    String versionVal = headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY);
 
-    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
-      version = Integer.valueOf(versionHeader);
+    if (!StringUtil.isNullOrEmpty(versionVal)) {
+      version = Integer.parseInt(versionVal);
     }
 
     return new ArtifactIdentifier(
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_ID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_AUID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_URI_KEY),
-        version
-    );
+        headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
+        headers.getFirst(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
+        headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
+        headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
+        version);
   }
 
   /**
@@ -311,20 +310,7 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactData} representing the artifact contained in the {@code ArchiveRecord}.
    * @throws IOException
    */
-  @Deprecated
   public static ArtifactData fromArchiveRecord(ArchiveRecord record) throws IOException {
-    return fromArchiveRecord(null, record);
-  }
-
-  /**
-   * Constructs a new {@link ArtifactData} from an {@link ArchiveRecord} and the provided artifact headers.
-   *
-   * @param headers
-   * @param record
-   * @return
-   * @throws IOException
-   */
-  public static ArtifactData fromArchiveRecord(HttpHeaders headers, ArchiveRecord record) throws IOException {
     // Get WARC record header
     ArchiveRecordHeader recordHeader = record.getHeader();
 
@@ -357,8 +343,11 @@ public class ArtifactDataFactory {
         ad = ArtifactDataFactory.fromResource(record);
         ad.setIdentifier(artifactId);
 
-        // Set the ArtifactData content-type to that of the WARC record block
-        headers.setContentType(MediaType.valueOf(recordHeader.getMimetype()));
+        // Set the ArtifactData content-type to that of the WARC record block if present
+        String typeVal = recordHeader.getMimetype();
+        if (!StringUtil.isNullOrEmpty(typeVal)) {
+          ad.getHttpHeaders().setContentType(MediaType.valueOf(typeVal));
+        }
         break;
 
       default:
@@ -367,13 +356,6 @@ public class ArtifactDataFactory {
 
         // Could not return an artifact elsewhere
         return null;
-    }
-
-    //// Set common ArtifactData properties from WARC record headers:
-
-    // Override artifact data headers with explicitly provided ones
-    if ((headers != null) && !headers.isEmpty()) {
-      ad.getMetadata().putAll(headers);
     }
 
     String artifactContentLength = (String) recordHeader.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
@@ -420,9 +402,10 @@ public class ArtifactDataFactory {
 
       //// Set artifact repository properties
       {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_REPO_PROPS);
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_PROPS);
 
-        HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAll(mapper.readValue(part.getInputStream(), Map.class));
 
         // Set ArtifactIdentifier
         ArtifactIdentifier id = new ArtifactIdentifier(
@@ -430,27 +413,13 @@ public class ArtifactDataFactory {
             headers.getFirst(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
             headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
             headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
-            Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY))
-        );
+            Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY)));
 
         result.setIdentifier(id);
 
-        // FIXME: Set artifact repository state
-        String committedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
-        String deletedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED);
-
-        if (!(StringUtils.isEmpty(committedHeaderValue) || StringUtils.isEmpty(deletedHeaderValue))) {
-          ArtifactState state = ArtifactState.UNKNOWN;
-
-          if (Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED))) {
-            state = ArtifactState.PENDING_COPY;
-          }
-
-          if (Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))) {
-            state = ArtifactState.DELETED;
-          }
-
-          result.setArtifactState(state);
+        String stateVal = headers.getFirst(ArtifactConstants.ARTIFACT_STATE);
+        if (!StringUtil.isNullOrEmpty(stateVal)) {
+          result.setArtifactState(ArtifactState.valueOf(stateVal));
         }
 
         // Set misc. artifact properties
@@ -463,8 +432,10 @@ public class ArtifactDataFactory {
         MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
 
         // Parse header part body into HttpHeaders object
-        HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
-        result.setMetadata(headers);
+        if (part != null) {
+          HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
+          result.setHttpHeaders(headers);
+        }
       }
 
       //// Set artifact HTTP status if present
@@ -473,7 +444,8 @@ public class ArtifactDataFactory {
 
         if (part != null) {
           // Create a SessionInputBuffer and bind the InputStream from the multipart
-          SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
+          SessionInputBufferImpl buffer =
+              new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
           buffer.bind(part.getInputStream());
 
           // Read and parse HTTP status line
@@ -484,7 +456,7 @@ public class ArtifactDataFactory {
 
       //// Set artifact content if present
       {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD);
 
         if (part != null) {
           result.setInputStream(part.getInputStream());

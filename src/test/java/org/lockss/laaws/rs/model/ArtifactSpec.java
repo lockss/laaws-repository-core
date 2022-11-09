@@ -433,6 +433,10 @@ public class ArtifactSpec implements Comparable<Object> {
     return statLine;
   }
 
+  public boolean isHttpResponse() {
+    return statLine != null;
+  }
+
   public long getCollectionDate() {
     if (collectionDate >= 0) {
       return collectionDate;
@@ -614,7 +618,13 @@ public class ArtifactSpec implements Comparable<Object> {
    */
   public void assertArtifactData(ArtifactData ad) {
     Assertions.assertNotNull(ad, "Didn't find ArtifactData for: " + this);
-    Assertions.assertEquals(getStatusLine(), ad.getHttpStatus());
+
+    if (this.isHttpResponse() || ad.isHttpResponse()) {
+      // FIXME: This is ugly...
+      Assertions.assertEquals(String.valueOf(getStatusLine()), String.valueOf(ad.getHttpStatus()));
+      Assertions.assertEquals(getHeaders(), RepoUtil.mapFromHttpHeaders(ad.getHttpHeaders()));
+    }
+
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());
 
@@ -623,7 +633,6 @@ public class ArtifactSpec implements Comparable<Object> {
     }
 
     new LockssTestCase5().assertSameBytes(getInputStream(), ad.getInputStream(), getContentLength());
-    Assertions.assertEquals(getHeaders(), RepoUtil.mapFromHttpHeaders(ad.getMetadata()));
   }
 
   /**

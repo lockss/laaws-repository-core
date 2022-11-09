@@ -45,9 +45,17 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicLineFormatter;
 import org.apache.http.util.CharArrayBuffer;
+import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import java.io.*;
 import java.util.Collection;
@@ -100,10 +108,10 @@ public class ArtifactDataUtil {
         response.setEntity(new InputStreamEntity(artifactData.getInputStream()));
 
         // Add artifact headers into HTTP response
-        if (artifactData.getMetadata() != null) {
+        if (artifactData.getHttpHeaders() != null) {
 
             // Compile a list of headers
-            artifactData.getMetadata().forEach((headerName, headerValues) ->
+            artifactData.getHttpHeaders().forEach((headerName, headerValues) ->
                 headerValues.forEach((headerValue) ->
                     response.addHeader(headerName, headerValue)
             ));
@@ -164,10 +172,10 @@ public class ArtifactDataUtil {
         BasicHttpResponse response = new BasicHttpResponse(artifactData.getHttpStatus());
 
         // Add artifact headers into HTTP response
-        if (artifactData.getMetadata() != null) {
+        if (artifactData.getHttpHeaders() != null) {
 
             // Compile a list of headers
-            artifactData.getMetadata().forEach((headerName, headerValues) ->
+            artifactData.getHttpHeaders().forEach((headerName, headerValues) ->
                 headerValues.forEach((headerValue) ->
                     response.addHeader(headerName, headerValue)
                 ));
@@ -277,4 +285,105 @@ public class ArtifactDataUtil {
         return output.toByteArray();
     }
 
+  public static MultiValueMap<String, Object> generateMultipartMapFromArtifactData(
+      ArtifactData artifactData, LockssRepository.IncludeContent includeContent, long smallContentThreshold)
+      throws IOException {
+
+    String artifactId = artifactData.getIdentifier().getId();
+
+    // Holds multipart response parts
+    MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+
+    //// Add artifact repository properties multipart
+    {
+      // Part's headers
+      HttpHeaders partHeaders = new HttpHeaders();
+      partHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+      // Add repository properties multipart to multiparts list
+      parts.add(RestLockssRepository.MULTIPART_ARTIFACT_PROPS,
+          // FIXME: This artifact's repository properties basically describes an Artifact - use that instead?
+          new HttpEntity<>(getArtifactRepositoryProperties(artifactData).toSingleValueMap(), partHeaders));
+    }
+
+    //// Add HTTP response header multiparts if present
+    if (artifactData.isHttpResponse()) {
+      //// HTTP status part
+      {
+        // Part's headers
+        HttpHeaders partHeaders = new HttpHeaders();
+        partHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+
+        // Create resource containing HTTP status byte array
+        Resource resource = new NamedByteArrayResource(artifactId,
+            getHttpStatusByteArray(artifactData.getHttpStatus()));
+
+        // Add artifact headers multipart
+        parts.add(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS,
+            new HttpEntity<>(resource, partHeaders));
+      }
+
+      //// HTTP headers part
+      HttpHeaders headers = artifactData.getHttpHeaders();
+      if (headers != null && !headers.isEmpty()) {
+        // Part's headers
+        HttpHeaders partHeaders = new HttpHeaders();
+        partHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+        // Add artifact headers multipart
+        parts.add(RestLockssRepository.MULTIPART_ARTIFACT_HEADER,
+            new HttpEntity<>(headers, partHeaders));
+      }
+    }
+
+    //// Add artifact content part if requested or if small enough
+    if ((includeContent == LockssRepository.IncludeContent.ALWAYS) ||
+        (includeContent == LockssRepository.IncludeContent.IF_SMALL
+            && artifactData.getContentLength() <= smallContentThreshold)) {
+
+      // Create content part headers
+      HttpHeaders partHeaders = new HttpHeaders();
+      partHeaders.setContentLength(artifactData.getContentLength());
+
+      MediaType type = artifactData.getHttpHeaders().getContentType();
+      partHeaders.setContentType(type == null ?
+          MediaType.APPLICATION_OCTET_STREAM : type);
+
+      // FIXME: Filename must be set or else Spring will treat the part as a parameter instead of a file
+      partHeaders.setContentDispositionFormData(
+          RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD, RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD);
+
+      // Artifact content
+      Resource resource = new NamedInputStreamResource(artifactId, artifactData.getInputStream());
+
+      // Assemble content part and add to multiparts map
+      parts.add(RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD,
+          new HttpEntity<>(resource, partHeaders));
+    }
+
+    return parts;
+  }
+
+  // FIXME: This is basically an Artifact - maybe use that instead?
+  private static HttpHeaders getArtifactRepositoryProperties(ArtifactData ad) {
+    HttpHeaders headers = new HttpHeaders();
+
+    //// Artifact repository ID information headers
+    ArtifactIdentifier id = ad.getIdentifier();
+    headers.set(ArtifactConstants.ARTIFACT_ID_KEY, id.getId());
+    headers.set(ArtifactConstants.ARTIFACT_NAMESPACE_KEY, id.getNamespace());
+    headers.set(ArtifactConstants.ARTIFACT_AUID_KEY, id.getAuid());
+    headers.set(ArtifactConstants.ARTIFACT_URI_KEY, id.getUri());
+    headers.set(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
+
+    headers.set(ArtifactConstants.ARTIFACT_STATE, String.valueOf(ad.getArtifactState()));
+
+    headers.set(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
+    headers.set(ArtifactConstants.ARTIFACT_DIGEST_KEY, ad.getContentDigest());
+
+    headers.set(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY,
+        String.valueOf(ad.getCollectionDate()));
+
+    return headers;
+  }
 }

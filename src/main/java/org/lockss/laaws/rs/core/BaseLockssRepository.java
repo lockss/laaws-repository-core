@@ -359,7 +359,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
             status.url(header.getUrl());
 
             // Transform WARC record to ArtifactData
-            ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(/*FIXME*/ null, record);
+            ArtifactData ad = ArtifactDataFactory.fromArchiveRecord(record);
             assert ad != null;
 
             ArtifactIdentifier aid = ad.getIdentifier();
@@ -438,7 +438,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   @Override
   public HttpHeaders getArtifactHeaders(String namespace, String artifactId) throws IOException {
     try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
-      return ad.getMetadata();
+      return ad.getHttpHeaders();
     }
   }
 

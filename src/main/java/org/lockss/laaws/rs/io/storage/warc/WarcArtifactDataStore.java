@@ -1626,7 +1626,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Convert the WARCRecord object to an ArtifactData
       // FIXME: Move to ArtifactDataUtil or ArtifactData
-      ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(headers, warcRecord);
+      ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(warcRecord);
 
       // Save the underlying input stream so that it can be closed when needed.
       artifactData.setClosableInputStream(warcStream);
@@ -1639,16 +1639,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       artifactData.setContentDigest(indexedArtifact.getContentDigest());
 
       // Set artifact's state
-      // FIXME: This could probably be cleaned up...
-      if (!isTmpStorage) {
-        artifactData.setArtifactState(ArtifactState.COPIED);
-      } else if (isArtifactCommitted(indexedArtifactId)) {
-        artifactData.setArtifactState(ArtifactState.PENDING_COPY);
-      } else {
-        // Q: Do we need to distinguish UNCOMMITTED from EXPIRED here? DELETED and NOT_INDEXED
-        //  don't make sense since we needed a non-null Artifact to get to this point.
-        artifactData.setArtifactState(ArtifactState.UNCOMMITTED);
-      }
+      artifactData.setArtifactState(
+          getArtifactState(artifact, isArtifactExpired(warcRecord)));
 
       // Return an ArtifactData from the WARC record
       return artifactData;
@@ -2374,7 +2366,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         try {
           // Transform ArchiveRecord to ArtifactData
-          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(/* FIXME */ null, record);
+          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
 
           if (artifactData != null) {
             // Skip if already indexed
@@ -2848,7 +2840,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   public static long writeArtifactData(ArtifactData artifactData, OutputStream outputStream) throws IOException {
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
-    HttpHeaders headers = artifactData.getMetadata();
+    HttpHeaders headers = artifactData.getHttpHeaders();
 
     // Create a WARC record object
     WARCRecordInfo record = new WARCRecordInfo();
@@ -2859,11 +2851,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.setRecordId(URI.create(artifactId.getId()));
 
     // Set WARC record type
-    record.setType(artifactData.hasHttpStatus() ?
+    record.setType(artifactData.isHttpResponse() ?
         WARCRecordType.response : WARCRecordType.resource);
 
     // Use fetch time property from artifact for WARC-Date if present
-    String fetchTimeValue = artifactData.getMetadata().getFirst(Constants.X_LOCKSS_FETCH_TIME);
+    String fetchTimeValue =
+        artifactData.getHttpHeaders().getFirst(Constants.X_LOCKSS_FETCH_TIME);
 
     long fetchTime = -1;
 
@@ -2893,14 +2886,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     record.setUrl(artifactId.getUri());
 
     // Set WARC block Content-Type
-    if (artifactData.hasHttpStatus()) {
+    if (artifactData.isHttpResponse()) {
       record.setMimetype("application/http; msgtype=response");
     } else {
-      // Set WARC resource record's content type to that of artifact
-      MediaType type = artifactData.getMetadata().getContentType();
-      record.setMimetype(type == null ?
-          // Q: Do we want to set a default? MIME type is not mandatory
-          MediaType.APPLICATION_OCTET_STREAM_VALUE : String.valueOf(type));
+      // Get Content-Type from artifact headers
+      MediaType type = artifactData.getHttpHeaders().getContentType();
+
+      // Set WARC resource record's Content-Type to that of artifact if present
+      if (type != null) {
+        record.setMimetype(String.valueOf(type));
+      }
     }
 
     // Add LOCKSS-specific WARC headers to record
@@ -2920,11 +2915,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 Instant.ofEpochMilli(artifactData.getStoredDate()).atZone(ZoneOffset.UTC) :
                 Instant.ofEpochMilli(TimeBase.nowMs()).atZone(ZoneOffset.UTC)));
 
+    int headerLen = 0;
+
     try {
-      if (artifactData.hasHttpStatus()) {
+      if (artifactData.isHttpResponse()) {
         // WARC record block length
-        byte[] headerBytes = ArtifactDataUtil.getHttpResponseHeader(artifactData);
-        record.setContentLength(headerBytes.length + artifactData.getContentLength());
+        headerLen = ArtifactDataUtil.getHttpResponseHeader(artifactData).length;
+        record.setContentLength(headerLen + artifactData.getContentLength());
 
         // WARC record block
         record.setContentStream(
@@ -2945,7 +2942,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         artifactData.setComputeDigestOnRead(true);
 
-        InputStream content = artifactData.hasHttpStatus()  ?
+        InputStream content = artifactData.isHttpResponse()  ?
             ArtifactDataUtil.getHttpResponseStreamFromHttpResponse(
                 ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)) :
             artifactData.getInputStream();
@@ -2968,9 +2965,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     long len = record.getContentLength();
 
-    if (artifactData.hasHttpStatus()) {
-      byte[] headerBytes = ArtifactDataUtil.getHttpResponseHeader(artifactData);
-      len -= headerBytes.length;
+    if (artifactData.isHttpResponse()) {
+      len -= headerLen;
     }
 
     // Set WARC payload (artifact) length (i.e., WARC block length minus HTTP headers, if present)
@@ -2990,7 +2986,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       writeWarcRecord(record, cout);
 
       // Write a separate WARC metadata record containing artifact headers if present
-      if (!artifactData.hasHttpStatus() && !headers.isEmpty()) {
+      if (!artifactData.isHttpResponse() && !headers.isEmpty()) {
         writeArtifactHeadersRecord(record.getRecordId(), headers, outputStream);
       }
 
@@ -3287,8 +3283,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       sb.append(HEADER_KEY_URI).append(COLON_SPACE).append(record.getUrl()).append(CRLF);
 
     // Optional Content-Type of WARC record payload
-    if (record.getContentLength() > 0)
+    if (!StringUtils.isEmpty(record.getMimetype())) {
       sb.append(CONTENT_TYPE).append(COLON_SPACE).append(record.getMimetype()).append(CRLF);
+    }
 
     // Extra WARC record headers
     if (record.getExtraHeaders() != null) {

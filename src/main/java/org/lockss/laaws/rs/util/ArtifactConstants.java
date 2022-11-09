@@ -43,9 +43,7 @@ public class ArtifactConstants {
     public static final String ARTIFACT_VERSION_KEY = "X-LockssRepo-Artifact-Version";
 
     // Repository state
-//    public static final String ARTIFACT_REPOSITORY_STATE = "X-Lockss-Repository-Artifact-State";
-    public static final String ARTIFACT_STATE_COMMITTED = "X-LockssRepo-Artifact-Committed";
-    public static final String ARTIFACT_STATE_DELETED = "X-LockssRepo-Artifact-Deleted";
+    public static final String ARTIFACT_STATE = "X-LockssRepo-Artifact-State";
 
     // Repository
 //    public static final String ARTIFACT_LENGTH_KEY = "WARC-Payload-Length";
@@ -56,4 +54,5 @@ public class ArtifactConstants {
     // Miscellaneous
     public static final String ARTIFACT_ORIGIN_KEY = "X-LockssRepo-Artifact-Origin";
     public static final String ARTIFACT_STORED_DATE = "X-LockssRepo-Artifact-StoredDate";
+    public static final String ARTIFACT_COLLECTION_DATE_KEY = "X-LockssRepo-Artifact-CollectionDate";
 }

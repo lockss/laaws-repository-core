@@ -143,9 +143,9 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
 
-            HttpHeaders metadata = artifact.getMetadata();
-            assertNotNull(metadata);
-            assertEquals(MediaType.TEXT_HTML, metadata.getContentType());
+            HttpHeaders headers = artifact.getHttpHeaders();
+            assertNotNull(headers);
+            assertEquals(MediaType.TEXT_HTML, headers.getContentType());
 
             InputStream inputStream = artifact.getInputStream();
             assertNotNull(inputStream);
@@ -199,9 +199,9 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             assertEquals("url1", identifier.getUri());
             assertEquals(1, (int)identifier.getVersion());
 
-            HttpHeaders metadata = artifact.getMetadata();
-            assertNotNull(metadata);
-            assertEquals(MediaType.TEXT_HTML, metadata.getContentType());
+            HttpHeaders headers = artifact.getHttpHeaders();
+            assertNotNull(headers);
+            assertEquals(MediaType.TEXT_HTML, headers.getContentType());
 
             InputStream inputStream = artifact.getInputStream();
             assertNotNull(inputStream);

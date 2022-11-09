@@ -50,8 +50,10 @@ public class RepoUtil {
   // TK should concatenate multi-value keys
   public static Map<String,String> mapFromHttpHeaders(HttpHeaders hdrs) {
     Map<String,String> res = new HashMap<String,String>();
-    for (String key : hdrs.keySet()) {
-      res.put(key, String.join(",", hdrs.get(key)));
+    if (hdrs != null) {
+      for (String key : hdrs.keySet()) {
+        res.put(key, String.join(",", hdrs.get(key)));
+      }
     }
     return res;
   }

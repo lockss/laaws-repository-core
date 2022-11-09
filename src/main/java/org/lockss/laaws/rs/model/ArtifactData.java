@@ -81,7 +81,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private InputStream closableInputStream;
 
   // Artifact data properties
-  private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
+  private HttpHeaders httpHeaders;
   private StatusLine httpStatus;
   private InputStream origInputStream;
   private boolean inputStreamUsed = false;
@@ -90,7 +90,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private String contentDigest;
 
   // Internal repository state
-  private ArtifactState artifactState;
+  private ArtifactState artifactState = ArtifactState.UNKNOWN;
   private URI storageUrl;
 
   // The collection date.
@@ -111,12 +111,12 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   /**
    * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
    *
-   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param httpHeaders A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param responseStatus   A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    */
-  public ArtifactData(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
-    this(null, artifactMetadata, inputStream, responseStatus, null, null);
+  public ArtifactData(HttpHeaders httpHeaders, InputStream inputStream, StatusLine responseStatus) {
+    this(null, httpHeaders, inputStream, responseStatus, null, null);
   }
 
   /**
@@ -124,29 +124,29 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * an artifact store.
    *
    * @param identifier       An {@code ArtifactIdentifier} for this artifact data.
-   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param httpHeaders A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    */
   public ArtifactData(ArtifactIdentifier identifier,
-                      HttpHeaders artifactMetadata,
+                      HttpHeaders httpHeaders,
                       InputStream inputStream,
                       StatusLine httpStatus) {
-    this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
+    this(identifier, httpHeaders, inputStream, httpStatus, null, null);
   }
 
   /**
    * Full constructor for artifact data.
    *
    * @param identifier       An {@code ArtifactIdentifier} for this artifact data.
-   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param httpHeaders A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    * @param storageUrl       A {@code String} URL pointing to the storage of this artifact data.
    * @param state     A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
    */
   public ArtifactData(ArtifactIdentifier identifier,
-                      HttpHeaders artifactMetadata,
+                      HttpHeaders httpHeaders,
                       InputStream inputStream,
                       StatusLine httpStatus,
                       URI storageUrl,
@@ -159,10 +159,9 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
     this.setInputStream(inputStream);
 
-    this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+    this.httpHeaders = Objects.nonNull(httpHeaders) ? httpHeaders : new HttpHeaders();
 
-    setCollectionDate(this.artifactMetadata.getDate());
-
+    setCollectionDate(this.httpHeaders.getDate());
   }
 
   /**
@@ -170,12 +169,12 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    *
    * @return A {@code HttpHeaders} containing this artifact's additional properties.
    */
-  public HttpHeaders getMetadata() {
-    return artifactMetadata;
+  public HttpHeaders getHttpHeaders() {
+    return httpHeaders;
   }
 
-  public void setMetadata(HttpHeaders headers) {
-    this.artifactMetadata = headers;
+  public void setHttpHeaders(HttpHeaders headers) {
+    this.httpHeaders = headers;
   }
 
   /**
@@ -275,7 +274,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   /**
    * @return Returns a boolean indicating whether this artifact has an HTTP status (was therefore from a web crawl).
    */
-  public boolean hasHttpStatus() {
+  public boolean isHttpResponse() {
     return httpStatus != null;
   }
 
@@ -434,8 +433,8 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
   @Override
   public String toString() {
-    return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
-        + artifactMetadata + ", httpStatus=" + httpStatus
+    return "[ArtifactData identifier=" + identifier + ", httpHeaders="
+        + httpHeaders + ", httpStatus=" + httpStatus
         + ", artifactState=" + artifactState + ", storageUrl="
         + storageUrl + ", contentDigest=" + contentDigest
         + ", contentLength=" + contentLength + ", collectionDate="

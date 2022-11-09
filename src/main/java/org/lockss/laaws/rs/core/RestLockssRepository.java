@@ -91,10 +91,11 @@ public class RestLockssRepository implements LockssRepository {
   public static final int DEFAULT_MAX_ART_CACHE_SIZE = 500;
   public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE = 20;
 
-  public static final String MULTIPART_ARTIFACT_REPO_PROPS = "artifact-repo-props";
-  public static final String MULTIPART_ARTIFACT_HEADER = "artifact-header";
-  public static final String MULTIPART_ARTIFACT_HTTP_STATUS = "artifact-http-status";
-  public static final String MULTIPART_ARTIFACT_CONTENT = "artifact-content";
+  // These must match the LOCKSS Repository swagger specification:
+  public static final String MULTIPART_ARTIFACT_PROPS = "props";
+  public static final String MULTIPART_ARTIFACT_HTTP_STATUS = "httpStatus";
+  public static final String MULTIPART_ARTIFACT_HEADER = "httpHeaders";
+  public static final String MULTIPART_ARTIFACT_PAYLOAD = "payload";
 
   private RestTemplate restTemplate;
   private URL repositoryUrl;
@@ -234,41 +235,9 @@ public class RestLockssRepository implements LockssRepository {
     log.debug("Adding artifact to remote repository [namespace: {}, auId: {}, uri: {}]",
         artifactId.getNamespace(), artifactId.getAuid(), artifactId.getUri());
 
-    // Create a multivalue map to contain the multipart parts
-    MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
-    parts.add("auid", artifactId.getAuid());
-    parts.add("uri", artifactId.getUri());
-
-    // Add collection date form data part if set
-    if (artifactData.getCollectionDate() >= 0) {
-      parts.add("collectionDate", artifactData.getCollectionDate());
-    }
-
-    // Prepare artifact multipart headers
-    HttpHeaders contentPartHeaders = new HttpHeaders();
-
-    // This must be set to something or else AbstractResource#contentLength will read the entire InputStream to
-    // determine the content length, which will exhaust the InputStream.
-    contentPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
-
-    if (artifactData.hasHttpStatus()) {
-      contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
-    } else {
-      MediaType type = artifactData.getMetadata().getContentType();
-      contentPartHeaders.setContentType(type == null ?
-          // Q: Do we want to use a default here?
-          MediaType.APPLICATION_OCTET_STREAM : artifactData.getMetadata().getContentType());
-    }
-
-    // Artifact content part resource
-    Resource contentPartResource = new NamedInputStreamResource("artifact",
-        artifactData.hasHttpStatus() ?
-            ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData) :
-            artifactData.getInputStream());
-
-    // Add artifact content part
-    parts.add("artifact", // Maps to "name" in Content-Disposition header
-        new HttpEntity<>(contentPartResource, contentPartHeaders));
+    // Transform ArtifactData into multiparts
+    MultiValueMap<String, Object> parts =
+        ArtifactDataUtil.generateMultipartMapFromArtifactData(artifactData, IncludeContent.ALWAYS, 0);
 
     // POST request body
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
@@ -281,8 +250,6 @@ public class RestLockssRepository implements LockssRepository {
     if (artifactId.getNamespace() != null) {
       builder.queryParam("namespace", artifactId.getNamespace());
     }
-
-    builder.queryParam("asHttpResponse", artifactData.hasHttpStatus());
 
     // Perform REST call: POST the multipart entity to the remote LOCKSS repository
     try {
@@ -484,12 +451,12 @@ public class RestLockssRepository implements LockssRepository {
 
     if (cached != null) {
       // Artifact found in cache; return its headers
-      return cached.getMetadata();
+      return cached.getHttpHeaders();
     }
 
     ArtifactData ad = getArtifactData(namespace, artifactId, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
-    return ad.getMetadata();
+    return ad.getHttpHeaders();
   }
 
   /**
