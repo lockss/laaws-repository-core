@@ -1559,7 +1559,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       try {
         // Get storage URL and WARC path of artifact's WARC record
         storageUrl = new URI(indexedArtifact.getStorageUrl());
-        // TODO: headerStorageUrl =
         warcFilePath = getPathFromStorageUrl(storageUrl);
         isTmpStorage = isTmpStorage(warcFilePath);
 
@@ -1619,10 +1618,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Create WARCRecord object from InputStream
       WARCRecord warcRecord = new WARCRecord(warcStream, getClass().getSimpleName(), 0L, false, false);
-
-      // Read artifact headers from WARC metadata record
-      // TODO: HttpHeaders headers = readArtifactHeaders(headerStorageUrl);
-      HttpHeaders headers = new HttpHeaders();
 
       // Convert the WARCRecord object to an ArtifactData
       // FIXME: Move to ArtifactDataUtil or ArtifactData
@@ -1924,12 +1919,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 warcLength,
                 dst,
                 warcLength + recordLength);
-
-            // ***************************************
-            // Copy artifact headers record if present
-            // ***************************************
-
-            // TODO
           }
         }
 
@@ -2984,50 +2973,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // Write record to output stream and return number of bytes written
     try (CountingOutputStream cout = new CountingOutputStream(outputStream)) {
       writeWarcRecord(record, cout);
-
-      // Write a separate WARC metadata record containing artifact headers if present
-      if (!artifactData.isHttpResponse() && !headers.isEmpty()) {
-        writeArtifactHeadersRecord(record.getRecordId(), headers, outputStream);
-      }
-
       return cout.getCount();
     } finally {
       IOUtils.closeQuietly(record.getContentStream());
     }
-  }
-
-  public static void writeArtifactHeadersRecord(URI parentRecordId, HttpHeaders headers,
-                                                OutputStream out) throws IOException {
-
-    byte[] headerBytes = getByteArrayFromHttpHeaders(headers);
-
-    WARCRecordInfo record = new WARCRecordInfo();
-
-    // Set mandatory WARC record headers
-    record.setRecordId(URI.create(String.valueOf(UUID.randomUUID())));
-    record.setType(WARCRecordType.metadata);
-    record.setContentLength(headerBytes.length);
-    record.setCreate14DigitDate(
-        DateTimeFormatter.ISO_INSTANT.format(
-            Instant.ofEpochMilli(TimeBase.nowMs()).atZone(ZoneOffset.UTC)));
-
-    // Optional WARC header headers
-    record.addExtraHeader(WARCConstants.HEADER_KEY_REFERS_TO_TARGET_URI, String.valueOf(parentRecordId));
-
-    // Set WARC block
-    record.setContentStream(new ByteArrayInputStream(headerBytes));
-
-    // Write WARC metadata record
-    writeWarcRecord(record, out);
-  }
-
-  private static byte[] getByteArrayFromHttpHeaders(HttpHeaders headers) {
-    StringBuilder sb = new StringBuilder();
-
-    headers.forEach((k,v) ->
-        sb.append(k).append(COLON_SPACE).append(v).append(CRLF));
-
-    return sb.toString().getBytes(StandardCharsets.UTF_8);
   }
 
   /**
