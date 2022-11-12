@@ -35,8 +35,12 @@ package org.lockss.laaws.rs.util;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.internal.StringUtil;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.*;
+import org.apache.http.Header;
+import org.apache.http.HttpException;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
@@ -48,6 +52,7 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -59,6 +64,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -166,11 +172,10 @@ public class ArtifactDataFactory {
     HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
     ArtifactData artifactData = new ArtifactData(
-        buildArtifactIdentifier(headers),
+        null,
         headers,
         response.getEntity().getContent(),
-        response.getStatusLine()
-    );
+        response.getStatusLine());
 
 //        artifactData.setContentLength(response.getEntity().getContentLength());
 
@@ -180,23 +185,22 @@ public class ArtifactDataFactory {
   /**
    * Instantiates an {@code ArtifactIdentifier} from HTTP headers in a {@code HttpHeaders} object.
    *
-   * @param headers An {@code HttpHeaders} object representing HTTP headers containing an artifact identity.
+   * @param props An {@code Map} object representing HTTP headers containing an artifact identity.
    * @return An {@code ArtifactIdentifier}.
    */
-  public static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
-    int version = -1;
+  public static ArtifactIdentifier buildArtifactIdentifier(Map<String, String> props) {
+    int version = 0;
 
-    String versionVal = headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY);
-
+    String versionVal = props.get(Artifact.ARTIFACT_VERSION_KEY);
     if (!StringUtil.isNullOrEmpty(versionVal)) {
       version = Integer.parseInt(versionVal);
     }
 
     return new ArtifactIdentifier(
-        headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
-        headers.getFirst(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
-        headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
-        headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
+        props.get(Artifact.ARTIFACT_ID_KEY),
+        props.get(Artifact.ARTIFACT_NAMESPACE_KEY),
+        props.get(Artifact.ARTIFACT_AUID_KEY),
+        props.get(Artifact.ARTIFACT_URI_KEY),
         version);
   }
 
@@ -207,7 +211,7 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
-    int version = -1;
+    int version = 0;
 
     String versionHeader = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);
     if (!StringUtils.isEmpty(versionHeader)) {
@@ -404,27 +408,26 @@ public class ArtifactDataFactory {
       {
         MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_PROPS);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAll(mapper.readValue(part.getInputStream(), Map.class));
+        Map<String, String> props = mapper.readValue(part.getInputStream(), Map.class);
 
         // Set ArtifactIdentifier
         ArtifactIdentifier id = new ArtifactIdentifier(
-            headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_NAMESPACE_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
-            Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY)));
+            props.get(Artifact.ARTIFACT_ID_KEY),
+            props.get(Artifact.ARTIFACT_NAMESPACE_KEY),
+            props.get(Artifact.ARTIFACT_AUID_KEY),
+            props.get(Artifact.ARTIFACT_URI_KEY),
+            Integer.valueOf(props.get(Artifact.ARTIFACT_VERSION_KEY)));
 
         result.setIdentifier(id);
 
-        String stateVal = headers.getFirst(ArtifactConstants.ARTIFACT_STATE);
+        String stateVal = props.get(ArtifactState.ARTIFACT_STATE_KEY);
         if (!StringUtil.isNullOrEmpty(stateVal)) {
           result.setArtifactState(ArtifactState.valueOf(stateVal));
         }
 
         // Set misc. artifact properties
-        result.setContentLength(Long.parseLong(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
-        result.setContentDigest(headers.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+        result.setContentLength(Long.parseLong(props.get(Artifact.ARTIFACT_LENGTH_KEY)));
+        result.setContentDigest(props.get(Artifact.ARTIFACT_DIGEST_KEY));
       }
 
       //// Set artifact headers
@@ -443,13 +446,10 @@ public class ArtifactDataFactory {
         MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS);
 
         if (part != null) {
-          // Create a SessionInputBuffer and bind the InputStream from the multipart
-          SessionInputBufferImpl buffer =
-              new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
-          buffer.bind(part.getInputStream());
+          String status = IOUtils.toString(part.getInputStream(), StandardCharsets.UTF_8);
 
           // Read and parse HTTP status line
-          StatusLine httpStatus = BasicLineParser.parseStatusLine(buffer.readLine(), null);
+          StatusLine httpStatus = BasicLineParser.parseStatusLine(status, null);
           result.setHttpStatus(httpStatus);
         }
       }

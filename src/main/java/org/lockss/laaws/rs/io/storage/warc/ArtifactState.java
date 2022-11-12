@@ -46,6 +46,8 @@ public enum ArtifactState {
   EXPIRED,
   DELETED;
 
+  public final static String ARTIFACT_STATE_KEY = "state";
+
   public boolean isCommitted() {
     return this == PENDING_COPY || this == COPIED;
   }

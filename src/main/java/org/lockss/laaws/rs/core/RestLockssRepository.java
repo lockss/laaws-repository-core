@@ -92,7 +92,7 @@ public class RestLockssRepository implements LockssRepository {
   public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE = 20;
 
   // These must match the LOCKSS Repository swagger specification:
-  public static final String MULTIPART_ARTIFACT_PROPS = "props";
+  public static final String MULTIPART_ARTIFACT_PROPS = "artifactProps";
   public static final String MULTIPART_ARTIFACT_HTTP_STATUS = "httpStatus";
   public static final String MULTIPART_ARTIFACT_HEADER = "httpHeaders";
   public static final String MULTIPART_ARTIFACT_PAYLOAD = "payload";

@@ -47,37 +47,48 @@ public class Artifact implements Serializable {
     private static final long serialVersionUID = 1961138745993115018L;
     private final static L4JLogger log = L4JLogger.getLogger();
 
-    @Field("id")
+    // These need to match those in the Artifact model defined in the Swagger/OpenAPI spec
+    public final static String ARTIFACT_NAMESPACE_KEY = "namespace";
+    public final static String ARTIFACT_ID_KEY = "id";
+    public final static String ARTIFACT_AUID_KEY = "auid";
+    public final static String ARTIFACT_URI_KEY = "uri";
+    public final static String ARTIFACT_VERSION_KEY = "version";
+    public final static String ARTIFACT_COMMITTED_STATUS_KEY = "committed";
+    public final static String ARTIFACT_LENGTH_KEY = "contentLength";
+    public final static String ARTIFACT_DIGEST_KEY = "contentDigest";
+    public final static String ARTIFACT_COLLECTION_DATE_KEY = "collectionDate";
+
+    @Field(ARTIFACT_ID_KEY)
     private String id;
 
-    @Field("namespace")
+    @Field(ARTIFACT_NAMESPACE_KEY)
     private String namespace;
 
-    @Field("auid")
+    @Field(ARTIFACT_AUID_KEY)
     private String auid;
 
-    @Field("uri")
+    @Field(ARTIFACT_URI_KEY)
     private String uri;
 
     @Field("sortUri")
     private String sortUri;
 
-    @Field("version")
+    @Field(ARTIFACT_VERSION_KEY)
     private Integer version;
 
-    @Field("committed")
+    @Field(ARTIFACT_COMMITTED_STATUS_KEY)
     private Boolean committed;
 
     @Field("storageUrl")
     private String storageUrl;
 
-    @Field("contentLength")
+    @Field(ARTIFACT_LENGTH_KEY)
     private long contentLength;
 
-    @Field("contentDigest")
+    @Field(ARTIFACT_DIGEST_KEY)
     private String contentDigest;
 
-    @Field("collectionDate")
+    @Field(ARTIFACT_COLLECTION_DATE_KEY)
     private long collectionDate;
 
     /**

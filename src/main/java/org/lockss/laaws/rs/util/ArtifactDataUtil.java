@@ -47,6 +47,8 @@ import org.apache.http.message.BasicLineFormatter;
 import org.apache.http.util.CharArrayBuffer;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.core.RestLockssRepository;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
@@ -59,7 +61,9 @@ import org.springframework.util.MultiValueMap;
 
 import java.io.*;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Common utilities and adapters for LOCKSS repository ArtifactData objects.
@@ -302,8 +306,7 @@ public class ArtifactDataUtil {
 
       // Add repository properties multipart to multiparts list
       parts.add(RestLockssRepository.MULTIPART_ARTIFACT_PROPS,
-          // FIXME: This artifact's repository properties basically describes an Artifact - use that instead?
-          new HttpEntity<>(getArtifactRepositoryProperties(artifactData).toSingleValueMap(), partHeaders));
+          new HttpEntity<>(getArtifactProperties(artifactData), partHeaders));
     }
 
     //// Add HTTP response header multiparts if present
@@ -364,26 +367,39 @@ public class ArtifactDataUtil {
     return parts;
   }
 
-  // FIXME: This is basically an Artifact - maybe use that instead?
-  private static HttpHeaders getArtifactRepositoryProperties(ArtifactData ad) {
-    HttpHeaders headers = new HttpHeaders();
-
-    //// Artifact repository ID information headers
+  private static Map<String, String> getArtifactProperties(ArtifactData ad) {
+    Map<String, String> props = new HashMap<>();
     ArtifactIdentifier id = ad.getIdentifier();
-    headers.set(ArtifactConstants.ARTIFACT_ID_KEY, id.getId());
-    headers.set(ArtifactConstants.ARTIFACT_NAMESPACE_KEY, id.getNamespace());
-    headers.set(ArtifactConstants.ARTIFACT_AUID_KEY, id.getAuid());
-    headers.set(ArtifactConstants.ARTIFACT_URI_KEY, id.getUri());
-    headers.set(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
 
-    headers.set(ArtifactConstants.ARTIFACT_STATE, String.valueOf(ad.getArtifactState()));
+    putIfNotNull(props, Artifact.ARTIFACT_NAMESPACE_KEY, id.getNamespace());
+    putIfNotNull(props, Artifact.ARTIFACT_ID_KEY, id.getId());
+    props.put(Artifact.ARTIFACT_AUID_KEY, id.getAuid());
+    props.put(Artifact.ARTIFACT_URI_KEY, id.getUri());
 
-    headers.set(ArtifactConstants.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
-    headers.set(ArtifactConstants.ARTIFACT_DIGEST_KEY, ad.getContentDigest());
+    if (id.getVersion() > 0) {
+      props.put(Artifact.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
+    }
 
-    headers.set(ArtifactConstants.ARTIFACT_COLLECTION_DATE_KEY,
-        String.valueOf(ad.getCollectionDate()));
+    props.put(Artifact.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
 
-    return headers;
+    putIfNotNull(props, Artifact.ARTIFACT_DIGEST_KEY, ad.getContentDigest());
+    putIfNonZero(props, Artifact.ARTIFACT_COLLECTION_DATE_KEY, ad.getCollectionDate());
+
+    ArtifactState state = ad.getArtifactState();
+    if (state != null) {
+      props.put(ArtifactState.ARTIFACT_STATE_KEY, String.valueOf(state));
+    }
+
+    return props;
+  }
+
+  private static void putIfNonZero(Map props, String k, long v) {
+    if (v == 0) return;
+    props.put(k, String.valueOf(v));
+  }
+
+  private static void putIfNotNull(Map props, String k, String v) {
+      if (v == null) return;
+      props.put(k, v);
   }
 }
