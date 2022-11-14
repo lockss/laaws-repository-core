@@ -71,12 +71,6 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "Connection: keep-alive\n" +
             "ETag: \"595f57cc-76\"\n" +
             "Accept-Ranges: bytes\n" +
-            "X-LockssRepo-Artifact-Id: id1\n" +
-            "X-LockssRepo-Artifact-Namespace: ns1\n" +
-            "X-LockssRepo-Artifact-AuId: auid1\n" +
-            "X-LockssRepo-Artifact-Uri: url1\n" +
-            "X-LockssRepo-Artifact-Version: 1\n" +
-            "X-LockssRepo-Artifact-Origin: warc\n" +
             "\n" +
             ARTIFACT_BYTES;
 
@@ -135,14 +129,6 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes()));
             assertNotNull(artifact);
 
-            ArtifactIdentifier identifier = artifact.getIdentifier();
-            assertNotNull(identifier);
-            assertEquals("id1", identifier.getId());
-            assertEquals("ns1", identifier.getNamespace());
-            assertEquals("auid1", identifier.getAuid());
-            assertEquals("url1", identifier.getUri());
-            assertEquals(1, (int)identifier.getVersion());
-
             HttpHeaders headers = artifact.getHttpHeaders();
             assertNotNull(headers);
             assertEquals(MediaType.TEXT_HTML, headers.getContentType());
@@ -190,14 +176,6 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
 
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponse(response);
             assertNotNull(artifact);
-
-            ArtifactIdentifier identifier = artifact.getIdentifier();
-            assertNotNull(identifier);
-            assertEquals("id1", identifier.getId());
-            assertEquals("ns1", identifier.getNamespace());
-            assertEquals("auid1", identifier.getAuid());
-            assertEquals("url1", identifier.getUri());
-            assertEquals(1, (int)identifier.getVersion());
 
             HttpHeaders headers = artifact.getHttpHeaders();
             assertNotNull(headers);

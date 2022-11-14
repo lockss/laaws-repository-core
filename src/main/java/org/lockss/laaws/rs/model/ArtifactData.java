@@ -90,7 +90,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private String contentDigest;
 
   // Internal repository state
-  private ArtifactState artifactState = ArtifactState.UNKNOWN;
+  private ArtifactState artifactState = null;
   private URI storageUrl;
 
   // The collection date.
@@ -354,9 +354,6 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   public String getContentDigest() {
-    if (contentDigest == null) {
-      throw new RuntimeException("Content digest has not been set");
-    }
     return contentDigest;
   }
 

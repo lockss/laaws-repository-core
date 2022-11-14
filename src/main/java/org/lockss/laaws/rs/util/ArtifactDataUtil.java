@@ -52,6 +52,7 @@ import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -346,7 +347,13 @@ public class ArtifactDataUtil {
 
       // Create content part headers
       HttpHeaders partHeaders = new HttpHeaders();
-      partHeaders.setContentLength(artifactData.getContentLength());
+//      Long len = artifactData.getContentLength();
+//      partHeaders.setContentLength(len == null ? 0 : len);
+      try {
+        partHeaders.setContentLength(artifactData.getContentLength());
+      } catch (IllegalStateException e) {
+        // oh well
+      }
 
       MediaType type = artifactData.getHttpHeaders().getContentType();
       partHeaders.setContentType(type == null ?
@@ -357,7 +364,8 @@ public class ArtifactDataUtil {
           RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD, RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD);
 
       // Artifact content
-      Resource resource = new NamedInputStreamResource(artifactId, artifactData.getInputStream());
+//      InputStreamResource resource = new NamedInputStreamResource(artifactId, artifactData.getInputStream());
+      InputStreamResource resource = new InputStreamResource(artifactData.getInputStream());
 
       // Assemble content part and add to multiparts map
       parts.add(RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD,
@@ -380,7 +388,11 @@ public class ArtifactDataUtil {
       props.put(Artifact.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
     }
 
-    props.put(Artifact.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
+    try {
+      props.put(Artifact.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
+    } catch (IllegalStateException e) {
+      // oh well
+    }
 
     putIfNotNull(props, Artifact.ARTIFACT_DIGEST_KEY, ad.getContentDigest());
     putIfNonZero(props, Artifact.ARTIFACT_COLLECTION_DATE_KEY, ad.getCollectionDate());
