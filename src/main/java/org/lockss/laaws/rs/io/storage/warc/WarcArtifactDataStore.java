@@ -2926,7 +2926,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         record.setContentStream(artifactData.getInputStream());
       }
     } else {
-      // Thrown by getContentLength(): Determine length and digest by exhausting the InputStream
+      // Determine length and digest by exhausting the InputStream
       try (DeferredTempFileOutputStream dfos =
                new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {
 
