@@ -347,12 +347,9 @@ public class ArtifactDataUtil {
 
       // Create content part headers
       HttpHeaders partHeaders = new HttpHeaders();
-//      Long len = artifactData.getContentLength();
-//      partHeaders.setContentLength(len == null ? 0 : len);
-      try {
+
+      if (artifactData.hasContentLength()) {
         partHeaders.setContentLength(artifactData.getContentLength());
-      } catch (IllegalStateException e) {
-        // oh well
       }
 
       MediaType type = artifactData.getHttpHeaders().getContentType();
@@ -388,10 +385,8 @@ public class ArtifactDataUtil {
       props.put(Artifact.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
     }
 
-    try {
+    if (ad.hasContentLength()) {
       props.put(Artifact.ARTIFACT_LENGTH_KEY, String.valueOf(ad.getContentLength()));
-    } catch (IllegalStateException e) {
-      // oh well
     }
 
     putIfNotNull(props, Artifact.ARTIFACT_DIGEST_KEY, ad.getContentDigest());

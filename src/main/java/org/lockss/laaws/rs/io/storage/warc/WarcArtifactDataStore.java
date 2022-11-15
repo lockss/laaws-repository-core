@@ -2906,11 +2906,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     int headerLen = 0;
 
-    try {
+    if (artifactData.hasContentLength()) {
+      long artifactLen = artifactData.getContentLength();
+
       if (artifactData.isHttpResponse()) {
         // WARC record block length
         headerLen = ArtifactDataUtil.getHttpResponseHeader(artifactData).length;
-        record.setContentLength(headerLen + artifactData.getContentLength());
+        record.setContentLength(headerLen + artifactLen);
 
         // WARC record block
         record.setContentStream(
@@ -2918,13 +2920,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 ArtifactDataUtil.getHttpResponseFromArtifactData(artifactData)));
       } else {
         // WARC record block length
-        record.setContentLength(artifactData.getContentLength());
+        record.setContentLength(artifactLen);
 
         // WARC record block
         record.setContentStream(artifactData.getInputStream());
       }
-
-    } catch (IllegalStateException e) {
+    } else {
       // Thrown by getContentLength(): Determine length and digest by exhausting the InputStream
       try (DeferredTempFileOutputStream dfos =
                new DeferredTempFileOutputStream((int) DEFAULT_DFOS_THRESHOLD, "compute-length")) {

@@ -368,7 +368,14 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     return contentLength;
   }
 
+  public boolean hasContentLength() {
+    return !(contentLength < 0);
+  }
+
   public void setContentLength(long contentLength) {
+    if (contentLength < 0) {
+      throw new IllegalArgumentException("Invalid content length: " + contentLength);
+    }
     this.contentLength = contentLength;
   }
 
