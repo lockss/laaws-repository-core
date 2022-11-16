@@ -1002,13 +1002,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       for (ArchiveRecord record : archiveReader) {
         boolean isRecordRemovable = false;
 
+        // Read WARC record header for artifact ID
         ArtifactIdentifier aid = ArtifactDataFactory.buildArtifactIdentifier(record.getHeader());
 
         // Acquire artifact lock: Operations below alter artifact state
         lockArtifact(aid);
 
         Artifact artifact = getArtifactIndex().getArtifact(aid);
-        ArtifactState state = getArtifactState(artifact, isArtifactExpired(record));
+        ArtifactState state = getArtifactState(artifact, isArtifactExpired(record.getHeader()));
 
         // Resume artifact lifecycle based on the artifact's state
         try {
@@ -1131,7 +1132,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         try {
           Artifact indexed = getArtifactIndex().getArtifact(aid);
-          ArtifactState state = getArtifactState(indexed, isArtifactExpired(record));
+          ArtifactState state = getArtifactState(indexed, isArtifactExpired(record.getHeader()));
 
           switch (state) {
             case NOT_INDEXED:
@@ -1206,13 +1207,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   /**
    * Returns a boolean indicating whether the an artifact is expired by reading the headers of its WARC record.
    *
-   * @param record The {@link ArchiveRecord} instance of the artifact.
+   * @param headers The {@link ArchiveRecordHeader} instance of the artifact's {@link ArchiveRecord}.
    * @return A {@code boolean} indicating whether the artifact is expired.
    */
-  protected boolean isArtifactExpired(ArchiveRecord record) {
-    // Get WARC record headers
-    ArchiveRecordHeader headers = record.getHeader();
-
+  protected boolean isArtifactExpired(ArchiveRecordHeader headers) {
     // Parse WARC-Date field and determine if this record / artifact is expired (same date should be in index)
     String warcDateHeader = headers.getDate();
     Instant created = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(warcDateHeader));
@@ -1635,7 +1633,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Set artifact's state
       artifactData.setArtifactState(
-          getArtifactState(artifact, isArtifactExpired(warcRecord)));
+          getArtifactState(artifact, isArtifactExpired(warcRecord.getHeader())));
 
       // Return an ArtifactData from the WARC record
       return artifactData;
@@ -2254,6 +2252,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         .stream()
         .filter(path -> !isTmpStorage(path))
         .filter(path -> !path.endsWith("lockss-repo" + WARCConstants.DOT_WARC_FILE_EXTENSION))
+        .filter(path -> !path.endsWith(ArtifactStateEntry.LOCKSS_JOURNAL_ID + WARCConstants.DOT_WARC_FILE_EXTENSION))
         .filter(path -> !indexedWarcs.contains(path));
 
     // Find WARCS in temporary storage
@@ -2364,9 +2363,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               continue;
             }
 
-            // Default artifact repository state - the assumption here is that
-            // the journal has been lost or incomplete
-            artifactData.setArtifactState(ArtifactState.UNCOMMITTED);
+            // Default artifact repository state
+            artifactData.setArtifactState(!isWarcInTemp ?
+                ArtifactState.COPIED : ArtifactState.UNCOMMITTED);
 
             if (SKIP_INDEXING_IF_MARKED_DELETED) {
               try {
@@ -2381,8 +2380,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                   continue;
                 }
               } catch (IOException e) {
-                log.warn("Could not read journal file: Applying default repository state to artifact [artifactId: {}]",
-                    artifactData.getIdentifier().getId(), e);
+                log.warn("Applying default state to artifact [artifactId: {}, state: {}]",
+                    artifactData.getIdentifier().getId(), artifactData.getArtifactState());
               }
             }
 
@@ -2390,11 +2389,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
             // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
             // we add four bytes to the length
+            // Note: Content-Length is a mandatory WARC record header according to the WARC spec
             long recordLength = record.getHeader().getLength() + 4L;
             long compressedRecordLength = 0;
 
             if (isCompressed) {
-              // Read WARC record payload
+              // Read WARC record block
               record.skip(record.getHeader().getContentLength());
 
               // Check that the record is at EOF
@@ -2409,6 +2409,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               // Compute compressed record length using GZIP member boundaries
               compressedRecordLength =
                   compressedReader.getCurrentMemberEnd() - compressedReader.getCurrentMemberStart();
+
+              // WARNING: We have read past the underlying WARC record of
+              //          this compressed artifact at this point!
             }
 
             // Set ArtifactData storage URL

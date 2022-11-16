@@ -1867,7 +1867,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   }
 
   /**
-   * Test for {@link WarcArtifactDataStore#isArtifactExpired(ArchiveRecord)}.
+   * Test for {@link WarcArtifactDataStore#isArtifactExpired(ArchiveRecordHeader)}.
    *
    * @throws Exception
    */
@@ -1875,25 +1875,22 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
   public void testIsArtifactExpired() throws Exception {
     // Mocks
     WarcArtifactDataStore ds = mock(WarcArtifactDataStore.class);
-    ArchiveRecord record = mock(ArchiveRecord.class);
     ArchiveRecordHeader header = mock(ArchiveRecordHeader.class);
 
-    doCallRealMethod().when(ds).isArtifactExpired(record);
+    doCallRealMethod().when(ds).isArtifactExpired(header);
 
     // Set WARC-Date field to now()
-    when(record.getHeader()).thenReturn(header);
-
     Instant now = Instant.ofEpochMilli(TimeBase.nowMs());
     when(header.getDate())
         .thenReturn(DateTimeFormatter.ISO_INSTANT.format(now.atZone(ZoneOffset.UTC)));
 
     // Assert artifact is not expired if it expires a second later
     when(ds.getUncommittedArtifactExpiration()).thenReturn(1000L);
-    assertFalse(ds.isArtifactExpired(record));
+    assertFalse(ds.isArtifactExpired(header));
 
     // Assert artifact is expired if it expired a second ago
     when(ds.getUncommittedArtifactExpiration()).thenReturn(-1000L);
-    assertTrue(ds.isArtifactExpired(record));
+    assertTrue(ds.isArtifactExpired(header));
   }
 
   /**
