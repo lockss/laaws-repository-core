@@ -55,6 +55,7 @@ import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
+import org.lockss.laaws.rs.model.ArtifactProperties;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
@@ -197,11 +198,20 @@ public class ArtifactDataFactory {
     }
 
     return new ArtifactIdentifier(
-        props.get(Artifact.ARTIFACT_ID_KEY),
+        props.get(Artifact.ARTIFACT_UUID_KEY),
         props.get(Artifact.ARTIFACT_NAMESPACE_KEY),
         props.get(Artifact.ARTIFACT_AUID_KEY),
         props.get(Artifact.ARTIFACT_URI_KEY),
         version);
+  }
+
+  public static ArtifactIdentifier buildArtifactIdentifier(ArtifactProperties props) {
+    return new ArtifactIdentifier(
+        props.getUuid(),
+        props.getNamespace(),
+        props.getAuid(),
+        props.getUri(),
+        props.getVersion());
   }
 
   /**
@@ -408,26 +418,21 @@ public class ArtifactDataFactory {
       {
         MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_PROPS);
 
-        Map<String, String> props = mapper.readValue(part.getInputStream(), Map.class);
+        ArtifactProperties props = mapper.readValue(part.getInputStream(), ArtifactProperties.class);
 
         // Set ArtifactIdentifier
-        ArtifactIdentifier id = new ArtifactIdentifier(
-            props.get(Artifact.ARTIFACT_ID_KEY),
-            props.get(Artifact.ARTIFACT_NAMESPACE_KEY),
-            props.get(Artifact.ARTIFACT_AUID_KEY),
-            props.get(Artifact.ARTIFACT_URI_KEY),
-            Integer.valueOf(props.get(Artifact.ARTIFACT_VERSION_KEY)));
+        ArtifactIdentifier id = buildArtifactIdentifier(props);
 
         result.setIdentifier(id);
 
-        String stateVal = props.get(ArtifactState.ARTIFACT_STATE_KEY);
+        String stateVal = props.getState();
         if (!StringUtil.isNullOrEmpty(stateVal)) {
           result.setArtifactState(ArtifactState.valueOf(stateVal));
         }
 
         // Set misc. artifact properties
-        result.setContentLength(Long.parseLong(props.get(Artifact.ARTIFACT_LENGTH_KEY)));
-        result.setContentDigest(props.get(Artifact.ARTIFACT_DIGEST_KEY));
+        result.setContentLength(props.getContentLength());
+        result.setContentDigest(props.getContentDigest());
       }
 
       //// Set artifact headers

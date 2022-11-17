@@ -49,7 +49,7 @@ public class Artifact implements Serializable {
 
     // These need to match those in the Artifact model defined in the Swagger/OpenAPI spec
     public final static String ARTIFACT_NAMESPACE_KEY = "namespace";
-    public final static String ARTIFACT_ID_KEY = "id";
+    public final static String ARTIFACT_UUID_KEY = "uuid";
     public final static String ARTIFACT_AUID_KEY = "auid";
     public final static String ARTIFACT_URI_KEY = "uri";
     public final static String ARTIFACT_VERSION_KEY = "version";
@@ -58,8 +58,8 @@ public class Artifact implements Serializable {
     public final static String ARTIFACT_DIGEST_KEY = "contentDigest";
     public final static String ARTIFACT_COLLECTION_DATE_KEY = "collectionDate";
 
-    @Field(ARTIFACT_ID_KEY)
-    private String id;
+    @Field(ARTIFACT_UUID_KEY)
+    private String uuid;
 
     @Field(ARTIFACT_NAMESPACE_KEY)
     private String namespace;
@@ -116,7 +116,7 @@ public class Artifact implements Serializable {
           throw new IllegalArgumentException(
               "Cannot create Artifact with null or empty id");
         }
-        this.id = id;
+        this.uuid = id;
 
         if (StringUtils.isEmpty(namespace)) {
           throw new IllegalArgumentException(
@@ -159,7 +159,7 @@ public class Artifact implements Serializable {
     }
 
     public ArtifactIdentifier getIdentifier() {
-        return new ArtifactIdentifier(id, namespace, auid, uri, version);
+        return new ArtifactIdentifier(uuid, namespace, auid, uri, version);
     }
 
     public String getNamespace() {
@@ -228,7 +228,7 @@ public class Artifact implements Serializable {
     }
 
     public String getId() {
-        return id;
+        return uuid;
     }
 
     public Boolean getCommitted() {
@@ -298,7 +298,7 @@ public class Artifact implements Serializable {
     @Override
     public String toString() {
         return "Artifact{" +
-                "id='" + id + '\'' +
+                "id='" + uuid + '\'' +
                 ", namespace='" + namespace + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +

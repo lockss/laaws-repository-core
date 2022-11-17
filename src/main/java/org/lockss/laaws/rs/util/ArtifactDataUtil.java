@@ -377,7 +377,7 @@ public class ArtifactDataUtil {
     ArtifactIdentifier id = ad.getIdentifier();
 
     putIfNotNull(props, Artifact.ARTIFACT_NAMESPACE_KEY, id.getNamespace());
-    putIfNotNull(props, Artifact.ARTIFACT_ID_KEY, id.getId());
+    putIfNotNull(props, Artifact.ARTIFACT_UUID_KEY, id.getId());
     props.put(Artifact.ARTIFACT_AUID_KEY, id.getAuid());
     props.put(Artifact.ARTIFACT_URI_KEY, id.getUri());
 
