@@ -118,12 +118,12 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     @Test
     void addToIndexTest() throws IOException {
         // Create an Artifact to add
-        String artifactId = UUID.randomUUID().toString();
-        ArtifactIdentifier ident = new ArtifactIdentifier(artifactId, "ns1", "auid1", "uri1", 1);
+        String artifactUuid = UUID.randomUUID().toString();
+        ArtifactIdentifier ident = new ArtifactIdentifier(artifactUuid, "ns1", "auid1", "uri1", 1);
         Artifact artifact = new Artifact(ident, true, "volatile://test.warc?offset=0", 1024, "sha1");
 
         // Add Artifact to index
-        index.addToIndex(artifactId, artifact);
+        index.addToIndex(artifactUuid, artifact);
 
         // Check that the persisted file exists
         File persistedIndexFile = new File(testBaseDir, PERSISTED_INDEX_NAME);

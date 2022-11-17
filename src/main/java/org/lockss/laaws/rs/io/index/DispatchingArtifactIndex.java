@@ -67,7 +67,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     return res != null ? res : masterIndex;
   }
 
-  /** Return true if the artifactId's {namespace,auid} is declared to
+  /** Return true if the artifact's {namespace,auid} is declared to
    * be in the temp index */
   private ArtifactIndex findIndexHolding(ArtifactIdentifier artifactId) {
     return findIndexHolding(artifactId.getNamespace(), artifactId.getAuid());
@@ -86,22 +86,22 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     return findIndexHolding(id.getNamespace(), id.getAuid());
   }
 
-  /** Return the temp index in which the artifactId is found, or the
+  /** Return the temp index in which the artifact UUID is found, or the
    * masterIndex */
-  private ArtifactIndex findIndexHolding(String artifactId) throws IOException{
+  private ArtifactIndex findIndexHolding(String artifactUuid) throws IOException{
     for (ArtifactIndex ind : tempIndexMap.values()) {
-      if (ind.getArtifact(artifactId) != null) {
+      if (ind.getArtifact(artifactUuid) != null) {
         return ind;
       }
     }
     return masterIndex;
   }
 
-  /** Return true if the artifactId is found in the temp index.  (This
-   * is a heuristic - checks whether the artifactId is known to the
+  /** Return true if the artifact's UUID is found in the temp index.  (This
+   * is a heuristic - checks whether the artifact UUID is known to the
    * temp index*/
-  private ArtifactIndex findIndexHolding(UUID artifactId) throws IOException {
-    return findIndexHolding(artifactId.toString());
+  private ArtifactIndex findIndexHolding(UUID artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid.toString());
   }
 
   @Override
@@ -150,44 +150,44 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public Artifact getArtifact(String artifactId) throws IOException {
-    return findIndexHolding(artifactId).getArtifact(artifactId);
+  public Artifact getArtifact(String artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).getArtifact(artifactUuid);
   }
 
   @Override
-  public Artifact getArtifact(UUID artifactId) throws IOException {
-    return findIndexHolding(artifactId).getArtifact(artifactId);
+  public Artifact getArtifact(UUID artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).getArtifact(artifactUuid);
   }
 
   @Override
-  public Artifact commitArtifact(String artifactId) throws IOException {
-    return findIndexHolding(artifactId).commitArtifact(artifactId);
+  public Artifact commitArtifact(String artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).commitArtifact(artifactUuid);
   }
 
   @Override
-  public Artifact commitArtifact(UUID artifactId) throws IOException {
-    return findIndexHolding(artifactId).commitArtifact(artifactId);
+  public Artifact commitArtifact(UUID artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).commitArtifact(artifactUuid);
   }
 
   @Override
-  public boolean deleteArtifact(String artifactId) throws IOException {
-    return findIndexHolding(artifactId).deleteArtifact(artifactId);
+  public boolean deleteArtifact(String artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).deleteArtifact(artifactUuid);
   }
 
   @Override
-  public boolean deleteArtifact(UUID artifactId) throws IOException {
-    return findIndexHolding(artifactId).deleteArtifact(artifactId);
+  public boolean deleteArtifact(UUID artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).deleteArtifact(artifactUuid);
   }
 
   @Override
-  public boolean artifactExists(String artifactId) throws IOException {
-    return findIndexHolding(artifactId).artifactExists(artifactId);
+  public boolean artifactExists(String artifactUuid) throws IOException {
+    return findIndexHolding(artifactUuid).artifactExists(artifactUuid);
   }
 
   @Override
-  public Artifact updateStorageUrl(String artifactId, String storageUrl)
+  public Artifact updateStorageUrl(String artifactUuid, String storageUrl)
       throws IOException {
-    return findIndexHolding(artifactId).updateStorageUrl(artifactId, storageUrl);
+    return findIndexHolding(artifactUuid).updateStorageUrl(artifactUuid, storageUrl);
   }
 
   @Override

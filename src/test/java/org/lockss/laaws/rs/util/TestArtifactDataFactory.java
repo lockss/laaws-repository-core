@@ -228,7 +228,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
 
                 ArtifactIdentifier identifier = artifact.getIdentifier();
                 assertNotNull(identifier);
-                assertEquals("id1", identifier.getId());
+                assertEquals("id1", identifier.getUuid());
                 assertEquals("ns1", identifier.getNamespace());
                 assertEquals("auid1", identifier.getAuid());
                 assertEquals("url1", identifier.getUri());

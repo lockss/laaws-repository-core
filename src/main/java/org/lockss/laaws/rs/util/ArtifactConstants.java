@@ -34,9 +34,12 @@ package org.lockss.laaws.rs.util;
  * Class to hold constants related to artifacts.
  */
 public class ArtifactConstants {
-    // Artifact identity
+    // Deprecated
     public static final String ARTIFACT_ID_KEY = "X-LockssRepo-Artifact-Id";
-    public static final String ARTIFACT_COLLECTION_KEY = "X-LockssRepo-Artifact-Collection"; // Deprecated
+    public static final String ARTIFACT_COLLECTION_KEY = "X-LockssRepo-Artifact-Collection";
+
+    // Artifact identity
+    public static final String ARTIFACT_UUID_KEY = "X-LockssRepo-Artifact-Uuid";
     public static final String ARTIFACT_NAMESPACE_KEY = "X-LockssRepo-Artifact-Namespace";
     public static final String ARTIFACT_AUID_KEY = "X-LockssRepo-Artifact-AuId";
     public static final String ARTIFACT_URI_KEY = "X-LockssRepo-Artifact-Uri";

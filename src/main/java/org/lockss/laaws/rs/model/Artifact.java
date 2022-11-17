@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
@@ -58,11 +59,12 @@ public class Artifact implements Serializable {
     public final static String ARTIFACT_DIGEST_KEY = "contentDigest";
     public final static String ARTIFACT_COLLECTION_DATE_KEY = "collectionDate";
 
-    @Field(ARTIFACT_UUID_KEY)
+//    @JsonProperty(ARTIFACT_UUID_KEY)
+    @Field("id")
     private String uuid;
 
     @Field(ARTIFACT_NAMESPACE_KEY)
-    private String namespace;
+    private String namespace = "lockss";
 
     @Field(ARTIFACT_AUID_KEY)
     private String auid;
@@ -102,7 +104,7 @@ public class Artifact implements Serializable {
 
     public Artifact(ArtifactIdentifier aid, Boolean committed, String storageUrl, long contentLength, String contentDigest) {
         this(
-                aid.getId(), aid.getNamespace(), aid.getAuid(), aid.getUri(), aid.getVersion(),
+                aid.getUuid(), aid.getNamespace(), aid.getAuid(), aid.getUri(), aid.getVersion(),
                 committed,
                 storageUrl,
                 contentLength,
@@ -110,13 +112,13 @@ public class Artifact implements Serializable {
         );
     }
 
-    public Artifact(String id, String namespace, String auid, String uri, Integer version, Boolean committed,
+    public Artifact(String uuid, String namespace, String auid, String uri, Integer version, Boolean committed,
                     String storageUrl, long contentLength, String contentDigest) {
-        if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(uuid)) {
           throw new IllegalArgumentException(
-              "Cannot create Artifact with null or empty id");
+              "Cannot create Artifact with null or empty UUID");
         }
-        this.uuid = id;
+        this.uuid = uuid;
 
         if (StringUtils.isEmpty(namespace)) {
           throw new IllegalArgumentException(
@@ -227,7 +229,11 @@ public class Artifact implements Serializable {
         this.version = version;
     }
 
-    public String getId() {
+  public void setUuid(String uuid) {
+    this.uuid = uuid;
+  }
+
+  public String getUuid() {
         return uuid;
     }
 
@@ -298,7 +304,7 @@ public class Artifact implements Serializable {
     @Override
     public String toString() {
         return "Artifact{" +
-                "id='" + uuid + '\'' +
+                "uuid='" + uuid + '\'' +
                 ", namespace='" + namespace + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +
@@ -387,7 +393,7 @@ public class Artifact implements Serializable {
   public Artifact copyOf() {
 
     Artifact ret = new Artifact(
-        this.getId(),
+        this.getUuid(),
         this.getNamespace(),
         this.getAuid(),
         this.getUri(),

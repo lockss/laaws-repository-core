@@ -46,7 +46,7 @@ import java.util.Objects;
 public class ArtifactStateEntry implements AuJournalEntry {
   public static String LOCKSS_JOURNAL_ID = "artifact_state";
 
-  private String artifactId;
+  private String artifactUuid;
   private long entryDate;
   private ArtifactState state;
 
@@ -64,7 +64,7 @@ public class ArtifactStateEntry implements AuJournalEntry {
    * @param state The {@link ArtifactState} of this artifact.
    */
   public ArtifactStateEntry(ArtifactIdentifier artifactId, ArtifactState state) {
-    this.artifactId = artifactId.getId();
+    this.artifactUuid = artifactId.getUuid();
     this.entryDate = TimeBase.nowMs();
     this.state = state;
   }
@@ -84,8 +84,8 @@ public class ArtifactStateEntry implements AuJournalEntry {
    * @return ArtifactData ID
    */
   @Override
-  public String getArtifactId() {
-    return artifactId;
+  public String getArtifactUuid() {
+    return artifactUuid;
   }
 
   /**
@@ -156,11 +156,11 @@ public class ArtifactStateEntry implements AuJournalEntry {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ArtifactStateEntry that = (ArtifactStateEntry) o;
-    return entryDate == that.entryDate && Objects.equals(artifactId, that.artifactId) && state == that.state;
+    return entryDate == that.entryDate && Objects.equals(artifactUuid, that.artifactUuid) && state == that.state;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(artifactId, entryDate, state);
+    return Objects.hash(artifactUuid, entryDate, state);
   }
 }

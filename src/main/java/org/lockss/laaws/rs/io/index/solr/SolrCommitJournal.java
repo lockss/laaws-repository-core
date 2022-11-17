@@ -62,7 +62,7 @@ public class SolrCommitJournal {
    * CSV headers used for the journal of changes made to the Solr index.
    */
   static final String JOURNAL_HEADER_TIME = "time";
-  static final String JOURNAL_HEADER_ARTIFACT_ID = "artifact";
+  static final String JOURNAL_HEADER_ARTIFACT_UUID = "artifactUuid";
   static final String JOURNAL_HEADER_SOLR_OP = "op";
   static final String JOURNAL_HEADER_INPUT_DOCUMENT = "doc";
 
@@ -71,7 +71,7 @@ public class SolrCommitJournal {
    */
   static final String[] SOLR_JOURNAL_HEADERS = {
       JOURNAL_HEADER_TIME,
-      JOURNAL_HEADER_ARTIFACT_ID,
+      JOURNAL_HEADER_ARTIFACT_UUID,
       JOURNAL_HEADER_SOLR_OP,
       JOURNAL_HEADER_INPUT_DOCUMENT
   };
@@ -131,13 +131,13 @@ public class SolrCommitJournal {
 //      return builder.toString();
 //    }
 
-    public synchronized void logOperation(String artifactId, SolrOperation op, SolrInputDocument doc) throws IOException {
+    public synchronized void logOperation(String artifactUuid, SolrOperation op, SolrInputDocument doc) throws IOException {
       try {
         // Transform SolrInputDocument to JSON (if one was provided)
         String docJson = (doc == null) ? EMPTY_STRING : toJSON(doc);
 
         // Write journal entry (i.e., CSV record)
-        journalPrinter.printRecord(System.currentTimeMillis(), artifactId, op, docJson);
+        journalPrinter.printRecord(System.currentTimeMillis(), artifactUuid, op, docJson);
         journalPrinter.flush();
       } catch (IOException e) {
         log.error("Could not write to Solr journal", e);
@@ -201,8 +201,8 @@ public class SolrCommitJournal {
             // Determine Solr operation to replay
             SolrOperation op = SolrOperation.valueOf(record.get(JOURNAL_HEADER_SOLR_OP));
 
-            log.debug("Replaying journal entry [op: {}, artifactId: {}]",
-                op, record.get(JOURNAL_HEADER_ARTIFACT_ID));
+            log.debug("Replaying journal entry [op: {}, artifactUuid: {}]",
+                op, record.get(JOURNAL_HEADER_ARTIFACT_UUID));
 
             // Replay Solr operation
             switch (op) {
@@ -231,7 +231,7 @@ public class SolrCommitJournal {
 
               case DELETE: {
                 UpdateRequest req = new UpdateRequest();
-                req.deleteById(record.get(JOURNAL_HEADER_ARTIFACT_ID));
+                req.deleteById(record.get(JOURNAL_HEADER_ARTIFACT_UUID));
                 processUpdateRequest(index, req);
                 return;
               }

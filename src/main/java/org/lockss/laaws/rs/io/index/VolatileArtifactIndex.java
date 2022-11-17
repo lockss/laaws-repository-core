@@ -127,11 +127,11 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
           throw new IllegalArgumentException("ArtifactData has null identifier");
         }
 
-        String id = artifactId.getId();
+        String artifactUuid = artifactId.getUuid();
 
-        if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(artifactUuid)) {
           throw new IllegalArgumentException(
-              "ArtifactIdentifier has null or empty id");
+              "ArtifactIdentifier has null or empty artifact UUID");
         }
 
         // Get artifact's repository state
@@ -149,7 +149,7 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         artifact.setCollectionDate(artifactData.getCollectionDate());
 
         // Add Artifact to the index
-        addToIndex(id, artifact);
+        addToIndex(artifactUuid, artifact);
 
         log.debug2("Added artifact to index: {}", artifact);
 
@@ -160,50 +160,50 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
      * Provides the index data of an artifact with a given text index
      * identifier.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact getArtifact(String artifactId) {
-      if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty artifact ID");
+    public Artifact getArtifact(String artifactUuid) {
+      if (StringUtils.isEmpty(artifactUuid)) {
+        throw new IllegalArgumentException("Null or empty artifact UUID");
       }
 
-      return index.get(artifactId);
+      return index.get(artifactUuid);
     }
 
     /**
      * Provides the index data of an artifact with a given index identifier
      * UUID.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          An UUID with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
     @Override
-    public Artifact getArtifact(UUID artifactId) {
-      if (artifactId == null) {
+    public Artifact getArtifact(UUID artifactUuid) {
+      if (artifactUuid == null) {
         throw new IllegalArgumentException("Null UUID");
       }
 
-      return getArtifact(artifactId.toString());
+      return getArtifact(artifactUuid.toString());
     }
 
     /**
      * Commits to the index an artifact with a given text index identifier.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(String artifactId) {
-      if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty artifact ID");
+    public Artifact commitArtifact(String artifactUuid) {
+      if (StringUtils.isEmpty(artifactUuid)) {
+        throw new IllegalArgumentException("Null or empty artifact UUID");
       }
 
-      Artifact artifact = index.get(artifactId);
+      Artifact artifact = index.get(artifactUuid);
 
       if (artifact != null) {
         artifact.setCommitted(true);
@@ -215,75 +215,75 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
     /**
      * Commits to the index an artifact with a given index identifier UUID.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          An UUID with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(UUID artifactId) {
-      if (artifactId == null) {
+    public Artifact commitArtifact(UUID artifactUuid) {
+      if (artifactUuid == null) {
         throw new IllegalArgumentException("Null UUID");
       }
 
-      return commitArtifact(artifactId.toString());
+      return commitArtifact(artifactUuid.toString());
     }
 
     /**
      * Removes from the index an artifact with a given text index identifier.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
     @Override
-    public boolean deleteArtifact(String artifactId) {
-      if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty identifier");
+    public boolean deleteArtifact(String artifactUuid) {
+      if (StringUtils.isEmpty(artifactUuid)) {
+        throw new IllegalArgumentException("Null or empty UUID");
       }
 
-      return removeFromIndex(artifactId) != null;
+      return removeFromIndex(artifactUuid) != null;
     }
 
     /**
      * Removes from the index an artifact with a given index identifier UUID.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
     @Override
-    public boolean deleteArtifact(UUID artifactId) {
-      if (artifactId == null) {
+    public boolean deleteArtifact(UUID artifactUuid) {
+      if (artifactUuid == null) {
         throw new IllegalArgumentException("Null UUID");
       }
 
-      return deleteArtifact(artifactId.toString());
+      return deleteArtifact(artifactUuid.toString());
     }
 
     /**
      * Provides an indication of whether an artifact with a given text index
      * identifier exists in the index.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact identifier.
      * @return <code>true</code> if the artifact exists in the index,
      * <code>false</code> otherwise.
      */
     @Override
-    public boolean artifactExists(String artifactId) {
-      if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Null or empty artifact ID");
+    public boolean artifactExists(String artifactUuid) {
+      if (StringUtils.isEmpty(artifactUuid)) {
+        throw new IllegalArgumentException("Null or empty artifact UUID");
       }
 
-      return index.containsKey(artifactId);
+      return index.containsKey(artifactUuid);
     }
     
     @Override
-    public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
-      if (StringUtils.isEmpty(artifactId)) {
-        throw new IllegalArgumentException("Invalid artifact ID");
+    public Artifact updateStorageUrl(String artifactUuid, String storageUrl) throws IOException {
+      if (StringUtils.isEmpty(artifactUuid)) {
+        throw new IllegalArgumentException("Invalid artifact UUID");
       }
 
       if (StringUtils.isEmpty(storageUrl)) {
@@ -291,11 +291,11 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
       }
 
       // Retrieve the Artifact from the internal artifacts map
-      Artifact artifact = index.get(artifactId);
+      Artifact artifact = index.get(artifactUuid);
 
       // Return null if the artifact could not be found
       if (artifact == null) {
-        log.warn("Could not update storage URL: Artifact not found [artifactId: " + artifactId + "]");
+        log.warn("Could not update storage URL: Artifact not found [uuid: " + artifactUuid + "]");
         throw new IOException("Artifact not found in volatile index");
       }
 

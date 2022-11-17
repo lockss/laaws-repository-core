@@ -37,6 +37,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.NotImplementedException;
+import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang.StringUtils;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
@@ -371,7 +373,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
             Artifact artifact = addArtifact(ad);
             commitArtifact(artifact);
 
-            status.setArtifactId(artifact.getId());
+            status.setArtifactUuid(artifact.getUuid());
             status.setDigest(artifact.getContentDigest());
             status.setVersion(artifact.getVersion());
             status.setStatus(ImportStatus.StatusEnum.OK);
@@ -398,37 +400,36 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   /**
-   * Returns the artifact with the specified artifactId
+   * Returns the artifact with the specified UUID
    *
-   * @param artifactId
-   * @return The {@code Artifact} with the artifactId, or null if none
+   * @param artifactUuid
+   * @return The {@code Artifact} with the UUID, or null if none
    * @throws IOException
    */
-  public Artifact getArtifactFromId(String artifactId) throws IOException {
-    return index.getArtifact(artifactId);
+  public Artifact getArtifactFromUuid(String artifactUuid) throws IOException {
+    return index.getArtifact(artifactUuid);
   }
 
   /**
    * Retrieves an artifact from this LOCKSS repository.
    *
-   * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to retrieve from this repository.
    * @return The {@code ArtifactData} referenced by this artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String namespace, String artifactId) throws IOException {
+  public ArtifactData getArtifactData(String namespace, String artifactUuid) throws IOException {
     validateNamespace(namespace);
 
-    if (artifactId == null) {
+    if (StringUtils.isEmpty(artifactUuid)) {
       throw new IllegalArgumentException("Null artifact ID");
     }
 
-    // FIXME: Change WarcArtifactDataStore#getArtifactData signature to take an artifactId.
-    //    As it is, we end up perform multiple index lookups for the same artifact, which is slow.
-    Artifact artifactRef = index.getArtifact(artifactId);
+    // FIXME: We end up performing multiple index lookups here, which is slow.
+    Artifact artifactRef = index.getArtifact(artifactUuid);
 
     if (artifactRef == null) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact ID: " + artifactId);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact ID: " + artifactUuid);
     }
 
     // Fetch and return artifact from data store
@@ -436,8 +437,8 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   }
 
   @Override
-  public HttpHeaders getArtifactHeaders(String namespace, String artifactId) throws IOException {
-    try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactId))) {
+  public HttpHeaders getArtifactHeaders(String namespace, String artifactUuid) throws IOException {
+    try (ArtifactData ad = store.getArtifactData(index.getArtifact(artifactUuid))) {
       return ad.getHttpHeaders();
     }
   }
@@ -446,30 +447,29 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
    *
    * @param namespace A {code String} containing the namespace.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to commit to the repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to commit to the repository.
    * @return An {@code Artifact} containing the updated artifact state information.
    * @throws IOException
    */
   @Override
-  public Artifact commitArtifact(String namespace, String artifactId) throws IOException {
+  public Artifact commitArtifact(String namespace, String artifactUuid) throws IOException {
     validateNamespace(namespace);
 
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Get artifact as it is currently
-    Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactUuid);
 
     if (artifact == null) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-          + artifactId);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact [uuid: " + artifactUuid + "]");
     }
 
     if (!artifact.getCommitted()) {
       // Commit artifact in data store and index
       store.commitArtifactData(artifact);
-      index.commitArtifact(artifactId);
+      index.commitArtifact(artifactUuid);
       artifact.setCommitted(true);
     }
 
@@ -479,22 +479,21 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Permanently removes an artifact from this LOCKSS repository.
    *
-   * @param artifactId A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
    * @throws IOException
    */
   @Override
-  public void deleteArtifact(String namespace, String artifactId) throws IOException {
+  public void deleteArtifact(String namespace, String artifactUuid) throws IOException {
     validateNamespace(namespace);
 
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
-    Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactUuid);
 
     if (artifact == null) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-          + artifactId);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact [uuid: " + artifactUuid + "]");
     }
 
     // Remove from index and data store
@@ -504,22 +503,21 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   /**
    * Checks whether an artifact is committed to this LOCKSS repository.
    *
-   * @param artifactId A {@code String} containing the artifact ID to check.
+   * @param artifactUuid A {@code String} containing the artifact ID to check.
    * @return A boolean indicating whether the artifact is committed.
    */
   @Override
-  public Boolean isArtifactCommitted(String namespace, String artifactId) throws IOException {
+  public Boolean isArtifactCommitted(String namespace, String artifactUuid) throws IOException {
     validateNamespace(namespace);
 
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
-    Artifact artifact = index.getArtifact(artifactId);
+    Artifact artifact = index.getArtifact(artifactUuid);
 
     if (artifact == null) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact id: "
-          + artifactId);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact [uuid: " + artifactUuid + "]");
     }
 
     return artifact.getCommitted();

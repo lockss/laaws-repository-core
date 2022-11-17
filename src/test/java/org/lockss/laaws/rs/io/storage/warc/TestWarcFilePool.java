@@ -277,7 +277,7 @@ class TestWarcFilePool extends LockssTestCase5 {
     // the artifact results in a removal of the temporary WARC
     {
       ArtifactSpec spec = new ArtifactSpec()
-          .setArtifactId("test")
+          .setArtifactUuid("test")
           .setUrl("http://lockss.org/test/")
           .setCollectionDate(1234L)
           .generateContent();
@@ -294,7 +294,7 @@ class TestWarcFilePool extends LockssTestCase5 {
     // Assert a copied artifact results in removal of the temporary WARC
     {
       ArtifactSpec spec = new ArtifactSpec()
-          .setArtifactId("test")
+          .setArtifactUuid("test")
           .setUrl("http://lockss.org/test/")
           .setCollectionDate(1234L)
           .generateContent();
@@ -312,7 +312,7 @@ class TestWarcFilePool extends LockssTestCase5 {
       TimeBase.setSimulated(1234L);
 
       ArtifactSpec spec = new ArtifactSpec()
-          .setArtifactId("test")
+          .setArtifactUuid("test")
           .setUrl("http://lockss.org/test/")
           .setCollectionDate(1234L)
           .generateContent();
@@ -333,7 +333,7 @@ class TestWarcFilePool extends LockssTestCase5 {
           mock(WarcArtifactDataStore.FutureRecordingStripedExecutorService.class);
 
       ArtifactSpec spec = new ArtifactSpec()
-          .setArtifactId("test")
+          .setArtifactUuid("test")
           .setUrl("http://lockss.org/test/")
           .setCollectionDate(1234L)
           .generateContent();

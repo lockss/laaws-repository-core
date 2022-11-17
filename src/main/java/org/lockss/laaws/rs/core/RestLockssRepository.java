@@ -164,25 +164,25 @@ public class RestLockssRepository implements LockssRepository {
    * Constructs a REST endpoint to an artifact in the repository.
    *
    * @param namespace A {@code String} containing the namespace.
-   * @param artifactId A {@code String} containing the artifact ID.
+   * @param artifactUuid A {@code String} containing the artifact UUID.
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
-  private URI artifactEndpoint(String namespace, String artifactId) {
-    return artifactEndpoint(namespace, artifactId, null);
+  private URI artifactEndpoint(String namespace, String artifactUuid) {
+    return artifactEndpoint(namespace, artifactUuid, null);
   }
 
   /**
    * Constructs a REST endpoint to an artifact in the repository.
    *
    * @param namespace A {@code String} containing the namespace.
-   * @param artifactId A {@code String} containing the artifact ID.
+   * @param artifactUuid A {@code String} containing the artifact UUID.
    * @param includeContent An {@link IncludeContent} indicating whether the artifact content part can or should be
    *                       included in the multipart response. Default is {@link IncludeContent#ALWAYS}.
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
-  private URI artifactEndpoint(String namespace, String artifactId, IncludeContent includeContent) {
+  private URI artifactEndpoint(String namespace, String artifactUuid, IncludeContent includeContent) {
     Map<String, String> uriParams = new HashMap<>();
-    uriParams.put("artifactId", artifactId);
+    uriParams.put("uuid", artifactUuid);
 
     Map<String, String> queryParams = new HashMap<>();
 
@@ -195,7 +195,7 @@ public class RestLockssRepository implements LockssRepository {
       queryParams.put("includeContent", includeContent.toString());
     }
 
-    return RestUtil.getRestUri(repositoryUrl + "/artifacts/{artifactId}", uriParams, queryParams);
+    return RestUtil.getRestUri(repositoryUrl + "/artifacts/{uuid}", uriParams, queryParams);
   }
 
   /**
@@ -203,14 +203,14 @@ public class RestLockssRepository implements LockssRepository {
    * otherwise returns
    *
    * @param e          the LockssRestHttpException that was caught
-   * @param artifactId A {@code String} containing the artifact ID.
+   * @param artifactUuid A {@code String} containing the artifact UUID.
    * @param msg        used in error log and thrown exception
    */
-  private void checkArtIdError(LockssRestHttpException e, String artifactId,
+  private void checkArtIdError(LockssRestHttpException e, String artifactUuid,
                                String msg)
       throws LockssNoSuchArtifactIdException {
     if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-      throw new LockssNoSuchArtifactIdException(msg + ": " + artifactId, e);
+      throw new LockssNoSuchArtifactIdException(msg + ": " + artifactUuid, e);
     }
   }
 
@@ -270,7 +270,7 @@ public class RestLockssRepository implements LockssRepository {
       Artifact res = mapper.readValue(response.getBody(), Artifact.class);
 
       artCache.put(res);
-      artCache.putArtifactData(res.getNamespace(), res.getIdentifier().getId(), artifactData);
+      artCache.putArtifactData(res.getNamespace(), res.getIdentifier().getUuid(), artifactData);
 
       return res;
     } catch (LockssRestException e) {
@@ -346,13 +346,13 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   /**
-   * Returns the artifact with the specified artifactId
+   * Returns the {@link Artifact} with the specified UUID
    *
-   * @param artifactId
-   * @return The {@code Artifact} with the artifactId, or null if none
+   * @param artifactUuid
+   * @return The {@code Artifact} with the UUID, or null if none
    * @throws IOException
    */
-  public Artifact getArtifactFromId(String artifactId) throws IOException {
+  public Artifact getArtifactFromUuid(String artifactUuid) throws IOException {
     throw new UnsupportedOperationException();
   }
 
@@ -360,39 +360,41 @@ public class RestLockssRepository implements LockssRepository {
    * Retrieves an artifact from a remote REST LOCKSS Repository server.
    *
    * @param namespace A {@code String} containing the namespace.
-   * @param artifactId A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
+   * @param artifactUuid A {@code String} containing the UUID of the artifact to retrieve from the remote
+   *                     repository.
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String namespace, String artifactId)
+  public ArtifactData getArtifactData(String namespace, String artifactUuid)
       throws IOException {
-    return getArtifactData(namespace, artifactId, IncludeContent.ALWAYS);
+    return getArtifactData(namespace, artifactUuid, IncludeContent.ALWAYS);
   }
 
   /**
    * Retrieves an artifact from a remote REST LOCKSS Repository server.
    *
    * @param namespace         A {@code String} containing the namespace.
-   * @param artifactId         A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
+   * @param artifactUuid         A {@code String} containing the UUID of the artifact to retrieve from the remote
+   *                             repository.
    * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
    *                       {@link ArtifactData} returned by this method.
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String namespace, String artifactId, IncludeContent includeContent)
+  public ArtifactData getArtifactData(String namespace, String artifactUuid, IncludeContent includeContent)
       throws IOException {
 
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
+    if (artifactUuid == null) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Cache policy: Include cache content unless IncludeContent.NEVER
     boolean includeCachedContent = (includeContent != IncludeContent.NEVER);
 
     // Get ArtifactData from cache
-    ArtifactData cached = artCache.getArtifactData(namespace, artifactId, includeCachedContent);
+    ArtifactData cached = artCache.getArtifactData(namespace, artifactUuid, includeCachedContent);
 
     if (cached != null) {
       // Cache hit: Return cached ArtifactData
@@ -401,7 +403,7 @@ public class RestLockssRepository implements LockssRepository {
 
     // Cache miss: Fetch ArtifactData from repository service
     try {
-      URI artifactEndpoint = artifactEndpoint(namespace, artifactId, includeContent);
+      URI artifactEndpoint = artifactEndpoint(namespace, artifactUuid, includeContent);
 
       // Set Accept header in request
       HttpHeaders requestHeaders = getInitializedHttpHeaders();
@@ -425,12 +427,12 @@ public class RestLockssRepository implements LockssRepository {
       ArtifactData result = ArtifactDataFactory.fromTransportResponseEntity(response);
 
       // Add to artifact data cache
-      artCache.putArtifactData(namespace, artifactId, result);
+      artCache.putArtifactData(namespace, artifactUuid, result);
 
       return result;
 
     } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Artifact not found");
+      checkArtIdError(e, artifactUuid, "Artifact not found");
       log.error("Could not get artifact data", e);
       throw e;
 
@@ -441,20 +443,20 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   @Override
-  public HttpHeaders getArtifactHeaders(String namespace, String artifactId) throws IOException {
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
+  public HttpHeaders getArtifactHeaders(String namespace, String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Retrieve artifact from the artifact cache if cached
-    ArtifactData cached = artCache.getArtifactData(namespace, artifactId, false);
+    ArtifactData cached = artCache.getArtifactData(namespace, artifactUuid, false);
 
     if (cached != null) {
       // Artifact found in cache; return its headers
       return cached.getHttpHeaders();
     }
 
-    ArtifactData ad = getArtifactData(namespace, artifactId, IncludeContent.IF_SMALL);
+    ArtifactData ad = getArtifactData(namespace, artifactUuid, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
     return ad.getHttpHeaders();
   }
@@ -463,16 +465,17 @@ public class RestLockssRepository implements LockssRepository {
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
    *
    * @param namespace A {code String} containing the namespace ID containing the artifact to commit.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to commit to the repository.
+   * @param artifactUuid A {@code String} with the UUID of the artifact to commit to the repository.
    * @return An {@code Artifact} containing the updated artifact state information.
    * @throws IOException
    */
   @Override
-  public Artifact commitArtifact(String namespace, String artifactId) throws IOException {
-    if (artifactId == null)
-      throw new IllegalArgumentException("Null artifact ID");
+  public Artifact commitArtifact(String namespace, String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
+    }
 
-    UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(namespace, artifactId))
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(namespace, artifactUuid))
         .queryParam("committed", "true");
 
     // Required by REST API specification
@@ -498,11 +501,11 @@ public class RestLockssRepository implements LockssRepository {
       artCache.put(res);
       return res;
     } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Could not commit; non-existent artifact id");
-      log.error("Could not commit artifact id: {}", artifactId, e);
+      checkArtIdError(e, artifactUuid, "Could not commit; non-existent artifact");
+      log.error("Could not commit artifact [uuid: {}]", artifactUuid, e);
       throw e;
     } catch (LockssRestException e) {
-      log.error("Could not commit artifact id: {}", artifactId, e);
+      log.error("Could not commit artifact [uuid: {}]", artifactUuid, e);
       throw e;
     }
   }
@@ -516,20 +519,20 @@ public class RestLockssRepository implements LockssRepository {
   public void deleteArtifact(Artifact artifact) throws IOException {
     artCache.invalidate(ArtifactCache.InvalidateOp.Delete,
         artifact.makeKey());
-    deleteArtifact(artifact.getNamespace(), artifact.getId());
+    deleteArtifact(artifact.getNamespace(), artifact.getUuid());
   }
 
   /**
    * Permanently removes an artifact from this LOCKSS repository.
    *
    * @param namespace A {code String} containing the namespace ID of the namespace containing the artifact to delete.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
    * @throws IOException
    */
   @Override
-  public void deleteArtifact(String namespace, String artifactId) throws IOException {
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
+  public void deleteArtifact(String namespace, String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     HttpHeaders headers = getInitializedHttpHeaders();
@@ -538,7 +541,7 @@ public class RestLockssRepository implements LockssRepository {
     try {
       ResponseEntity<Void> response =
           RestUtil.callRestService(restTemplate,
-              artifactEndpoint(namespace, artifactId),
+              artifactEndpoint(namespace, artifactUuid),
               HttpMethod.DELETE,
               new HttpEntity<>(null, headers),
               Void.class, "deleteArtifact");
@@ -551,48 +554,11 @@ public class RestLockssRepository implements LockssRepository {
       }
 
     } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Could not remove artifact id");
-      log.error("Could not remove artifact id: {}", artifactId, e);
+      checkArtIdError(e, artifactUuid, "Could not remove artifact id");
+      log.error("Could not remove artifact [uuid: {}]", artifactUuid, e);
       throw e;
     } catch (LockssRestException e) {
-      log.error("Could not remove artifact id: {}", artifactId, e);
-      throw e;
-    }
-  }
-
-  /**
-   * @param namespace
-   * @param artifactId
-   * @param parts
-   * @return
-   */
-  private Artifact updateArtifactProperties(String namespace, String artifactId, MultiValueMap<String, Object> parts) throws IOException {
-    // Create PUT request entity
-    HttpEntity<MultiValueMap<String, Object>> requestEntity =
-        new HttpEntity<>(parts, getInitializedHttpHeaders());
-
-    // Submit PUT request and return artifact index data
-    try {
-      ResponseEntity<String> response =
-          RestUtil.callRestService(restTemplate,
-              artifactEndpoint(namespace, artifactId),
-              HttpMethod.PUT,
-              requestEntity,
-              String.class,
-              "updateArtifactProperties");
-      checkStatusOk(response);
-
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          false);
-      return mapper.readValue(response.getBody(), Artifact.class);
-
-    } catch (LockssRestHttpException e) {
-      log.error("Could not update artifact id: {}", artifactId, e);
-      checkArtIdError(e, artifactId, "Could not update artifact id");
-      throw e;
-    } catch (LockssRestException e) {
-      log.error("Could not update artifact id: {}", artifactId, e);
+      log.error("Could not remove artifact [uuid: {}]", artifactUuid, e);
       throw e;
     }
   }
@@ -600,29 +566,25 @@ public class RestLockssRepository implements LockssRepository {
   /**
    * Returns a boolean indicating whether an artifact is committed in this LOCKSS repository.
    *
-   * @param artifactId ArtifactData ID of the artifact to check committed status.
+   * @param artifactUuid UUID of the artifact to check committed status.
    * @return A boolean indicating whether the artifact is committed.
    */
   @Override
-  public Boolean isArtifactCommitted(String namespace, String artifactId)
+  public Boolean isArtifactCommitted(String namespace, String artifactUuid)
       throws IOException {
-    if (artifactId == null) {
-      throw new IllegalArgumentException("Null artifact ID");
-    }
-
-    if (StringUtils.isEmpty(artifactId)) {
-      throw new IllegalArgumentException("Null or empty identifier");
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Retrieve artifact from the artifact cache if cached
-    ArtifactData cached = artCache.getArtifactData(namespace, artifactId, false);
+    ArtifactData cached = artCache.getArtifactData(namespace, artifactUuid, false);
 
     if (cached != null) {
       // Artifact found in cache; return its headers
       return cached.getArtifactState().isCommitted();
     }
 
-    ArtifactData ad = getArtifactData(namespace, artifactId, IncludeContent.IF_SMALL);
+    ArtifactData ad = getArtifactData(namespace, artifactUuid, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
 
     if (ad.getArtifactState() == null ) {

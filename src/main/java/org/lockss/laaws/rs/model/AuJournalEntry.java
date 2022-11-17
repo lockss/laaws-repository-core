@@ -33,9 +33,9 @@ POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.model;
 
 public interface AuJournalEntry {
-    String LOCKSS_MD_ARTIFACTID_KEY = "artifactId";
+    String LOCKSS_MD_ARTIFACTUUID_KEY = "artifactUuid";
     String JOURNAL_ENTRY_DATE= "entryDate";
 
-    String getArtifactId();
+    String getArtifactUuid();
     long getEntryDate();
 }

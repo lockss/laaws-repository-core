@@ -72,13 +72,13 @@ public class VariantState {
 
     // Remember the highest version of this URL we've committed, if committed
     if (spec.isCommitted) {
-      commit(spec.getArtifactId());
+      commit(spec.getArtifactUuid());
     }
   }
 
-  public void commit(String artifactId) {
-    if (artifactExists(artifactId)) {
-      ArtifactSpec spec = getArtifactSpec(artifactId);
+  public void commit(String artifactUuid) {
+    if (artifactExists(artifactUuid)) {
+      ArtifactSpec spec = getArtifactSpec(artifactUuid);
       spec.setCommitted(true);
 
       ArtifactSpec maxCommittedVerSpec = getHighestCommittedVerSpec(spec.artButVerKey());
@@ -90,17 +90,17 @@ public class VariantState {
     }
   }
 
-  private boolean artifactExists(String artifactId) {
-    return getArtifactSpec(artifactId) == null ? false : true;
+  private boolean artifactExists(String uuid) {
+    return getArtifactSpec(uuid) == null ? false : true;
   }
 
   public void addAll(Iterable<? extends ArtifactSpec> specs) {
     specs.forEach(this::add);
   }
 
-  public ArtifactSpec getArtifactSpec(String artifactId) {
+  public ArtifactSpec getArtifactSpec(String artifactUuid) {
     return addedSpecStream()
-        .filter(spec -> spec.getArtifactId().equals(artifactId))
+        .filter(spec -> spec.getArtifactUuid().equals(artifactUuid))
         .findFirst()
         .orElse(null);
   }

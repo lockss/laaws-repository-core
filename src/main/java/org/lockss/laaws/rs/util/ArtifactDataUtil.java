@@ -294,7 +294,7 @@ public class ArtifactDataUtil {
       ArtifactData artifactData, LockssRepository.IncludeContent includeContent, long smallContentThreshold)
       throws IOException {
 
-    String artifactId = artifactData.getIdentifier().getId();
+    String artifactUuid = artifactData.getIdentifier().getUuid();
 
     // Holds multipart response parts
     MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
@@ -319,7 +319,7 @@ public class ArtifactDataUtil {
         partHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
         // Create resource containing HTTP status byte array
-        Resource resource = new NamedByteArrayResource(artifactId,
+        Resource resource = new NamedByteArrayResource(artifactUuid,
             getHttpStatusByteArray(artifactData.getHttpStatus()));
 
         // Add artifact headers multipart
@@ -361,7 +361,7 @@ public class ArtifactDataUtil {
           RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD, RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD);
 
       // Artifact content
-//      InputStreamResource resource = new NamedInputStreamResource(artifactId, artifactData.getInputStream());
+//      InputStreamResource resource = new NamedInputStreamResource(artifactUuid, artifactData.getInputStream());
       InputStreamResource resource = new InputStreamResource(artifactData.getInputStream());
 
       // Assemble content part and add to multiparts map
@@ -377,7 +377,7 @@ public class ArtifactDataUtil {
     ArtifactIdentifier id = ad.getIdentifier();
 
     putIfNotNull(props, Artifact.ARTIFACT_NAMESPACE_KEY, id.getNamespace());
-    putIfNotNull(props, Artifact.ARTIFACT_UUID_KEY, id.getId());
+    putIfNotNull(props, Artifact.ARTIFACT_UUID_KEY, id.getUuid());
     props.put(Artifact.ARTIFACT_AUID_KEY, id.getAuid());
     props.put(Artifact.ARTIFACT_URI_KEY, id.getUri());
 

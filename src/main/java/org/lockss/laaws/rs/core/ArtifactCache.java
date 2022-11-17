@@ -55,7 +55,7 @@ import org.lockss.log.L4JLogger;
  * LockssRepository doesn't guarantee uniqueness anyway.
  *
  * Separately caches recently used ArtifactData, keyed by namespace +
- * artifactId.
+ * artifact UUID.
  */
 public class ArtifactCache {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -382,16 +382,16 @@ public class ArtifactCache {
    * do not replace it if it has a content InputStream and the new one
    * doesn't.
    * @param namespace
-   * @param artifactId
+   * @param artifactUuid
    * @return the ArtifactData that is now in the cache
    */
   public synchronized ArtifactData putArtifactData(String namespace,
-						   String artifactId,
+						   String artifactUuid,
 						   ArtifactData ad) {
     if (artDataMap == null) {
       return ad;
     }
-    String key = artifactDataKey(namespace, artifactId);
+    String key = artifactDataKey(namespace, artifactUuid);
     ArtifactData old = artDataMap.get(key);
     if (old != null && old.hasContentInputStream()
 	&& !ad.hasContentInputStream()) {
@@ -407,17 +407,17 @@ public class ArtifactCache {
 
   /** Return a cached ArtifactData
    * @param namespace
-   * @param artifactId
+   * @param artifactUuid
    * @param needInputStream if true, a cached item will be returned only if
    * it has an unused InputStream
    * @return cached ArtifactDate or null if not found or if an InputStream
    * is requred and not available.
    */
   public synchronized ArtifactData getArtifactData(String namespace,
-						   String artifactId,
+						   String artifactUuid,
 						   boolean needInputStream) {
     if (artDataMap == null) return null;
-    String key = artifactDataKey(namespace, artifactId);
+    String key = artifactDataKey(namespace, artifactUuid);
     updateHist(stats.artDataHist, artDataMap, key);
     ArtifactData res = artDataMap.get(key);
     if (res != null && needInputStream && !res.hasContentInputStream()) {
@@ -435,8 +435,8 @@ public class ArtifactCache {
     return res;
   }
 
-  private static String artifactDataKey(String namespace, String artifactId) {
-    return namespace + "|" + artifactId;
+  private static String artifactDataKey(String namespace, String artifactUuid) {
+    return namespace + "|" + artifactUuid;
   }
 
   /** Update the histogram of positions in the cache where a hit was found.

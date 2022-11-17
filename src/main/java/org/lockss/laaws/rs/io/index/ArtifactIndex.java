@@ -79,86 +79,86 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * Provides the index data of an artifact with a given text index
      * identifier.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A {@code String} with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
-    Artifact getArtifact(String artifactId) throws IOException;
+    Artifact getArtifact(String artifactUuid) throws IOException;
 
     default Artifact getArtifact(ArtifactIdentifier aid) throws IOException {
-        return getArtifact(aid.getId());
+        return getArtifact(aid.getUuid());
     }
 
     /**
      * Provides the index data of an artifact with a given index identifier
      * UUID.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          An {@code UUID} with the artifact index identifier.
      * @return an Artifact with the artifact indexing data.
      */
-    Artifact getArtifact(UUID artifactId) throws IOException;
+    Artifact getArtifact(UUID artifactUuid) throws IOException;
 
     /**
      * Commits to the index an artifact with a given text index identifier.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A {@code String} with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
-    Artifact commitArtifact(String artifactId) throws IOException;
+    Artifact commitArtifact(String artifactUuid) throws IOException;
 
     /**
      * Commits to the index an artifact with a given index identifier UUID.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          An {@code UUID} with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
-    Artifact commitArtifact(UUID artifactId) throws IOException;
+    Artifact commitArtifact(UUID artifactUuid) throws IOException;
 
     /**
      * Removes from the index an artifact with a given text index identifier.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A {@code String} with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
-    boolean deleteArtifact(String artifactId) throws IOException;
+    boolean deleteArtifact(String artifactUuid) throws IOException;
 
     /**
      * Removes from the index an artifact with a given index identifier UUID.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact index identifier.
      * @return <code>true</code> if the artifact was removed from in the index,
      * <code>false</code> otherwise.
      */
-    boolean deleteArtifact(UUID artifactId) throws IOException;
+    boolean deleteArtifact(UUID artifactUuid) throws IOException;
 
     /**
      * Provides an indication of whether an artifact with a given text index
      * identifier exists in the index.
      * 
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact identifier.
      * @return <code>true</code> if the artifact exists in the index,
      * <code>false</code> otherwise.
      */
-    boolean artifactExists(String artifactId) throws IOException;
+    boolean artifactExists(String artifactUuid) throws IOException;
 
     /**
      * Updates the storage URL for an existing artifact.
      *
-     * @param artifactId
+     * @param artifactUuid
      *          A {@code String) with the artifact ID to update.
      * @param storageUrl
      *          A {@code String} containing the new storage URL for this artifact.
      * @return {@code Artifact} with the new storage URL.
      * @throws IOException
      */
-    Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException;
+    Artifact updateStorageUrl(String artifactUuid, String storageUrl) throws IOException;
 
     /**
      * Provides the namespaces of the committed artifacts in the index.

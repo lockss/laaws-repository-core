@@ -36,11 +36,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 
 /**
  * ImportStatus
@@ -58,8 +55,8 @@ public class ImportStatus   {
   @JsonProperty("url")
   private String url = null;
 
-  @JsonProperty("artifactId")
-  private String artifactId = null;
+  @JsonProperty("artifactUuid")
+  private String artifactUuid = null;
 
   @JsonProperty("digest")
   private String digest = null;
@@ -165,7 +162,7 @@ public class ImportStatus   {
   }
 
   public ImportStatus artifactId(String artifactId) {
-    this.artifactId = artifactId;
+    this.artifactUuid = artifactId;
     return this;
   }
 
@@ -176,12 +173,12 @@ public class ImportStatus   {
   @ApiModelProperty(value = "")
 
 
-  public String getArtifactId() {
-    return artifactId;
+  public String getArtifactUuid() {
+    return artifactUuid;
   }
 
-  public void setArtifactId(String artifactId) {
-    this.artifactId = artifactId;
+  public void setArtifactUuid(String artifactId) {
+    this.artifactUuid = artifactId;
   }
 
   public ImportStatus digest(String digest) {
@@ -277,7 +274,7 @@ public class ImportStatus   {
     return Objects.equals(this.warcId, importStatus.warcId) &&
         Objects.equals(this.offset, importStatus.offset) &&
         Objects.equals(this.url, importStatus.url) &&
-        Objects.equals(this.artifactId, importStatus.artifactId) &&
+        Objects.equals(this.artifactUuid, importStatus.artifactUuid) &&
         Objects.equals(this.digest, importStatus.digest) &&
         Objects.equals(this.version, importStatus.version) &&
         Objects.equals(this.status, importStatus.status) &&
@@ -286,7 +283,7 @@ public class ImportStatus   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(warcId, offset, url, artifactId, digest, version, status, statusMessage);
+    return Objects.hash(warcId, offset, url, artifactUuid, digest, version, status, statusMessage);
   }
 
   @Override
@@ -297,7 +294,7 @@ public class ImportStatus   {
     sb.append("    warcId: ").append(toIndentedString(warcId)).append("\n");
     sb.append("    offset: ").append(toIndentedString(offset)).append("\n");
     sb.append("    url: ").append(toIndentedString(url)).append("\n");
-    sb.append("    artifactId: ").append(toIndentedString(artifactId)).append("\n");
+    sb.append("    artifactUuid: ").append(toIndentedString(artifactUuid)).append("\n");
     sb.append("    digest: ").append(toIndentedString(digest)).append("\n");
     sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");

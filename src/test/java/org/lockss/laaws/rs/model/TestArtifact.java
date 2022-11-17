@@ -46,7 +46,7 @@ public class TestArtifact extends LockssTestCase5 {
     @Test
     public void testConstructor() {
       String expectedMessage =
-	  "Cannot create Artifact with null or empty id";
+	  "Cannot create Artifact with null or empty UUID";
 
       try {
 	new Artifact(null, null, null, null, null, null, null, 0, null);
@@ -174,7 +174,7 @@ public class TestArtifact extends LockssTestCase5 {
       }
 
       Artifact aidata = new Artifact("aidid", NS1, AUID1, "uri", 0, Boolean.TRUE, "surl", 0, null);
-      assertEquals("aidid", aidata.getId());
+      assertEquals("aidid", aidata.getUuid());
       assertEquals(NS1, aidata.getNamespace());
       assertEquals(AUID1, aidata.getAuid());
       assertEquals("uri", aidata.getUri());

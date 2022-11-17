@@ -110,14 +110,14 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
           new SolrCommitJournal.SolrJournalWriter(getTempFile("journal-test", null).toPath())) {
 
         // Write CSV record with logOperation
-        writer.logOperation(artifact.getId(), ADD, doc);
+        writer.logOperation(artifact.getUuid(), ADD, doc);
 
         // Read the CSV record we just wrote with logOperation
         CSVRecord record = readFirstCSVRecord(writer.getJournalPath());
         assertNotNull(record);
 
 //        assertEquals("test-artifact", record.get(JOURNAL_HEADER_TIME));
-        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_ID));
+        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_UUID));
         assertEquals("ADD", record.get(JOURNAL_HEADER_SOLR_OP));
 
         String json = "{\n" +
@@ -141,7 +141,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
                new SolrCommitJournal.SolrJournalWriter(getTempFile("journal-test", null).toPath())) {
 
         SolrInputDocument updateSolrDoc = new SolrInputDocument();
-        updateSolrDoc.addField("id", artifactId.getId());
+        updateSolrDoc.addField("uuid", artifactId.getUuid());
 
         Map<String, Object> commitFieldMod = new HashMap<>();
         commitFieldMod.put("set", true);
@@ -149,7 +149,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
 
         // Write CSV record with logOperation
         writer.logOperation(
-            artifact.getId(),
+            artifact.getUuid(),
             SolrCommitJournal.SolrOperation.UPDATE,
             updateSolrDoc);
 
@@ -158,11 +158,11 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
         assertNotNull(record);
 
 //        assertEquals("test-artifact", record.get(JOURNAL_HEADER_TIME));
-        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_ID));
+        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_UUID));
         assertEquals("UPDATE", record.get(JOURNAL_HEADER_SOLR_OP));
 
         String json = "{\n" +
-            "  \"id\":\"test-artifact\",\n" +
+            "  \"uuid\":\"test-artifact\",\n" +
             "  \"committed\":{\"set\":true}}";
 
         assertEquals(json, record.get(JOURNAL_HEADER_INPUT_DOCUMENT));
@@ -173,7 +173,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
                new SolrCommitJournal.SolrJournalWriter(getTempFile("journal-test", null).toPath())) {
 
         SolrInputDocument updateSolrDoc = new SolrInputDocument();
-        updateSolrDoc.addField("id", artifactId.getId());
+        updateSolrDoc.addField("uuid", artifactId.getUuid());
 
         Map<String, Object> storageUrlFieldMod = new HashMap<>();
         storageUrlFieldMod.put("set", "test-storage-url2");
@@ -181,7 +181,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
 
         // Write CSV record with logOperation
         writer.logOperation(
-            artifact.getId(),
+            artifact.getUuid(),
             SolrCommitJournal.SolrOperation.UPDATE,
             updateSolrDoc);
 
@@ -190,11 +190,11 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
         assertNotNull(record);
 
 //        assertEquals("test-artifact", record.get(JOURNAL_HEADER_TIME));
-        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_ID));
+        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_UUID));
         assertEquals("UPDATE", record.get(JOURNAL_HEADER_SOLR_OP));
 
         String json = "{\n" +
-            "  \"id\":\"test-artifact\",\n" +
+            "  \"uuid\":\"test-artifact\",\n" +
             "  \"storageUrl\":{\"set\":\"test-storage-url2\"}}";
 
         assertEquals(json, record.get(JOURNAL_HEADER_INPUT_DOCUMENT));
@@ -205,14 +205,14 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
                new SolrCommitJournal.SolrJournalWriter(getTempFile("journal-test", null).toPath())) {
 
         // Write CSV record with logOperation
-        writer.logOperation(artifactId.getId(), SolrCommitJournal.SolrOperation.DELETE, null);
+        writer.logOperation(artifactId.getUuid(), SolrCommitJournal.SolrOperation.DELETE, null);
 
         // Read the CSV record we just wrote with logOperation
         CSVRecord record = readFirstCSVRecord(writer.getJournalPath());
         assertNotNull(record);
 
 //        assertEquals("test-artifact", record.get(JOURNAL_HEADER_TIME));
-        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_ID));
+        assertEquals("test-artifact", record.get(JOURNAL_HEADER_ARTIFACT_UUID));
         assertEquals("DELETE", record.get(JOURNAL_HEADER_SOLR_OP));
         assertEquals(EMPTY_STRING, record.get(JOURNAL_HEADER_INPUT_DOCUMENT));
       }
@@ -315,7 +315,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
       SolrInputDocument ADD_DOC = binder.toSolrInputDocument(ADD_ARTIFACT);
 
       Path ADD_FILE = writeTmpFile(CSV_HEADERS + "1636690761743,test-artifact,ADD,\"{\n" +
-          "  \"\"id\"\":\"\"test-artifact\"\",\n" +
+          "  \"\"uuid\"\":\"\"test-artifact\"\",\n" +
           "  \"\"namespace\"\":\"\"test-namespace\"\",\n" +
           "  \"\"auid\"\":\"\"test-auid\"\",\n" +
           "  \"\"uri\"\":\"\"test-url\"\",\n" +

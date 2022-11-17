@@ -277,7 +277,7 @@ public class WarcFilePool {
 
             for (Artifact artifact : indexedArtifacts.values()) {
               if (!artifact.isCommitted()) {
-                index.deleteArtifact(artifact.getId());
+                index.deleteArtifact(artifact.getUuid());
               }
             }
           }

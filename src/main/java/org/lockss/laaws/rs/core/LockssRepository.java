@@ -103,7 +103,7 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   default ArtifactData getArtifactData(Artifact artifact) throws IOException {
-    return getArtifactData(artifact.getNamespace(), artifact.getId());
+    return getArtifactData(artifact.getNamespace(), artifact.getUuid());
   }
 
   /**
@@ -120,7 +120,7 @@ public interface LockssRepository extends Ready {
   default ArtifactData getArtifactData(Artifact artifact,
                                        IncludeContent includeContent)
       throws IOException {
-    return getArtifactData(artifact.getNamespace(), artifact.getId(),
+    return getArtifactData(artifact.getNamespace(), artifact.getUuid(),
         includeContent);
   }
 
@@ -130,17 +130,17 @@ public interface LockssRepository extends Ready {
    * org.lockss.laaws.rs.model.ArtifactData})
    *
    * @param namespace         The namespace of the artifact.
-   * @param artifactId         A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+   * @param artifactUuid         A {@code String} with the artifact ID of the artifact to retrieve from this repository.
    * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
    *                       {@link ArtifactData} returned by this method.
    * @return The {@code ArtifactData} referenced by this artifact ID.
    * @throws IOException
    */
   default ArtifactData getArtifactData(String namespace,
-                                       String artifactId,
+                                       String artifactUuid,
                                        IncludeContent includeContent)
       throws IOException {
-    return getArtifactData(namespace, artifactId);
+    return getArtifactData(namespace, artifactUuid);
   }
 
   /**
@@ -149,24 +149,24 @@ public interface LockssRepository extends Ready {
    * org.lockss.laaws.rs.model.ArtifactData})
    *
    * @param namespace The namespace of the artifact.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to retrieve from this repository.
    * @return The {@code ArtifactData} referenced by this artifact ID.
    * @throws IOException
    */
   ArtifactData getArtifactData(String namespace,
-                               String artifactId)
+                               String artifactUuid)
       throws IOException;
 
   /**
    * Returns the headers of an artifact.
    *
    * @param namespace The namespace of the artifact.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to retrieve from this repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to retrieve from this repository.
    * @return A {@link HttpHeaders} containing the artifact's headers.
    * @throws IOException
    */
   // Q: Use non-Spring HttpHeaders?
-  HttpHeaders getArtifactHeaders(String namespace, String artifactId) throws IOException;
+  HttpHeaders getArtifactHeaders(String namespace, String artifactUuid) throws IOException;
 
   /**
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
@@ -176,18 +176,18 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   default Artifact commitArtifact(Artifact artifact) throws IOException {
-    return commitArtifact(artifact.getNamespace(), artifact.getId());
+    return commitArtifact(artifact.getNamespace(), artifact.getUuid());
   }
 
   /**
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
    *
    * @param namespace A {code String} containing the namespace of the artifact to commit.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to commit to the repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to commit to the repository.
    * @return An {@code Artifact} containing the updated artifact state information.
    * @throws IOException
    */
-  Artifact commitArtifact(String namespace, String artifactId) throws IOException;
+  Artifact commitArtifact(String namespace, String artifactUuid) throws IOException;
 
   /**
    * Permanently removes an artifact from this LOCKSS repository.
@@ -196,28 +196,28 @@ public interface LockssRepository extends Ready {
    * @throws IOException
    */
   default void deleteArtifact(Artifact artifact) throws IOException {
-    deleteArtifact(artifact.getNamespace(), artifact.getId());
+    deleteArtifact(artifact.getNamespace(), artifact.getUuid());
   }
 
   /**
    * Permanently removes an artifact from this LOCKSS repository.
    *
    * @param namespace A {code String} containing the namespace of the artifact to delete.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
    * @throws IOException
    */
   void deleteArtifact(String namespace,
-                      String artifactId)
+                      String artifactUuid)
       throws IOException;
 
   /**
    * Checks whether an artifact is committed to this LOCKSS repository.
    *
    * @param namespace A {code String} containing the namespace of the artifact.
-   * @param artifactId A {@code String} containing the artifact ID to check.
+   * @param artifactUuid A {@code String} containing the artifact ID to check.
    * @return A boolean indicating whether the artifact is committed.
    */
-  Boolean isArtifactCommitted(String namespace, String artifactId) throws IOException;
+  Boolean isArtifactCommitted(String namespace, String artifactUuid) throws IOException;
 
   /**
    * Returns the namespace of the committed artifacts in the index.
@@ -344,14 +344,14 @@ public interface LockssRepository extends Ready {
       throws IOException;
 
   /**
-   * Returns the artifact with the specified artifactId
+   * Returns the artifact with the specified artifact UUID.
    *
-   * @param artifactId
-   * @return The {@code Artifact} representing that artifactId, or null
+   * @param artifactUuid
+   * @return The {@code Artifact} representing that artifact UUID, or null
    * if none
    * @throws IOException
    */
-  Artifact getArtifactFromId(String artifactId)
+  Artifact getArtifactFromUuid(String artifactUuid)
       throws IOException;
 
   /**

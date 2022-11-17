@@ -234,7 +234,7 @@ public class ArtifactDataFactory {
     }
 
     return new ArtifactIdentifier(
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
+        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_UUID_KEY),
 //                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
         namespace,
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),

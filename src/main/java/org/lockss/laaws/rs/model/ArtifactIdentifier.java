@@ -47,7 +47,7 @@ import org.lockss.util.PreOrderComparator;
  * Comparable is implemented to allow for an ordering of artifacts.
  */
 public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIdentifier> {
-    private String artifactId;
+    private String uuid;
     private String namespace;
     private String auid;
     private String uri;
@@ -57,8 +57,8 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
         this(null, namespace, auid, uri, version);
     }
 
-    public ArtifactIdentifier(String id, String namespace, String auid, String uri, Integer version) {
-        this.artifactId = id;
+    public ArtifactIdentifier(String uuid, String namespace, String auid, String uri, Integer version) {
+        this.uuid = uuid;
         this.namespace = namespace;
         this.auid = auid;
         this.uri = uri;
@@ -114,26 +114,26 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     }
 
     /**
-     * Returns the internal artifactId component encoded in this artifact identifier.
+     * Returns the artifact's UUID.
      *
-     * @return Internal artifactId
+     * @return Internal artifact UUID
      */
-    public String getId() {
-        return artifactId;
+    public String getUuid() {
+        return uuid;
     }
 
     /**
-     * Sets the internal artifactId encoded within this artifact identifier.
+     * Sets the artifact's UUID.
      *
-     * @param id
+     * @param uuid
      */
-    public void setId(String id) {
-        this.artifactId = id;
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
     }
 
     /**
      * Implements Comparable - The canonical order here from most significant to least significant is the assigned
-     * namespace, archival unit (AU), URI, and version. The artifactId is a unique internal handle and has no
+     * namespace, archival unit (AU), URI, and version. The artifact UUID is a unique internal handle and has no
      * useful ordering in this context, and so is not included in the comparison calculation.
      *
      * @param other The other instance of ArtifactIdentifier to compare against.
@@ -169,7 +169,7 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     @Override
     public String toString() {
         return "ArtifactIdentifier{" +
-                "artifactId='" + artifactId + '\'' +
+                "uuid='" + uuid + '\'' +
                 ", namespace='" + namespace + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +

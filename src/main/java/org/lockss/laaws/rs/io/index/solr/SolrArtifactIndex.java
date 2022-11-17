@@ -719,7 +719,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
 
-      logSolrUpdate(artifactId.getId(), SolrCommitJournal.SolrOperation.ADD, doc);
+      logSolrUpdate(artifactId.getUuid(), SolrCommitJournal.SolrOperation.ADD, doc);
 
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
@@ -788,10 +788,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug("Total documents added = {}", docsAdded);
   }
 
-  private void logSolrUpdate(String artifactId, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
+  private void logSolrUpdate(String artifactUuid, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
     for (int i = 0; i < 3; i++) {
       try {
-        solrJournalWriter.logOperation(artifactId, op, doc);
+        solrJournalWriter.logOperation(artifactUuid, op, doc);
         return;
       } catch (IOException e) {
         try {
@@ -802,7 +802,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       }
     }
 
-    log.error("Could not log to Solr update journal [artifactId: {}, op: {}, doc: {}]", artifactId, op, doc);
+    log.error("Could not log to Solr update journal [artifactUuid: {}, op: {}, doc: {}]", artifactUuid, op, doc);
   }
 
   /**
@@ -828,19 +828,19 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Provides the artifactIndex data of an artifact with a given text artifactIndex
    * identifier.
    *
-   * @param artifactId A String with the artifact artifactIndex identifier.
+   * @param artifactUuid A String with the artifact artifactIndex identifier.
    * @return an Artifact with the artifact indexing data.
    */
   @Override
-  public Artifact getArtifact(String artifactId) throws IOException {
-    if (StringUtils.isEmpty(artifactId)) {
-      throw new IllegalArgumentException("Null or empty artifact ID");
+  public Artifact getArtifact(String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null or empty artifact UUID");
     }
 
     // Solr query to perform
     SolrQuery q = new SolrQuery();
-    q.setQuery(String.format("id:%s", artifactId));
-//        q.addFilterQuery(String.format("{!term f=id}%s", artifactId));
+    q.setQuery(String.format("id:%s", artifactUuid));
+//        q.addFilterQuery(String.format("{!term f=id}%s", artifactUuid));
 //        q.addFilterQuery(String.format("committed:%s", true));
 
     try {
@@ -873,34 +873,34 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    * Provides the artifactIndex data of an artifact with a given artifactIndex identifier
    * UUID.
    *
-   * @param artifactId An UUID with the artifact artifactIndex identifier.
+   * @param artifactUuid An UUID with the artifact artifactIndex identifier.
    * @return an Artifact with the artifact indexing data.
    */
   @Override
-  public Artifact getArtifact(UUID artifactId) throws IOException {
-    if (artifactId == null) {
+  public Artifact getArtifact(UUID artifactUuid) throws IOException {
+    if (artifactUuid == null) {
       throw new IllegalArgumentException("Null UUID");
     }
 
-    return this.getArtifact(artifactId.toString());
+    return this.getArtifact(artifactUuid.toString());
   }
 
   /**
    * Commits to the artifactIndex an artifact with a given text artifactIndex identifier.
    *
-   * @param artifactId A String with the artifact artifactIndex identifier.
+   * @param artifactUuid A String with the artifact artifactIndex identifier.
    * @return an Artifact with the committed artifact indexing data.
    */
   @Override
-  public Artifact commitArtifact(String artifactId) throws IOException {
-    if (!artifactExists(artifactId)) {
-      log.debug("Artifact does not exist [artifactId: {}]", artifactId);
+  public Artifact commitArtifact(String artifactUuid) throws IOException {
+    if (!artifactExists(artifactUuid)) {
+      log.debug("Artifact does not exist [uuid: {}]", artifactUuid);
       return null;
     }
 
     // Partial document to perform Solr document update
     SolrInputDocument document = new SolrInputDocument();
-    document.addField("id", artifactId);
+    document.addField("id", artifactUuid);
 
     // Perform an atomic update (see https://lucene.apache.org/solr/guide/6_6/updating-parts-of-documents.html) by
     // setting the type of field modification and its replacement value
@@ -918,7 +918,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
+      logSolrUpdate(artifactUuid, SolrCommitJournal.SolrOperation.UPDATE, document);
 
       // Commit changes
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing Solr changes");
@@ -927,7 +927,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Return updated Artifact
-    return getArtifact(artifactId);
+    return getArtifact(artifactUuid);
   }
 
   public enum SolrCommitStrategy {
@@ -977,58 +977,58 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Commits to the artifactIndex an artifact with a given artifactIndex identifier UUID.
    *
-   * @param artifactId An UUID with the artifact artifactIndex identifier.
+   * @param artifactUuid An UUID with the artifact artifactIndex identifier.
    * @return an Artifact with the committed artifact indexing data.
    */
   @Override
-  public Artifact commitArtifact(UUID artifactId) throws IOException {
-    if (artifactId == null) {
+  public Artifact commitArtifact(UUID artifactUuid) throws IOException {
+    if (artifactUuid == null) {
       throw new IllegalArgumentException("Null UUID");
     }
 
-    return commitArtifact(artifactId.toString());
+    return commitArtifact(artifactUuid.toString());
   }
 
   /**
    * Removes from the artifactIndex an artifact with a given text artifactIndex identifier.
    *
-   * @param artifactId A String with the artifact artifactIndex identifier.
+   * @param artifactUuid A String with the artifact artifactIndex identifier.
    * @throws IOException if Solr reports problems.
    */
   @Override
-  public boolean deleteArtifact(String artifactId) throws IOException {
-    if (StringUtils.isEmpty(artifactId)) {
-      throw new IllegalArgumentException("Null or empty identifier");
+  public boolean deleteArtifact(String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null or empty UUID");
     }
 
-    if (artifactExists(artifactId)) {
+    if (artifactExists(artifactUuid)) {
       try {
         // Create an Solr update request
         UpdateRequest request = new UpdateRequest();
-        request.deleteById(artifactId);
+        request.deleteById(artifactUuid);
         addSolrCredentials(request);
 
         // Remove Solr document for this artifact
         handleSolrResponse(request.process(solrClient, solrCollection), "Problem deleting "
-            + "artifact '" + artifactId + "' from Solr");
+            + "artifact '" + artifactUuid + "' from Solr");
 
-        logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.DELETE, null);
+        logSolrUpdate(artifactUuid, SolrCommitJournal.SolrOperation.DELETE, null);
 
         // Commit changes
         handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing deletion of "
-            + "artifact '" + artifactId + "' from Solr");
+            + "artifact '" + artifactUuid + "' from Solr");
 
         // Return true to indicate success
         return true;
       } catch (SolrResponseErrorException | SolrServerException e) {
-        log.error("Could not remove artifact from Solr index [artifactId: {}]", artifactId, e);
+        log.error("Could not remove artifact from Solr index [uuid: {}]", artifactUuid, e);
         throw new IOException(
-            String.format("Could not remove artifact from Solr index [artifactId: %s]", artifactId), e
+            String.format("Could not remove artifact from Solr index [uuid: %s]", artifactUuid), e
         );
       }
     } else {
       // Artifact not found in index; nothing deleted
-      log.debug("Artifact not found [artifactId: {}]", artifactId);
+      log.debug("Artifact not found [uuid: {}]", artifactUuid);
       return false;
     }
   }
@@ -1036,36 +1036,36 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Removes from the artifactIndex an artifact with a given artifactIndex identifier UUID.
    *
-   * @param artifactId A String with the artifact artifactIndex identifier.
+   * @param artifactUuid A String with the artifact UUID.
    * @return <code>true</code> if the artifact was removed from in the artifactIndex,
    * <code>false</code> otherwise.
    */
   @Override
-  public boolean deleteArtifact(UUID artifactId) throws IOException {
-    if (artifactId == null) {
+  public boolean deleteArtifact(UUID artifactUuid) throws IOException {
+    if (artifactUuid == null) {
       throw new IllegalArgumentException("Null UUID");
     }
 
-    return deleteArtifact(artifactId.toString());
+    return deleteArtifact(artifactUuid.toString());
   }
 
   /**
    * Provides an indication of whether an artifact with a given text artifactIndex
    * identifier exists in the artifactIndex.
    *
-   * @param artifactId A String with the artifact identifier.
+   * @param artifactUuid A String with the artifact identifier.
    * @return <code>true</code> if the artifact exists in the artifactIndex,
    * <code>false</code> otherwise.
    */
   @Override
-  public boolean artifactExists(String artifactId) throws IOException {
-    return getArtifact(artifactId) != null;
+  public boolean artifactExists(String artifactUuid) throws IOException {
+    return getArtifact(artifactUuid) != null;
   }
 
   @Override
-  public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
-    if (StringUtils.isEmpty(artifactId)) {
-      throw new IllegalArgumentException("Invalid artifact ID");
+  public Artifact updateStorageUrl(String artifactUuid, String storageUrl) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Invalid artifact UUID");
     }
 
     if (StringUtils.isEmpty(storageUrl)) {
@@ -1074,7 +1074,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
 
     // Perform a partial update of an existing Solr document
     SolrInputDocument document = new SolrInputDocument();
-    document.addField("id", artifactId);
+    document.addField("id", artifactUuid);
 
     // Specify type of field modification, field name, and replacement value
     Map<String, Object> fieldModifier = new HashMap<>();
@@ -1091,7 +1091,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      logSolrUpdate(artifactId, SolrCommitJournal.SolrOperation.UPDATE, document);
+      logSolrUpdate(artifactUuid, SolrCommitJournal.SolrOperation.UPDATE, document);
 
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "document '" + document + "' to Solr");
@@ -1100,7 +1100,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Return updated Artifact
-    return getArtifact(artifactId);
+    return getArtifact(artifactUuid);
   }
 
   /**

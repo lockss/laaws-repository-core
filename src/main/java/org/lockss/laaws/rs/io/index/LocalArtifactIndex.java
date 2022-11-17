@@ -136,13 +136,13 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
     /**
      * Commits to the index an artifact with a given text index identifier.
      *
-     * @param artifactId
+     * @param artifactUuid
      *          A String with the artifact index identifier.
      * @return an Artifact with the committed artifact indexing data.
      */
     @Override
-    public Artifact commitArtifact(String artifactId) {
-      Artifact artifact = super.commitArtifact(artifactId);
+    public Artifact commitArtifact(String artifactUuid) {
+      Artifact artifact = super.commitArtifact(artifactUuid);
       if (artifact != null) {
         persist();
       }
@@ -150,8 +150,8 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
     }
 
     @Override
-    public Artifact updateStorageUrl(String artifactId, String storageUrl) throws IOException {
-      Artifact artifact = super.updateStorageUrl(artifactId, storageUrl);
+    public Artifact updateStorageUrl(String artifactUuid, String storageUrl) throws IOException {
+      Artifact artifact = super.updateStorageUrl(artifactUuid, storageUrl);
       if (artifact != null) {
         persist();
       }

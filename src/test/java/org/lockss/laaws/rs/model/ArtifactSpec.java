@@ -137,7 +137,7 @@ public class ArtifactSpec implements Comparable<Object> {
   // state
   boolean isCommitted = false;
   boolean isDeleted;
-  String artId;
+  String artifactUuid;
 
   public enum ArtifactDataStoreOperation {
     COMMIT,
@@ -208,8 +208,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return this;
   }
 
-  public ArtifactSpec setArtifactId(String id) {
-    this.artId = id;
+  public ArtifactSpec setArtifactUuid(String uuid) {
+    this.artifactUuid = uuid;
     return this;
   }
 
@@ -310,8 +310,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return expVer;
   }
 
-  public String getArtifactId() {
-    return artId;
+  public String getArtifactUuid() {
+    return artifactUuid;
   }
 
   public boolean hasContent() {
@@ -455,12 +455,12 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactIdentifier getArtifactIdentifier() {
-    return new ArtifactIdentifier(artId, ns, auid, url, getVersion());
+    return new ArtifactIdentifier(artifactUuid, ns, auid, url, getVersion());
   }
 
   public Artifact getArtifact() {
     Artifact artifact = new Artifact(
-        getArtifactId(),
+        getArtifactUuid(),
         getNamespace(),
         getAuid(),
         getUrl(),
@@ -558,7 +558,7 @@ public class ArtifactSpec implements Comparable<Object> {
       }
 
       // Test for getArtifactData(String, String)
-      try (ArtifactData ad2 = repository.getArtifactData(getNamespace(), art.getId())) {
+      try (ArtifactData ad2 = repository.getArtifactData(getNamespace(), art.getUuid())) {
         Assertions.assertEquals(getContentLength(), ad2.getContentLength());
         Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
         assertArtifactData(ad2);
@@ -581,7 +581,7 @@ public class ArtifactSpec implements Comparable<Object> {
       Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
       assertArtifactData(ad1);
     } catch (Exception e) {
-      log.error( "Caught exception asserting artifact [artifactId: {}, artifactSpec = {}]: {}", artifact, this, e);
+      log.error( "Caught exception asserting artifact [uuid: {}, artifactSpec = {}]: {}", artifact.getUuid(), this, e);
       throw e;
     }
   }
