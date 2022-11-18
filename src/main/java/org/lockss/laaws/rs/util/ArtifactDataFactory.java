@@ -71,10 +71,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
@@ -234,13 +233,25 @@ public class ArtifactDataFactory {
     }
 
     return new ArtifactIdentifier(
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_UUID_KEY),
-//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
+        parseWarcRecordIdForUUID((String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID)),
         namespace,
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
+        // Q: Use (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI)?
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
-//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
         version);
+  }
+
+  private final static Pattern uuidPattern = Pattern.compile("<urn:uuid:(.+)>");
+
+  private static String parseWarcRecordIdForUUID(String recordId) {
+    Matcher result = uuidPattern.matcher(recordId);
+
+    if (result.matches()) {
+      // Validate UUID class
+      return UUID.fromString(result.group(1)).toString();
+    }
+
+    throw new IllegalArgumentException("Unexpected WARC-Record-ID: " + recordId);
   }
 
   /**

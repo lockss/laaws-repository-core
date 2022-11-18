@@ -49,6 +49,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -312,7 +313,7 @@ class TestWarcFilePool extends LockssTestCase5 {
       TimeBase.setSimulated(1234L);
 
       ArtifactSpec spec = new ArtifactSpec()
-          .setArtifactUuid("test")
+          .setArtifactUuid(UUID.randomUUID().toString())
           .setUrl("http://lockss.org/test/")
           .setCollectionDate(1234L)
           .generateContent();

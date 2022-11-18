@@ -537,7 +537,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
 
   private ArtifactData generateTestArtifactData(String namespace, String auid, String uri, int version, long length) throws IOException {
     ArtifactSpec spec = new ArtifactSpec()
-        .setArtifactUuid("test")
+        .setArtifactUuid(UUID.randomUUID().toString())
         .setNamespace(namespace)
         .setAuid(auid)
         .setUrl(uri)
@@ -1718,6 +1718,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     doCallRealMethod().when(ds).isTempWarcRecordRemovable(ArgumentMatchers.any(ArchiveRecord.class));
     when(record.getHeader()).thenReturn(header);
 
+    String recordId = "<urn:uuid:" + UUID.randomUUID() + ">";
+    when(header.getHeaderValue(WARCConstants.HEADER_KEY_ID)).thenReturn(recordId);
+
     // Assert non-response/resource WARC record is removable
     for (WARCConstants.WARCRecordType type : WARCConstants.WARCRecordType.values()) {
       switch (type) {
@@ -2171,7 +2174,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     URI storageUrl = new URI("storageUrl");
 
     ArtifactSpec spec = new ArtifactSpec()
-        .setArtifactUuid("artifact-uuid")
+        .setArtifactUuid(UUID.randomUUID().toString())
         .setUrl("artifact-url")
         .setStorageUrl(storageUrl);
 
@@ -2659,7 +2662,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     URI storageUrl = new URI("storageUrl");
 
     ArtifactSpec spec = new ArtifactSpec()
-        .setArtifactUuid("artifact-uuid")
+        .setArtifactUuid(UUID.randomUUID().toString())
         .setUrl("artifact-url")
         .setStorageUrl(storageUrl);
 
@@ -3042,8 +3045,10 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     assertEquals(WARCConstants.WARCRecordType.response,
         WARCConstants.WARCRecordType.valueOf((String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE)));
 
+    String expectedRecordId = "<urn:uuid:" + ai.getUuid() + ">";
+
     // Assert LOCKSS headers
-    assertEquals(ai.getUuid(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_UUID_KEY));
+    assertEquals(expectedRecordId, headers.getHeaderValue(WARCConstants.HEADER_KEY_ID));
     assertEquals(ai.getNamespace(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY));
     assertEquals(ai.getAuid(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY));
     assertEquals(ai.getUri(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY));

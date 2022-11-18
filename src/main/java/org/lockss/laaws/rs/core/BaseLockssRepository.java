@@ -429,7 +429,7 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     Artifact artifactRef = index.getArtifact(artifactUuid);
 
     if (artifactRef == null) {
-      throw new LockssNoSuchArtifactIdException("Non-existent artifact ID: " + artifactUuid);
+      throw new LockssNoSuchArtifactIdException("Non-existent artifact [uuid: " + artifactUuid + "]");
     }
 
     // Fetch and return artifact from data store

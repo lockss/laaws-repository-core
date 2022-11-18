@@ -2891,11 +2891,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     }
 
     // Add LOCKSS-specific WARC headers to record
-    // Note: WARC-Record-ID and WARC-Target-URI match the X-LockssRepo-Artifact-Id and
-    // X-LockssRepo-Artifact-Uri headers, respectively
-    record.addExtraHeader(ArtifactConstants.ARTIFACT_UUID_KEY, artifactId.getUuid());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_NAMESPACE_KEY, artifactId.getNamespace());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_AUID_KEY, artifactId.getAuid());
+    // Note: WARC-Target-URI and X-LockssRepo-Artifact-Uri headers still match
     record.addExtraHeader(ArtifactConstants.ARTIFACT_URI_KEY, artifactId.getUri());
     record.addExtraHeader(ArtifactConstants.ARTIFACT_VERSION_KEY, String.valueOf(artifactId.getVersion()));
 
