@@ -59,7 +59,9 @@ public class Artifact implements Serializable {
     public final static String ARTIFACT_DIGEST_KEY = "contentDigest";
     public final static String ARTIFACT_COLLECTION_DATE_KEY = "collectionDate";
 
-//    @JsonProperty(ARTIFACT_UUID_KEY)
+    // We have chosen to map the artifact UUID to the Solr document's "id" field
+    // for the sake of convention, even though Solr appears to support assigning
+    // another field as the unique identifier.
     @Field("id")
     private String uuid;
 

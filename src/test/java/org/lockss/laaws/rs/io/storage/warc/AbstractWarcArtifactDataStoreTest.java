@@ -2594,7 +2594,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     indexStateDir.toFile().mkdir();
     indexStateDir.resolve("reindex").toFile().createNewFile();
 
-    // TODO: Do something
+    // Setup scenario
     scenario.setup(index1);
 
     // Shutdown the data store

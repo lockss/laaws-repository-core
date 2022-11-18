@@ -2476,7 +2476,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    *
    * @param basePath   A {@link Path} containing the base path of the artifact.
    * @param artifactId The {@link ArtifactIdentifier} of the artifact to update.
-   * @param state      The new {@link ArtifactStateEntry}.
+   * @param stateEntry      The new {@link ArtifactStateEntry}.
    * @return The {@link ArtifactStateEntry} that was recorded.
    * @throws IOException
    */
@@ -2484,12 +2484,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
   public ArtifactStateEntry updateArtifactStateJournal(
       Path basePath,
       ArtifactIdentifier artifactId,
-      ArtifactStateEntry state
+      ArtifactStateEntry stateEntry
   ) throws IOException {
 
     Objects.requireNonNull(basePath, "A repository base path must be provided");
     Objects.requireNonNull(artifactId, "Artifact identifier is null");
-    Objects.requireNonNull(state, "Repository artifact metadata is null");
+    Objects.requireNonNull(stateEntry, "Repository artifact metadata is null");
 
     ArchivalUnitStem auStem = new ArchivalUnitStem(artifactId.getNamespace(), artifactId.getAuid());
 
@@ -2507,16 +2507,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     try {
       // Append an entry (a WARC metadata record) to the journal
       try (OutputStream output = initWarcAndGetAppendableOutputStream(auJournalPath)) {
-        WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getUuid(), state);
+        WARCRecordInfo journalRecord = createWarcMetadataRecord(artifactId.getUuid(), stateEntry);
         writeWarcRecord(journalRecord, output);
       }
     } finally {
       auLocks.releaseLock(auStem);
     }
 
-    log.debug2("Updated artifact repository state [artifactId: {}, state: {}]", artifactId, state);
+    log.debug2("Updated artifact repository state [artifactId: {}, state: {}]",
+        artifactId, stateEntry.getArtifactState());
 
-    return state;
+    return stateEntry;
   }
 
   /**
