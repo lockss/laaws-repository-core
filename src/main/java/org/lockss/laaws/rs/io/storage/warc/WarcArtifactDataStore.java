@@ -1008,7 +1008,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Acquire artifact lock: Operations below alter artifact state
         lockArtifact(aid);
 
-        Artifact artifact = getArtifactIndex().getArtifact(aid);
+        Artifact artifact = index.getArtifact(aid);
         ArtifactState state = getArtifactState(artifact, isArtifactExpired(record.getHeader()));
 
         // Resume artifact lifecycle based on the artifact's state
