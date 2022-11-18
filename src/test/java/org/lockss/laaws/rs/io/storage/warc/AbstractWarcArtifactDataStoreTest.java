@@ -2512,7 +2512,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       ArtifactData ad2 = generateTestArtifactData(NS1, AUID1, "uri2", 1, 1024);
       Artifact a2 = store.addArtifactData(ad2);
       assertNotNull(a2);
-      index.commitArtifact(a2.getUuid());
       Future<Artifact> future = store.commitArtifactData(a2);
       assertNotNull(future);
       Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
@@ -2522,7 +2521,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       ArtifactData ad5 = generateTestArtifactData(NS1, AUID1, "uri2", 2, 1024);
       Artifact a5 = store.addArtifactData(ad5);
       assertNotNull(a5);
-      index.commitArtifact(a5.getUuid());
       future = store.commitArtifactData(a5);
       assertNotNull(future);
       Artifact committed_a5 = future.get(10, TimeUnit.SECONDS);
@@ -2541,7 +2539,6 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       assertNotNull(a4);
 
       // Commit fourth artifact
-      index.commitArtifact(a4.getUuid());
       future = store.commitArtifactData(a4);
       assertNotNull(future);
       Artifact committed_a4 = future.get(10, TimeUnit.SECONDS);
