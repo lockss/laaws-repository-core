@@ -375,7 +375,8 @@ public class ArtifactDataUtil {
     props.put(Artifact.ARTIFACT_AUID_KEY, id.getAuid());
     props.put(Artifact.ARTIFACT_URI_KEY, id.getUri());
 
-    if (id.getVersion() > 0) {
+    Integer version = id.getVersion();
+    if (version != null && version > 0) {
       props.put(Artifact.ARTIFACT_VERSION_KEY, String.valueOf(id.getVersion()));
     }
 
