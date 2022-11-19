@@ -35,7 +35,6 @@ package org.lockss.laaws.rs.util;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.internal.StringUtil;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
@@ -46,7 +45,7 @@ import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.IdentityInputStream;
 import org.apache.http.impl.io.SessionInputBufferImpl;
-import org.apache.http.message.BasicLineParser;
+import org.apache.http.message.BasicHeader;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
@@ -65,7 +64,6 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -243,7 +241,7 @@ public class ArtifactDataFactory {
 
   private final static Pattern uuidPattern = Pattern.compile("<urn:uuid:(.+)>");
 
-  private static String parseWarcRecordIdForUUID(String recordId) {
+   public static String parseWarcRecordIdForUUID(String recordId) {
     Matcher result = uuidPattern.matcher(recordId);
 
     if (result.matches()) {
@@ -289,6 +287,17 @@ public class ArtifactDataFactory {
     Arrays.stream(headerArray).forEach(header -> headers.add(header.getName(), header.getValue()));
 
     return headers;
+  }
+
+  public static Header[] transformHttpHeadersToHeaderArray(HttpHeaders headers) {
+    Header[] result = headers.entrySet()
+        .stream()
+        .flatMap(entry -> entry.getValue()
+            .stream()
+            .map(v -> new BasicHeader(entry.getKey(), v)))
+        .toArray(Header[]::new);
+
+    return result;
   }
 
   /**
@@ -446,27 +455,24 @@ public class ArtifactDataFactory {
         result.setContentDigest(props.getContentDigest());
       }
 
-      //// Set artifact headers
+      //// Set artifact HTTP response status and headers
       {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_RESPONSE_HEADER);
 
         // Parse header part body into HttpHeaders object
         if (part != null) {
-          HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
-          result.setHttpHeaders(headers);
-        }
-      }
+          try {
+            HttpResponse httpResponse =
+                ArtifactDataFactory.getHttpResponseFromStream(part.getInputStream());
 
-      //// Set artifact HTTP status if present
-      {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS);
+            // Set HTTP status
+            result.setHttpStatus(httpResponse.getStatusLine());
 
-        if (part != null) {
-          String status = IOUtils.toString(part.getInputStream(), StandardCharsets.UTF_8);
-
-          // Read and parse HTTP status line
-          StatusLine httpStatus = BasicLineParser.parseStatusLine(status, null);
-          result.setHttpStatus(httpStatus);
+            // Set HTTP headers
+            result.setHttpHeaders(ArtifactDataFactory.transformHeaderArrayToHttpHeaders(httpResponse.getAllHeaders()));
+          } catch (HttpException e) {
+            throw new IOException("Error parsing HTTP response header part", e);
+          }
         }
       }
 

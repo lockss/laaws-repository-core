@@ -33,10 +33,9 @@ POSSIBILITY OF SUCH DAMAGE.
 package org.lockss.laaws.rs.util;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.StatusLine;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.http.*;
+import org.apache.http.message.BasicHeader;
 import org.archive.io.warc.WARCRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -241,6 +240,22 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 e.printStackTrace();
                 fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
             }
+        }
+    }
+
+    @Test
+    public void testHttpResponseHeaderTransforms() throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentLength(123);
+
+        headers.add("k", "v1");
+        headers.add("k", "v2");
+
+
+
+        Header[] transHeaders = ArtifactDataFactory.transformHttpHeadersToHeaderArray(headers);
+        for (Header header : transHeaders) {
+            log.info("header = {}", header);
         }
     }
 }

@@ -93,8 +93,7 @@ public class RestLockssRepository implements LockssRepository {
 
   // These must match the LOCKSS Repository swagger specification:
   public static final String MULTIPART_ARTIFACT_PROPS = "artifactProps";
-  public static final String MULTIPART_ARTIFACT_HTTP_STATUS = "httpStatus";
-  public static final String MULTIPART_ARTIFACT_HEADER = "httpHeaders";
+  public static final String MULTIPART_ARTIFACT_HTTP_RESPONSE_HEADER = "httpResponseHeader";
   public static final String MULTIPART_ARTIFACT_PAYLOAD = "payload";
 
   private RestTemplate restTemplate;

@@ -58,6 +58,7 @@ import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.index.VolatileArtifactIndex;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactConstants;
+import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
@@ -3045,7 +3046,9 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     String expectedRecordId = "<urn:uuid:" + ai.getUuid() + ">";
 
     // Assert LOCKSS headers
-    assertEquals(expectedRecordId, headers.getHeaderValue(WARCConstants.HEADER_KEY_ID));
+    String recordId = (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID);
+    assertEquals(expectedRecordId, recordId);
+    assertEquals(ai.getUuid(), ArtifactDataFactory.parseWarcRecordIdForUUID(recordId));
     assertEquals(ai.getNamespace(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY));
     assertEquals(ai.getAuid(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY));
     assertEquals(ai.getUri(), headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY));

@@ -318,25 +318,19 @@ public class ArtifactDataUtil {
         HttpHeaders partHeaders = new HttpHeaders();
         partHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
 
+        HttpResponse httpResponse = new BasicHttpResponse(artifactData.getHttpStatus());
+
+        httpResponse.setHeaders(
+            ArtifactDataFactory.transformHttpHeadersToHeaderArray(artifactData.getHttpHeaders()));
+
+        byte[] header = ArtifactDataUtil.getHttpResponseHeader(httpResponse);
+
         // Create resource containing HTTP status byte array
-        Resource resource = new NamedByteArrayResource(artifactUuid,
-            getHttpStatusByteArray(artifactData.getHttpStatus()));
+        Resource resource = new NamedByteArrayResource(artifactUuid, header);
 
         // Add artifact headers multipart
-        parts.add(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS,
+        parts.add(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_RESPONSE_HEADER,
             new HttpEntity<>(resource, partHeaders));
-      }
-
-      //// HTTP headers part
-      HttpHeaders headers = artifactData.getHttpHeaders();
-      if (headers != null && !headers.isEmpty()) {
-        // Part's headers
-        HttpHeaders partHeaders = new HttpHeaders();
-        partHeaders.setContentType(MediaType.APPLICATION_JSON);
-
-        // Add artifact headers multipart
-        parts.add(RestLockssRepository.MULTIPART_ARTIFACT_HEADER,
-            new HttpEntity<>(headers, partHeaders));
       }
     }
 
