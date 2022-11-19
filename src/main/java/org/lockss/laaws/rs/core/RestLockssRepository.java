@@ -246,10 +246,6 @@ public class RestLockssRepository implements LockssRepository {
     String endpoint = String.format("%s/artifacts", repositoryUrl);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-    if (artifactId.getNamespace() != null) {
-      builder.queryParam("namespace", artifactId.getNamespace());
-    }
-
     // Perform REST call: POST the multipart entity to the remote LOCKSS repository
     try {
       ResponseEntity<String> response =
