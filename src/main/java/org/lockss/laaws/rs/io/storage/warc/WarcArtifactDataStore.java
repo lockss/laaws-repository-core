@@ -370,9 +370,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected boolean isTmpStorage(Path path) {
     return Arrays.stream(getTmpWarcBasePaths())
-        .map(path::startsWith)
-        .findAny()
-        .isPresent();
+        .map(basePath -> path.startsWith(basePath))
+        .anyMatch(Predicate.isEqual(true));
   }
 
   /**
@@ -690,7 +689,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param warcFile A {@link Path} containing the path to a WARC file.
    * @return A {@code boolean} indicating whether the {@link Path} points to a compressed WARC file.
    */
-  public static boolean isCompressedWarcFile(Path warcFile) {
+  public boolean isCompressedWarcFile(Path warcFile) {
     return warcFile.getFileName().toString()
         .endsWith(WARCReaderFactory.DOT_COMPRESSED_WARC_FILE_EXTENSION);
   }
@@ -2987,7 +2986,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * <p>
    * See {@link SimpleRepositionableStream} for details.
    */
-  protected static ArchiveReader getArchiveReader(Path warcFile, InputStream input) throws IOException {
+  protected ArchiveReader getArchiveReader(Path warcFile, InputStream input) throws IOException {
     return isCompressedWarcFile(warcFile) ?
         new CompressedWARCReader(warcFile.getFileName().toString(), input) :
         new UncompressedWARCReader(warcFile.getFileName().toString(), input);
