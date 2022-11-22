@@ -370,8 +370,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    */
   protected boolean isTmpStorage(Path path) {
     return Arrays.stream(getTmpWarcBasePaths())
-        .map(basePath -> path.startsWith(basePath))
-        .anyMatch(Predicate.isEqual(true));
+        .map(path::startsWith)
+        .findAny()
+        .isPresent();
   }
 
   /**
@@ -689,7 +690,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @param warcFile A {@link Path} containing the path to a WARC file.
    * @return A {@code boolean} indicating whether the {@link Path} points to a compressed WARC file.
    */
-  public boolean isCompressedWarcFile(Path warcFile) {
+  public static boolean isCompressedWarcFile(Path warcFile) {
     return warcFile.getFileName().toString()
         .endsWith(WARCReaderFactory.DOT_COMPRESSED_WARC_FILE_EXTENSION);
   }
@@ -1899,7 +1900,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Skip copy into permanent storage if artifact was deleted while this CopyArtifactTask was
       // sitting in the queue
       if (!isDeleted()) {
-        // TODO: What to do about IOExceptions thrown here?
         try (OutputStream output = getAppendableOutputStream(dst)) {
           try (InputStream is = markAndGetInputStreamAndSeek(loc.getPath(), loc.getOffset())) {
 
@@ -1918,6 +1918,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 dst,
                 warcLength + recordLength);
           }
+        } catch (IOException e) {
+          // Encountered a problem reading or writing - there is a good chance the WARC record
+          // is corrupted so "seal" the WARC file from further writes:
+          sealActiveWarc(artifact.getNamespace(), artifact.getAuid(), dst);
+
+          // TODO: What else to do about IOExceptions thrown here?
+
+          throw e;
         }
 
         // ******************
@@ -2264,49 +2272,41 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     //// Reindex artifacts
 
     // Process WARCs in permanent storage before WARCs in temporary storage
-    try {
-      Stream.concat(permanentWarcs, temporaryWarcs)
-          .forEach((warcPath) -> {
-            try {
-              // Reindex artifacts in WARC file
-              long start = Instant.now().getEpochSecond();
-              long artifactsIndexed = indexArtifactsFromWarc(index, warcPath);
-              long end = Instant.now().getEpochSecond();
+    Stream.concat(permanentWarcs, temporaryWarcs)
+        .forEach((warcPath) -> {
+          try {
+            // Reindex artifacts in WARC file
+            long start = Instant.now().getEpochSecond();
+            long artifactsIndexed = indexArtifactsFromWarc(index, warcPath);
+            long end = Instant.now().getEpochSecond();
 
-              // WARC index successful - append record to state file
-              // Open writer to state file in append mode
-              try (BufferedWriter out = Files.newBufferedWriter(
-                  reindexStatePath,
-                  StandardOpenOption.APPEND,
-                  StandardOpenOption.CREATE)) {
+            // WARC index successful - append record to state file
+            // Open writer to state file in append mode
+            try (BufferedWriter out = Files.newBufferedWriter(
+                reindexStatePath,
+                StandardOpenOption.APPEND,
+                StandardOpenOption.CREATE)) {
 
-                // Write CSV record
-                try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
-                    .withHeader(REINDEX_STATE_HEADERS)
-                    .withSkipHeaderRecord(!indexedWarcs.isEmpty()))) {
+              // Write CSV record
+              try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
+                  .withHeader(REINDEX_STATE_HEADERS)
+                  .withSkipHeaderRecord(!indexedWarcs.isEmpty()))) {
 
-                  printer.printRecord(start, end, artifactsIndexed, warcPath);
-                }
-              } catch (IOException e) {
-                log.warn("Could not append record of having indexed WARC file [warc: {}]", warcPath, e);
-                // Q: Do something else? The worst that will happen if restarted is reindexArtifactsFromWarc will
-                //    be invoked again and iterate over WARC records / artifacts, but it won't index any that are
-                //    already indexed.
-                //    NOTE: The number of artifacts that were indexed may be lower than the number of artifacts in
-                //    the WARC file, if processing of that WARC file was previously interrupted. This does not
-                //    necessarily indicate an error.
-                return;
+                printer.printRecord(start, end, artifactsIndexed, warcPath);
               }
             } catch (IOException e) {
-              // Thrown by indexArtifactsFromWarc()
-              log.error("Error reindexing artifacts from WARC [warc: {}]", warcPath, e);
-              throw new LockssUncheckedIOException(e);
+              log.warn("Could not append record of having indexed WARC file [warc: {}]", warcPath, e);
+              // Q: Do something else? The worst that will happen if restarted is reindexArtifactsFromWarc will
+              //    be invoked again and iterate over WARC records / artifacts, but it won't index any that are
+              //    already indexed.
+              //    NOTE: The number of artifacts that were indexed may be lower than the number of artifacts in
+              //    the WARC file, if processing of that WARC file was previously interrupted. This does not
+              //    necessarily indicate an error.
             }
-          });
-    } catch (LockssUncheckedIOException e) {
-      // Rethrow IOException thrown by indexArtifactsFromWarc()
-      throw e.getIOCause();
-    }
+          } catch (Exception e) {
+            log.error("Error reindexing artifacts from WARC [warc: {}]", warcPath, e);
+          }
+        });
 
     if (!SKIP_INDEXING_IF_MARKED_DELETED) {
       // Paths to journals containing repository state
@@ -2987,7 +2987,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * <p>
    * See {@link SimpleRepositionableStream} for details.
    */
-  protected ArchiveReader getArchiveReader(Path warcFile, InputStream input) throws IOException {
+  protected static ArchiveReader getArchiveReader(Path warcFile, InputStream input) throws IOException {
     return isCompressedWarcFile(warcFile) ?
         new CompressedWARCReader(warcFile.getFileName().toString(), input) :
         new UncompressedWARCReader(warcFile.getFileName().toString(), input);
