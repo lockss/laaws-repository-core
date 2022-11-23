@@ -955,8 +955,14 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     // Iterate over the temporary WARC files that were found
     for (Path tmpWarc : tmpWarcs) {
-      if (!tmpWarcPool.isInPool(tmpWarc)) {
-        reloadOrRemoveTemporaryWarc(index, tmpWarc);
+      try {
+        if (!tmpWarcPool.isInPool(tmpWarc)) {
+          reloadOrRemoveTemporaryWarc(index, tmpWarc);
+        }
+      } catch (Exception e) {
+        log.error("Encountered an error while reloading artifacts from WARC [tmpWarc: {}]", tmpWarc, e);
+
+        // Q: Is there anything else we can do?
       }
     }
 
