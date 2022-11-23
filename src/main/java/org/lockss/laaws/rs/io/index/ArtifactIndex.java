@@ -41,6 +41,7 @@ import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
@@ -74,6 +75,8 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
      * @return An {@code Artifact} with the artifact indexing data.
      */
     Artifact indexArtifact(ArtifactData artifactData) throws IOException;
+
+    List<Artifact> indexArtifacts(List<ArtifactData> artifacts) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given text index

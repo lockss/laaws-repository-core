@@ -166,7 +166,10 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
 
     if (reindexStateFile.exists()) {
       // Reindex artifacts in this data store to the index
+      long start = TimeBase.nowMs();
       store.reindexArtifacts(index);
+      long end = TimeBase.nowMs();
+      log.info("Finished reindex in {} ms", end - start);
 
       // Disable future reindexing by renaming reindex state file if there were no errors
       // (i.e., successfully processed all WARCs under this base directory). Old reindex

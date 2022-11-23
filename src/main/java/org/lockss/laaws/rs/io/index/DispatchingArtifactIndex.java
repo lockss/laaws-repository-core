@@ -30,18 +30,20 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.util.*;
-
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
-import org.lockss.util.storage.StorageInfo;
 import org.lockss.util.concurrent.CopyOnWriteMap;
+import org.lockss.util.storage.StorageInfo;
+
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * ArtifactIndex that dispatches all operations to either a permanent
@@ -147,6 +149,11 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   @Override
   public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
     return findIndexHolding(artifactData).indexArtifact(artifactData);
+  }
+
+  @Override
+  public List<Artifact> indexArtifacts(List<ArtifactData> ads) {
+    throw new UnsupportedOperationException();
   }
 
   @Override

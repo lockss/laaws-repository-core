@@ -2277,8 +2277,44 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     //// Reindex artifacts
 
     // Process WARCs in permanent storage before WARCs in temporary storage
-    Stream.concat(permanentWarcs, temporaryWarcs)
-        .forEach((warcPath) -> {
+    permanentWarcs.forEach((warcPath) -> {
+          try {
+            // Reindex artifacts in WARC file
+            long start = Instant.now().getEpochSecond();
+//            long artifactsIndexed = indexArtifactsFromPermanentWarc(index, warcPath);
+            long artifactsIndexed = indexArtifactsFromWarc(index, warcPath);
+            long end = Instant.now().getEpochSecond();
+
+            // WARC index successful - append record to state file
+            // Open writer to state file in append mode
+            try (BufferedWriter out = Files.newBufferedWriter(
+                reindexStatePath,
+                StandardOpenOption.APPEND,
+                StandardOpenOption.CREATE)) {
+
+              // Write CSV record
+              try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
+                  .withHeader(REINDEX_STATE_HEADERS)
+                  .withSkipHeaderRecord(!indexedWarcs.isEmpty()))) {
+
+                printer.printRecord(start, end, artifactsIndexed, warcPath);
+              }
+            } catch (IOException e) {
+              log.warn("Could not append record of having indexed WARC file [warc: {}]", warcPath, e);
+              // Q: Do something else? The worst that will happen if restarted is reindexArtifactsFromWarc will
+              //    be invoked again and iterate over WARC records / artifacts, but it won't index any that are
+              //    already indexed.
+              //    NOTE: The number of artifacts that were indexed may be lower than the number of artifacts in
+              //    the WARC file, if processing of that WARC file was previously interrupted. This does not
+              //    necessarily indicate an error.
+            }
+          } catch (Exception e) {
+            log.error("Error reindexing artifacts from WARC [warc: {}]", warcPath, e);
+          }
+        });
+
+    // Process WARCs in permanent storage before WARCs in temporary storage
+    temporaryWarcs.forEach((warcPath) -> {
           try {
             // Reindex artifacts in WARC file
             long start = Instant.now().getEpochSecond();
@@ -2337,6 +2373,99 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
    * @throws IOException
    */
   static boolean SKIP_INDEXING_IF_MARKED_DELETED = true;
+  static int BATCH_SIZE = 1000;
+  public long indexArtifactsFromPermanentWarc(ArtifactIndex index, Path warcFile) throws IOException {
+    boolean isCompressed = isCompressedWarcFile(warcFile);
+
+    long artifactsIndexed = 0;
+
+    try (InputStream warcStream = getInputStreamAndSeek(warcFile, 0)) {
+      // Get an ArchiveReader from the WARC file input stream
+      ArchiveReader archiveReader = getArchiveReader(warcFile, new BufferedInputStream(warcStream));
+
+      List<ArtifactData> batch = new ArrayList<>(1000);
+
+      // Process each WARC record found by the ArchiveReader
+      for (ArchiveRecord record : archiveReader) {
+        log.debug2("Re-indexing artifact from WARC {} record {} from {}",
+            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
+            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+            warcFile);
+
+        try {
+          // Transform ArchiveRecord to ArtifactData
+          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
+
+          if (artifactData != null) {
+            // Default artifact repository state
+            artifactData.setArtifactState(ArtifactState.COPIED);
+
+            //// Generate storage URL
+
+            // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
+            // we add four bytes to the length
+            // Note: Content-Length is a mandatory WARC record header according to the WARC spec
+            long recordLength = record.getHeader().getLength() + 4L;
+            long compressedRecordLength = 0;
+
+            if (isCompressed) {
+              // Read WARC record block
+              record.skip(record.getHeader().getContentLength());
+
+              // Check that the record is at EOF
+              if (record.read() > -1) {
+                log.warn("Expected an EOF");
+              }
+
+              // Set ArchiveReader to EOR
+              CompressedWARCReader compressedReader = ((CompressedWARCReader) archiveReader);
+              compressedReader.gotoEOR(record);
+
+              // Compute compressed record length using GZIP member boundaries
+              compressedRecordLength =
+                  compressedReader.getCurrentMemberEnd() - compressedReader.getCurrentMemberStart();
+
+              // WARNING: We have read past the underlying WARC record of
+              //          this compressed artifact at this point!
+            }
+
+            // Set ArtifactData storage URL
+            artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
+                isCompressed ? compressedRecordLength : recordLength));
+
+            //// Add artifacts to the index
+            artifactsIndexed++;
+            batch.add(artifactData);
+
+            // Index batch if size equals batch size
+            if (batch.size() == BATCH_SIZE) {
+              List<Artifact> result = index.indexArtifacts(batch);
+              batch.clear();
+            }
+          }
+
+        } catch (IOException e) {
+          log.error("Could not index artifact from WARC record [WARC-Record-ID: {}, warcFile: {}]",
+              record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+              warcFile, e);
+
+          throw e;
+        }
+      }
+
+      // Index whatever is left in the buffer
+      if (batch.size() > 0) {
+        List<Artifact> result = index.indexArtifacts(batch);
+        batch.clear();
+      }
+    } catch (IOException e) {
+      log.error("Could not open WARC file [warcFile: {}]", warcFile, e);
+      throw e;
+    }
+
+    // Return the number of artifacts indexed from this WARC file
+    return artifactsIndexed;
+  }
 
   public long indexArtifactsFromWarc(ArtifactIndex index, Path warcFile) throws IOException {
     boolean isWarcInTemp = isTmpStorage(warcFile);
@@ -2350,12 +2479,10 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Process each WARC record found by the ArchiveReader
       for (ArchiveRecord record : archiveReader) {
-        log.debug(
-            "Re-indexing artifact from WARC {} record {} from {}",
+        log.debug2("Re-indexing artifact from WARC {} record {} from {}",
             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
             record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
-            warcFile
-        );
+            warcFile);
 
         try {
           // Transform ArchiveRecord to ArtifactData
@@ -2364,7 +2491,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           if (artifactData != null) {
             // Skip if already indexed
             if (index.artifactExists(artifactData.getIdentifier().getUuid())) {
-              log.debug("Artifact is already indexed [uuid: {}]", artifactData.getIdentifier().getUuid());
+              log.debug2("Artifact is already indexed [uuid: {}]",
+                  artifactData.getIdentifier().getUuid());
               continue;
             }
 

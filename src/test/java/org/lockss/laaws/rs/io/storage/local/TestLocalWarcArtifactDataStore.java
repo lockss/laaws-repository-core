@@ -30,19 +30,26 @@
 
 package org.lockss.laaws.rs.io.storage.local;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
+import org.apache.solr.core.CoreContainer;
 import org.archive.format.warc.WARCConstants;
+import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
+import org.lockss.laaws.rs.io.index.solr.SolrArtifactIndex;
+import org.lockss.laaws.rs.io.index.solr.TestSolrArtifactIndex;
 import org.lockss.laaws.rs.io.storage.warc.AbstractWarcArtifactDataStoreTest;
 import org.lockss.laaws.rs.io.storage.warc.WarcArtifactDataStore;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.io.FileUtil;
+import org.lockss.util.time.TimeBase;
 import org.mockito.ArgumentMatchers;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -427,5 +434,78 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     when(path.toFile()).thenReturn(file);
     when(file.isDirectory()).thenReturn(isDirectory);
     return path;
+  }
+
+  @Test
+  public void testWarc() throws Exception {
+    File baseDir = new File("/tmp/lockss");
+    File stateDir = new File("/tmp/lockss/state");
+    File indexStateDir = new File("/tmp/lockss/state/index");
+    File reindexState = new File("/tmp/lockss/state/index/reindex");
+
+    LocalWarcArtifactDataStore ds = new LocalWarcArtifactDataStore(baseDir);
+    SolrArtifactIndex idx = makeEmbeddedSolr();
+    BaseLockssRepository repo = new BaseLockssRepository(stateDir, idx, ds);
+
+    ds.setLockssRepository(repo);
+    idx.setLockssRepository(repo);
+
+    FileUtil.delTree(indexStateDir);
+    indexStateDir.mkdirs();
+    FileUtils.touch(reindexState);
+
+    TimeBase.setReal();
+    repo.initRepository();
+  }
+
+  private static SolrArtifactIndex makeEmbeddedSolr() throws IOException {
+    String TEST_SOLR_CORE_NAME = "test";
+    String TEST_SOLR_HOME_RESOURCES = "/solr/.filelist";
+
+    // Create a test Solr home directory and populate it
+    File tmpSolrHome = FileUtil.createTempDir("testSolrHome", null);
+    copyResourcesForTests(TEST_SOLR_HOME_RESOURCES, tmpSolrHome.toPath());
+
+    // Start EmbeddedSolrServer
+    EmbeddedSolrServer client =
+        new EmbeddedSolrServer(tmpSolrHome.toPath(), TEST_SOLR_CORE_NAME);
+
+    CoreContainer cc = client.getCoreContainer();
+
+//    cc.unload(TEST_SOLR_CORE_NAME);
+//    FileUtil.delTree(tmpSolrHome);
+//    copyResourcesForTests(TEST_SOLR_HOME_RESOURCES, tmpSolrHome.toPath());
+    cc.load();
+    cc.waitForLoadingCore(TEST_SOLR_CORE_NAME, 1000);
+
+    return new SolrArtifactIndex(client, TEST_SOLR_CORE_NAME);
+  }
+
+  private static void copyResourcesForTests(String filelistRes, Path dstPath) throws IOException {
+    // Read file list
+    try (InputStream input = TestSolrArtifactIndex.class
+        .getResourceAsStream(filelistRes)) {
+
+      try (BufferedReader reader = new BufferedReader(new InputStreamReader(input))) {
+
+        // Name of resource to load
+        String resourceName;
+
+        // Iterate over resource names from the list and copy each into the target directory
+        while ((resourceName = reader.readLine()) != null) {
+          // Source resource URL
+          URL srcUrl = TestSolrArtifactIndex.class
+              .getResource(String.format("/solr/%s", resourceName));
+
+          log.info("Copying resource {}", srcUrl);
+
+          // Destination file
+          File dstFile = dstPath.resolve(resourceName).toFile();
+
+          // Copy resource to file
+          FileUtils.copyURLToFile(srcUrl, dstFile);
+        }
+      }
+    }
   }
 }

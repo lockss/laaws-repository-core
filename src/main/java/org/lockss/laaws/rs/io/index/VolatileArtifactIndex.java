@@ -156,6 +156,13 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
         return artifact;
     }
 
+  @Override
+  public List<Artifact> indexArtifacts(List<ArtifactData> ads) {
+      return ads.stream()
+          .map(this::indexArtifact)
+          .collect(Collectors.toList());
+  }
+
     /**
      * Provides the index data of an artifact with a given text index
      * identifier.
