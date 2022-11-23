@@ -2281,8 +2281,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           try {
             // Reindex artifacts in WARC file
             long start = Instant.now().getEpochSecond();
-//            long artifactsIndexed = indexArtifactsFromPermanentWarc(index, warcPath);
-            long artifactsIndexed = indexArtifactsFromWarc(index, warcPath);
+            long artifactsIndexed = indexArtifactsFromPermanentWarc(index, warcPath);
             long end = Instant.now().getEpochSecond();
 
             // WARC index successful - append record to state file
