@@ -2888,11 +2888,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       record.setMimetype("application/http; msgtype=response");
     } else {
       // Get Content-Type from artifact headers
-      MediaType type = artifactData.getHttpHeaders().getContentType();
+      String contentType = headers.getFirst(HttpHeaders.CONTENT_TYPE);
 
       // Set WARC resource record's Content-Type to that of artifact if present
-      if (type != null) {
-        record.setMimetype(String.valueOf(type));
+      if (!StringUtils.isEmpty(contentType)) {
+        record.setMimetype(contentType);
       }
     }
 
