@@ -349,14 +349,15 @@ public class ArtifactDataUtil {
 
       HttpHeaders artifactHeaders = artifactData.getHttpHeaders();
 
-      // Attempt to parse and set the Content-Type using MediaType. If an error
-      // occurs due to an invalid Content-Type, set the X-Lockss-Content-Type header
-      // and set Content-Type to application/octet-stream.
+      // Attempt to parse and set the Content-Type of the part using MediaType. If the Content-Type is not
+      // specified (null) then omit the header. If an error occurs due to an malformed Content-Type, set
+      // the X-Lockss-Content-Type to the malformed value and omit the Content-Type header.
       try {
         MediaType type = artifactHeaders.getContentType();
-        partHeaders.setContentType(type == null ? MediaType.APPLICATION_OCTET_STREAM : type);
+        if (type != null) {
+          partHeaders.setContentType(type);
+        }
       } catch (InvalidMediaTypeException e) {
-        partHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         partHeaders.set(ArtifactConstants.X_LOCKSS_CONTENT_TYPE,
             artifactHeaders.getFirst(HttpHeaders.CONTENT_TYPE));
       }

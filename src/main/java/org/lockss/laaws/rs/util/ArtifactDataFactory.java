@@ -486,9 +486,17 @@ public class ArtifactDataFactory {
           // Set artifact's Content-Type to value of X-Lockss-Content-Type if present,
           // otherwise use value of Content-Type
           HttpHeaders partHeaders = part.getHeaders();
+
           String contentType = partHeaders.getFirst(ArtifactConstants.X_LOCKSS_CONTENT_TYPE);
-          result.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, StringUtils.isEmpty(contentType) ?
-              partHeaders.getFirst(HttpHeaders.CONTENT_TYPE) : contentType);
+
+          // Fallback
+          if (StringUtils.isEmpty(contentType)) {
+            contentType = partHeaders.getFirst(HttpHeaders.CONTENT_TYPE);
+          }
+
+          if (!StringUtils.isEmpty(contentType)) {
+            result.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, contentType);
+          }
         }
       }
 
