@@ -437,6 +437,11 @@ public class ArtifactSpec implements Comparable<Object> {
     return statLine != null;
   }
 
+  public ArtifactSpec setIsHttpResponse(boolean isHttpResponse) {
+    this.statLine = isHttpResponse ? STATUS_LINE_OK : null;
+    return this;
+  }
+
   public long getCollectionDate() {
     if (collectionDate >= 0) {
       return collectionDate;
@@ -481,7 +486,7 @@ public class ArtifactSpec implements Comparable<Object> {
         getArtifactIdentifier(),
         getMetadata(),
         getInputStream(),
-        getStatusLine(),
+        isHttpResponse() ? getStatusLine() : null,
         getStorageUrl(),
         null
     );
@@ -624,6 +629,10 @@ public class ArtifactSpec implements Comparable<Object> {
       Assertions.assertEquals(String.valueOf(getStatusLine()), String.valueOf(ad.getHttpStatus()));
       Assertions.assertEquals(getHeaders(), RepoUtil.mapFromHttpHeaders(ad.getHttpHeaders()));
     }
+
+    // Assert Content-Type matches
+    Assertions.assertEquals(getHeaders().get(HttpHeaders.CONTENT_TYPE),
+        ad.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE));
 
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());

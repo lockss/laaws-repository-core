@@ -56,6 +56,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -346,9 +347,20 @@ public class ArtifactDataUtil {
         partHeaders.setContentLength(artifactData.getContentLength());
       }
 
-      MediaType type = artifactData.getHttpHeaders().getContentType();
-      partHeaders.setContentType(type == null ?
-          MediaType.APPLICATION_OCTET_STREAM : type);
+      HttpHeaders artifactHeaders = artifactData.getHttpHeaders();
+
+      // Attempt to parse and set the Content-Type of the part using MediaType. If the Content-Type is not
+      // specified (null) then omit the header. If an error occurs due to an malformed Content-Type, set
+      // the X-Lockss-Content-Type to the malformed value and omit the Content-Type header.
+      try {
+        MediaType type = artifactHeaders.getContentType();
+        if (type != null) {
+          partHeaders.setContentType(type);
+        }
+      } catch (InvalidMediaTypeException e) {
+        partHeaders.set(ArtifactConstants.X_LOCKSS_CONTENT_TYPE,
+            artifactHeaders.getFirst(HttpHeaders.CONTENT_TYPE));
+      }
 
       // FIXME: Filename must be set or else Spring will treat the part as a parameter instead of a file
       partHeaders.setContentDispositionFormData(

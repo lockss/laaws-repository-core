@@ -81,7 +81,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private InputStream closableInputStream;
 
   // Artifact data properties
-  private HttpHeaders httpHeaders;
+  private HttpHeaders httpHeaders = new HttpHeaders();
   private StatusLine httpStatus;
   private InputStream origInputStream;
   private boolean inputStreamUsed = false;

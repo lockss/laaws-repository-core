@@ -380,8 +380,7 @@ public class ArtifactDataFactory {
         // Set the ArtifactData content-type to that of the WARC record block if present
         String typeVal = recordHeader.getMimetype();
         if (!StringUtil.isNullOrEmpty(typeVal)) {
-          // FIXME: Parsing the Content-Type of a WARC resource record might fail if malformed
-          ad.getHttpHeaders().setContentType(MediaType.valueOf(typeVal));
+          ad.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, typeVal);
         }
         break;
 
@@ -483,6 +482,21 @@ public class ArtifactDataFactory {
 
         if (part != null) {
           result.setInputStream(part.getInputStream());
+
+          // Set artifact's Content-Type to value of X-Lockss-Content-Type if present,
+          // otherwise use value of Content-Type
+          HttpHeaders partHeaders = part.getHeaders();
+
+          String contentType = partHeaders.getFirst(ArtifactConstants.X_LOCKSS_CONTENT_TYPE);
+
+          // Fallback
+          if (StringUtils.isEmpty(contentType)) {
+            contentType = partHeaders.getFirst(HttpHeaders.CONTENT_TYPE);
+          }
+
+          if (!StringUtils.isEmpty(contentType)) {
+            result.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, contentType);
+          }
         }
       }
 
