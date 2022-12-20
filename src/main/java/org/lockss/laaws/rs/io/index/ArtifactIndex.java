@@ -70,13 +70,18 @@ public interface ArtifactIndex extends LockssRepositorySubsystem, StorageInfoSou
     /**
      * Adds an artifact to the index.
      * 
-     * @param artifactData
-     *          An {@code ArtifactData} with the artifact to be indexed.
-     * @return An {@code Artifact} with the artifact indexing data.
+     * @param artifact The {@link Artifact} to add to this index.
+     * @throws IOException
      */
-    Artifact indexArtifact(ArtifactData artifactData) throws IOException;
+    void indexArtifact(Artifact artifact) throws IOException;
 
-    List<Artifact> indexArtifacts(List<ArtifactData> artifacts) throws IOException;
+    /**
+     * Bulk addition of artifacts into this index.
+     *
+     * @param artifacts An {@link Iterable<Artifact>} containing artifacts to add to this index.
+     * @throws IOException
+     */
+    void indexArtifacts(Iterable<Artifact> artifacts) throws IOException;
 
     /**
      * Provides the index data of an artifact with a given text index

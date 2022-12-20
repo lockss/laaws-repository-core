@@ -109,22 +109,20 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
   /**
      * Adds an artifact to the index.
      * 
-     * @param artifactData
-     *          An ArtifactData with the artifact to be added to the index,.
-     * @return an Artifact with the artifact indexing data.
+     * @param artifact An {@link Artifact} to be added to the index.
      */
     @Override
-    public Artifact indexArtifact(ArtifactData artifactData) {
-      log.debug2("Adding artifact to index: {}", artifactData);
+    public void indexArtifact(Artifact artifact) {
+      log.debug2("Adding artifact to index: {}", artifact);
 
-        if (artifactData == null) {
-          throw new IllegalArgumentException("Null artifact data");
+        if (artifact == null) {
+          throw new IllegalArgumentException("Null artifact");
         }
 
-        ArtifactIdentifier artifactId = artifactData.getIdentifier();
+        ArtifactIdentifier artifactId = artifact.getIdentifier();
 
         if (artifactId == null) {
-          throw new IllegalArgumentException("ArtifactData has null identifier");
+          throw new IllegalArgumentException("Artifact has null identifier");
         }
 
         String artifactUuid = artifactId.getUuid();
@@ -134,33 +132,15 @@ public class VolatileArtifactIndex extends AbstractArtifactIndex {
               "ArtifactIdentifier has null or empty artifact UUID");
         }
 
-        // Get artifact's repository state
-        ArtifactState state = artifactData.getArtifactState();
-
-        // Create and populate an Artifact bean for this ArtifactData
-        Artifact artifact = new Artifact(
-            artifactId,
-            state == null ? false : state.isCommitted(),
-            artifactData.getStorageUrl().toString(),
-            artifactData.getContentLength(),
-            artifactData.getContentDigest());
-
-        // Save the artifact collection date.
-        artifact.setCollectionDate(artifactData.getCollectionDate());
-
         // Add Artifact to the index
         addToIndex(artifactUuid, artifact);
 
         log.debug2("Added artifact to index: {}", artifact);
-
-        return artifact;
     }
 
   @Override
-  public List<Artifact> indexArtifacts(List<ArtifactData> ads) {
-      return ads.stream()
-          .map(this::indexArtifact)
-          .collect(Collectors.toList());
+  public void indexArtifacts(Iterable<Artifact> artifacts) {
+      artifacts.forEach(this::indexArtifact);
   }
 
     /**

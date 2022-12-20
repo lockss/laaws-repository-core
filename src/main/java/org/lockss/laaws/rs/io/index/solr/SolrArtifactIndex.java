@@ -677,34 +677,19 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
   /**
    * Adds an artifact to the artifactIndex.
    *
-   * @param artifactData An ArtifactData with the artifact to be added to the artifactIndex,.
-   * @return an Artifact with the artifact indexing data.
+   * @param artifact The {@link Artifact} to be added to this index.
    */
   @Override
-  public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-    if (artifactData == null) {
-      throw new IllegalArgumentException("Null artifact data");
+  public void indexArtifact(Artifact artifact) throws IOException {
+    if (artifact == null) {
+      throw new IllegalArgumentException("Null artifact");
     }
 
-    ArtifactIdentifier artifactId = artifactData.getIdentifier();
+    ArtifactIdentifier artifactId = artifact.getIdentifier();
 
     if (artifactId == null) {
-      throw new IllegalArgumentException("ArtifactData has null identifier");
+      throw new IllegalArgumentException("Artifact has null identifier");
     }
-
-    ArtifactState state = artifactData.getArtifactState();
-
-    // Create an instance of Artifact to represent the artifact
-    Artifact artifact = new Artifact(
-        artifactId,
-        state == null ? false : state.isCommitted(),
-        artifactData.getStorageUrl().toString(),
-        artifactData.getContentLength(),
-        artifactData.getContentDigest()
-    );
-
-    // Save the artifact collection date.
-    artifact.setCollectionDate(artifactData.getCollectionDate());
 
     // Add the Artifact to Solr as a bean
     try {
@@ -729,61 +714,43 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     }
 
     // Return the Artifact added to the Solr collection
-    log.debug2("Added artifact to index: {}", artifact);
-
-    return artifact;
+    log.debug2("Added artifact to index [uuid: {}]", artifactId.getUuid());
   }
-  @Override
-  public List<Artifact> indexArtifacts(List<ArtifactData> ads) throws IOException {
-    UpdateRequest req = new UpdateRequest();
-    DocumentObjectBinder binder = solrClient.getBinder();
-    List<Artifact> result = new ArrayList<>();
 
-    ads.forEach(ad -> {
-      // Artifact state
-      ArtifactState state = ad.getArtifactState();
-
-      // Create an instance of Artifact to represent the artifact
-      Artifact artifact = new Artifact(
-          ad.getIdentifier(),
-          state == null ? false : state.isCommitted(),
-          ad.getStorageUrl().toString(),
-          ad.getContentLength(),
-          ad.getContentDigest());
-
-      // Save the artifact collection date.
-      artifact.setCollectionDate(ad.getCollectionDate());
-
-      // Add document to request
-      SolrInputDocument doc = binder.toSolrInputDocument(artifact);
-      req.add(doc);
-
-      logSolrUpdate(artifact.getUuid(), SolrCommitJournal.SolrOperation.ADD, doc);
-
-      result.add(artifact);
-    });
-
-    addSolrCredentials(req);
-
-    try {
-      handleSolrResponse(req.process(solrClient, solrCollection),
-          "Could not add Solr documents to index");
-
-      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT),
-          "Could not commit Solr updates");
-    } catch (SolrResponseErrorException | SolrServerException e) {
-      throw new IOException(e);
-    }
-
-    return result;
-  }
+//  @Override
+//  public void indexArtifacts(Iterable<Artifact> artifacts) throws IOException {
+//    UpdateRequest req = new UpdateRequest();
+//    DocumentObjectBinder binder = solrClient.getBinder();
+//
+//    artifacts.forEach(artifact -> {
+//      // Add document to request
+//      SolrInputDocument doc = binder.toSolrInputDocument(artifact);
+//      req.add(doc);
+//
+//      // logSolrUpdate(artifact.getUuid(), SolrCommitJournal.SolrOperation.ADD, doc);
+//    });
+//
+//    addSolrCredentials(req);
+//
+//    try {
+//      handleSolrResponse(req.process(solrClient, solrCollection),
+//          "Could not add Solr documents to index");
+//
+//      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT),
+//          "Could not commit Solr updates");
+//    } catch (SolrResponseErrorException | SolrServerException e) {
+//      throw new IOException(e);
+//    }
+//  }
 
   /**
    * Bulk index artifacts into Solr.
    *
    * @param artifacts An {@link Iterable<Artifact>} containing the {@link Artifact}s to index.
    */
-  public void indexArtifacts(Iterable<Artifact> artifacts, int copyBatchSize) {
+  private final static long BATCH_SIZE = 1000;
+  @Override
+  public void indexArtifacts(Iterable<Artifact> artifacts) {
     DocumentObjectBinder objBinder = solrClient.getBinder();
 
     UpdateRequest req = new UpdateRequest();
@@ -800,7 +767,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       req.add(objBinder.toSolrInputDocument(artifact));
       docsAdded++;
 
-      if (docsAdded % copyBatchSize == 0 || !ai.hasNext()) {
+      if (docsAdded % BATCH_SIZE == 0 || !ai.hasNext()) {
         // Process UpdateRequest batch
         try {
           log.debug("Storing batch");

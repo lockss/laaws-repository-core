@@ -328,13 +328,13 @@ public class ArtifactDataFactory {
    * <p>
    * Takes a {@code StatusLine} containing the HTTP response status associated with this byte stream.
    *
-   * @param metadata       A Spring {@code HttpHeaders} object containing optional artifact headers.
+   * @param headers       A Spring {@code HttpHeaders} object containing optional artifact headers.
    * @param resourceStream An {@code InputStream} containing an arbitrary byte stream.
    * @param responseStatus
    * @return An {@code ArtifactData} wrapping the byte stream.
    */
-  public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream, StatusLine responseStatus) {
-    return new ArtifactData(metadata, resourceStream, responseStatus);
+  public static ArtifactData fromResourceStream(HttpHeaders headers, InputStream resourceStream, StatusLine responseStatus) {
+    return new ArtifactData(headers, resourceStream, responseStatus);
   }
 
   /**
@@ -380,6 +380,7 @@ public class ArtifactDataFactory {
         // Set the ArtifactData content-type to that of the WARC record block if present
         String typeVal = recordHeader.getMimetype();
         if (!StringUtil.isNullOrEmpty(typeVal)) {
+          // FIXME: Parsing the Content-Type of a WARC resource record might fail if malformed
           ad.getHttpHeaders().setContentType(MediaType.valueOf(typeVal));
         }
         break;

@@ -2527,14 +2527,14 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       Artifact committed_a5 = future.get(10, TimeUnit.SECONDS);
       assertTrue(committed_a5.getCommitted());
 
-      // Add third artifact to the repository - don't commit but immediately delete
+      // Add third artifact to the repository - don't commit and immediately delete
       ArtifactData ad3 = generateTestArtifactData(NS1, AUID1, "uri3", 1, 1024);
       Artifact a3 = store.addArtifactData(ad3);
       assertNotNull(a3);
       store.deleteArtifactData(a3);
       index.deleteArtifact(a3.getUuid());
 
-      // Add fourth artifact to the repository - commit and delete
+      // Add fourth artifact to the repository - commit and immediately delete
       ArtifactData ad4 = generateTestArtifactData(NS1, AUID1, "uri4", 1, 1024);
       Artifact a4 = store.addArtifactData(ad4);
       assertNotNull(a4);
@@ -2691,17 +2691,20 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactUuid())).thenReturn(true);
     ds.indexArtifactsFromWarc(index, warcFile);
-    verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+    verify(index, never()).indexArtifact(ArgumentMatchers.any(Artifact.class));
     clearInvocations(index);
 
     when(ds.getArtifactStateEntryFromJournal(spec.getArtifactIdentifier())).thenReturn(stateEntry);
+
+    when(ds.makeWarcRecordStorageUrl(ArgumentMatchers.any(Path.class), ArgumentMatchers.anyLong(), ArgumentMatchers.anyLong()))
+        .thenReturn(URI.create("test"));
 
     // Assert the artifact *is* reindexed if it is not indexed and not recorded as deleted in the journal
     when(ds.getInputStreamAndSeek(warcFile, 0)).thenReturn(new ByteArrayInputStream(warcFileContents));
     when(index.artifactExists(spec.getArtifactUuid())).thenReturn(false);
     when(stateEntry.isDeleted()).thenReturn(false);
     ds.indexArtifactsFromWarc(index, warcFile);
-    verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+    verify(index, atMostOnce()).indexArtifact(ArgumentMatchers.any(Artifact.class));
     clearInvocations(index);
 
     if (WarcArtifactDataStore.SKIP_INDEXING_IF_MARKED_DELETED) {
@@ -2710,7 +2713,7 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       when(index.artifactExists(spec.getArtifactUuid())).thenReturn(false);
       when(stateEntry.isDeleted()).thenReturn(true);
       ds.indexArtifactsFromWarc(index, warcFile);
-      verify(index, never()).indexArtifact(ArgumentMatchers.any(ArtifactData.class));
+      verify(index, never()).indexArtifact(ArgumentMatchers.any(Artifact.class));
       clearInvocations(index);
     }
 

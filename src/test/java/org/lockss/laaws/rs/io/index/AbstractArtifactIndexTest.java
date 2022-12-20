@@ -43,6 +43,7 @@ import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
@@ -213,9 +214,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // Add artifact to index
     ArtifactData ad = spec.getArtifactData();
-    Artifact addedArtifact = index.indexArtifact(ad);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(ad));
     variantState.add(spec);
-    spec.assertArtifactCommon(addedArtifact);
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Sanity checks
     assertTrue(index.artifactExists(spec.getArtifactUuid()));
@@ -284,13 +285,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testIndexArtifact() throws Exception {
-    // Assert attempting to index a null ArtifactData throws an IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "Null artifact data", () -> index.indexArtifact(null));
+    // Assert attempting to index a null Artifact throws an IllegalArgumentException
+    assertThrowsMatch(IllegalArgumentException.class, "Null artifact", () -> index.indexArtifact(null));
 
     // Assert attempting to index an ArtifactData with null ArtifactIdentifier throws an IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "ArtifactData has null identifier", () -> {
-      index.indexArtifact(new ArtifactData(null, null, null, null, null, null));
-    });
+//    assertThrowsMatch(IllegalArgumentException.class, "Artifact has null identifier", () -> {
+//      index.indexArtifact(ArtifactDataUtil.getArtifact(new ArtifactData(null, null, null, null, null, null)));
+//    });
 
     // Assert against variant scenario
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
@@ -310,8 +311,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     spec1.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Index the artifact and assert the Artifact the operation returns matches the spec
-    Artifact indexed1 = index.indexArtifact(spec1.getArtifactData());
-    spec1.assertArtifactCommon(indexed1);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec1.getArtifactData()));
+    spec1.assertArtifactCommon(index.getArtifact(spec1.getArtifactUuid()));
 
     // Assert the artifact exists in the index and it matches the spec
     assertTrue(index.artifactExists(spec1.getArtifactUuid()));
@@ -348,9 +349,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactData ad = spec.getArtifactData();
     ad.setArtifactState(state);
 
-    Artifact indexed = index.indexArtifact(ad);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(ad));
 
-    assertEquals(spec.isCommitted(), indexed.isCommitted());
+    assertEquals(spec.isCommitted(), index.getArtifact(spec.getArtifactUuid()).isCommitted());
   }
 
   public void testIndexUnicodeArtfact_artifactRepoState() throws Exception {
@@ -375,9 +376,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     ArtifactData ad = spec.getArtifactData();
     ad.setArtifactState(state);
 
-    Artifact indexed = index.indexArtifact(ad);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(ad));
 
-    assertEquals(spec.isCommitted(), indexed.isCommitted());
+    assertEquals(spec.isCommitted(), index.getArtifact(spec.getArtifactUuid()).isCommitted());
   }
 
   @VariantTest
@@ -418,10 +419,10 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertNull(index.getArtifact(UUID.fromString(spec.getArtifactUuid())));
 
     // Index the artifact
-    Artifact indexed = index.indexArtifact(spec.getArtifactData());
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
 
     // Sanity check
-    spec.assertArtifactCommon(indexed);
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Retrieve artifact from index and assert it matches the spec
     spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
@@ -1084,8 +1085,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertFalse(index.deleteArtifact(spec.getArtifactUuid()));
 
     // Index the artifact data from spec and assert the return matches spec
-    Artifact indexed = index.indexArtifact(spec.getArtifactData());
-    spec.assertArtifactCommon(indexed);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Assert conditions expected if the artifact is in the index
     assertTrue(index.artifactExists(spec.getArtifactUuid()));
@@ -1132,7 +1133,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertFalse(index.artifactExists(spec.getArtifactUuid()));
 
     // Add the artifact to the index
-    index.indexArtifact(spec.getArtifactData());
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
 
     // Assert that an artifact by the spec's artifact ID now exists
     assertTrue(index.artifactExists(spec.getArtifactUuid()));
@@ -1163,10 +1164,10 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertFalse(spec1.isCommitted());
 
     // Index artifact from artifact spec
-    Artifact indexed = index.indexArtifact(spec1.getArtifactData());
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec1.getArtifactData()));
 
     // Sanity check
-    assertFalse(indexed.getCommitted());
+    assertFalse(index.getArtifact(spec1.getArtifactUuid()).isCommitted());
     Artifact retrieved = index.getArtifact(spec1.getArtifactUuid());
     assertFalse(retrieved.getCommitted());
 
@@ -1199,8 +1200,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Index the artifact
-    Artifact indexed = index.indexArtifact(spec.getArtifactData());
-    spec.assertArtifactCommon(indexed);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Assert that set of AUIDs for the namespace is not empty until the artifact is committed
     assertFalse(IterableUtils.isEmpty(index.getAuIds(spec.getNamespace())));

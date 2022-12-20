@@ -1467,14 +1467,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       // Update ArtifactData object with new properties
-      // FIXME: Avoid doing this
-      artifactData.setStorageUrl(makeWarcRecordStorageUrl(tmpWarcPath, offset, storedRecordLength));
+      URI storageUrl = makeWarcRecordStorageUrl(tmpWarcPath, offset, storedRecordLength);
+
+      assert storageUrl != null;
 
       // ******************
       // Index the artifact
       // ******************
 
-      getArtifactIndex().indexArtifact(artifactData);
+      // Get Artifact from ArtifactData
+      artifactData.setStorageUrl(storageUrl);
+      Artifact artifact = ArtifactDataUtil.getArtifact(artifactData);
+
+      // Add artifact to index
+      getArtifactIndex().indexArtifact(artifact);
 
       // *******************************
       // Write artifact state to journal
@@ -1502,19 +1508,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Return the artifact
       // *******************
 
-      // Create a new Artifact object to return (avoid an index query)
-      Artifact artifact = new Artifact(
-          artifactId,
-          false,
-          artifactData.getStorageUrl().toString(),
-          artifactData.getContentLength(),
-          artifactData.getContentDigest());
-
-      // Set the artifact collection date
-      artifact.setCollectionDate(artifactData.getCollectionDate());
-
       log.debug("Added artifact {}", artifact);
-
       return artifact;
 
     } catch (Exception e) {
@@ -2382,7 +2376,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       // Get an ArchiveReader from the WARC file input stream
       ArchiveReader archiveReader = getArchiveReader(warcFile, new BufferedInputStream(warcStream));
 
-      List<ArtifactData> batch = new ArrayList<>(1000);
+      List<Artifact> batch = new ArrayList<>(1000);
 
       // Process each WARC record found by the ArchiveReader
       for (ArchiveRecord record : archiveReader) {
@@ -2399,6 +2393,21 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             // Default artifact repository state
             artifactData.setArtifactState(ArtifactState.COPIED);
 
+            if (SKIP_INDEXING_IF_MARKED_DELETED) {
+              try {
+                // Determine whether this artifact is recorded as deleted in the journal
+                ArtifactStateEntry stateEntry = getArtifactStateEntryFromJournal(artifactData.getIdentifier());
+
+                // Do not reindex artifact if it is marked as deleted
+                if (stateEntry.isDeleted()) {
+                  continue;
+                }
+              } catch (IOException e) {
+                log.warn("Could not determine whether or not the artifact is deleted [uuid: {}]",
+                    artifactData.getIdentifier().getUuid());
+              }
+            }
+
             //// Generate storage URL
 
             // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
@@ -2411,34 +2420,37 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               // Read WARC record block
               record.skip(record.getHeader().getContentLength());
 
-              // Check that the record is at EOF
+              // Check that the compressed record is at EOF (i.e., we've exhausted the GZIP member stream)
               if (record.read() > -1) {
                 log.warn("Expected an EOF");
               }
 
-              // Set ArchiveReader to EOR
+              // ArchiveReader should already be at EOR but call gotoEOR anyway
               CompressedWARCReader compressedReader = ((CompressedWARCReader) archiveReader);
               compressedReader.gotoEOR(record);
 
               // Compute compressed record length using GZIP member boundaries
               compressedRecordLength =
                   compressedReader.getCurrentMemberEnd() - compressedReader.getCurrentMemberStart();
-
-              // WARNING: We have read past the underlying WARC record of
-              //          this compressed artifact at this point!
             }
 
-            // Set ArtifactData storage URL
-            artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
-                isCompressed ? compressedRecordLength : recordLength));
+            URI storageUrl = makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
+                isCompressed ? compressedRecordLength : recordLength);
+
+            assert storageUrl != null;
+
+            //// Convert ArtifactData to Artifact
+            artifactData.setStorageUrl(storageUrl); // FIXME
+            Artifact artifact = ArtifactDataUtil.getArtifact(artifactData);
+//            artifact.setStorageUrl(storageUrl.toString());
 
             //// Add artifacts to the index
             artifactsIndexed++;
-            batch.add(artifactData);
+            batch.add(artifact);
 
             // Index batch if size equals batch size
             if (batch.size() == BATCH_SIZE) {
-              List<Artifact> result = index.indexArtifacts(batch);
+              index.indexArtifacts(batch);
               batch.clear();
             }
           }
@@ -2454,7 +2466,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Index whatever is left in the buffer
       if (batch.size() > 0) {
-        List<Artifact> result = index.indexArtifacts(batch);
+        index.indexArtifacts(batch);
         batch.clear();
       }
     } catch (IOException e) {
@@ -2541,17 +2553,20 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               // Compute compressed record length using GZIP member boundaries
               compressedRecordLength =
                   compressedReader.getCurrentMemberEnd() - compressedReader.getCurrentMemberStart();
-
-              // WARNING: We have read past the underlying WARC record of
-              //          this compressed artifact at this point!
             }
 
-            // Set ArtifactData storage URL
-            artifactData.setStorageUrl(makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
-                isCompressed ? compressedRecordLength : recordLength));
+            URI storageUrl = makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(), isCompressed ?
+                compressedRecordLength : recordLength);
+
+            assert storageUrl != null;
+
+            //// Convert ArtifactData to Artifact
+            artifactData.setStorageUrl(storageUrl); // FIXME
+            Artifact artifact = ArtifactDataUtil.getArtifact(artifactData);
+//            artifact.setStorageUrl(storageUrl.toString());
 
             //// Add artifact to the index
-            index.indexArtifact(artifactData);
+            index.indexArtifact(artifact);
             artifactsIndexed++;
           }
         } catch (IOException e) {

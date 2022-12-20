@@ -404,4 +404,19 @@ public class ArtifactDataUtil {
       if (v == null) return;
       props.put(k, v);
   }
+
+  public static Artifact getArtifact(ArtifactData ad) {
+    ArtifactState state = ad.getArtifactState();
+
+    Artifact artifact = new Artifact(
+        ad.getIdentifier(),
+        state != null && state.isCommitted(),
+        ad.getStorageUrl() != null ? ad.getStorageUrl().toString() : null,
+        ad.getContentLength(),
+        ad.getContentDigest());
+
+    artifact.setCollectionDate(ad.getCollectionDate());
+
+    return artifact;
+  }
 }

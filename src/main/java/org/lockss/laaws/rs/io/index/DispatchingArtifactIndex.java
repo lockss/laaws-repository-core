@@ -147,12 +147,12 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public Artifact indexArtifact(ArtifactData artifactData) throws IOException {
-    return findIndexHolding(artifactData).indexArtifact(artifactData);
+  public void indexArtifact(Artifact artifact) throws IOException {
+    findIndexHolding(artifact.getIdentifier()).indexArtifact(artifact);
   }
 
   @Override
-  public List<Artifact> indexArtifacts(List<ArtifactData> ads) {
+  public void indexArtifacts(Iterable<Artifact> artifacts) {
     throw new UnsupportedOperationException();
   }
 
@@ -330,7 +330,7 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
     volInd.stop();
     try {
       Iterable<Artifact> artifacts = volInd.getArtifactsAllVersions(namespace, auid, true);
-      ((SolrArtifactIndex)masterIndex).indexArtifacts(artifacts, copyBatchSize);
+      masterIndex.indexArtifacts(artifacts);
     } catch (IOException e) {
       log.error("Failed to retrieve and bulk add artifacts", e);
       throw e;
