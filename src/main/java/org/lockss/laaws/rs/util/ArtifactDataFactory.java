@@ -64,6 +64,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -139,8 +140,8 @@ public class ArtifactDataFactory {
    */
   public static HttpResponse getHttpResponseFromStream(InputStream inputStream) throws HttpException, IOException {
     // Create a SessionInputBuffer from the InputStream containing a HTTP response
-    SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
-    buffer.bind(inputStream);
+    SessionInputBufferImpl buffer =
+      ArtifactDataUtil.getSessionInputBuffer(inputStream);
 
     // Parse the InputStream to a HttpResponse object
     HttpResponse response = (new DefaultHttpResponseParser(buffer)).parse();
