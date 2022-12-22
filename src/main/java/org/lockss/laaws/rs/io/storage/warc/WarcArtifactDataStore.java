@@ -2399,7 +2399,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 ArtifactStateEntry stateEntry = getArtifactStateEntryFromJournal(artifactData.getIdentifier());
 
                 // Do not reindex artifact if it is marked as deleted
-                if (stateEntry.isDeleted()) {
+                if (stateEntry != null && stateEntry.isDeleted()) {
                   continue;
                 }
               } catch (IOException e) {
@@ -2517,11 +2517,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
                 ArtifactStateEntry stateEntry = getArtifactStateEntryFromJournal(artifactData.getIdentifier());
 
                 // Set repository state
-                artifactData.setArtifactState(stateEntry.getArtifactState());
+                if (stateEntry != null) {
+                  artifactData.setArtifactState(stateEntry.getArtifactState());
 
-                // Do not reindex artifact if it is marked as deleted
-                if (stateEntry.isDeleted()) {
-                  continue;
+                  // Do not reindex artifact if it is marked as deleted
+                  if (stateEntry.isDeleted()) {
+                    continue;
+                  }
                 }
               } catch (IOException e) {
                 log.warn("Applying default state to artifact [uuid: {}, state: {}]",
