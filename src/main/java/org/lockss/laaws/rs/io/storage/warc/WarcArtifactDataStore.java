@@ -34,7 +34,6 @@ package org.lockss.laaws.rs.io.storage.warc;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.io.CountingInputStream;
 import com.google.common.io.CountingOutputStream;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -58,6 +57,11 @@ import org.archive.io.warc.WARCRecord;
 import org.archive.io.warc.WARCRecordInfo;
 import org.archive.util.anvl.Element;
 import org.archive.util.zip.GZIPMembersInputStream;
+import org.jwat.common.Payload;
+import org.jwat.warc.WarcReader;
+import org.jwat.warc.WarcReaderFactory;
+import org.jwat.warc.WarcRecord;
+import com.google.common.io.CountingInputStream;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.core.SemaphoreMap;
@@ -72,7 +76,6 @@ import org.lockss.laaws.rs.util.*;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.Constants;
-import org.lockss.util.LockssUncheckedIOException;
 import org.lockss.util.concurrent.stripedexecutor.StripedCallable;
 import org.lockss.util.concurrent.stripedexecutor.StripedExecutorService;
 import org.lockss.util.io.DeferredTempFileOutputStream;
@@ -2373,21 +2376,25 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     long artifactsIndexed = 0;
 
     try (InputStream warcStream = getInputStreamAndSeek(warcFile, 0)) {
-      // Get an ArchiveReader from the WARC file input stream
-      ArchiveReader archiveReader = getArchiveReader(warcFile, new BufferedInputStream(warcStream));
+      InputStream buf = new BufferedInputStream(warcStream);
+      InputStream warcIs = isCompressed ? new GZIPInputStream(buf) : buf;
+      WarcReader reader = WarcReaderFactory.getReader(warcIs);
+      Iterator<WarcRecord> recordIter = reader.iterator();
 
       List<Artifact> batch = new ArrayList<>(1000);
 
-      // Process each WARC record found by the ArchiveReader
-      for (ArchiveRecord record : archiveReader) {
+      while (recordIter.hasNext()) {
+        long startOffset = reader.getOffset();
+        WarcRecord record = recordIter.next();
+
         log.debug2("Re-indexing artifact from WARC {} record {} from {}",
-            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_TYPE),
-            record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+            record.getHeader(WARCConstants.HEADER_KEY_TYPE),
+            record.getHeader(WARCConstants.HEADER_KEY_ID),
             warcFile);
 
         try {
           // Transform ArchiveRecord to ArtifactData
-          ArtifactData artifactData = ArtifactDataFactory.fromArchiveRecord(record);
+          ArtifactData artifactData = ArtifactDataFactory.fromWarcRecord(record);
 
           if (artifactData != null) {
             // Default artifact repository state
@@ -2410,32 +2417,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
             //// Generate storage URL
 
-            // ArchiveRecordHeader#getLength() does not include the pair of CRLFs at the end of every WARC record so
-            // we add four bytes to the length
-            // Note: Content-Length is a mandatory WARC record header according to the WARC spec
-            long recordLength = record.getHeader().getLength() + 4L;
-            long compressedRecordLength = 0;
+            // Skip to EOR
+            Payload payload = record.getPayload();
+            IOUtils.skip(payload.getInputStream(), payload.getRemaining());
 
-            if (isCompressed) {
-              // Read WARC record block
-              record.skip(record.getHeader().getContentLength());
+            long recordLength = reader.getOffset() - startOffset;
 
-              // Check that the compressed record is at EOF (i.e., we've exhausted the GZIP member stream)
-              if (record.read() > -1) {
-                log.warn("Expected an EOF");
-              }
-
-              // ArchiveReader should already be at EOR but call gotoEOR anyway
-              CompressedWARCReader compressedReader = ((CompressedWARCReader) archiveReader);
-              compressedReader.gotoEOR(record);
-
-              // Compute compressed record length using GZIP member boundaries
-              compressedRecordLength =
-                  compressedReader.getCurrentMemberEnd() - compressedReader.getCurrentMemberStart();
-            }
-
-            URI storageUrl = makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(),
-                isCompressed ? compressedRecordLength : recordLength);
+            URI storageUrl = makeWarcRecordStorageUrl(warcFile, startOffset, recordLength);
 
             assert storageUrl != null;
 
@@ -2457,7 +2445,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
         } catch (IOException e) {
           log.error("Could not index artifact from WARC record [WARC-Record-ID: {}, warcFile: {}]",
-              record.getHeader().getHeaderValue(WARCConstants.HEADER_KEY_ID),
+              record.getHeader(WARCConstants.HEADER_KEY_ID),
               warcFile, e);
 
           throw e;

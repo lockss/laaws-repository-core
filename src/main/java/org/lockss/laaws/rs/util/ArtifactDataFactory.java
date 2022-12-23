@@ -49,6 +49,8 @@ import org.apache.http.message.BasicHeader;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.jwat.common.HeaderLine;
+import org.jwat.warc.WarcRecord;
 import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.Artifact;
@@ -72,6 +74,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
@@ -237,6 +240,31 @@ public class ArtifactDataFactory {
         // Q: Use (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI)?
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
         version);
+  }
+
+  public static ArtifactIdentifier buildArtifactIdentifier(WarcRecord record) {
+    int version = 0;
+    String versionVal = getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_VERSION_KEY));
+    if (!StringUtils.isEmpty(versionVal)) {
+      version = Integer.parseInt(versionVal);
+    }
+
+    String namespace = getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_NAMESPACE_KEY));
+    if (StringUtils.isEmpty(namespace)) {
+      namespace = getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY));
+    }
+
+    return new ArtifactIdentifier(
+        parseWarcRecordIdForUUID(getHeadValueOrNull(record.getHeader(WARCConstants.HEADER_KEY_ID))),
+        namespace,
+        getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_AUID_KEY)),
+        // Q: Use (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI)?
+        getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_URI_KEY)),
+        version);
+  }
+
+  private static String getHeadValueOrNull(HeaderLine headerLine) {
+    return headerLine == null ? null : headerLine.value;
   }
 
   private final static Pattern uuidPattern = Pattern.compile("<urn:uuid:(.+)>");
@@ -506,5 +534,89 @@ public class ArtifactDataFactory {
       log.error("Could not process MultipartMessage into ArtifactData object", e);
       throw new IOException("Error processing multipart response");
     }
+  }
+
+  public static ArtifactData fromWarcRecord(WarcRecord record) throws IOException {
+    // Get WARC record header
+    List<HeaderLine> headersList = record.getHeaderList();
+
+    Map<String, String> headers = new HashMap<>();
+    for (HeaderLine hl: record.getHeaderList()) {
+      headers.put(hl.name, hl.value);
+    }
+
+    ArtifactData ad;
+
+    // Read ArtifactIdentifier from the WARC record headers
+    ArtifactIdentifier artifactId = buildArtifactIdentifier(record);
+
+    // Read WARC record type from record headers
+    WARCConstants.WARCRecordType recordType =
+        WARCConstants.WARCRecordType.valueOf(headers.get(WARCConstants.HEADER_KEY_TYPE));
+
+    String mimeType = headers.get(WARCConstants.CONTENT_TYPE);
+
+    // Artifacts can only be read out of WARC response and resource type records
+    switch (recordType) {
+      case response:
+        // Sanity check
+        if (mimeType == null || !mimeType.startsWith("application/http")) {
+          log.warn("Unexpected content MIME type WARC response record: {}", mimeType);
+          throw new IllegalStateException("Invalid MIME type: " + mimeType);
+        }
+
+        // Parse the ArchiveRecord into an ArtifactData
+        ad = ArtifactDataFactory.fromHttpResponseStream(record.getPayload().getInputStreamComplete());
+        ad.setIdentifier(artifactId);
+        break;
+
+      case resource:
+        // Parse the ArchiveRecord into an ArtifactData
+        ad = ArtifactDataFactory.fromResource(record.getPayloadContent());
+        ad.setIdentifier(artifactId);
+
+        // Set the ArtifactData content-type to that of the WARC record block if present
+        if (!StringUtil.isNullOrEmpty(mimeType)) {
+          ad.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, mimeType);
+        }
+        break;
+
+      default:
+        log.warn("Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
+            headers.get(WARCConstants.HEADER_KEY_ID), recordType);
+
+        // Could not return an artifact elsewhere
+        return null;
+    }
+
+    String artifactContentLength = headers.get(ArtifactConstants.ARTIFACT_LENGTH_KEY);
+    log.trace("artifactContentLength = {}", artifactContentLength);
+    if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
+      ad.setContentLength(Long.parseLong(artifactContentLength));
+    }
+
+    String artifactDigest = headers.get(ArtifactConstants.ARTIFACT_DIGEST_KEY);
+    log.trace("artifactDigest = {}", artifactDigest);
+    if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
+      ad.setContentDigest(artifactDigest);
+    }
+
+    String artifactStoredDate = headers.get(ArtifactConstants.ARTIFACT_STORED_DATE);
+    log.trace("artifactStoredDate = {}", artifactStoredDate);
+    if (artifactStoredDate != null && !artifactStoredDate.trim().isEmpty()) {
+      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactStoredDate);
+      ad.setStoredDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+    }
+
+    String artifactCollectionDate = headers.get(WARCConstants.HEADER_KEY_DATE);
+    log.trace("artifactCollectionDate = {}", artifactCollectionDate);
+    if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
+      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
+      ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+    }
+
+    log.trace("ad = {}", ad);
+
+    return ad;
   }
 }

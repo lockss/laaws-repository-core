@@ -357,6 +357,12 @@ POSSIBILITY OF SUCH DAMAGE.
       <artifactId>commons-csv</artifactId>
       <version>1.4</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.jwat</groupId>
+      <artifactId>jwat-warc</artifactId>
+      <version>1.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>
