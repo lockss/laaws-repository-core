@@ -152,8 +152,10 @@ public class DispatchingArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public void indexArtifacts(Iterable<Artifact> artifacts) {
-    throw new UnsupportedOperationException();
+  public void indexArtifacts(Iterable<Artifact> artifacts) throws IOException {
+    // FIXME: This is safe for reindex but once the Repository has started,
+    //  it is not going to direct index operations to the correct index.
+    masterIndex.indexArtifacts(artifacts);
   }
 
   @Override
