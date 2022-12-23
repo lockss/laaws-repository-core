@@ -2377,14 +2377,17 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     try (InputStream warcStream = getInputStreamAndSeek(warcFile, 0)) {
       InputStream buf = new BufferedInputStream(warcStream);
-      InputStream warcIs = isCompressed ? new GZIPInputStream(buf) : buf;
-      WarcReader reader = WarcReaderFactory.getReader(warcIs);
+
+      WarcReader reader = isCompressed ?
+          WarcReaderFactory.getReaderCompressed(buf) :
+          WarcReaderFactory.getReaderUncompressed(buf);
+
       Iterator<WarcRecord> recordIter = reader.iterator();
 
       List<Artifact> batch = new ArrayList<>(1000);
 
       while (recordIter.hasNext()) {
-        long startOffset = reader.getOffset();
+        long startOffset = reader.getStartOffset();
         WarcRecord record = recordIter.next();
 
         log.debug2("Re-indexing artifact from WARC {} record {} from {}",
@@ -2416,12 +2419,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             }
 
             //// Generate storage URL
-
-            // Skip to EOR
-            Payload payload = record.getPayload();
-            IOUtils.skip(payload.getInputStream(), payload.getRemaining());
-
-            long recordLength = reader.getOffset() - startOffset;
+            recordIter.hasNext();
+            long recordLength = reader.getStartOffset() - startOffset;
 
             URI storageUrl = makeWarcRecordStorageUrl(warcFile, startOffset, recordLength);
 

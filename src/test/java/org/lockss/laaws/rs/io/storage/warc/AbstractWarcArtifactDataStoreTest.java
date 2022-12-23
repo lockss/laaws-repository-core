@@ -2518,6 +2518,15 @@ public abstract class AbstractWarcArtifactDataStoreTest<WADS extends WarcArtifac
       Artifact committed_a2 = future.get(10, TimeUnit.SECONDS);
       assertTrue(committed_a2.getCommitted());
 
+      // Add another committed artifact
+      ArtifactData ad6 = generateTestArtifactData(NS1, AUID1, "uriXXX2", 1, 1024);
+      Artifact a6 = store.addArtifactData(ad6);
+      assertNotNull(a6);
+      future = store.commitArtifactData(a6);
+      assertNotNull(future);
+      Artifact committed_a6 = future.get(10, TimeUnit.SECONDS);
+      assertTrue(committed_a6.getCommitted());
+
       // Add another artifact to the repository - commit
       ArtifactData ad5 = generateTestArtifactData(NS1, AUID1, "uri2", 2, 1024);
       Artifact a5 = store.addArtifactData(ad5);

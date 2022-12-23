@@ -36,20 +36,20 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.Header;
-import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
+import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.IdentityInputStream;
 import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicHttpResponse;
+import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.jwat.common.HeaderLine;
+import org.jwat.common.HttpHeader;
 import org.jwat.warc.WarcRecord;
 import org.lockss.laaws.rs.core.RestLockssRepository;
 import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
@@ -61,7 +61,6 @@ import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
@@ -74,7 +73,6 @@ import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
@@ -181,6 +179,35 @@ public class ArtifactDataFactory {
 //        artifactData.setContentLength(response.getEntity().getContentLength());
 
     return artifactData;
+  }
+
+  /**
+   * Constructs an {@link ArtifactData} from a jwat-warc {@link WarcRecord} object.
+   * @param record A {@link WarcRecord} containing the backing WARC record.
+   * @return An {@link ArtifactData} object constructed from its underlying WARC record.
+   * @throws IOException Thrown if there were any IO errors.
+   */
+  public static ArtifactData fromHttpResponseWarcRecord(WarcRecord record) throws IOException {
+    HttpHeader httpHeader = record.getHttpHeader();
+
+    ProtocolVersion protoVer = new ProtocolVersion(
+        httpHeader.httpVersion,
+        httpHeader.httpVersionMajor,
+        httpHeader.httpVersionMinor);
+
+    StatusLine statusLine = new BasicStatusLine(protoVer, httpHeader.statusCode, httpHeader.reasonPhrase);
+    HttpResponse response = new BasicHttpResponse(statusLine);
+
+    BasicHttpEntity entity = new BasicHttpEntity();
+    entity.setContent(record.getPayloadContent());
+
+    for (HeaderLine hline : httpHeader.getHeaderList()) {
+      response.setHeader(hline.name, hline.value);
+    }
+
+    response.setEntity(entity);
+
+    return fromHttpResponse(response);
   }
 
   /**
@@ -566,7 +593,8 @@ public class ArtifactDataFactory {
         }
 
         // Parse the ArchiveRecord into an ArtifactData
-        ad = ArtifactDataFactory.fromHttpResponseStream(record.getPayload().getInputStreamComplete());
+//        ad = ArtifactDataFactory.fromHttpResponseStream(record.getPayload().getInputStreamComplete()); // FIXME
+        ad = fromHttpResponseWarcRecord(record);
         ad.setIdentifier(artifactId);
         break;
 
