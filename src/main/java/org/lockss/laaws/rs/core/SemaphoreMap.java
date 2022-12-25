@@ -95,6 +95,8 @@ public class SemaphoreMap<T> {
   /**
    * Returns the existing internal {@link SemaphoreAndCount} of a key, or creates and returns a new one.
    *
+   * Called only from code synchronized on locks map
+   *
    * @param key The key of the {@link SemaphoreAndCount} to return.
    * @return The {@link SemaphoreAndCount} of the key.
    */
@@ -130,6 +132,7 @@ public class SemaphoreMap<T> {
       // May block until it can be acquired
       snc.getSemaphore().acquire();
     } catch (InterruptedException e) {
+      decrementCounter(snc, key);
       log.warn("Interrupted in acquire()", e);
       throw e;
     }
@@ -151,7 +154,13 @@ public class SemaphoreMap<T> {
 
       snc.getSemaphore().release();
 
-      // Decrement the usage count; remove the semaphore from map if no longer in use
+      decrementCounter(snc, key);
+    }
+  }
+
+  void decrementCounter(SemaphoreAndCount snc, T key) {
+    // Decrement the usage count; remove the semaphore from map if no longer in use
+    synchronized (locks) {
       if (snc.decrementCounter() < 1) {
         if (snc.getSemaphore().hasQueuedThreads()) {
           log.warn("Semaphore still has queued threads [key: {}]", key);
@@ -169,8 +178,10 @@ public class SemaphoreMap<T> {
    * @return An {@link Integer} containing the usage count of the semaphore.
    */
   public Integer getCount(T key) {
-    SemaphoreAndCount snc = locks.get(key);
-    return (snc == null) ? null : snc.count;
+    synchronized (locks) {
+      SemaphoreAndCount snc = locks.get(key);
+      return (snc == null) ? null : snc.count;
+    }
   }
 
   /**
@@ -179,6 +190,8 @@ public class SemaphoreMap<T> {
    * @return An {@code int} containing the number of semaphores in the internal map.
    */
   public int getSize() {
-    return locks.size();
+    synchronized (locks) {
+      return locks.size();
+    }
   }
 }

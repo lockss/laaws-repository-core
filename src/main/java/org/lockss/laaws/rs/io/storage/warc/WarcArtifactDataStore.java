@@ -1017,11 +1017,11 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Acquire artifact lock: Operations below alter artifact state
         lockArtifact(aid);
 
-        Artifact artifact = index.getArtifact(aid);
-        ArtifactState state = getArtifactState(artifact, isArtifactExpired(record.getHeader()));
-
         // Resume artifact lifecycle based on the artifact's state
         try {
+          Artifact artifact = index.getArtifact(aid);
+          ArtifactState state = getArtifactState(artifact, isArtifactExpired(record.getHeader()));
+
           switch (state) {
             case UNCOMMITTED:
               break;
@@ -1555,7 +1555,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         throw new LockssNoSuchArtifactIdException("Artifact not found");
       }
 
-      lockArtifact(indexedArtifact.getIdentifier());
+      ArtifactIdentifier artifactId = indexedArtifact.getIdentifier();
+      lockArtifact(artifactId);
 
       try {
         // Get storage URL and WARC path of artifact's WARC record
@@ -1590,7 +1591,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         log.error("Malformed storage URL [storageUrl: {}]", indexedArtifact.getStorageUrl());
         throw new IllegalArgumentException("Malformed storage URL");
       } finally {
-        releaseArtifactLock(indexedArtifact.getIdentifier());
+        releaseArtifactLock(artifactId);
       }
 
       log.debug2("uuid: {}, storageUrl: {}", artifactUuid, storageUrl);
@@ -1939,9 +1940,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
           // Set the artifact's new storage URL and update the index
           lockArtifact(artifactId);
-          artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
-          getArtifactIndex().updateStorageUrl(artifact.getUuid(), artifact.getStorageUrl());
-          releaseArtifactLock(artifactId);
+          try {
+            artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
+            getArtifactIndex().updateStorageUrl(artifact.getUuid(), artifact.getStorageUrl());
+          } finally {
+            releaseArtifactLock(artifactId);
+          }
 
           log.debug2("Updated storage URL [uuid: {}, storageUrl: {}]",
               artifact.getUuid(), artifact.getStorageUrl());
