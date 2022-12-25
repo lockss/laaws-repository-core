@@ -131,6 +131,11 @@ public class SemaphoreMap<T> {
     try {
       // May block until it can be acquired
       snc.getSemaphore().acquire();
+      if (log.isTraceEnabled()) {
+        log.fatal("Acquired lock: {}", key, new Throwable());
+      } else if (log.isDebug2Enabled()) {
+        log.fatal("Acquired lock: {}", key);
+      }
     } catch (InterruptedException e) {
       decrementCounter(snc, key);
       log.warn("Interrupted in acquire()", e);
@@ -144,6 +149,11 @@ public class SemaphoreMap<T> {
    * @param key The key of the semaphore to release the lock of.
    */
   public void releaseLock(T key) {
+    if (log.isTraceEnabled()) {
+      log.fatal("Releasing lock: {}", key, new Throwable());
+    } else if (log.isDebug2Enabled()) {
+      log.fatal("Releasing lock: {}", key);
+    }
     synchronized (locks) {
       // Release the semaphore lock
       SemaphoreAndCount snc = getSemaphoreAndCount(key);
@@ -153,6 +163,10 @@ public class SemaphoreMap<T> {
       }
 
       snc.getSemaphore().release();
+
+      if (log.isDebug2Enabled()) {
+        log.fatal("Released lock: {}", key);
+      }
 
       decrementCounter(snc, key);
     }
