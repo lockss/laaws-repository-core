@@ -177,6 +177,7 @@ public class SemaphoreMap<T> {
         }
         snc.getSemaphore().release();
       }
+      snc.setContext();
       if (log.isTraceEnabled()) {
         log.fatal("Acquired lock: {}", key, new Throwable());
       } else if (log.isDebug2Enabled()) {
