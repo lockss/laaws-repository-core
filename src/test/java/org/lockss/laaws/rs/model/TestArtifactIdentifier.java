@@ -131,7 +131,72 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
         assertTrue(id1.compareTo(id2) <= -1);
     }
 
-  
+    @Test
+    public void equals() {
+        ArtifactIdentifier id1 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id2 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id3 = new ArtifactIdentifier(
+                "id3",
+                "c",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id4 = new ArtifactIdentifier(
+                "id1",
+                "ddd",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id5 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "b",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id6 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "sdflkja",
+                1
+        );
+
+        ArtifactIdentifier id7 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "u",
+                42
+        );
+
+        assertEquals(id1, id2);
+        assertEquals(id1, id3);         // UUId not part of equals()
+        assertNotEquals(id1, id4);
+        assertNotEquals(id1, id5);
+        assertNotEquals(id1, id6);
+        assertNotEquals(id1, id7);
+    }
+
   ArtifactIdentifier artId(String namespace, String auid, String uri, int version) {
     return new ArtifactIdentifier(namespace, auid, uri, version);
   }

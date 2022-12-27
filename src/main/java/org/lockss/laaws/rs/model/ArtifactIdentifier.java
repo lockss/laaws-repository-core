@@ -33,6 +33,7 @@ package org.lockss.laaws.rs.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ComparisonChain;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -154,7 +155,12 @@ public class ArtifactIdentifier implements Serializable, Comparable<ArtifactIden
     @Override
     public boolean equals(Object o) {
        ArtifactIdentifier other = (ArtifactIdentifier)o;
-       return other != null && this.compareTo(other) == 0;
+       return new EqualsBuilder()
+         .append(uri, other.getUri())
+         .append(version, other.getVersion())
+         .append(auid, other.getAuid())
+         .append(namespace, other.getNamespace())
+         .isEquals();
     }
 
     @Override

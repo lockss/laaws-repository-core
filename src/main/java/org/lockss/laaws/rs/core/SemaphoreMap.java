@@ -87,7 +87,7 @@ public class SemaphoreMap<T> {
      *
      * @return A {@code long} containing the usage count.
      */
-    public long decrementCounter() {
+    public int decrementCounter() {
       return --count;
     }
   }
@@ -139,6 +139,10 @@ public class SemaphoreMap<T> {
     } catch (InterruptedException e) {
       decrementCounter(snc, key);
       log.warn("Interrupted in acquire()", e);
+      throw e;
+    } catch (Throwable e) {
+      decrementCounter(snc, key);
+      log.fatal("AACCKK, Throwable in acquire()", e);
       throw e;
     }
   }
