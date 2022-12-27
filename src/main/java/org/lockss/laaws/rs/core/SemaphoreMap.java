@@ -34,8 +34,11 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.log.L4JLogger;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -57,12 +60,13 @@ public class SemaphoreMap<T> {
   private static class SemaphoreAndCount {
     private Semaphore sm;
     private int count;
+    private Throwable context;
 
     /**
      * Constructor.
      */
     public SemaphoreAndCount() {
-      this.sm = new Semaphore(1);
+      this.sm = new Semaphore(1, true);
       this.count = 0;
     }
 
@@ -90,6 +94,39 @@ public class SemaphoreMap<T> {
     public int decrementCounter() {
       return --count;
     }
+
+    public void setContext() {
+      context = new Throwable();
+    }
+
+    public void eraseContext() {
+      context = null;
+    }
+
+    public Throwable getContext() {
+      return context;
+    }
+
+  }
+
+  /**
+   * Closeable object representing lock, to allow use in
+   * try-with-resources
+   */
+  public class SemaphoreLock implements Closeable {
+    private T key;
+
+    /**
+     * Constructor.
+     */
+    public SemaphoreLock(T key) {
+      this.key = key;
+    }
+
+    @Override
+    public void close() throws IOException {
+      releaseLock(key);
+    }
   }
 
   /**
@@ -102,15 +139,16 @@ public class SemaphoreMap<T> {
    */
   private SemaphoreAndCount getSemaphoreAndCount(T key) {
     // Get semaphore and count from internal map
-    SemaphoreAndCount snc = locks.get(key);
+    synchronized (locks) {
+      SemaphoreAndCount snc = locks.get(key);
 
-    // Create a new semaphore and count if one did not exist in the map
-    if (snc == null) {
-      snc = new SemaphoreAndCount();
-      locks.put(key, snc);
+      // Create a new semaphore and count if one did not exist in the map
+      if (snc == null) {
+        snc = new SemaphoreAndCount();
+        locks.put(key, snc);
+      }
+      return snc;
     }
-
-    return snc;
   }
 
   /**
@@ -119,7 +157,7 @@ public class SemaphoreMap<T> {
    * @param key The key of the semaphore to acquire the lock of.
    * @throws InterruptedException Thrown if the thread is interrupted while waiting to acquire.
    */
-  public void getLock(T key) throws InterruptedException {
+  public SemaphoreLock getLock(T key) throws InterruptedException {
     SemaphoreAndCount snc;
 
     // Get the semaphore and increase its usage count
@@ -130,7 +168,15 @@ public class SemaphoreMap<T> {
 
     try {
       // May block until it can be acquired
-      snc.getSemaphore().acquire();
+//       snc.getSemaphore().acquire();
+      while (!snc.getSemaphore().tryAcquire(1, TimeUnit.HOURS)) {
+        if (snc.getContext() != null) {
+          log.fatal("Lock not acquired in an hour: {}", key, snc.getContext());
+        } else {
+          log.fatal("Lock not acquired in an hour *and* we dnn't think it's held by anybody: {}", key);
+        }
+        snc.getSemaphore().release();
+      }
       if (log.isTraceEnabled()) {
         log.fatal("Acquired lock: {}", key, new Throwable());
       } else if (log.isDebug2Enabled()) {
@@ -145,6 +191,7 @@ public class SemaphoreMap<T> {
       log.fatal("AACCKK, Throwable in acquire()", e);
       throw e;
     }
+    return new SemaphoreLock(key);
   }
 
   /**
@@ -160,14 +207,20 @@ public class SemaphoreMap<T> {
     }
     synchronized (locks) {
       // Release the semaphore lock
-      SemaphoreAndCount snc = getSemaphoreAndCount(key);
+//       SemaphoreAndCount snc = getSemaphoreAndCount(key);
+      SemaphoreAndCount snc = locks.get(key);
+      if (snc == null) {
+        log.error("Attempt to release non-existent lock for {}", key);
+        throw new IllegalStateException("No existing semaphore for: " + key);
+      }
 
       if (snc.count < 1) {
-        log.warn("Releasing semaphore with usage counter less than one [key: {}]", key);
+        log.warn("Releasing semaphore with usage counter less than one [key: {}]", key, new Throwable());
+        throw new IllegalStateException("Releasing semaphore with usage counter less than one for: " + key);
       }
 
       snc.getSemaphore().release();
-
+      snc.eraseContext();
       if (log.isDebug2Enabled()) {
         log.fatal("Released lock: {}", key);
       }

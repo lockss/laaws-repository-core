@@ -32,8 +32,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.core;
 
+import java.io.*;
 import org.junit.Test;
 import org.lockss.log.L4JLogger;
+import org.lockss.laaws.rs.core.SemaphoreMap.SemaphoreLock;
 import org.lockss.util.test.LockssTestCase5;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -52,7 +54,10 @@ public class TestSemaphoreMap extends LockssTestCase5 {
     assertNull(locks.getCount(TEST_KEY));
 
     // Release lock and assert usage count is still zero (will generate a warning message)
-    locks.releaseLock(TEST_KEY);
+    try {
+      locks.releaseLock(TEST_KEY);
+    } catch (IllegalStateException e) {
+    }
     assertNull(locks.getCount(TEST_KEY));
 
     // Acquire lock and assert it is incremented to one
@@ -96,15 +101,19 @@ public class TestSemaphoreMap extends LockssTestCase5 {
     @Override
     public void run() {
       try {
-        locks.getLock(TEST_KEY);
-        queue.offer(counter++);
-        Thread.sleep(50);
+        try {
+          try (SemaphoreLock lock = locks.getLock(TEST_KEY)) {
+            queue.offer(counter++);
+            Thread.sleep(50);
+          } finally {
+            queue.offer(--counter);
+          }
+        } catch (IOException e ) {
+          throw new RuntimeException(e);
+        }
+        queue.offer(0); // good enough for test code
       } catch (InterruptedException e) {
         e.printStackTrace();
-      } finally {
-        queue.offer(--counter);
-        locks.releaseLock(TEST_KEY);
-        queue.offer(0); // good enough for test code
       }
     }
   }

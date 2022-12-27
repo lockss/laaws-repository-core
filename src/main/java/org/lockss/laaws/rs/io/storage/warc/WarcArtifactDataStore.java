@@ -65,6 +65,7 @@ import com.google.common.io.CountingInputStream;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
 import org.lockss.laaws.rs.core.SemaphoreMap;
+import org.lockss.laaws.rs.core.SemaphoreMap.SemaphoreLock;
 import org.lockss.laaws.rs.impl.ArtifactContainerStats;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
 import org.lockss.laaws.rs.io.storage.ArtifactDataStore;
@@ -1014,11 +1015,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // Read WARC record header for artifact ID
         ArtifactIdentifier aid = ArtifactDataFactory.buildArtifactIdentifier(record.getHeader());
 
-        // Acquire artifact lock: Operations below alter artifact state
-        lockArtifact(aid);
-
         // Resume artifact lifecycle based on the artifact's state
-        try {
+        // Acquire artifact lock: Operations below alter artifact state
+        try (SemaphoreLock lock = lockArtifact(aid)) {
           Artifact artifact = index.getArtifact(aid);
           ArtifactState state = getArtifactState(artifact, isArtifactExpired(record.getHeader()));
 
@@ -1054,8 +1053,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               log.warn("Unknown artifact state [uuid: {}, state: {}]", artifact.getUuid(), state);
               break;
           }
-        } finally {
-          releaseArtifactLock(aid);
+//         } finally {
+//           releaseArtifactLock(aid);
         }
 
         // All records must be removable for temporary WARC file to be removable
@@ -1137,9 +1136,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       case response:
       case resource:
         // Lock artifact
-        lockArtifact(aid);
-
-        try {
+        try (SemaphoreLock lock = lockArtifact(aid)) {
           Artifact indexed = getArtifactIndex().getArtifact(aid);
           ArtifactState state = getArtifactState(indexed, isArtifactExpired(record.getHeader()));
 
@@ -1157,8 +1154,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             default:
               return false;
           }
-        } finally {
-          releaseArtifactLock(aid);
         }
 
       default:
@@ -1556,9 +1551,8 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
       }
 
       ArtifactIdentifier artifactId = indexedArtifact.getIdentifier();
-      lockArtifact(artifactId);
 
-      try {
+      try (SemaphoreLock lock = lockArtifact(artifactId)) {
         // Get storage URL and WARC path of artifact's WARC record
         storageUrl = new URI(indexedArtifact.getStorageUrl());
         warcFilePath = getPathFromStorageUrl(storageUrl);
@@ -1590,8 +1584,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
         // This should never happen since storage URLs are internal
         log.error("Malformed storage URL [storageUrl: {}]", indexedArtifact.getStorageUrl());
         throw new IllegalArgumentException("Malformed storage URL");
-      } finally {
-        releaseArtifactLock(artifactId);
       }
 
       log.debug2("uuid: {}, storageUrl: {}", artifactUuid, storageUrl);
@@ -1676,9 +1668,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     log.trace("artifact = {}", artifact);
 
     // Acquire artifact lock
-    lockArtifact(artifactId);
-
-    try {
+    try (SemaphoreLock lock = lockArtifact(artifactId)) {
       // Determine what action to take based on the state of the artifact. Hardwired isExpired
       // parameter to false. The effect is expired artifacts will still be committed.
       Artifact indexed = getArtifactIndex().getArtifact(artifactId);
@@ -1760,15 +1750,13 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     } catch (URISyntaxException e) {
       // This should never happen since storage URLs are internal
       throw new IllegalStateException(e);
-    } finally {
-      releaseArtifactLock(artifactId);
     }
   }
 
-  public void lockArtifact(ArtifactIdentifier artifactId) throws IOException {
+  public SemaphoreLock lockArtifact(ArtifactIdentifier artifactId) throws IOException {
     try {
       // Acquire the lock for this artifact
-      artifactLock.getLock(artifactId);
+      return artifactLock.getLock(artifactId);
     } catch (InterruptedException e) {
       throw new InterruptedIOException("Interrupted while waiting to acquire artifact version lock");
     }
@@ -1939,12 +1927,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
           ArtifactIdentifier artifactId = artifact.getIdentifier();
 
           // Set the artifact's new storage URL and update the index
-          lockArtifact(artifactId);
-          try {
+          try (SemaphoreLock lock = lockArtifact(artifactId)) {
             artifact.setStorageUrl(makeWarcRecordStorageUrl(dst, warcLength, recordLength).toString());
             getArtifactIndex().updateStorageUrl(artifact.getUuid(), artifact.getStorageUrl());
-          } finally {
-            releaseArtifactLock(artifactId);
           }
 
           log.debug2("Updated storage URL [uuid: {}, storageUrl: {}]",
@@ -2027,9 +2012,7 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
     ArtifactIdentifier artifactId = artifact.getIdentifier();
 
-    lockArtifact(artifactId);
-
-    try {
+    try (SemaphoreLock lock = lockArtifact(artifactId)) {
       // Signal this artifact is deleted to this artifact's the queued copy task if one exists,
       // to avoid a copy into permanent storage and spurious error messages
       CopyArtifactTask queuedTask = queuedCopyTasks.get(artifactId);
@@ -2079,8 +2062,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     } catch (Exception e) {
       log.error("Caught exception deleting artifact [artifact: {}]", artifact, e);
       throw e;
-    } finally {
-      releaseArtifactLock(artifactId);
     }
 
     log.debug("Deleted artifact [uuid: {}]", artifact.getUuid());
