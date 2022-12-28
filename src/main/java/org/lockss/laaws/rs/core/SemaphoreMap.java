@@ -189,7 +189,7 @@ public class SemaphoreMap<T> {
       throw e;
     } catch (Throwable e) {
       decrementCounter(snc, key);
-      log.fatal("AACCKK, Throwable in acquire()", e);
+      log.fatal("Unexpected throwable in acquire()", e);
       throw e;
     }
     return new SemaphoreLock(key);
