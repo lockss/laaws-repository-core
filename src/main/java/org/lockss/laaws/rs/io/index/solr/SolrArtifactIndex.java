@@ -32,6 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package org.lockss.laaws.rs.io.index.solr;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.io.filefilter.*;
@@ -704,7 +705,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(req.process(solrClient, solrCollection),
           "Problem adding artifact '" + artifact + "' to Solr");
 
-      logSolrUpdate(artifactId.getUuid(), SolrCommitJournal.SolrOperation.ADD, doc);
+      ObjectMapper objMap = new ObjectMapper();
+      logSolrUpdate(SolrCommitJournal.SolrOperation.ADD,
+          artifact.getUuid(), objMap.writeValueAsString(artifact));
 
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "artifact '" + artifact + "' to Solr");
@@ -799,10 +802,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug("Total documents added = {}", docsAdded);
   }
 
-  private void logSolrUpdate(String artifactUuid, SolrCommitJournal.SolrOperation op, SolrInputDocument doc) {
+  private void logSolrUpdate(SolrCommitJournal.SolrOperation op, String artifactUuid, String data) {
     for (int i = 0; i < 3; i++) {
       try {
-        solrJournalWriter.logOperation(artifactUuid, op, doc);
+        solrJournalWriter.logOperation(op, artifactUuid, data);
         return;
       } catch (IOException e) {
         try {
@@ -813,7 +816,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       }
     }
 
-    log.error("Could not log to Solr update journal [artifactUuid: {}, op: {}, doc: {}]", artifactUuid, op, doc);
+    log.error("Could not log to Solr update journal [op: {}, artifactUuid: {}]", op , artifactUuid);
   }
 
   /**
@@ -929,7 +932,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      logSolrUpdate(artifactUuid, SolrCommitJournal.SolrOperation.UPDATE, document);
+      logSolrUpdate(SolrCommitJournal.SolrOperation.UPDATE_COMMITTED, artifactUuid, null);
 
       // Commit changes
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing Solr changes");
@@ -1023,7 +1026,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
         handleSolrResponse(request.process(solrClient, solrCollection), "Problem deleting "
             + "artifact '" + artifactUuid + "' from Solr");
 
-        logSolrUpdate(artifactUuid, SolrCommitJournal.SolrOperation.DELETE, null);
+        logSolrUpdate(SolrCommitJournal.SolrOperation.DELETE, artifactUuid, null);
 
         // Commit changes
         handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing deletion of "
@@ -1102,7 +1105,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       handleSolrResponse(request.process(solrClient, solrCollection), "Problem adding document '"
           + document + "' to Solr");
 
-      logSolrUpdate(artifactUuid, SolrCommitJournal.SolrOperation.UPDATE, document);
+      logSolrUpdate(SolrCommitJournal.SolrOperation.UPDATE_STORAGEURL, artifactUuid, storageUrl);
 
       handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT), "Problem committing addition of "
           + "document '" + document + "' to Solr");
