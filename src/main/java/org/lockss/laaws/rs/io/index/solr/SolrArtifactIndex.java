@@ -720,32 +720,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
     log.debug2("Added artifact to index [uuid: {}]", artifactId.getUuid());
   }
 
-//  @Override
-//  public void indexArtifacts(Iterable<Artifact> artifacts) throws IOException {
-//    UpdateRequest req = new UpdateRequest();
-//    DocumentObjectBinder binder = solrClient.getBinder();
-//
-//    artifacts.forEach(artifact -> {
-//      // Add document to request
-//      SolrInputDocument doc = binder.toSolrInputDocument(artifact);
-//      req.add(doc);
-//
-//      // logSolrUpdate(artifact.getUuid(), SolrCommitJournal.SolrOperation.ADD, doc);
-//    });
-//
-//    addSolrCredentials(req);
-//
-//    try {
-//      handleSolrResponse(req.process(solrClient, solrCollection),
-//          "Could not add Solr documents to index");
-//
-//      handleSolrResponse(handleSolrCommit(SolrCommitStrategy.SOFT),
-//          "Could not commit Solr updates");
-//    } catch (SolrResponseErrorException | SolrServerException e) {
-//      throw new IOException(e);
-//    }
-//  }
-
   /**
    * Bulk index artifacts into Solr.
    *

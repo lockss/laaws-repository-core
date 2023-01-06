@@ -187,7 +187,7 @@ public class ArtifactDataFactory {
    * @return An {@link ArtifactData} object constructed from its underlying WARC record.
    * @throws IOException Thrown if there were any IO errors.
    */
-  public static ArtifactData fromHttpResponseWarcRecord(WarcRecord record) throws IOException {
+  private static ArtifactData fromHttpResponseWarcRecord(WarcRecord record) throws IOException {
     HttpHeader httpHeader = record.getHttpHeader();
 
     ProtocolVersion protoVer = new ProtocolVersion(

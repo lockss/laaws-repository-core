@@ -417,6 +417,9 @@ public class ArtifactDataUtil {
       props.put(k, v);
   }
 
+  /**
+   * Constructs an {@link Artifact} from a {@link ArtifactData}.
+   */
   public static Artifact getArtifact(ArtifactData ad) {
     ArtifactState state = ad.getArtifactState();
 

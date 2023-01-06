@@ -274,7 +274,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
       testReplaySolrJournal_DELETE();
     }
 
-    private final String CSV_HEADERS = "time,artifact,op,data\n";
+    private final String CSV_HEADERS = "time,op,artifactUuid,data\n";
 
     private void testReplaySolrJournal_ADD() throws Exception {
       ArtifactIdentifier ADD_ARTIFACTID = new ArtifactIdentifier(
@@ -370,9 +370,6 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
 
         // Assert replayed operation
         assertable.runAssert(index);
-
-        // Assert soft commit
-//        verify(index, atLeastOnce()).handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.SOFT);
 
         // Assert hard commit
         verify(index, atMostOnce()).handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.HARD);

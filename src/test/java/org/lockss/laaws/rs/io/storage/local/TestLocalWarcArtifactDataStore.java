@@ -34,6 +34,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
 import org.apache.solr.core.CoreContainer;
 import org.archive.format.warc.WARCConstants;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.io.index.ArtifactIndex;
@@ -436,7 +437,12 @@ public class TestLocalWarcArtifactDataStore extends AbstractWarcArtifactDataStor
     return path;
   }
 
+  /**
+   * Instrumentation for debugging and profiling the reindex of WARCs in a local data store against
+   * an (embedded) Solr index. Disabled by default.
+   */
   @Test
+  @Disabled
   public void testWarc() throws Exception {
     File baseDir = new File("/tmp/lockss");
     File stateDir = new File("/tmp/lockss/state");

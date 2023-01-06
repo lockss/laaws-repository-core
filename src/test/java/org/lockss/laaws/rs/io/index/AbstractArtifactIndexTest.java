@@ -288,11 +288,6 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Assert attempting to index a null Artifact throws an IllegalArgumentException
     assertThrowsMatch(IllegalArgumentException.class, "Null artifact", () -> index.indexArtifact(null));
 
-    // Assert attempting to index an ArtifactData with null ArtifactIdentifier throws an IllegalArgumentException
-//    assertThrowsMatch(IllegalArgumentException.class, "Artifact has null identifier", () -> {
-//      index.indexArtifact(ArtifactDataUtil.getArtifact(new ArtifactData(null, null, null, null, null, null)));
-//    });
-
     // Assert against variant scenario
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       if (!spec.isDeleted()) {

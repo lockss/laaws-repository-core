@@ -1053,8 +1053,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
               log.warn("Unknown artifact state [uuid: {}, state: {}]", artifact.getUuid(), state);
               break;
           }
-//         } finally {
-//           releaseArtifactLock(aid);
         }
 
         // All records must be removable for temporary WARC file to be removable
@@ -1466,8 +1464,6 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
 
       // Update ArtifactData object with new properties
       URI storageUrl = makeWarcRecordStorageUrl(tmpWarcPath, offset, storedRecordLength);
-
-      assert storageUrl != null;
 
       // ******************
       // Index the artifact
@@ -2532,12 +2528,9 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
             URI storageUrl = makeWarcRecordStorageUrl(warcFile, record.getHeader().getOffset(), isCompressed ?
                 compressedRecordLength : recordLength);
 
-            assert storageUrl != null;
-
             //// Convert ArtifactData to Artifact
             artifactData.setStorageUrl(storageUrl); // FIXME
             Artifact artifact = ArtifactDataUtil.getArtifact(artifactData);
-//            artifact.setStorageUrl(storageUrl.toString());
 
             //// Add artifact to the index
             index.indexArtifact(artifact);
