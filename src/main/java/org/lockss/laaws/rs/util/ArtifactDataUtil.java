@@ -41,6 +41,7 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.io.DefaultHttpResponseWriter;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.SessionOutputBufferImpl;
+import org.apache.http.impl.io.SessionInputBufferImpl;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicLineFormatter;
@@ -62,6 +63,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -72,6 +74,28 @@ import java.util.Map;
  */
 public class ArtifactDataUtil {
     private final static L4JLogger log = L4JLogger.getLogger();
+
+  /** Return a SessionOutputBuffer with a UTF-8 encoder, bound to the
+   * OutputStream */
+  public static SessionOutputBufferImpl getSessionOutputBuffer(OutputStream os) {
+    SessionOutputBufferImpl buffer =
+      new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),
+                                 4096, 4096,
+                                 StandardCharsets.UTF_8.newEncoder());
+    buffer.bind(os);
+    return buffer;
+  }
+
+  /** Return a SessionInputBuffer with a UTF-8 decoder, bound to the
+   * InputStream */
+  public static SessionInputBufferImpl getSessionInputBuffer(InputStream is) {
+    SessionInputBufferImpl buffer =
+      new SessionInputBufferImpl(new HttpTransportMetricsImpl(),
+                                 4096, 4096, null,
+                                 StandardCharsets.UTF_8.newDecoder());
+    buffer.bind(is);
+    return buffer;
+  }
 
     /**
      * Adapter that takes an {@code ArtifactData} and returns an InputStream containing an HTTP response stream
@@ -199,10 +223,8 @@ public class ArtifactDataUtil {
         try (UnsynchronizedByteArrayOutputStream headerStream = new UnsynchronizedByteArrayOutputStream()) {
 
             // Create a new SessionOutputBuffer from the OutputStream
-            SessionOutputBufferImpl outputBuffer =
-                new SessionOutputBufferImpl(new HttpTransportMetricsImpl(), 4096);
-
-            outputBuffer.bind(headerStream);
+          SessionOutputBufferImpl outputBuffer =
+              getSessionOutputBuffer(headerStream);
 
             // Write the HTTP response header
             writeHttpResponseHeader(response, outputBuffer);
@@ -241,8 +263,8 @@ public class ArtifactDataUtil {
      */
     public static void writeHttpResponse(HttpResponse response, OutputStream output) throws IOException {
         // Create a new SessionOutputBuffer from the OutputStream
-        SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
-        outputBuffer.bind(output);
+          SessionOutputBufferImpl outputBuffer =
+              getSessionOutputBuffer(output);
 
         // Re-construct the response
         writeHttpResponseHeader(response, outputBuffer);
@@ -275,8 +297,8 @@ public class ArtifactDataUtil {
         CharArrayBuffer lineBuf = new CharArrayBuffer(128);
 
         // Create a new SessionOutputBuffer and bind the UnsynchronizedByteArrayOutputStream
-        SessionOutputBufferImpl outputBuffer = new SessionOutputBufferImpl(new HttpTransportMetricsImpl(),4096);
-        outputBuffer.bind(output);
+          SessionOutputBufferImpl outputBuffer =
+              getSessionOutputBuffer(output);
 
         // Write HTTP status line
         BasicLineFormatter.INSTANCE.formatStatusLine(lineBuf, httpStatus);
