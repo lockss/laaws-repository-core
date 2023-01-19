@@ -328,6 +328,10 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       throw new RuntimeException("Error searching for journal files");
     }
 
+    if (journalFiles.length > 0) {
+      startUpdateJournal();
+    }
+
     for (File journalFile : journalFiles) {
       if (journalFile.exists() && journalFile.isFile()) {
         try (SolrCommitJournal.SolrJournalReader journalReader =
