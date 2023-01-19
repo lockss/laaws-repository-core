@@ -30,6 +30,7 @@
 
 package org.lockss.laaws.rs.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
@@ -162,6 +163,7 @@ public class Artifact implements Serializable {
         this.contentDigest = contentDigest;
     }
 
+    @JsonIgnore
     public ArtifactIdentifier getIdentifier() {
         return new ArtifactIdentifier(uuid, namespace, auid, uri, version);
     }
