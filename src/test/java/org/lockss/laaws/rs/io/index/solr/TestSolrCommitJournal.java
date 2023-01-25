@@ -126,7 +126,7 @@ public class TestSolrCommitJournal extends LockssTestCase5 {
         assertEquals("ADD", record.get(JOURNAL_HEADER_SOLR_OP));
 
         String json = "{\"uuid\":\"test-artifact\",\"namespace\":\"test-namespace\",\"auid\":\"test-auid\"," +
-            "\"uri\":\"test-url\",\"sortUri\":\"test-url\",\"version\":1,\"committed\":false,\"storageUrl\":\"test-storage-url\",\"contentLength\":1234,\"contentDigest\":\"test-digest\",\"collectionDate\":1234,\"identifier\":{\"uuid\":\"test-artifact\",\"namespace\":\"test-namespace\",\"auid\":\"test-auid\",\"uri\":\"test-url\",\"version\":1}}";
+            "\"uri\":\"test-url\",\"sortUri\":\"test-url\",\"version\":1,\"committed\":false,\"storageUrl\":\"test-storage-url\",\"contentLength\":1234,\"contentDigest\":\"test-digest\",\"collectionDate\":1234}";
 
         assertEquals(json, record.get(JOURNAL_HEADER_DATA));
       }
