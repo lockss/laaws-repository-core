@@ -32,6 +32,7 @@ package org.lockss.laaws.rs.core;
 
 import org.lockss.laaws.rs.model.*;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.BuildInfo;
 import org.lockss.util.lang.Ready;
 import org.lockss.util.time.Deadline;
 import org.springframework.http.HttpHeaders;
@@ -434,4 +435,9 @@ public interface LockssRepository extends Ready {
       }
     }
   }
+
+    BuildInfo BUILD_INFO = BuildInfo.getBuildInfoFor("laaws-repository-core")
+        .orElseThrow(() -> new IllegalStateException("Could not determine LOCKSS repository version"));
+
+    String REPOSITORY_VERSION = BUILD_INFO.getBuildPropertyInst("build.version");
 }

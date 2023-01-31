@@ -52,6 +52,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
   <properties>
     <build.java.jarTests.skip>false</build.java.jarTests.skip>
+    <skipBuildInfo>false</skipBuildInfo>
     <version.local.spring-data-hadoop-store>2.4.0.RELEASE</version.local.spring-data-hadoop-store>
   </properties>
 

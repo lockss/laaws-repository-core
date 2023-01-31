@@ -64,6 +64,7 @@ import org.jwat.warc.WarcRecord;
 import com.google.common.io.CountingInputStream;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssNoSuchArtifactIdException;
+import org.lockss.laaws.rs.core.LockssRepository;
 import org.lockss.laaws.rs.core.SemaphoreMap;
 import org.lockss.laaws.rs.core.SemaphoreMap.SemaphoreLock;
 import org.lockss.laaws.rs.impl.ArtifactContainerStats;
@@ -3352,6 +3353,12 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     if (!StringUtils.isEmpty(record.getMimetype())) {
       sb.append(CONTENT_TYPE).append(COLON_SPACE).append(record.getMimetype()).append(CRLF);
     }
+
+    // Add LOCKSS repository version header
+    sb.append(ArtifactConstants.X_LOCKSS_REPOSITORY_VER)
+        .append(COLON_SPACE)
+        .append(LockssRepository.REPOSITORY_VERSION)
+        .append(CRLF);
 
     // Extra WARC record headers
     if (record.getExtraHeaders() != null) {
