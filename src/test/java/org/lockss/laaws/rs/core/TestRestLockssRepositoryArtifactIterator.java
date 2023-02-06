@@ -53,8 +53,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  */
 public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
   private final static String BASEURL = "http://localhost:24610";
-  private final static String collectionId = "collId";
-  private final static String auId = "auId";
+  private final static String NS1 = "ns1";
+  private final static String AUID1 = "auId";
   private RestTemplate restTemplate;
   private MockRestServiceServer mockServer;
   private String endpoint;
@@ -68,9 +68,9 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
   public void makeRepoIterator() {
     restTemplate = RestUtil.getRestTemplate();
     mockServer = MockRestServiceServer.createServer(restTemplate);
-    endpoint = String.format("%s/collections/%s/aus/%s/artifacts", BASEURL,
-	collectionId, auId);
-    builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+    endpoint = String.format("%s/aus/%s/artifacts", BASEURL, AUID1);
+    builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+        .queryParam("namespace", NS1);
   }
 
   /**
@@ -81,7 +81,7 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
    */
   @Test
   public void testEmptyRepository() throws Exception {
-    mockServer.expect(requestTo(endpoint)).andExpect(method(HttpMethod.GET))
+    mockServer.expect(requestTo(endpoint + "?namespace=" + NS1)).andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"artifacts\":[], \"pageInfo\":{}}",
 	MediaType.APPLICATION_JSON));
 
@@ -101,10 +101,10 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
    */
   @Test
   public void testPopulatedRepository() throws Exception {
-    mockServer.expect(requestTo(endpoint)).andExpect(method(HttpMethod.GET))
+    mockServer.expect(requestTo(endpoint + "?namespace="+ NS1)).andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"artifacts\":["
-	+ "{\"id\":\"1\",\"version\":3},{\"id\":\"2\",\"version\":2},"
-	+ "{\"id\":\"3\",\"version\":1}], \"pageInfo\":{}}",
+	+ "{\"uuid\":\"1\",\"version\":3},{\"uuid\":\"2\",\"version\":2},"
+	+ "{\"uuid\":\"3\",\"version\":1}], \"pageInfo\":{}}",
 	MediaType.APPLICATION_JSON));
 
     repoIterator =
@@ -113,15 +113,15 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
 
     assertTrue(repoIterator.hasNext());
     Artifact artifact = repoIterator.next();
-    assertEquals("1", artifact.getId());
+    assertEquals("1", artifact.getUuid());
     assertEquals(3, artifact.getVersion().intValue());
     assertTrue(repoIterator.hasNext());
     artifact = repoIterator.next();
-    assertEquals("2", artifact.getId());
+    assertEquals("2", artifact.getUuid());
     assertEquals(2, artifact.getVersion().intValue());
     assertTrue(repoIterator.hasNext());
     artifact = repoIterator.next();
-    assertEquals("3", artifact.getId());
+    assertEquals("3", artifact.getUuid());
     assertEquals(1, artifact.getVersion().intValue());
     assertFalse(repoIterator.hasNext());
     assertThrows(NoSuchElementException.class, () -> {repoIterator.next();});
@@ -136,21 +136,21 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
   @Test
   public void testPagination() throws Exception {
     // First server call.
-    mockServer.expect(requestTo(endpoint + "?limit=2"))
+    mockServer.expect(requestTo(endpoint + "?namespace="+ NS1 +"&limit=2"))
     .andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"artifacts\":["
-	+ "{\"id\":\"1\",\"uri\":\"uriA\",\"version\":3},"
-	+ "{\"id\":\"2\",\"uri\":\"uriB\",\"version\":2}], "
-	+ "\"pageInfo\":{\"continuationToken\":\"collId:auId:uriB:2:123456\"}}",
+	+ "{\"uuid\":\"1\",\"uri\":\"uriA\",\"version\":3},"
+	+ "{\"uuid\":\"2\",\"uri\":\"uriB\",\"version\":2}], "
+	+ "\"pageInfo\":{\"continuationToken\":\"ns1:auId:uriB:2:123456\"}}",
 	MediaType.APPLICATION_JSON));
 
     // Second server call.
     mockServer.expect(requestTo(endpoint
-	+ "?limit=2&continuationToken=collId:auId:uriB:2:123456"))
+	+ "?namespace="+ NS1 +"&limit=2&continuationToken=ns1:auId:uriB:2:123456"))
     .andExpect(method(HttpMethod.GET))
     .andRespond(withSuccess("{\"artifacts\":["
-	+ "{\"id\":\"3\",\"uri\":\"uriC\",\"version\":9},"
-	+ "{\"id\":\"4\",\"uri\":\"uriC\",\"version\":1}], "
+	+ "{\"uuid\":\"3\",\"uri\":\"uriC\",\"version\":9},"
+	+ "{\"uuid\":\"4\",\"uri\":\"uriC\",\"version\":1}], "
 	+ "\"pageInfo\":{}}",
 	MediaType.APPLICATION_JSON));
 
@@ -159,12 +159,12 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
 
     assertTrue(repoIterator.hasNext());
     Artifact artifact = repoIterator.next();
-    assertEquals("1", artifact.getId());
+    assertEquals("1", artifact.getUuid());
     assertEquals("uriA", artifact.getUri());
     assertEquals(3, artifact.getVersion().intValue());
     assertTrue(repoIterator.hasNext());
     artifact = repoIterator.next();
-    assertEquals("2", artifact.getId());
+    assertEquals("2", artifact.getUuid());
     assertEquals("uriB", artifact.getUri());
     assertEquals(2, artifact.getVersion().intValue());
     assertTrue(repoIterator.hasNext());
@@ -173,12 +173,12 @@ public class TestRestLockssRepositoryArtifactIterator extends LockssTestCase5 {
     mockServer.verify();
 
     artifact = repoIterator.next();
-    assertEquals("3", artifact.getId());
+    assertEquals("3", artifact.getUuid());
     assertEquals("uriC", artifact.getUri());
     assertEquals(9, artifact.getVersion().intValue());
     assertTrue(repoIterator.hasNext());
     artifact = repoIterator.next();
-    assertEquals("4", artifact.getId());
+    assertEquals("4", artifact.getUuid());
     assertEquals("uriC", artifact.getUri());
     assertEquals(1, artifact.getVersion().intValue());
     assertFalse(repoIterator.hasNext());

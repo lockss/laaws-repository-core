@@ -30,6 +30,8 @@
 
 package org.lockss.laaws.rs.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.solr.client.solrj.beans.Field;
 import org.lockss.log.L4JLogger;
@@ -47,37 +49,51 @@ public class Artifact implements Serializable {
     private static final long serialVersionUID = 1961138745993115018L;
     private final static L4JLogger log = L4JLogger.getLogger();
 
+    // These need to match those in the Artifact model defined in the Swagger/OpenAPI spec
+    public final static String ARTIFACT_NAMESPACE_KEY = "namespace";
+    public final static String ARTIFACT_UUID_KEY = "uuid";
+    public final static String ARTIFACT_AUID_KEY = "auid";
+    public final static String ARTIFACT_URI_KEY = "uri";
+    public final static String ARTIFACT_VERSION_KEY = "version";
+    public final static String ARTIFACT_COMMITTED_STATUS_KEY = "committed";
+    public final static String ARTIFACT_LENGTH_KEY = "contentLength";
+    public final static String ARTIFACT_DIGEST_KEY = "contentDigest";
+    public final static String ARTIFACT_COLLECTION_DATE_KEY = "collectionDate";
+
+    // We have chosen to map the artifact UUID to the Solr document's "id" field
+    // for the sake of convention, even though Solr appears to support assigning
+    // another field as the unique identifier.
     @Field("id")
-    private String id;
+    private String uuid;
 
-    @Field("collection")
-    private String collection;
+    @Field(ARTIFACT_NAMESPACE_KEY)
+    private String namespace = "lockss";
 
-    @Field("auid")
+    @Field(ARTIFACT_AUID_KEY)
     private String auid;
 
-    @Field("uri")
+    @Field(ARTIFACT_URI_KEY)
     private String uri;
 
     @Field("sortUri")
     private String sortUri;
 
-    @Field("version")
+    @Field(ARTIFACT_VERSION_KEY)
     private Integer version;
 
-    @Field("committed")
+    @Field(ARTIFACT_COMMITTED_STATUS_KEY)
     private Boolean committed;
 
     @Field("storageUrl")
     private String storageUrl;
 
-    @Field("contentLength")
+    @Field(ARTIFACT_LENGTH_KEY)
     private long contentLength;
 
-    @Field("contentDigest")
+    @Field(ARTIFACT_DIGEST_KEY)
     private String contentDigest;
 
-    @Field("collectionDate")
+    @Field(ARTIFACT_COLLECTION_DATE_KEY)
     private long collectionDate;
 
     /**
@@ -91,7 +107,7 @@ public class Artifact implements Serializable {
 
     public Artifact(ArtifactIdentifier aid, Boolean committed, String storageUrl, long contentLength, String contentDigest) {
         this(
-                aid.getId(), aid.getCollection(), aid.getAuid(), aid.getUri(), aid.getVersion(),
+                aid.getUuid(), aid.getNamespace(), aid.getAuid(), aid.getUri(), aid.getVersion(),
                 committed,
                 storageUrl,
                 contentLength,
@@ -99,19 +115,19 @@ public class Artifact implements Serializable {
         );
     }
 
-    public Artifact(String id, String collection, String auid, String uri, Integer version, Boolean committed,
-                             String storageUrl, long contentLength, String contentDigest) {
-        if (StringUtils.isEmpty(id)) {
+    public Artifact(String uuid, String namespace, String auid, String uri, Integer version, Boolean committed,
+                    String storageUrl, long contentLength, String contentDigest) {
+        if (StringUtils.isEmpty(uuid)) {
           throw new IllegalArgumentException(
-              "Cannot create Artifact with null or empty id");
+              "Cannot create Artifact with null or empty UUID");
         }
-        this.id = id;
+        this.uuid = uuid;
 
-        if (StringUtils.isEmpty(collection)) {
+        if (StringUtils.isEmpty(namespace)) {
           throw new IllegalArgumentException(
-              "Cannot create Artifact with null or empty collection");
+              "Cannot create Artifact with null or empty namespace");
         }
-        this.collection = collection;
+        this.namespace = namespace;
 
         if (StringUtils.isEmpty(auid)) {
           throw new IllegalArgumentException(
@@ -147,20 +163,21 @@ public class Artifact implements Serializable {
         this.contentDigest = contentDigest;
     }
 
+    @JsonIgnore
     public ArtifactIdentifier getIdentifier() {
-        return new ArtifactIdentifier(id, collection, auid, uri, version);
+        return new ArtifactIdentifier(uuid, namespace, auid, uri, version);
     }
 
-    public String getCollection() {
-        return collection;
+    public String getNamespace() {
+        return namespace;
     }
 
-    public void setCollection(String collection) {
-        if (StringUtils.isEmpty(collection)) {
+    public void setNamespace(String namespace) {
+        if (StringUtils.isEmpty(namespace)) {
           throw new IllegalArgumentException(
-              "Cannot set null or empty collection");
+              "Cannot set null or empty namespace");
         }
-        this.collection = collection;
+        this.namespace = namespace;
     }
 
     public String getAuid() {
@@ -216,8 +233,12 @@ public class Artifact implements Serializable {
         this.version = version;
     }
 
-    public String getId() {
-        return id;
+  public void setUuid(String uuid) {
+    this.uuid = uuid;
+  }
+
+  public String getUuid() {
+        return uuid;
     }
 
     public Boolean getCommitted() {
@@ -287,8 +308,8 @@ public class Artifact implements Serializable {
     @Override
     public String toString() {
         return "Artifact{" +
-                "id='" + id + '\'' +
-                ", collection='" + collection + '\'' +
+                "uuid='" + uuid + '\'' +
+                ", namespace='" + namespace + '\'' +
                 ", auid='" + auid + '\'' +
                 ", uri='" + uri + '\'' +
 //                 ", sortUri='" + sortUri + '\'' +
@@ -328,10 +349,10 @@ public class Artifact implements Serializable {
 
     /** Return a String that uniquely identifies the Artifact with the
      * specified values.  version -1 means latest version */
-    public static String makeKey(String collection, String auid,
+    public static String makeKey(String namespace, String auid,
 				 String uri, int version) {
 	StringBuilder sb = new StringBuilder(200);
-	sb.append(collection);
+	sb.append(namespace);
 	sb.append(":");
 	sb.append(auid);
 	sb.append(":");
@@ -343,21 +364,21 @@ public class Artifact implements Serializable {
 
     /** Return a String that uniquely identifies "the latest committed
      * version of the Artifact with the specified values" */
-    public static String makeLatestKey(String collection, String auid,
+    public static String makeLatestKey(String namespace, String auid,
 				       String uri) {
-	return makeKey(collection, auid, uri, -1);
+	return makeKey(namespace, auid, uri, -1);
     }
 
     /** Return a String that uniquely identifies this Artifact */
     public String makeKey() {
-	return Artifact.makeKey(getCollection(), getAuid(),
+	return Artifact.makeKey(getNamespace(), getAuid(),
 				getUri(), getVersion());
     }
 
     /** Return a String that uniquely identifies "the latest committed
      * version of the Artifact" */
     public String makeLatestKey() {
-	return Artifact.makeLatestKey(getCollection(), getAuid(), getUri());
+	return Artifact.makeLatestKey(getNamespace(), getAuid(), getUri());
     }
 
     // matches ":<ver>" at the end
@@ -376,8 +397,8 @@ public class Artifact implements Serializable {
   public Artifact copyOf() {
 
     Artifact ret = new Artifact(
-        this.getId(),
-        this.getCollection(),
+        this.getUuid(),
+        this.getNamespace(),
         this.getAuid(),
         this.getUri(),
         this.getVersion(),

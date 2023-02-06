@@ -42,6 +42,7 @@ import org.apache.solr.common.SolrInputField;
 import org.apache.solr.common.util.Utils;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.log.L4JLogger;
+import org.lockss.util.time.TimeBase;
 import org.noggit.CharArr;
 import org.noggit.JSONWriter;
 
@@ -62,18 +63,18 @@ public class SolrCommitJournal {
    * CSV headers used for the journal of changes made to the Solr index.
    */
   static final String JOURNAL_HEADER_TIME = "time";
-  static final String JOURNAL_HEADER_ARTIFACT_ID = "artifact";
   static final String JOURNAL_HEADER_SOLR_OP = "op";
-  static final String JOURNAL_HEADER_INPUT_DOCUMENT = "doc";
+  static final String JOURNAL_HEADER_ARTIFACT_UUID = "artifactUuid";
+  static final String JOURNAL_HEADER_DATA = "data";
 
   /**
    * Array of CSV headers. Used with {@link CSVPrinter}.
    */
   static final String[] SOLR_JOURNAL_HEADERS = {
       JOURNAL_HEADER_TIME,
-      JOURNAL_HEADER_ARTIFACT_ID,
       JOURNAL_HEADER_SOLR_OP,
-      JOURNAL_HEADER_INPUT_DOCUMENT
+      JOURNAL_HEADER_ARTIFACT_UUID,
+      JOURNAL_HEADER_DATA
   };
 
   /**
@@ -85,7 +86,10 @@ public class SolrCommitJournal {
    * Types of Solr updates.
    */
   public enum SolrOperation {
-    ADD, UPDATE, DELETE
+    ADD,
+    UPDATE_COMMITTED,
+    UPDATE_STORAGEURL,
+    DELETE
   }
 
   /**
@@ -131,13 +135,10 @@ public class SolrCommitJournal {
 //      return builder.toString();
 //    }
 
-    public synchronized void logOperation(String artifactId, SolrOperation op, SolrInputDocument doc) throws IOException {
+    public synchronized void logOperation(SolrOperation op, String artifactUuid, String data) throws IOException {
       try {
-        // Transform SolrInputDocument to JSON (if one was provided)
-        String docJson = (doc == null) ? EMPTY_STRING : toJSON(doc);
-
         // Write journal entry (i.e., CSV record)
-        journalPrinter.printRecord(System.currentTimeMillis(), artifactId, op, docJson);
+        journalPrinter.printRecord(TimeBase.nowMs(), op, artifactUuid, data);
         journalPrinter.flush();
       } catch (IOException e) {
         log.error("Could not write to Solr journal", e);
@@ -186,6 +187,8 @@ public class SolrCommitJournal {
      * @throws IOException
      */
     public void replaySolrJournal(SolrArtifactIndex index) throws IOException {
+      // TODO: Wait for Solr to come up
+
       try (FileReader reader = new FileReader(journalPath.toFile())) {
         // Read Solr journal as CSV
         Iterable<CSVRecord> records = CSVFormat.DEFAULT
@@ -199,52 +202,43 @@ public class SolrCommitJournal {
             // Determine Solr operation to replay
             SolrOperation op = SolrOperation.valueOf(record.get(JOURNAL_HEADER_SOLR_OP));
 
-            log.debug("Replaying journal entry [op: {}, artifactId: {}]",
-                op, record.get(JOURNAL_HEADER_ARTIFACT_ID));
+            log.debug("Replaying journal entry [op: {}, artifactUuid: {}]",
+                op, record.get(JOURNAL_HEADER_ARTIFACT_UUID));
 
             // Replay Solr operation
             switch (op) {
               case ADD:
-              {
-                // Transform JSON to SolrInputDocument
-                Artifact artifact = mapper.readValue(record.get(JOURNAL_HEADER_INPUT_DOCUMENT), Artifact.class);
-                SolrInputDocument doc = binder.toSolrInputDocument(artifact);
+                Artifact artifact = mapper.readValue(record.get(JOURNAL_HEADER_DATA), Artifact.class);
+                index.indexArtifact(artifact);
+                break;
 
-                UpdateRequest req = new UpdateRequest();
-                req.add(doc);
-                processUpdateRequest(index, req);
-                return;
-              }
+              case UPDATE_COMMITTED:
+                index.commitArtifact(record.get(JOURNAL_HEADER_ARTIFACT_UUID));
+                break;
 
-              case UPDATE: {
-                // Transform JSON to SolrInputDocument
-                SolrInputDocument doc = transformMapToSolrInputDocument(
-                    mapper.readValue(record.get(JOURNAL_HEADER_INPUT_DOCUMENT), Map.class));
+              case UPDATE_STORAGEURL:
+                index.updateStorageUrl(
+                    record.get(JOURNAL_HEADER_ARTIFACT_UUID),
+                    record.get(JOURNAL_HEADER_DATA));
+                break;
 
-                UpdateRequest req = new UpdateRequest();
-                req.add(doc);
-                processUpdateRequest(index, req);
-                return;
-              }
-
-              case DELETE: {
-                UpdateRequest req = new UpdateRequest();
-                req.deleteById(record.get(JOURNAL_HEADER_ARTIFACT_ID));
-                processUpdateRequest(index, req);
-                return;
-              }
+              case DELETE:
+                index.deleteArtifact(record.get(JOURNAL_HEADER_ARTIFACT_UUID));
+                break;
 
               default:
                 log.error("Unknown Solr operation [op: {}, record: {}]", op, record);
+                break;
             }
-          } catch (IOException | SolrServerException | SolrResponseErrorException e) {
+          } catch (IOException e) {
             log.error("Could not replay journal entry", e);
           }
         });
 
         // Perform a Solr hard commit of all changes
         try {
-          index.handleSolrResponse(index.handleSolrCommit(true), "Error with Commit request");
+          index.handleSolrResponse(
+              index.handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.HARD), "Error with Commit request");
         } catch (IOException | SolrServerException | SolrResponseErrorException e) {
           log.error("Could not perform a Solr hard commit after replaying journal", e);
         }
@@ -258,7 +252,7 @@ public class SolrCommitJournal {
           req.process(index.getSolrClient(), index.getSolrCollection()), "Error with UpdateRequest");
 
       index.handleSolrResponse(
-          index.handleSolrCommit(false), "Error with Commit request");
+          index.handleSolrCommit(SolrArtifactIndex.SolrCommitStrategy.SOFT), "Error with Commit request");
     }
   }
 

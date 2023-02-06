@@ -50,6 +50,10 @@ public class TestVolatileLockssRepository extends AbstractLockssRepositoryTest {
       return new VolatileLockssRepository();
     }
 
+  protected boolean wantTempTmpDir() {
+    return true;
+  }
+
   @Test
   public void testRepoInfo() throws Exception {
     RepositoryInfo ri = repository.getRepositoryInfo();

@@ -1,32 +1,34 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 package org.lockss.laaws.rs.io.index;
 
@@ -39,16 +41,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.lockss.laaws.rs.core.BaseLockssRepository;
 import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.*;
+import org.lockss.laaws.rs.util.ArtifactDataUtil;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.test.LockssTestCase5;
 import org.lockss.util.test.VariantTest;
 import org.lockss.util.time.Deadline;
+import org.lockss.util.time.TimeBase;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -146,24 +150,31 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
       case "commit1":
         // One committed artifact
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenCommit());
         break;
 
       case "delete1":
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenDelete());
         break;
 
       case "double_delete":
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete().thenDelete());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenDelete().thenDelete());
         break;
 
       case "double_commit":
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit().thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenCommit().thenCommit());
         break;
 
       case "commit_delete_2x2":
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenDelete().thenCommit());
-        specs.add(ArtifactSpec.forCollAuUrl("c", "a", "u").thenCommit().thenDelete());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenDelete().thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "u").thenCommit().thenDelete());
+        break;
+      case "unicode":
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "111").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "ZZZ").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "zzz").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "\u03BA\u1F79\u03C3\u03BC\u03B5").thenCommit());
+        specs.add(ArtifactSpec.forNsAuUrl("c", "a", "Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung").thenCommit());
         break;
     }
 
@@ -177,7 +188,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   protected void populateIndex(AI index, List<ArtifactSpec> artifactSpecs) throws IOException {
     for (ArtifactSpec spec : artifactSpecs) {
       // Assign random artifact ID
-      spec.setArtifactId(UUID.randomUUID().toString());
+      spec.setArtifactUuid(UUID.randomUUID().toString());
 
       // Add artifact from this ArtifactSpec into index
       indexArtifactSpec(index, spec);
@@ -192,7 +203,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Generate content if needed (Artifact objects must represent)
     if (!spec.hasContent()) {
       spec.generateContent();
-      spec.setStorageUrl(URI.create(spec.getArtifactId()));
+      spec.setStorageUrl(URI.create(spec.getArtifactUuid()));
     }
 
     // Set version if one was not provided
@@ -203,13 +214,13 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // Add artifact to index
     ArtifactData ad = spec.getArtifactData();
-    Artifact addedArtifact = index.indexArtifact(ad);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(ad));
     variantState.add(spec);
-    spec.assertArtifactCommon(addedArtifact);
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Sanity checks
-    assertTrue(index.artifactExists(spec.getArtifactId()));
-    Artifact indexedArtifact = index.getArtifact(spec.getArtifactId());
+    assertTrue(index.artifactExists(spec.getArtifactUuid()));
+    Artifact indexedArtifact = index.getArtifact(spec.getArtifactUuid());
     assertNotNull(indexedArtifact);
     spec.assertArtifactCommon(indexedArtifact);
 
@@ -217,14 +228,14 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     for (ArtifactSpec.ArtifactDataStoreOperation op : spec.getDataStoreOperations()) {
       switch (op) {
         case COMMIT:
-          index.commitArtifact(spec.getArtifactId());
+          index.commitArtifact(spec.getArtifactUuid());
           spec.setCommitted(true);
-          variantState.commit(spec.getArtifactId());
+          variantState.commit(spec.getArtifactUuid());
           log.debug("Committed artifact from artifact specification [spec: {}]", spec);
           break;
 
         case DELETE:
-          index.deleteArtifact(spec.getArtifactId());
+          index.deleteArtifact(spec.getArtifactUuid());
           spec.setDeleted(true);
           variantState.delFromAll(spec);
           log.debug("Deleted artifact from artifact specification [spec: {}]", spec);
@@ -274,38 +285,33 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testIndexArtifact() throws Exception {
-    // Assert attempting to index a null ArtifactData throws an IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "Null artifact data", () -> index.indexArtifact(null));
-
-    // Assert attempting to index an ArtifactData with null ArtifactIdentifier throws an IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "ArtifactData has null identifier", () -> {
-      index.indexArtifact(new ArtifactData(null, null, null, null, null, null));
-    });
+    // Assert attempting to index a null Artifact throws an IllegalArgumentException
+    assertThrowsMatch(IllegalArgumentException.class, "Null artifact", () -> index.indexArtifact(null));
 
     // Assert against variant scenario
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       if (!spec.isDeleted()) {
-        assertTrue(index.artifactExists(spec.getArtifactId()));
-        spec.assertArtifactCommon(index.getArtifact(spec.getArtifactId()));
+        assertTrue(index.artifactExists(spec.getArtifactUuid()));
+        spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
       } else {
-        assertFalse(index.artifactExists(spec.getArtifactId()));
-        assertNull(index.getArtifact(spec.getArtifactId()));
+        assertFalse(index.artifactExists(spec.getArtifactUuid()));
+        assertNull(index.getArtifact(spec.getArtifactUuid()));
       }
     }
 
     // Create an artifact spec
-    ArtifactSpec spec1 = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
-    spec1.setArtifactId(UUID.randomUUID().toString());
+    ArtifactSpec spec1 = ArtifactSpec.forNsAuUrl("c", "a", "u1").thenCommit();
+    spec1.setArtifactUuid(UUID.randomUUID().toString());
     spec1.generateContent();
     spec1.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Index the artifact and assert the Artifact the operation returns matches the spec
-    Artifact indexed1 = index.indexArtifact(spec1.getArtifactData());
-    spec1.assertArtifactCommon(indexed1);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec1.getArtifactData()));
+    spec1.assertArtifactCommon(index.getArtifact(spec1.getArtifactUuid()));
 
     // Assert the artifact exists in the index and it matches the spec
-    assertTrue(index.artifactExists(spec1.getArtifactId()));
-    spec1.assertArtifactCommon(index.getArtifact(spec1.getArtifactId()));
+    assertTrue(index.artifactExists(spec1.getArtifactUuid()));
+    spec1.assertArtifactCommon(index.getArtifact(spec1.getArtifactUuid()));
   }
 
   /**
@@ -318,12 +324,12 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @Test
   public void testIndexArtfact_artifactRepoState() throws Exception {
     ArtifactSpec spec = new ArtifactSpec()
-        .setArtifactId(UUID.randomUUID().toString())
-        .setCollection("collection")
+        .setArtifactUuid(UUID.randomUUID().toString())
+        .setNamespace("ns1")
         .setAuid("auid")
         .setUrl("url")
         .setVersion(1)
-        .setCollectionDate(Instant.now().toEpochMilli())
+        .setCollectionDate(TimeBase.nowMs())
         .setStorageUrl(new URI("storageUrl"))
         .setContentLength(1232L)
         .setCommitted(true)
@@ -331,34 +337,64 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     spec.generateContent();
 
-    ArtifactRepositoryState state =
-        new ArtifactRepositoryState(spec.getArtifactIdentifier(), spec.isCommitted(), spec.isDeleted());
+    ArtifactState state = ArtifactState.UNKNOWN;
+    if (spec.isCommitted()) state = ArtifactState.PENDING_COPY;
+    if (spec.isDeleted()) state = ArtifactState.DELETED;
 
     ArtifactData ad = spec.getArtifactData();
-    ad.setArtifactRepositoryState(state);
+    ad.setArtifactState(state);
 
-    Artifact indexed = index.indexArtifact(ad);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(ad));
 
-    assertEquals(spec.isCommitted(), indexed.isCommitted());
+    assertEquals(spec.isCommitted(), index.getArtifact(spec.getArtifactUuid()).isCommitted());
+  }
+
+  public void testIndexUnicodeArtfact_artifactRepoState() throws Exception {
+    ArtifactSpec spec = new ArtifactSpec()
+        .setArtifactUuid(UUID.randomUUID().toString())
+        .setNamespace("namespace")
+        .setAuid("auid")
+        .setUrl("Heiz\u00F6lr\u00FCcksto\u00DFabd\u00E4mpfung") // Heizölrückstoßabdämpfung
+        .setVersion(1)
+        .setCollectionDate(TimeBase.nowMs())
+        .setStorageUrl(new URI("storageUrl"))
+        .setContentLength(1232L)
+        .setCommitted(true)
+        .setDeleted(false);
+
+    spec.generateContent();
+
+    ArtifactState state = ArtifactState.UNKNOWN;
+    if (spec.isCommitted()) state = ArtifactState.PENDING_COPY;
+    if (spec.isDeleted()) state = ArtifactState.DELETED;
+
+    ArtifactData ad = spec.getArtifactData();
+    ad.setArtifactState(state);
+
+    index.indexArtifact(ArtifactDataUtil.getArtifact(ad));
+
+    assertEquals(spec.isCommitted(), index.getArtifact(spec.getArtifactUuid()).isCommitted());
   }
 
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
-  public void testGetArtifact_artifactId() throws Exception {
+  public void testGetArtifact() throws Exception {
     // Assert retrieving an artifact with a null artifact ID (String or UUID) throws IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact ID", () -> index.getArtifact((String) null));
-    assertThrowsMatch(IllegalArgumentException.class, "Null UUID", () -> index.getArtifact((UUID) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact UUID",
+        () -> index.getArtifact((String) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null UUID",
+        () -> index.getArtifact((UUID) null));
 
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       if (spec.isToDelete()) {
         assertTrue(spec.isDeleted());
-        assertFalse(index.artifactExists(spec.getArtifactId()));
-        assertNull(index.getArtifact(spec.getArtifactId()));
+        assertFalse(index.artifactExists(spec.getArtifactUuid()));
+        assertNull(index.getArtifact(spec.getArtifactUuid()));
       } else {
         assertFalse(spec.isDeleted());
-        assertTrue(index.artifactExists(spec.getArtifactId()));
-        spec.assertArtifactCommon(index.getArtifact(spec.getArtifactId()));
+        assertTrue(index.artifactExists(spec.getArtifactUuid()));
+        spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
       }
     }
 
@@ -367,30 +403,30 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertNull(index.getArtifact(UUID.randomUUID()));
 
     // Create an artifact spec
-    ArtifactSpec spec = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
-    spec.setArtifactId(UUID.randomUUID().toString());
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl("c", "a", "u1").thenCommit();
+    spec.setArtifactUuid(UUID.randomUUID().toString());
     spec.generateContent();
     spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Assert conditions expected if the artifact is not in the index
-    assertFalse(index.artifactExists(spec.getArtifactId()));
-    assertNull(index.getArtifact(spec.getArtifactId()));
-    assertNull(index.getArtifact(UUID.fromString(spec.getArtifactId())));
+    assertFalse(index.artifactExists(spec.getArtifactUuid()));
+    assertNull(index.getArtifact(spec.getArtifactUuid()));
+    assertNull(index.getArtifact(UUID.fromString(spec.getArtifactUuid())));
 
     // Index the artifact
-    Artifact indexed = index.indexArtifact(spec.getArtifactData());
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
 
     // Sanity check
-    spec.assertArtifactCommon(indexed);
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Retrieve artifact from index and assert it matches the spec
-    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactId()));
-    spec.assertArtifactCommon(index.getArtifact(UUID.fromString(spec.getArtifactId())));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
+    spec.assertArtifactCommon(index.getArtifact(UUID.fromString(spec.getArtifactUuid())));
   }
 
   @Test
   public void testGetArtifact_latestCommitted() throws Exception {
-    String COLLECTION = "d";
+    String NS = "d";
     String AU_A = "a";
     String AU_B = "b";
     String URL_U = "u";
@@ -398,15 +434,15 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // Create ArtifactSpecs with multiple versions; keep track of highest version in variant state
     List<ArtifactSpec> specs = new ArrayList<>();
-    specs.add(createArtifactSpec(COLLECTION, AU_A, URL_U, 1, false));
-    specs.add(createArtifactSpec(COLLECTION, AU_A, URL_U, 2, false));
+    specs.add(createArtifactSpec(NS, AU_A, URL_U, 1, false));
+    specs.add(createArtifactSpec(NS, AU_A, URL_U, 2, false));
 
-    specs.add(createArtifactSpec(COLLECTION, AU_B, URL_U, 1, true));
-    specs.add(createArtifactSpec(COLLECTION, AU_B, URL_U, 2, false));
+    specs.add(createArtifactSpec(NS, AU_B, URL_U, 1, true));
+    specs.add(createArtifactSpec(NS, AU_B, URL_U, 2, false));
 
-    specs.add(createArtifactSpec(COLLECTION, AU_B, URL_V, 1, true));
-    specs.add(createArtifactSpec(COLLECTION, AU_B, URL_V, 2, false));
-    specs.add(createArtifactSpec(COLLECTION, AU_B, URL_V, 3, true));
+    specs.add(createArtifactSpec(NS, AU_B, URL_V, 1, true));
+    specs.add(createArtifactSpec(NS, AU_B, URL_V, 2, false));
+    specs.add(createArtifactSpec(NS, AU_B, URL_V, 3, true));
 
     // Populate index and update variant state
     populateIndex(index, specs);
@@ -416,50 +452,50 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // A_U
 
-    assertNull(variantState.getLatestArtifactSpec(COLLECTION, AU_A, URL_U, false));
-    assertNull(index.getArtifact(COLLECTION, AU_A, URL_U, false));
-//    assertLatestArtifactVersion(COLLECTION, AU_A, URL_U, false, -1);
-    assertLatestArtifactVersion(COLLECTION, AU_A, URL_U, true, 2);
+    assertNull(variantState.getLatestArtifactSpec(NS, AU_A, URL_U, false));
+    assertNull(index.getArtifact(NS, AU_A, URL_U, false));
+//    assertLatestArtifactVersion(NAMESPACE, AU_A, URL_U, false, -1);
+    assertLatestArtifactVersion(NS, AU_A, URL_U, true, 2);
 
     // Commit a_u_1
     spec = specs.get(0);
-    index.commitArtifact(spec.getArtifactId());
-    variantState.commit(spec.getArtifactId());
+    index.commitArtifact(spec.getArtifactUuid());
+    variantState.commit(spec.getArtifactUuid());
 
-    assertLatestArtifactVersion(COLLECTION, AU_A, URL_U, false, 1);
-    assertLatestArtifactVersion(COLLECTION, AU_A, URL_U, true, 2);
+    assertLatestArtifactVersion(NS, AU_A, URL_U, false, 1);
+    assertLatestArtifactVersion(NS, AU_A, URL_U, true, 2);
 
     //// B_U
 
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_U, false, 1);
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_U, true, 2);
+    assertLatestArtifactVersion(NS, AU_B, URL_U, false, 1);
+    assertLatestArtifactVersion(NS, AU_B, URL_U, true, 2);
 
     // Commit b_u_2
     spec = specs.get(3);
-    index.commitArtifact(spec.getArtifactId());
-    variantState.commit(spec.getArtifactId());
+    index.commitArtifact(spec.getArtifactUuid());
+    variantState.commit(spec.getArtifactUuid());
 
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_U, false, 2);
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_U, true, 2);
+    assertLatestArtifactVersion(NS, AU_B, URL_U, false, 2);
+    assertLatestArtifactVersion(NS, AU_B, URL_U, true, 2);
 
     //// B_V
 
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_V, false, 3);
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_V, true, 3);
+    assertLatestArtifactVersion(NS, AU_B, URL_V, false, 3);
+    assertLatestArtifactVersion(NS, AU_B, URL_V, true, 3);
 
     // Commit b_v_2
     spec = specs.get(5);
-    index.commitArtifact(spec.getArtifactId());
-    variantState.commit(spec.getArtifactId());
+    index.commitArtifact(spec.getArtifactUuid());
+    variantState.commit(spec.getArtifactUuid());
 
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_V, false, 3);
-    assertLatestArtifactVersion(COLLECTION, AU_B, URL_V, true, 3);
+    assertLatestArtifactVersion(NS, AU_B, URL_V, false, 3);
+    assertLatestArtifactVersion(NS, AU_B, URL_V, true, 3);
   }
 
-  public void assertLatestArtifactVersion(String collection, String auid, String uri, boolean includeUncommitted, int expectedVersion) throws Exception {
+  public void assertLatestArtifactVersion(String namespace, String auid, String uri, boolean includeUncommitted, int expectedVersion) throws Exception {
     // Get latest version Artifact from variant state and index
-    Artifact expected = variantState.getLatestArtifactSpec(collection, auid, uri, includeUncommitted).getArtifact();
-    Artifact actual = index.getArtifact(collection, auid, uri, includeUncommitted);
+    Artifact expected = variantState.getLatestArtifactSpec(namespace, auid, uri, includeUncommitted).getArtifact();
+    Artifact actual = index.getArtifact(namespace, auid, uri, includeUncommitted);
 
     // Assert latest Artifact from variant and index match
     assertEquals(expected, actual);
@@ -475,15 +511,15 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     List<Artifact> expected;
 
     // Assert variant state
-    for (String collection : variantState.allCollections()) {
-      for (String auid : variantState.allAuids(collection)) {
+    for (String ns : variantState.allNamespaces()) {
+      for (String auid : variantState.allAuids(ns)) {
         // With includeUncommitted set to false
-        expected = variantState.getArtifactsFrom(variantState.getLatestArtifactSpecs(collection, auid, false));
-        assertIterableEquals(expected, index.getArtifacts(collection, auid, false));
+        expected = variantState.getArtifactsFrom(variantState.getLatestArtifactSpecs(ns, auid, false));
+        assertIterableEquals(expected, index.getArtifacts(ns, auid, false));
 
         // With includeUncommitted set to true
-        expected = variantState.getArtifactsFrom(variantState.getLatestArtifactSpecs(collection, auid, true));
-        assertIterableEquals(expected, index.getArtifacts(collection, auid, true));
+        expected = variantState.getArtifactsFrom(variantState.getLatestArtifactSpecs(ns, auid, true));
+        assertIterableEquals(expected, index.getArtifacts(ns, auid, true));
       }
     }
   }
@@ -506,9 +542,9 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     assertIterableEquals(artList(specs, 5), index.getArtifactsAllVersions("d", "a", "v"));
 
-    index.commitArtifact(specs.get(4).getArtifactId());
+    index.commitArtifact(specs.get(4).getArtifactUuid());
 
-    variantState.commit(specs.get(4).getArtifactId());
+    variantState.commit(specs.get(4).getArtifactUuid());
 
     log.debug("result = {}", ListUtil.fromIterable(index.getArtifactsAllVersions("d", "a", "v")));
     assertIterableEquals(artList(specs, 5, 4), index.getArtifactsAllVersions("d", "a", "v"));
@@ -533,22 +569,22 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     //// Populate artifact index from ArtifactSpecs
     populateIndex(index, specs);
 
-    //// Assert unknown or null collections and URLs result in an empty set
+    //// Assert unknown or null namespaces and URLs result in an empty set
     for (ArtifactVersions versions : ArtifactVersions.values()) {
       assertThrows(
           IllegalArgumentException.class,
           () -> index.getArtifactsWithUrlFromAllAus(null, null, versions),
-          "Collection or URL is null");
+          "Namespace or URL is null");
 
       assertThrows(
           IllegalArgumentException.class,
           () -> index.getArtifactsWithUrlFromAllAus("d", null, versions),
-          "Collection or URL is null");
+          "Namespace or URL is null");
 
       assertThrows(
           IllegalArgumentException.class,
           () -> index.getArtifactsWithUrlFromAllAus(null, "u", versions),
-          "Collection or URL is null");
+          "Namespace or URL is null");
     }
 
     //// Demonstrate deleting an artifact affects the result
@@ -563,8 +599,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
     );
 
-    index.commitArtifact(specs.get(7).getArtifactId());
-    variantState.commit(specs.get(7).getArtifactId());
+    index.commitArtifact(specs.get(7).getArtifactUuid());
+    variantState.commit(specs.get(7).getArtifactUuid());
 
     assertIterableEquals(
         artList(specs, 8, 7, 2, 4),
@@ -576,7 +612,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
     );
 
-    index.deleteArtifact(specs.get(7).getArtifactId());
+    index.deleteArtifact(specs.get(7).getArtifactUuid());
 
     /// ...result should not change...
 
@@ -590,7 +626,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         index.getArtifactsWithUrlFromAllAus("d", "v", ArtifactVersions.LATEST)
     );
 
-    index.deleteArtifact(specs.get(9).getArtifactId());
+    index.deleteArtifact(specs.get(9).getArtifactUuid());
 
     /// ...result should not change...
 
@@ -618,8 +654,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Commit all uncommitted artifacts
     for (ArtifactSpec spec : specs) {
       if (!spec.isCommitted()) {
-        index.commitArtifact(spec.getArtifactId());
-        variantState.commit(spec.getArtifactId());
+        index.commitArtifact(spec.getArtifactUuid());
+        variantState.commit(spec.getArtifactUuid());
       }
     }
 
@@ -664,8 +700,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     ArtifactSpec spec = specs.get(1);
     spec.setCommitted(true);
-    index.commitArtifact(spec.getArtifactId());
-    variantState.commit(spec.getArtifactId());
+    index.commitArtifact(spec.getArtifactUuid());
+    variantState.commit(spec.getArtifactUuid());
 
     assertEquals(3, IterableUtils.size(index.getArtifactsWithPrefix("d", "a", "u")));
 
@@ -692,20 +728,20 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     //// Populate artifact index from ArtifactSpecs
     populateIndex(index, specs);
 
-    //// Assert unknown or null collections and URLs result in an empty set
+    //// Assert unknown or null namespaces and URLs result in an empty set
     for (ArtifactVersions versions : ArtifactVersions.values()) {
       assertThrows(
           IllegalArgumentException.class,
           () -> index.getArtifactsWithUrlPrefixFromAllAus(null, null, versions),
-          "Collection or URL is null");
+          "Namespace or URL is null");
 
       assertThrows(
           IllegalArgumentException.class,
           () -> index.getArtifactsWithUrlPrefixFromAllAus(null, "u", versions),
-          "Collection or URL is null");
+          "Namespace or URL is null");
     }
 
-    // Assert a null prefix returns all the committed artifacts in the collection
+    // Assert a null prefix returns all the committed artifacts in the namespace
     assertIterableEquals(
         specs.stream()
             .filter(ArtifactSpec::isCommitted)
@@ -714,7 +750,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         index.getArtifactsWithUrlPrefixFromAllAus("d", null, ArtifactVersions.ALL)
     );
 
-    // Assert a null prefix returns all the committed artifacts in the collection
+    // Assert a null prefix returns all the committed artifacts in the namespace
     assertIterableEquals(
         artList(specs, 0, 2, 5, 7, 9),
         index.getArtifactsWithUrlPrefixFromAllAus("d", null, ArtifactVersions.LATEST)
@@ -737,8 +773,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Commit all uncommitted artifacts
     for (ArtifactSpec spec : specs) {
       if (!spec.isCommitted()) {
-        index.commitArtifact(spec.getArtifactId());
-        variantState.commit(spec.getArtifactId());
+        index.commitArtifact(spec.getArtifactUuid());
+        variantState.commit(spec.getArtifactUuid());
       }
     }
 
@@ -772,7 +808,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         index.getArtifactsWithUrlPrefixFromAllAus("d", "u1", ArtifactVersions.LATEST)
     );
 
-    index.deleteArtifact(specs.get(3).getArtifactId());
+    index.deleteArtifact(specs.get(3).getArtifactUuid());
     variantState.delFromAll(specs.get(3));
 
     assertIterableEquals(
@@ -786,23 +822,23 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     );
   }
 
-  private void assertGetArtifactsWithUrlPrefixFromAllAus(List<ArtifactSpec> specs, String collection, String prefix) throws IOException {
+  private void assertGetArtifactsWithUrlPrefixFromAllAus(List<ArtifactSpec> specs, String namespace, String prefix) throws IOException {
     assertIterableEquals(
         specs.stream()
             .filter(spec -> !spec.isDeleted())
             .filter(ArtifactSpec::isCommitted)
-            .filter(spec -> spec.getCollection().equals(collection))
+            .filter(spec -> spec.getNamespace().equals(namespace))
             .filter(spec -> spec.getUrl().startsWith(prefix))
             .map(ArtifactSpec::getArtifact)
             .collect(Collectors.toList()),
-        index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.ALL)
+        index.getArtifactsWithUrlPrefixFromAllAus(namespace, prefix, ArtifactVersions.ALL)
     );
 
     assertIterableEquals(
         specs.stream()
             .filter(spec -> !spec.isDeleted())
             .filter(ArtifactSpec::isCommitted)
-            .filter(spec -> spec.getCollection().equals(collection))
+            .filter(spec -> spec.getNamespace().equals(namespace))
             .filter(spec -> spec.getUrl().startsWith(prefix))
             .map(ArtifactSpec::getArtifact)
 
@@ -815,7 +851,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
             .map(Optional::get)
 
             .collect(Collectors.toList()),
-        index.getArtifactsWithUrlPrefixFromAllAus(collection, prefix, ArtifactVersions.LATEST)
+        index.getArtifactsWithUrlPrefixFromAllAus(namespace, prefix, ArtifactVersions.LATEST)
     );
   }
 
@@ -837,7 +873,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       Artifact expected = spec.getArtifact();
-      Artifact actual = index.getArtifactVersion(spec.getCollection(), spec.getAuid(), spec.getUrl(), spec.getVersion());
+      Artifact actual = index.getArtifactVersion(spec.getNamespace(), spec.getAuid(), spec.getUrl(), spec.getVersion());
 
       if (spec.isCommitted()) {
         assertNotNull(actual);
@@ -853,20 +889,22 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testUpdateStorageUrl() throws Exception {
     // Attempt to update the storage URL of a null artifact ID
-    assertThrowsMatch(IllegalArgumentException.class, "Invalid artifact ID", () -> index.updateStorageUrl(null, "xxx"));
+    assertThrowsMatch(IllegalArgumentException.class, "Invalid artifact UUID", () -> index.updateStorageUrl(null,
+        "xxx"));
 
     // Attempt to update the storage URL of an unknown artifact ID
-    assertNull(index.updateStorageUrl("xyzzy", "xxx"));
+    // assertThrowsMatch(IOException.class, "Artifact not found", () -> index.updateStorageUrl("xyzzy", "xxx"));
+    assertThrows(IOException.class, () -> index.updateStorageUrl("xyzzy", "xxx"));
 
     // Assert we're able to update the storage URLs of all existing artifacts
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       // Ensure the current storage URL matches the artifact specification in the variant state
-      Artifact indexed1 = index.getArtifact(spec.getArtifactId());
+      Artifact indexed1 = index.getArtifact(spec.getArtifactUuid());
       assertEquals(spec.getArtifact().getStorageUrl(), indexed1.getStorageUrl());
 
       // Update the storage URL
       String nsURL = UUID.randomUUID().toString();
-      Artifact updated = index.updateStorageUrl(spec.getArtifactId(), nsURL);
+      Artifact updated = index.updateStorageUrl(spec.getArtifactUuid(), nsURL);
       spec.setStorageUrl(URI.create(nsURL));
 
       // Assert the artifact returned by updateStorageUrl() reflects the new storage URL
@@ -874,7 +912,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       assertEquals(spec.getArtifact().getStorageUrl(), updated.getStorageUrl());
 
       // Fetch the artifact from index and assert it matches
-      Artifact indexed2 = index.getArtifact(spec.getArtifactId());
+      Artifact indexed2 = index.getArtifact(spec.getArtifactUuid());
       assertEquals(spec.getArtifact(), indexed2);
       assertEquals(spec.getArtifact().getStorageUrl(), indexed2.getStorageUrl());
     }
@@ -882,7 +920,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     // Assert updating the storage URL of a deleted artifact returns null (unknown artifact)
     ArtifactSpec spec = variantState.anyDeletedSpec();
     if (spec != null) {
-      assertNull(index.updateStorageUrl(spec.getArtifactId(), "xxx"));
+      assertNull(index.updateStorageUrl(spec.getArtifactUuid(), "xxx"));
     }
   }
 
@@ -906,7 +944,7 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // Ensure the URL of artifacts in the index matches the URL in their specification
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
-      Artifact indexed = index.getArtifact(spec.getArtifactId());
+      Artifact indexed = index.getArtifact(spec.getArtifactUuid());
       assertEquals(spec.getUrl(), indexed.getUri());
     }
 
@@ -930,18 +968,27 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testAuSize() throws Exception {
+    AuSize zero = new AuSize();
+
+    zero.setTotalAllVersions(0L);
+    zero.setTotalLatestVersions(0L);
+    zero.setTotalWarcSize(0L);
+
     // Check AU size of non-existent AUs
-    assertEquals(0L, index.auSize(null, null).longValue());
-    assertEquals(0L, index.auSize("collection", null).longValue());
-    assertEquals(0L, index.auSize(null, "auid").longValue());
-    assertEquals(0L, index.auSize("collection", "auid").longValue());
+    assertEquals(zero, index.auSize(null, null));
+    assertEquals(zero, index.auSize("ns1", null));
+    assertEquals(zero, index.auSize(null, "auid"));
+    assertEquals(zero, index.auSize("ns1", "auid"));
 
     // Assert variant state
-    for (String collection : variantState.allCollections()) {
-      for (String auid : variantState.allAuids(collection)) {
-        log.debug("index.auSize() = {}", index.auSize(collection, auid));
-        log.debug("variantState.auSize() = {}", variantState.auSize(collection, auid));
-        assertEquals((long) variantState.auSize(collection, auid), (long) index.auSize(collection, auid));
+    for (String ns : variantState.allNamespaces()) {
+      for (String auid : variantState.allAuids(ns)) {
+        log.debug("index.auSize() = {}", index.auSize(ns, auid));
+        log.debug("variantState.auSize() = {}", variantState.auSize(ns, auid));
+
+        AuSize auSize = index.auSize(ns, auid);
+
+        assertEquals(variantState.auSize(ns, auid), auSize);
       }
     }
   }
@@ -950,7 +997,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testCommitArtifact() throws Exception {
     // Assert committing an artifact with a null artifact ID (String or UUID) throws IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact ID", () -> index.commitArtifact((String) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact UUID",
+        () -> index.commitArtifact((String) null));
     assertThrowsMatch(IllegalArgumentException.class, "Null UUID", () -> index.commitArtifact((UUID) null));
 
     // Assert committing an artifact of unknown artifact ID returns null
@@ -966,8 +1014,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         assertFalse(spec.isDeleted());
 
         // Assert artifact exists in the index and that it matches the spec
-        assertTrue(index.artifactExists(spec.getArtifactId()));
-        Artifact artifact = index.getArtifact(spec.getArtifactId());
+        assertTrue(index.artifactExists(spec.getArtifactUuid()));
+        Artifact artifact = index.getArtifact(spec.getArtifactUuid());
         spec.assertArtifactCommon(artifact);
 
         // Assert committed state of artifact against spec
@@ -981,12 +1029,12 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       } else {
         // Assert deleted artifact states
         assertTrue(spec.isDeleted());
-        assertFalse(index.artifactExists(spec.getArtifactId()));
-        assertNull(index.getArtifact(spec.getArtifactId()));
+        assertFalse(index.artifactExists(spec.getArtifactUuid()));
+        assertNull(index.getArtifact(spec.getArtifactUuid()));
       }
 
       // Commit (again)
-      Artifact indexed = index.commitArtifact(spec.getArtifactId());
+      Artifact indexed = index.commitArtifact(spec.getArtifactUuid());
       spec.setCommitted(true);
 
       if (!spec.isDeleted()) {
@@ -997,8 +1045,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       } else {
         // Assert commit operation on a non-existent, deleted artifact returns null
         assertNull(indexed);
-        assertFalse(index.artifactExists(spec.getArtifactId()));
-        assertNull(index.getArtifact(spec.getArtifactId()));
+        assertFalse(index.artifactExists(spec.getArtifactUuid()));
+        assertNull(index.getArtifact(spec.getArtifactUuid()));
       }
     }
   }
@@ -1007,7 +1055,8 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
   @EnumSource(TestIndexScenarios.class)
   public void testDeleteArtifact() throws Exception {
     // Assert deleting an artifact with null artifact ID (String or UUID) throws IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "Null or empty identifier", () -> index.deleteArtifact((String) null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty UUID",
+        () -> index.deleteArtifact((String) null));
     assertThrowsMatch(IllegalArgumentException.class, "Null UUID", () -> index.deleteArtifact((UUID) null));
 
     // Assert removing a non-existent artifact ID returns false (String and UUID)
@@ -1016,42 +1065,42 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
 
     // Assert variant state
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
-      assertEquals(spec.isDeleted(), !index.artifactExists(spec.getArtifactId()));
+      assertEquals(spec.isDeleted(), !index.artifactExists(spec.getArtifactUuid()));
     }
 
     // Create an artifact spec
-    ArtifactSpec spec = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
-    spec.setArtifactId(UUID.randomUUID().toString());
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl("c", "a", "u1").thenCommit();
+    spec.setArtifactUuid(UUID.randomUUID().toString());
     spec.generateContent();
     spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Assert conditions expected if the artifact is not in the index
-    assertFalse(index.artifactExists(spec.getArtifactId()));
-    assertNull(index.getArtifact(spec.getArtifactId()));
-    assertFalse(index.deleteArtifact(spec.getArtifactId()));
+    assertFalse(index.artifactExists(spec.getArtifactUuid()));
+    assertNull(index.getArtifact(spec.getArtifactUuid()));
+    assertFalse(index.deleteArtifact(spec.getArtifactUuid()));
 
     // Index the artifact data from spec and assert the return matches spec
-    Artifact indexed = index.indexArtifact(spec.getArtifactData());
-    spec.assertArtifactCommon(indexed);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Assert conditions expected if the artifact is in the index
-    assertTrue(index.artifactExists(spec.getArtifactId()));
-    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactId()));
+    assertTrue(index.artifactExists(spec.getArtifactUuid()));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Delete from index and assert operation was successful (returns true)
-    assertTrue(index.deleteArtifact(spec.getArtifactId()));
+    assertTrue(index.deleteArtifact(spec.getArtifactUuid()));
 
     // Assert conditions expected if the artifact is not in the index
-    assertFalse(index.artifactExists(spec.getArtifactId()));
-    assertNull(index.getArtifact(spec.getArtifactId()));
-    assertFalse(index.deleteArtifact(spec.getArtifactId()));
+    assertFalse(index.artifactExists(spec.getArtifactUuid()));
+    assertNull(index.getArtifact(spec.getArtifactUuid()));
+    assertFalse(index.deleteArtifact(spec.getArtifactUuid()));
   }
 
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testArtifactExists() throws Exception {
     // Attempt calling artifactExists() with null artifact ID; should throw IllegalArgumentException
-    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact ID", () -> index.artifactExists(null));
+    assertThrowsMatch(IllegalArgumentException.class, "Null or empty artifact UUID", () -> index.artifactExists(null));
 
     // Assert artifactExists() returns false for an artifact with an unknown artifact ID
     assertFalse(index.artifactExists("unknown"));
@@ -1060,48 +1109,48 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     for (ArtifactSpec spec : variantState.getArtifactSpecs()) {
       if (spec.isToDelete()) {
         assertTrue(spec.isDeleted());
-        assertFalse(index.artifactExists(spec.getArtifactId()));
-        assertNull(index.getArtifact(spec.getArtifactId()));
+        assertFalse(index.artifactExists(spec.getArtifactUuid()));
+        assertNull(index.getArtifact(spec.getArtifactUuid()));
       } else {
         assertFalse(spec.isDeleted());
-        assertTrue(index.artifactExists(spec.getArtifactId()));
-        spec.assertArtifactCommon(index.getArtifact(spec.getArtifactId()));
+        assertTrue(index.artifactExists(spec.getArtifactUuid()));
+        spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
       }
     }
 
     // Create an artifact spec
-    ArtifactSpec spec = ArtifactSpec.forCollAuUrl("c", "a", "u1").thenCommit();
-    spec.setArtifactId(UUID.randomUUID().toString());
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl("c", "a", "u1").thenCommit();
+    spec.setArtifactUuid(UUID.randomUUID().toString());
     spec.generateContent();
     spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Assert that an artifact by the spec's artifact ID does not exist yet
-    assertFalse(index.artifactExists(spec.getArtifactId()));
+    assertFalse(index.artifactExists(spec.getArtifactUuid()));
 
     // Add the artifact to the index
-    index.indexArtifact(spec.getArtifactData());
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
 
     // Assert that an artifact by the spec's artifact ID now exists
-    assertTrue(index.artifactExists(spec.getArtifactId()));
-    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactId()));
+    assertTrue(index.artifactExists(spec.getArtifactUuid()));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
     // Remove the artifact from the index
-    index.deleteArtifact(spec.getArtifactId());
+    index.deleteArtifact(spec.getArtifactUuid());
 
     // Assert that an artifact by the spec's artifact ID no longer exists
-    assertFalse(index.artifactExists(spec.getArtifactId()));
-    assertNull(index.getArtifact(spec.getArtifactId()));
+    assertFalse(index.artifactExists(spec.getArtifactUuid()));
+    assertNull(index.getArtifact(spec.getArtifactUuid()));
   }
 
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
-  public void testGetCollectionIds() throws Exception {
-    // Assert that the collection IDs from the index matches the variant scenario state
-    assertIterableEquals(variantState.activeCollections(), index.getCollectionIds());
+  public void testGetNamespaces() throws Exception {
+    // Assert that the namespaces from the index matches the variant scenario state
+    assertIterableEquals(variantState.activeNamespaces(), index.getNamespaces());
 
     // Create an artifact spec
-    ArtifactSpec spec1 = ArtifactSpec.forCollAuUrl("xyzzy", "foo", "bar");
-    spec1.setArtifactId(UUID.randomUUID().toString());
+    ArtifactSpec spec1 = ArtifactSpec.forNsAuUrl("xyzzy", "foo", "bar");
+    spec1.setArtifactUuid(UUID.randomUUID().toString());
     spec1.generateContent();
     spec1.setStorageUrl(URI.create("file:///tmp/a"));
 
@@ -1110,81 +1159,81 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     assertFalse(spec1.isCommitted());
 
     // Index artifact from artifact spec
-    Artifact indexed = index.indexArtifact(spec1.getArtifactData());
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec1.getArtifactData()));
 
     // Sanity check
-    assertFalse(indexed.getCommitted());
-    Artifact retrieved = index.getArtifact(spec1.getArtifactId());
+    assertFalse(index.getArtifact(spec1.getArtifactUuid()).isCommitted());
+    Artifact retrieved = index.getArtifact(spec1.getArtifactUuid());
     assertFalse(retrieved.getCommitted());
 
-    // Assert the uncommitted artifact's collection ID is included
-    assertTrue(IterableUtils.contains(index.getCollectionIds(), spec1.getCollection()));
+    // Assert the uncommitted artifact's namespace is included
+    assertTrue(IterableUtils.contains(index.getNamespaces(), spec1.getNamespace()));
 
     // Commit artifact
-    index.commitArtifact(spec1.getArtifactId());
+    index.commitArtifact(spec1.getArtifactUuid());
 
-    // Assert the committed artifact's collection ID is now included
-    assertTrue(IterableUtils.contains(index.getCollectionIds(), spec1.getCollection()));
+    // Assert the committed artifact's namespace is now included
+    assertTrue(IterableUtils.contains(index.getNamespaces(), spec1.getNamespace()));
   }
 
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testGetAuIds() throws Exception {
-    // Assert calling getAuIds() with a null or unknown collection ID returns an empty set
+    // Assert calling getAuIds() with a null or unknown namespace returns an empty set
     assertTrue(IterableUtils.isEmpty(index.getAuIds(null)));
     assertTrue(IterableUtils.isEmpty(index.getAuIds("unknown")));
 
     // Assert variant scenario
-    for (String collectionId : variantState.activeCommittedCollections()) {
-      assertIterableEquals(variantState.activeAuids(collectionId), index.getAuIds(collectionId));
+    for (String ns : variantState.activeCommittedNamespaces()) {
+      assertIterableEquals(variantState.activeAuids(ns), index.getAuIds(ns));
     }
 
     // Create an artifact spec
-    ArtifactSpec spec = ArtifactSpec.forCollAuUrl("xyzzy", "foo", "bar");
-    spec.setArtifactId(UUID.randomUUID().toString());
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl("xyzzy", "foo", "bar");
+    spec.setArtifactUuid(UUID.randomUUID().toString());
     spec.generateContent();
     spec.setStorageUrl(URI.create("file:///tmp/a"));
 
     // Index the artifact
-    Artifact indexed = index.indexArtifact(spec.getArtifactData());
-    spec.assertArtifactCommon(indexed);
+    index.indexArtifact(ArtifactDataUtil.getArtifact(spec.getArtifactData()));
+    spec.assertArtifactCommon(index.getArtifact(spec.getArtifactUuid()));
 
-    // Assert that set of AUIDs for the collection is not empty until the artifact is committed
-    assertFalse(IterableUtils.isEmpty(index.getAuIds(spec.getCollection())));
+    // Assert that set of AUIDs for the namespace is not empty until the artifact is committed
+    assertFalse(IterableUtils.isEmpty(index.getAuIds(spec.getNamespace())));
 
     // Commit the artifact
-    Artifact committed = index.commitArtifact(spec.getArtifactId());
+    Artifact committed = index.commitArtifact(spec.getArtifactUuid());
 
     // Sanity check
     assertTrue(committed.getCommitted());
     spec.setCommitted(true);
     spec.assertArtifactCommon(committed);
 
-    // Assert that set of AUIDs for the collection is non-empty
-    assertFalse(IterableUtils.isEmpty(index.getAuIds(spec.getCollection())));
-    assertIterableEquals(Collections.singleton(spec.getAuid()), index.getAuIds(spec.getCollection()));
+    // Assert that set of AUIDs for the namespace is non-empty
+    assertFalse(IterableUtils.isEmpty(index.getAuIds(spec.getNamespace())));
+    assertIterableEquals(Collections.singleton(spec.getAuid()), index.getAuIds(spec.getNamespace()));
   }
 
   @VariantTest
   @EnumSource(TestIndexScenarios.class)
   public void testGetArtifactsAllVersions_inAU() throws Exception {
-    String COLLECTION = "d";
+    String NS = "d";
     String AU_A = "a";
     String AU_B = "b";
 
-    // Assert null and unknown collection/AUIDs return an empty result (i.e., no matches)
+    // Assert null and unknown namespaces/AUIDs return an empty result (i.e., no matches)
     assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(null, null, true)));
     assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(null, null, false)));
-    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(COLLECTION, null, true)));
+    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(NS, null, true)));
     assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(null, AU_A, true)));
     assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(null, AU_B, true)));
-    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(COLLECTION, AU_A, true)));
-    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(COLLECTION, AU_B, true)));
+    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(NS, AU_A, true)));
+    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(NS, AU_B, true)));
 
     List<ArtifactSpec> specs = new ArrayList<>();
-    ArtifactSpec spec_a_1 = createArtifactSpec(COLLECTION, AU_A, "u", 1, false);
-    ArtifactSpec spec_b_1 = createArtifactSpec(COLLECTION, AU_B, "u", 1, false);
-    ArtifactSpec spec_b_2 = createArtifactSpec(COLLECTION, AU_B, "v", 1, true);
+    ArtifactSpec spec_a_1 = createArtifactSpec(NS, AU_A, "u", 1, false);
+    ArtifactSpec spec_b_1 = createArtifactSpec(NS, AU_B, "u", 1, false);
+    ArtifactSpec spec_b_2 = createArtifactSpec(NS, AU_B, "v", 1, true);
 
     specs.add(spec_a_1);
     specs.add(spec_b_1);
@@ -1202,59 +1251,59 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
     //// FIRST AU
 
     // Assert empty result if includeUncommitted is set to false
-    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(COLLECTION, AU_A, false)));
+    assertTrue(IterableUtils.isEmpty(index.getArtifactsAllVersions(NS, AU_A, false)));
 
     // Assert we get back one artifact if we set includeUncommitted to true
-    result = IterableUtils.toList(index.getArtifactsAllVersions(COLLECTION, AU_A, true));
+    result = IterableUtils.toList(index.getArtifactsAllVersions(NS, AU_A, true));
     assertEquals(1, result.size());
     spec_a_1.assertArtifactCommon(result.get(0));
 
     // Commit artifact
-    index.commitArtifact(spec_a_1.getArtifactId());
+    index.commitArtifact(spec_a_1.getArtifactUuid());
     spec_a_1.setCommitted(true);
 
     // Sanity check
-    artifact = index.getArtifact(spec_a_1.getArtifactId());
+    artifact = index.getArtifact(spec_a_1.getArtifactUuid());
     assertTrue(artifact.getCommitted());
 
     // Assert we now get back one artifact even if includeUncommitted is false
-    result = IterableUtils.toList(index.getArtifactsAllVersions(COLLECTION, AU_A, false));
+    result = IterableUtils.toList(index.getArtifactsAllVersions(NS, AU_A, false));
     assertEquals(1, result.size());
     spec_a_1.assertArtifactCommon(result.get(0));
 
     //// SECOND AU
 
     // Assert we get back the committed artifact with includeUncommitted set to false
-    result = IterableUtils.toList(index.getArtifactsAllVersions(COLLECTION, AU_B, false));
+    result = IterableUtils.toList(index.getArtifactsAllVersions(NS, AU_B, false));
     assertEquals(1, result.size());
     spec_b_2.assertArtifactCommon(result.get(0));
 
     // Assert we get back both artifacts with includeUncommitted set to true
-    result = IterableUtils.toList(index.getArtifactsAllVersions(COLLECTION, AU_B, true));
+    result = IterableUtils.toList(index.getArtifactsAllVersions(NS, AU_B, true));
     assertEquals(2, result.size());
     assertIterableEquals(ListUtil.list(spec_b_1.getArtifact(), spec_b_2.getArtifact()), result);
 
     // Commit artifact
-    index.commitArtifact(spec_b_1.getArtifactId());
+    index.commitArtifact(spec_b_1.getArtifactUuid());
     spec_b_1.setCommitted(true);
 
     // Sanity check
-    artifact = index.getArtifact(spec_b_1.getArtifactId());
+    artifact = index.getArtifact(spec_b_1.getArtifactUuid());
     assertTrue(artifact.getCommitted());
 
     // Assert we now get back both artifact with includeUncommitted set to false
-    result = IterableUtils.toList(index.getArtifactsAllVersions(COLLECTION, AU_B, false));
+    result = IterableUtils.toList(index.getArtifactsAllVersions(NS, AU_B, false));
     assertEquals(2, result.size());
     assertIterableEquals(ListUtil.list(spec_b_1.getArtifact(), spec_b_2.getArtifact()), result);
 
     // Assert variant state
-    for (String collection : variantState.allCollections()) {
-      for (String auid : variantState.allAuids(collection)) {
-        result = IterableUtils.toList(index.getArtifactsAllVersions(collection, auid, false));
-        assertIterableEquals(variantState.getArtifactsFrom(variantState.getArtifactsAllVersions(collection, auid, false)), result);
+    for (String ns : variantState.allNamespaces()) {
+      for (String auid : variantState.allAuids(ns)) {
+        result = IterableUtils.toList(index.getArtifactsAllVersions(ns, auid, false));
+        assertIterableEquals(variantState.getArtifactsFrom(variantState.getArtifactsAllVersions(ns, auid, false)), result);
 
-        result = IterableUtils.toList(index.getArtifactsAllVersions(collection, auid, true));
-        assertIterableEquals(variantState.getArtifactsFrom(variantState.getArtifactsAllVersions(collection, auid, true)), result);
+        result = IterableUtils.toList(index.getArtifactsAllVersions(ns, auid, true));
+        assertIterableEquals(variantState.getArtifactsFrom(variantState.getArtifactsAllVersions(ns, auid, true)), result);
       }
     }
 
@@ -1267,19 +1316,19 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
       assertFalse(spec.isCommitted());
 
       // Assert the uncommitted artifact *is not* included in the results for its AU with includeUncommitted set to false
-      result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getCollection(), spec.getAuid(), false));
+      result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getNamespace(), spec.getAuid(), false));
       assertFalse(result.contains(spec.getArtifact()));
 
       // Assert the uncommitted artifact *is* included in the results for its AU with includeUncommitted set to true
-      result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getCollection(), spec.getAuid(), true));
+      result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getNamespace(), spec.getAuid(), true));
       assertTrue(result.contains(spec.getArtifact()));
 
       // Commit the artifact
-      index.commitArtifact(spec.getArtifactId());
+      index.commitArtifact(spec.getArtifactUuid());
       spec.setCommitted(true);
 
       // Assert the uncommitted artifact *is now* included in the results for its AU with includeUncommitted set to false
-      result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getCollection(), spec.getAuid(), false));
+      result = IterableUtils.toList(index.getArtifactsAllVersions(spec.getNamespace(), spec.getAuid(), false));
       assertTrue(result.contains(spec.getArtifact()));
     }
   }
@@ -1298,10 +1347,10 @@ public abstract class AbstractArtifactIndexTest<AI extends ArtifactIndex> extend
         .collect(Collectors.toList());
   }
 
-  private static ArtifactSpec createArtifactSpec(String collection, String auid, String uri, long version, boolean commit) {
-    ArtifactSpec spec = ArtifactSpec.forCollAuUrl(collection, auid, uri);
+  private static ArtifactSpec createArtifactSpec(String namespace, String auid, String uri, long version, boolean commit) {
+    ArtifactSpec spec = ArtifactSpec.forNsAuUrl(namespace, auid, uri);
 
-    spec.setArtifactId(UUID.randomUUID().toString());
+    spec.setArtifactUuid(UUID.randomUUID().toString());
     spec.setVersion((int) version);
 
     if (commit) {

@@ -30,7 +30,6 @@
 
 package org.lockss.laaws.rs.io.storage.hdfs;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -71,30 +70,23 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
   // * JUNIT
   // *******************************************************************************************************************
 
-  // FIXME: This is hella hacky...
   private final static class ProxyLockssTestCase5 extends LockssTestCase5 {
     // Intentionally left blank
   }
 
-  private final static ProxyLockssTestCase5 proxyLockssTestCase5 = new ProxyLockssTestCase5();
+  private final static ProxyLockssTestCase5 proxy = new ProxyLockssTestCase5();
 
   @BeforeAll
   public static void startMiniDFSCluster() throws IOException {
-    boolean isPropSet = System.getProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA) != null;
+    // Get temporary directory for HDFS data dir
+    File dataDir = proxy.getTempDir();
 
-    if (!isPropSet) {
-      // Get a temporary directory to serve as the HDSF cluster base directory
-      File hdfsClusterBase = proxyLockssTestCase5.getTempDir();
-      System.setProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA, hdfsClusterBase.getAbsolutePath());
-    }
+    HdfsConfiguration conf = new HdfsConfiguration();
+    conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
 
-    log.info(
-        "Starting MiniDFSCluster [{} = {}]",
-        MiniDFSCluster.PROP_TEST_BUILD_DATA, System.getProperty(MiniDFSCluster.PROP_TEST_BUILD_DATA)
-    );
+    log.info("Starting MiniDFSCluster");
 
-    // Build MiniDFSCluster using default HDFS configuration
-    Configuration conf = new HdfsConfiguration();
+    // Build MiniDFSCluster using custom HDFS configuration
     MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
     hdfsCluster = builder.build();
 
@@ -219,31 +211,31 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
   }
 
   /**
-   * Test for {@link HdfsWarcArtifactDataStore#initCollection(String)}.
+   * Test for {@link HdfsWarcArtifactDataStore#initNamespace(String)}.
    *
    * @throws Exception
    */
   @Override
-  public void testInitCollectionImpl() throws Exception {
-    String collectionId = "collection";
-    final java.nio.file.Path[] collectionPaths = new java.nio.file.Path[]{Paths.get("/a"), Paths.get("/b")};
+  public void testInitNamespaceImpl() throws Exception {
+    String namespace = "ns1";
+    final java.nio.file.Path[] nsPaths = new java.nio.file.Path[]{Paths.get("/a"), Paths.get("/b")};
 
     // Mocks
     HdfsWarcArtifactDataStore ds = mock(HdfsWarcArtifactDataStore.class);
 
     // Mock behavior
-    doCallRealMethod().when(ds).initCollection(ArgumentMatchers.any());
-    when(ds.getCollectionPaths(collectionId)).thenReturn(collectionPaths);
+    doCallRealMethod().when(ds).initNamespace(ArgumentMatchers.any());
+    when(ds.getNamespacePaths(namespace)).thenReturn(nsPaths);
 
     // Assert bad input results in IllegalArgumentException being thrown
-    assertThrows(IllegalArgumentException.class, () -> ds.initCollection(null));
-    assertThrows(IllegalArgumentException.class, () -> ds.initCollection(""));
+    assertThrows(IllegalArgumentException.class, () -> ds.initNamespace(null));
+    assertThrows(IllegalArgumentException.class, () -> ds.initNamespace(""));
 
-    // Initialize a collection
-    ds.initCollection(collectionId);
+    // Initialize a namespace
+    ds.initNamespace(namespace);
 
     // Assert expected directory structures were created
-    verify(ds).mkdirs(collectionPaths);
+    verify(ds).mkdirs(nsPaths);
   }
 
   /**
@@ -253,9 +245,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
    */
   @Override
   public void testInitAuImpl() throws Exception {
-    final String collectionId = "collection";
-    final String auid = "auid";
-
     // Mocks
     HdfsWarcArtifactDataStore ds = mock(HdfsWarcArtifactDataStore.class);
     ds.fs = mock(FileSystem.class);
@@ -266,15 +255,15 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     // Mock behavior
     doCallRealMethod().when(ds).clearAuMaps();
-    doCallRealMethod().when(ds).initAu(collectionId, auid);
+    doCallRealMethod().when(ds).initAu(NS1, AUID1);
 
     // Assert IllegalStateException thrown if no base paths configured in data store
     when(ds.getBasePaths()).thenReturn(null);
-    assertThrows(IllegalStateException.class, () -> ds.initAu(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAu(NS1, AUID1));
 
     // Assert IllegalStateException thrown if empty base paths
     when(ds.getBasePaths()).thenReturn(new Path[]{});
-    assertThrows(IllegalStateException.class, () -> ds.initAu(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAu(NS1, AUID1));
 
     // FIXME: Initialize maps
 //    FieldSetter.setField(ds, ds.getClass().getDeclaredField("auPathsMap"), new HashMap<>());
@@ -283,11 +272,11 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     // Assert IOException causes data store attempt to re-create directory
     when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath1);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath1);
     when(ds.fs.getFileStatus(ArgumentMatchers.any())).thenThrow(IOException.class);
-    when(ds.initAuDir(collectionId, auid)).thenReturn(auPath2);
-    assertTrue(ds.initAu(collectionId, auid).contains(auPath2));
-    verify(ds).initAuDir(collectionId, auid);
+    when(ds.initAuDir(NS1, AUID1)).thenReturn(auPath2);
+    assertTrue(ds.initAu(NS1, AUID1).contains(auPath2));
+    verify(ds).initAuDir(NS1, AUID1);
     clearInvocations(ds);
     reset(ds.fs);
 
@@ -295,20 +284,20 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     // Assert if no AU paths found then a new one is created
     when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath1);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath1);
     when(status.isDirectory()).thenReturn(false);
-    when(ds.initAuDir(collectionId, auid)).thenReturn(auPath2);
-    assertTrue(ds.initAu(collectionId, auid).contains(auPath2));
-    verify(ds).initAuDir(collectionId, auid);
+    when(ds.initAuDir(NS1, AUID1)).thenReturn(auPath2);
+    assertTrue(ds.initAu(NS1, AUID1).contains(auPath2));
+    verify(ds).initAuDir(NS1, AUID1);
     clearInvocations(ds);
 
     // Assert if existing AU paths are found on disk then they are just returned
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath1);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath1);
     List<Path> auPaths = new ArrayList<>();
     auPaths.add(auPath1);
     when(status.isDirectory()).thenReturn(true);
-    assertIterableEquals(auPaths, ds.initAu(collectionId, auid));
-    verify(ds, never()).initAuDir(collectionId, auid);
+    assertIterableEquals(auPaths, ds.initAu(NS1, AUID1));
+    verify(ds, never()).initAuDir(NS1, AUID1);
     clearInvocations(ds);
   }
 
@@ -535,9 +524,6 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
    */
   @Override
   public void testInitAuDirImpl() throws Exception {
-    String collectionId = "collection";
-    String auid = "auid";
-
     // Mocks
     HdfsWarcArtifactDataStore ds = mock(HdfsWarcArtifactDataStore.class);
     ds.fs = mock(FileSystem.class);
@@ -548,28 +534,28 @@ public class TestHdfsWarcArtifactStore extends AbstractWarcArtifactDataStoreTest
 
     // Mock behavior
     doCallRealMethod().when(ds).initAuDir(ArgumentMatchers.anyString(), ArgumentMatchers.anyString());
-    when(ds.getAuPath(basePath, collectionId, auid)).thenReturn(auPath);
+    when(ds.getAuPath(basePath, NS1, AUID1)).thenReturn(auPath);
     when(ds.hdfsPathFromPath(auPath)).thenReturn(hdfsAuPath);
     when(ds.fs.getFileStatus(hdfsAuPath)).thenReturn(status);
 
     // Assert IllegalStateException thrown if getBasePaths() returns null or is empty
     when(ds.getBasePaths()).thenReturn(null);
-    assertThrows(IllegalStateException.class, () -> ds.initAuDir(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAuDir(NS1, AUID1));
     when(ds.getBasePaths()).thenReturn(new Path[]{});
-    assertThrows(IllegalStateException.class, () -> ds.initAuDir(collectionId, auid));
+    assertThrows(IllegalStateException.class, () -> ds.initAuDir(NS1, AUID1));
 
     when(ds.getBasePaths()).thenReturn(new Path[]{basePath});
 
     // Assert directory created if not directory
     when(status.isDirectory()).thenReturn(false);
-    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    assertEquals(auPath, ds.initAuDir(NS1, AUID1));
     verify(ds).mkdirs(auPath);
     clearInvocations(ds);
 
     // Assert directory is *not* created if directory
     when(ds.fs.exists(hdfsAuPath)).thenReturn(true);
     when(status.isDirectory()).thenReturn(true);
-    assertEquals(auPath, ds.initAuDir(collectionId, auid));
+    assertEquals(auPath, ds.initAuDir(NS1, AUID1));
     verify(ds, never()).mkdirs(auPath);
     clearInvocations(ds);
   }

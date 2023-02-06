@@ -34,7 +34,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
+import org.archive.format.warc.WARCConstants;
 import org.lockss.laaws.rs.model.*;
 import org.lockss.laaws.rs.util.ArtifactDataFactory;
 import org.lockss.laaws.rs.util.ArtifactDataUtil;
@@ -42,7 +44,8 @@ import org.lockss.laaws.rs.util.NamedInputStreamResource;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.ListUtil;
 import org.lockss.util.LockssUncheckedIOException;
-import org.lockss.util.auth.*;
+import org.lockss.util.auth.AuthUtil;
+import org.lockss.util.io.FileUtil;
 import org.lockss.util.jms.JmsConsumer;
 import org.lockss.util.jms.JmsFactory;
 import org.lockss.util.jms.JmsProducer;
@@ -68,7 +71,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.util.*;
@@ -86,10 +91,10 @@ public class RestLockssRepository implements LockssRepository {
   public static final int DEFAULT_MAX_ART_CACHE_SIZE = 500;
   public static final int DEFAULT_MAX_ART_DATA_CACHE_SIZE = 20;
 
-  public static final String MULTIPART_ARTIFACT_REPO_PROPS = "artifact-repo-props";
-  public static final String MULTIPART_ARTIFACT_HEADER = "artifact-header";
-  public static final String MULTIPART_ARTIFACT_HTTP_STATUS = "artifact-http-status";
-  public static final String MULTIPART_ARTIFACT_CONTENT = "artifact-content";
+  // These must match the LOCKSS Repository swagger specification:
+  public static final String MULTIPART_ARTIFACT_PROPS = "artifactProps";
+  public static final String MULTIPART_ARTIFACT_HTTP_RESPONSE_HEADER = "httpResponseHeader";
+  public static final String MULTIPART_ARTIFACT_PAYLOAD = "payload";
 
   private RestTemplate restTemplate;
   private URL repositoryUrl;
@@ -109,7 +114,7 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  public RestLockssRepository(URL repositoryUrl, String userName, String password) {
+  public RestLockssRepository(URL repositoryUrl, String userName, String password) throws IOException {
     this(repositoryUrl, RestUtil.getRestTemplate(), userName, password);
   }
 
@@ -127,7 +132,9 @@ public class RestLockssRepository implements LockssRepository {
    * @param password      A String with the password of the user used to access
    *                      the remote LOCKSS Repository service.
    */
-  private RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password) {
+  public RestLockssRepository(URL repositoryUrl, RestTemplate restTemplate, String userName, String password)
+      throws IOException {
+
     // Set RestTemplate used by RestLockssRepository
     this.restTemplate = restTemplate;
 
@@ -144,42 +151,50 @@ public class RestLockssRepository implements LockssRepository {
     // Install our custom ResponseErrorHandler in the RestTemplate used by this RestLockssRepository
     restTemplate.setErrorHandler(new LockssResponseErrorHandler(restTemplate.getMessageConverters()));
 
+    File tmpDir = FileUtil.createTempDir("repo-client", null);
+
     // Add the multipart/form-data converter to the RestTemplate
     List<HttpMessageConverter<?>> messageConverters = restTemplate.getMessageConverters();
-    messageConverters.add(new MultipartMessageHttpMessageConverter());
+    messageConverters.add(new MultipartMessageHttpMessageConverter(tmpDir));
   }
 
 
   /**
    * Constructs a REST endpoint to an artifact in the repository.
    *
-   * @param collection A {@code String} containing the collection ID.
-   * @param artifactId A {@code String} containing the artifact ID.
+   * @param namespace A {@code String} containing the namespace.
+   * @param artifactUuid A {@code String} containing the artifact UUID.
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
-  private URI artifactEndpoint(String collection, String artifactId) {
-    return this.artifactEndpoint(collection, artifactId, null);
+  private URI artifactEndpoint(String namespace, String artifactUuid) {
+    return artifactEndpoint(namespace, artifactUuid, null);
   }
 
   /**
    * Constructs a REST endpoint to an artifact in the repository.
    *
-   * @param collection A {@code String} containing the collection ID.
-   * @param artifactId A {@code String} containing the artifact ID.
+   * @param namespace A {@code String} containing the namespace.
+   * @param artifactUuid A {@code String} containing the artifact UUID.
    * @param includeContent An {@link IncludeContent} indicating whether the artifact content part can or should be
    *                       included in the multipart response. Default is {@link IncludeContent#ALWAYS}.
    * @return A {@code URI} containing the REST endpoint to an artifact in the repository.
    */
-  private URI artifactEndpoint(String collection, String artifactId, IncludeContent includeContent) {
-    String endpoint = String.format("%s/collections/%s/artifacts/%s", repositoryUrl, collection, artifactId);
-    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+  private URI artifactEndpoint(String namespace, String artifactUuid, IncludeContent includeContent) {
+    Map<String, String> uriParams = new HashMap<>();
+    uriParams.put("uuid", artifactUuid);
+
+    Map<String, String> queryParams = new HashMap<>();
+
+    if (namespace != null) {
+      queryParams.put("namespace", namespace);
+    }
 
     if (includeContent != null) {
       // includeContent defaults to ALWAYS but lets be explicit to avoid confusion
-      builder.queryParam("includeContent", includeContent);
+      queryParams.put("includeContent", includeContent.toString());
     }
 
-    return builder.build().encode().toUri();
+    return RestUtil.getRestUri(repositoryUrl + "/artifacts/{uuid}", uriParams, queryParams);
   }
 
   /**
@@ -187,14 +202,14 @@ public class RestLockssRepository implements LockssRepository {
    * otherwise returns
    *
    * @param e          the LockssRestHttpException that was caught
-   * @param artifactId A {@code String} containing the artifact ID.
+   * @param artifactUuid A {@code String} containing the artifact UUID.
    * @param msg        used in error log and thrown exception
    */
-  private void checkArtIdError(LockssRestHttpException e, String artifactId,
+  private void checkArtIdError(LockssRestHttpException e, String artifactUuid,
                                String msg)
       throws LockssNoSuchArtifactIdException {
     if (e.getHttpStatus().equals(HttpStatus.NOT_FOUND)) {
-      throw new LockssNoSuchArtifactIdException(msg + ": " + artifactId, e);
+      throw new LockssNoSuchArtifactIdException(msg + ": " + artifactUuid, e);
     }
   }
 
@@ -209,128 +224,172 @@ public class RestLockssRepository implements LockssRepository {
    */
   @Override
   public Artifact addArtifact(ArtifactData artifactData) throws IOException {
-    if (artifactData == null)
-      throw new IllegalArgumentException("ArtifactData is null");
+    if (artifactData == null) {
+      throw new IllegalArgumentException("Null ArtifactData");
+    }
 
     // Get artifact identifier
     ArtifactIdentifier artifactId = artifactData.getIdentifier();
 
-    log.debug(
-        "Adding artifact to remote repository [collectionId: {}, auId: {}, uri: {}]",
-        artifactId.getCollection(),
-        artifactId.getAuid(),
-        artifactId.getUri()
-    );
+    log.debug("Adding artifact to remote repository [namespace: {}, auId: {}, uri: {}]",
+        artifactId.getNamespace(), artifactId.getAuid(), artifactId.getUri());
 
-    // Create a multivalue map to contain the multipart parts
-    MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
-    parts.add("auid", artifactId.getAuid());
-    parts.add("uri", artifactId.getUri());
+    // Transform ArtifactData into multiparts
+    MultiValueMap<String, Object> parts =
+        ArtifactDataUtil.generateMultipartMapFromArtifactData(artifactData, IncludeContent.ALWAYS, 0);
 
-    // Add collection date form data part if set
-    if (artifactData.getCollectionDate() >= 0) {
-      parts.add("collectionDate", artifactData.getCollectionDate());
-    }
-
-    // Prepare artifact multipart headers
-    HttpHeaders contentPartHeaders = new HttpHeaders();
-
-    // This must be set or else AbstractResource#contentLength will read the entire InputStream to determine the
-    // content length, which will exhaust the InputStream.
-    contentPartHeaders.setContentLength(0); // TODO: Should be set to the length of the multipart body.
-    contentPartHeaders.setContentType(MediaType.valueOf("application/http; msgtype=response"));
-
-    // Prepare artifact multipart body
-    Resource artifactPartResource =
-        new NamedInputStreamResource("artifact", // Maps to "filename" in Content-Disposition header
-            ArtifactDataUtil.getHttpResponseStreamFromArtifactData(artifactData));
-
-    parts.add("artifact", // Maps to "name" in Content-Disposition header
-        new HttpEntity<>(artifactPartResource, contentPartHeaders));
-
-    // POST body entity
+    // POST request body
     HttpEntity<MultiValueMap<String, Object>> multipartEntity =
         new HttpEntity<>(parts, getInitializedHttpHeaders());
 
-    // Construct REST endpoint to collection
-    String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, artifactId.getCollection());
+    // Build REST endpoint to /artifacts
+    String endpoint = String.format("%s/artifacts", repositoryUrl);
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
-    // POST the multipart entity to the remote LOCKSS repository and return the result
+    // Perform REST call: POST the multipart entity to the remote LOCKSS repository
     try {
       ResponseEntity<String> response =
           RestUtil.callRestService(restTemplate,
               builder.build().encode().toUri(),
               HttpMethod.POST,
               multipartEntity,
+              // TODO: Change this to Artifact and remove OjectMapper below
               String.class, "addArtifact");
 
+      // Handle response
       checkStatusOk(response);
 
+      // TODO
       ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          false);
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
       Artifact res = mapper.readValue(response.getBody(), Artifact.class);
+
       artCache.put(res);
-      artCache.putArtifactData(res.getCollection(), res.getIdentifier().getId(),
-          artifactData);
+      artCache.putArtifactData(res.getNamespace(), res.getIdentifier().getUuid(), artifactData);
 
       return res;
-
     } catch (LockssRestException e) {
       log.error("Could not add artifact", e);
       throw e;
     }
   }
 
+  private final MediaType APPLICATION_WARC = MediaType.valueOf("application/warc");
+
   /**
-   * Returns the artifact with the specified artifactId
+   * Adds artifacts from an archive to the remote LOCKSS Repository Service.
    *
-   * @param artifactId
-   * @return The {@code Artifact} with the artifactId, or null if none
+   * @param namespace A {@link String} containing the namespace of the artifacts.
+   * @param auId         A {@link String} containing the AUID of the artifacts.
+   * @param inputStream  The {@link InputStream} of the archive.
+   * @param type         A {@link ArchiveType} indicating the type of archive.
+   * @param isCompressed A {@code boolean} indicating whether the archive is GZIP compressed.
+   * @return
+   */
+  @Override
+  public ImportStatusIterable addArtifacts(String namespace, String auId, InputStream inputStream,
+                                           ArchiveType type, boolean isCompressed) throws IOException {
+
+    if (type != ArchiveType.WARC) {
+      throw new NotImplementedException("Archive not supported");
+    }
+
+    MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+
+    // Attach AUID part
+    parts.add("auid", auId);
+
+    // Attach archive part
+    HttpHeaders archiveHeaders = new HttpHeaders();
+
+    // FIXME: Content-Length must be set to avoid the InputStream from being read to
+    //  determine the Content-Length
+    archiveHeaders.setContentLength(0);
+    archiveHeaders.setContentType(APPLICATION_WARC);
+
+    String archiveExt = isCompressed ?
+        WARCConstants.DOT_COMPRESSED_WARC_FILE_EXTENSION :
+        WARCConstants.DOT_WARC_FILE_EXTENSION;
+
+    Resource archiveResource = new NamedInputStreamResource("archive" + archiveExt, inputStream);
+
+    parts.add("archive", new HttpEntity<>(archiveResource, archiveHeaders));
+
+    // Prepare the endpoint URI
+    String archivesEndpoint = repositoryUrl + "/archives";
+
+    Map<String, String> queryParams = new HashMap<>();
+    queryParams.put("namespace", namespace);
+
+    try {
+      ResponseEntity<Resource> response =
+          RestUtil.callRestService(restTemplate,
+              RestUtil.getRestUri(archivesEndpoint, null, queryParams),
+              HttpMethod.POST,
+              new HttpEntity<>(parts, getInitializedHttpHeaders()),
+              Resource.class, "Error calling remote addArtifacts() over REST");
+
+      checkStatusOk(response);
+
+      Resource resource = response.getBody();
+
+      return new ImportStatusIterable(resource.getInputStream());
+    } catch (LockssRestException e) {
+      log.error("Could not add archive", e);
+      throw e;
+    }
+  }
+
+  /**
+   * Returns the {@link Artifact} with the specified UUID
+   *
+   * @param artifactUuid
+   * @return The {@code Artifact} with the UUID, or null if none
    * @throws IOException
    */
-  public Artifact getArtifactFromId(String artifactId) throws IOException {
+  public Artifact getArtifactFromUuid(String artifactUuid) throws IOException {
     throw new UnsupportedOperationException();
   }
 
   /**
    * Retrieves an artifact from a remote REST LOCKSS Repository server.
    *
-   * @param collection A {@code String} containing the collection ID.
-   * @param artifactId A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
+   * @param namespace A {@code String} containing the namespace.
+   * @param artifactUuid A {@code String} containing the UUID of the artifact to retrieve from the remote
+   *                     repository.
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String collection, String artifactId)
+  public ArtifactData getArtifactData(String namespace, String artifactUuid)
       throws IOException {
-    return getArtifactData(collection, artifactId, IncludeContent.ALWAYS);
+    return getArtifactData(namespace, artifactUuid, IncludeContent.ALWAYS);
   }
 
   /**
    * Retrieves an artifact from a remote REST LOCKSS Repository server.
    *
-   * @param collection         A {@code String} containing the collection ID.
-   * @param artifactId         A {@code String} containing the artifact ID of the artifact to retrieve from the remote repository.
+   * @param namespace         A {@code String} containing the namespace.
+   * @param artifactUuid         A {@code String} containing the UUID of the artifact to retrieve from the remote
+   *                             repository.
    * @param includeContent A {@link IncludeContent} indicating whether the artifact content should be included in the
    *                       {@link ArtifactData} returned by this method.
    * @return The {@code ArtifactData} referenced by the artifact ID.
    * @throws IOException
    */
   @Override
-  public ArtifactData getArtifactData(String collection, String artifactId, IncludeContent includeContent)
+  public ArtifactData getArtifactData(String namespace, String artifactUuid, IncludeContent includeContent)
       throws IOException {
 
-    if ((collection == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+    if (artifactUuid == null) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Cache policy: Include cache content unless IncludeContent.NEVER
     boolean includeCachedContent = (includeContent != IncludeContent.NEVER);
 
     // Get ArtifactData from cache
-    ArtifactData cached = artCache.getArtifactData(collection, artifactId, includeCachedContent);
+    ArtifactData cached = artCache.getArtifactData(namespace, artifactUuid, includeCachedContent);
 
     if (cached != null) {
       // Cache hit: Return cached ArtifactData
@@ -339,7 +398,7 @@ public class RestLockssRepository implements LockssRepository {
 
     // Cache miss: Fetch ArtifactData from repository service
     try {
-      URI artifactEndpoint = artifactEndpoint(collection, artifactId, includeContent);
+      URI artifactEndpoint = artifactEndpoint(namespace, artifactUuid, includeContent);
 
       // Set Accept header in request
       HttpHeaders requestHeaders = getInitializedHttpHeaders();
@@ -354,7 +413,7 @@ public class RestLockssRepository implements LockssRepository {
           HttpMethod.GET,
           new HttpEntity<>(requestHeaders),
           MultipartMessage.class,
-          "Call from RestLockssRepository#getArtifactData() failed"
+          "REST call from RestLockssRepository#getArtifactData() failed"
       );
 
       checkStatusOk(response);
@@ -363,12 +422,12 @@ public class RestLockssRepository implements LockssRepository {
       ArtifactData result = ArtifactDataFactory.fromTransportResponseEntity(response);
 
       // Add to artifact data cache
-      artCache.putArtifactData(collection, artifactId, result);
+      artCache.putArtifactData(namespace, artifactUuid, result);
 
       return result;
 
     } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Artifact not found");
+      checkArtIdError(e, artifactUuid, "Artifact not found");
       log.error("Could not get artifact data", e);
       throw e;
 
@@ -379,38 +438,39 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   @Override
-  public HttpHeaders getArtifactHeaders(String collectionId, String artifactId) throws IOException {
-    if ((collectionId == null) || (artifactId == null)) {
-      throw new IllegalArgumentException("Null collection id or artifact id");
+  public HttpHeaders getArtifactHeaders(String namespace, String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Retrieve artifact from the artifact cache if cached
-    ArtifactData cached = artCache.getArtifactData(collectionId, artifactId, false);
+    ArtifactData cached = artCache.getArtifactData(namespace, artifactUuid, false);
 
     if (cached != null) {
       // Artifact found in cache; return its headers
-      return cached.getMetadata();
+      return cached.getHttpHeaders();
     }
 
-    ArtifactData ad = getArtifactData(collectionId, artifactId, IncludeContent.IF_SMALL);
+    ArtifactData ad = getArtifactData(namespace, artifactUuid, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
-    return ad.getMetadata();
+    return ad.getHttpHeaders();
   }
 
   /**
    * Commits an artifact to this LOCKSS repository for permanent storage and inclusion in LOCKSS repository queries.
    *
-   * @param collection A {code String} containing the collection ID containing the artifact to commit.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to commit to the repository.
+   * @param namespace A {code String} containing the namespace ID containing the artifact to commit.
+   * @param artifactUuid A {@code String} with the UUID of the artifact to commit to the repository.
    * @return An {@code Artifact} containing the updated artifact state information.
    * @throws IOException
    */
   @Override
-  public Artifact commitArtifact(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null collection or artifactId");
+  public Artifact commitArtifact(String namespace, String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
+    }
 
-    UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(collection, artifactId))
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUri(artifactEndpoint(namespace, artifactUuid))
         .queryParam("committed", "true");
 
     // Required by REST API specification
@@ -436,11 +496,11 @@ public class RestLockssRepository implements LockssRepository {
       artCache.put(res);
       return res;
     } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Could not commit; non-existent artifact id");
-      log.error("Could not commit artifact id: {}", artifactId, e);
+      checkArtIdError(e, artifactUuid, "Could not commit; non-existent artifact");
+      log.error("Could not commit artifact [uuid: {}]", artifactUuid, e);
       throw e;
     } catch (LockssRestException e) {
-      log.error("Could not commit artifact id: {}", artifactId, e);
+      log.error("Could not commit artifact [uuid: {}]", artifactUuid, e);
       throw e;
     }
   }
@@ -454,20 +514,21 @@ public class RestLockssRepository implements LockssRepository {
   public void deleteArtifact(Artifact artifact) throws IOException {
     artCache.invalidate(ArtifactCache.InvalidateOp.Delete,
         artifact.makeKey());
-    deleteArtifact(artifact.getCollection(), artifact.getId());
+    deleteArtifact(artifact.getNamespace(), artifact.getUuid());
   }
 
   /**
    * Permanently removes an artifact from this LOCKSS repository.
    *
-   * @param collection A {code String} containing the collection ID of the collection containing the artifact to delete.
-   * @param artifactId A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
+   * @param namespace A {code String} containing the namespace ID of the namespace containing the artifact to delete.
+   * @param artifactUuid A {@code String} with the artifact ID of the artifact to remove from this LOCKSS repository.
    * @throws IOException
    */
   @Override
-  public void deleteArtifact(String collection, String artifactId) throws IOException {
-    if ((collection == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null collection id or artifact id");
+  public void deleteArtifact(String namespace, String artifactUuid) throws IOException {
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
+    }
 
     HttpHeaders headers = getInitializedHttpHeaders();
     headers.setContentType(MediaType.APPLICATION_JSON);
@@ -475,7 +536,7 @@ public class RestLockssRepository implements LockssRepository {
     try {
       ResponseEntity<Void> response =
           RestUtil.callRestService(restTemplate,
-              artifactEndpoint(collection, artifactId),
+              artifactEndpoint(namespace, artifactUuid),
               HttpMethod.DELETE,
               new HttpEntity<>(null, headers),
               Void.class, "deleteArtifact");
@@ -488,48 +549,11 @@ public class RestLockssRepository implements LockssRepository {
       }
 
     } catch (LockssRestHttpException e) {
-      checkArtIdError(e, artifactId, "Could not remove artifact id");
-      log.error("Could not remove artifact id: {}", artifactId, e);
+      checkArtIdError(e, artifactUuid, "Could not remove artifact id");
+      log.error("Could not remove artifact [uuid: {}]", artifactUuid, e);
       throw e;
     } catch (LockssRestException e) {
-      log.error("Could not remove artifact id: {}", artifactId, e);
-      throw e;
-    }
-  }
-
-  /**
-   * @param collection
-   * @param artifactId
-   * @param parts
-   * @return
-   */
-  private Artifact updateArtifactProperties(String collection, String artifactId, MultiValueMap<String, Object> parts) throws IOException {
-    // Create PUT request entity
-    HttpEntity<MultiValueMap<String, Object>> requestEntity =
-        new HttpEntity<>(parts, getInitializedHttpHeaders());
-
-    // Submit PUT request and return artifact index data
-    try {
-      ResponseEntity<String> response =
-          RestUtil.callRestService(restTemplate,
-              artifactEndpoint(collection, artifactId),
-              HttpMethod.PUT,
-              requestEntity,
-              String.class,
-              "updateArtifactProperties");
-      checkStatusOk(response);
-
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-          false);
-      return mapper.readValue(response.getBody(), Artifact.class);
-
-    } catch (LockssRestHttpException e) {
-      log.error("Could not update artifact id: {}", artifactId, e);
-      checkArtIdError(e, artifactId, "Could not update artifact id");
-      throw e;
-    } catch (LockssRestException e) {
-      log.error("Could not update artifact id: {}", artifactId, e);
+      log.error("Could not remove artifact [uuid: {}]", artifactUuid, e);
       throw e;
     }
   }
@@ -537,45 +561,42 @@ public class RestLockssRepository implements LockssRepository {
   /**
    * Returns a boolean indicating whether an artifact is committed in this LOCKSS repository.
    *
-   * @param artifactId ArtifactData ID of the artifact to check committed status.
+   * @param artifactUuid UUID of the artifact to check committed status.
    * @return A boolean indicating whether the artifact is committed.
    */
   @Override
-  public Boolean isArtifactCommitted(String collection, String artifactId)
+  public Boolean isArtifactCommitted(String namespace, String artifactUuid)
       throws IOException {
-    if ((collection == null) || (artifactId == null))
-      throw new IllegalArgumentException("Null collection id or artifact id");
-    if (StringUtils.isEmpty(artifactId)) {
-      throw new IllegalArgumentException("Null or empty identifier");
+    if (StringUtils.isEmpty(artifactUuid)) {
+      throw new IllegalArgumentException("Null artifact UUID");
     }
 
     // Retrieve artifact from the artifact cache if cached
-    ArtifactData cached = artCache.getArtifactData(collection, artifactId, false);
+    ArtifactData cached = artCache.getArtifactData(namespace, artifactUuid, false);
 
     if (cached != null) {
       // Artifact found in cache; return its headers
-      return cached.getArtifactRepositoryState().isCommitted();
+      return cached.getArtifactState().isCommitted();
     }
 
-    ArtifactData ad = getArtifactData(collection, artifactId, IncludeContent.IF_SMALL);
+    ArtifactData ad = getArtifactData(namespace, artifactUuid, IncludeContent.IF_SMALL);
     // TODO: IOUtils.closeQuietly(ad.getInputStream());
 
-    if (ad.getArtifactRepositoryState() == null ) {
+    if (ad.getArtifactState() == null ) {
       throw new LockssRestInvalidResponseException("Missing artifact repository state");
     }
 
-    return ad.getArtifactRepositoryState().isCommitted();
+    return ad.getArtifactState().isCommitted();
   }
 
   /**
-   * Provides the collection identifiers of the committed artifacts in the index.
+   * Provides the namespace of the committed artifacts in the index.
    *
-   * @return An {@code Iterator<String>} with the index committed artifacts
-   * collection identifiers.
+   * @return An {@code Iterator<String>} with the namespaces of committed artifacts.
    */
   @Override
-  public Iterable<String> getCollectionIds() throws IOException {
-    String endpoint = String.format("%s/collections", repositoryUrl);
+  public Iterable<String> getNamespaces() throws IOException {
+    String endpoint = String.format("%s/namespaces", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
 
@@ -587,7 +608,7 @@ public class RestLockssRepository implements LockssRepository {
               new HttpEntity<>(null,
                   getInitializedHttpHeaders()),
               String.class,
-              "getCollectionIds");
+              "getNamespaces");
       checkStatusOk(response);
 
       ObjectMapper mapper = new ObjectMapper();
@@ -596,26 +617,26 @@ public class RestLockssRepository implements LockssRepository {
           });
       return IteratorUtils.asIterable(result.iterator());
     } catch (LockssRestException e) {
-      log.error("Could not get collection IDs", e);
+      log.error("Could not get namespaces", e);
       throw e;
     }
   }
 
   /**
-   * Returns an iterable over Archival Unit IDs (AUIDs) in this LOCKSS repository collection.
+   * Returns an iterable over Archival Unit IDs (AUIDs) in this LOCKSS repository.
    *
-   * @param collection A {@code String} containing the LOCKSS repository collection ID.
-   * @return A {@code Iterable<String>} iterating over the AUIDs in this LOCKSS repository collection.
+   * @param namespace A {@code String} containing the namespace.
+   * @return A {@code Iterable<String>} iterating over the AUIDs in this namespace.
    */
   @Override
-  public Iterable<String> getAuIds(String collection) throws IOException {
-    if (collection == null) {
-      throw new IllegalArgumentException("Null collection id");
-    }
-
-    String endpoint = String.format("%s/collections/%s/aus", repositoryUrl, collection);
+  public Iterable<String> getAuIds(String namespace) throws IOException {
+    String endpoint = String.format("%s/aus", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     try {
       return IteratorUtils.asIterable(
@@ -677,181 +698,225 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   /**
-   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of the latest version of all URLs, from a specified Archival Unit and namespace.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs in an AU.
    * @throws IOException
    */
   @Override
-  public Iterable<Artifact> getArtifacts(String collection, String auid) throws IOException {
-    if ((collection == null) || (auid == null))
-      throw new IllegalArgumentException("Null collection id or au id");
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+  public Iterable<Artifact> getArtifacts(String namespace, String auid) throws IOException {
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "latest");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
-   * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of all versions of all URLs, from a specified Archival Unit and namespace.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param auid       A String with the Archival Unit identifier.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all version of all URLs in an AU.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid) throws IOException {
-    if ((collection == null) || (auid == null))
-      throw new IllegalArgumentException("Null collection id or au id");
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+  public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid) throws IOException {
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
    * Returns the committed artifacts of the latest version of all URLs matching a prefix, from a specified Archival
-   * Unit and collection.
+   * Unit and namespace.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @param prefix     A {@code String} containing a URL prefix.
    * @return An {@code Iterator<Artifact>} containing the latest version of all URLs matching a prefix in an AU.
    * @throws IOException
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefix(String collection, String auid, String prefix) throws IOException {
-    if ((collection == null) || (auid == null) || (prefix == null))
-      throw new IllegalArgumentException("Null collection id, au id or prefix");
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+  public Iterable<Artifact> getArtifactsWithPrefix(String namespace, String auid, String prefix) throws IOException {
+    if (auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null AUID or URL prefix");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("urlPrefix", prefix);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
    * Returns the committed artifacts of all versions of all URLs matching a prefix, from a specified Archival Unit and
-   * collection.
+   * namespace.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param auid       A String with the Archival Unit identifier.
    * @param prefix     A String with the URL prefix.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix from an AU.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String collection, String auid, String prefix) throws IOException {
-    if ((collection == null) || (auid == null) || (prefix == null))
-      throw new IllegalArgumentException("Null collection id, au id or prefix");
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+  public Iterable<Artifact> getArtifactsWithPrefixAllVersions(String namespace, String auid, String prefix) throws IOException {
+    if (auid == null || prefix == null) {
+      throw new IllegalArgumentException("Null AUID or URL prefix");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all")
         .queryParam("urlPrefix", prefix);
 
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
+
     return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
-   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a collection.
+   * Returns the committed artifacts of all versions of all URLs matching a prefix, from a namespace.
    *
-   * @param collection A String with the collection identifier.
+   * @param namespace A String with the namespace.
    * @param prefix     A String with the URL prefix.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of all URLs matching a
    * prefix.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String collection, String prefix,
+  public Iterable<Artifact> getArtifactsWithUrlPrefixFromAllAus(String namespace, String prefix,
                                                                 ArtifactVersions versions) throws IOException {
 
-    if (collection == null || prefix == null) {
-      throw new IllegalArgumentException("Null collection id or prefix");
+    if (prefix == null) {
+      throw new IllegalArgumentException("Null URL prefix");
     }
 
-    String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
+    String endpoint = String.format("%s/artifacts", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("urlPrefix", prefix)
         .queryParam("versions", versions);
 
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
+
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
-   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and collection.
+   * Returns the committed artifacts of all versions of a given URL, from a specified Archival Unit and namespace.
    *
-   * @param collection A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the namespace.
    * @param auid       A {@code String} with the Archival Unit identifier.
    * @param url        A {@code String} with the URL to be matched.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL from an
    * Archival Unit.
    */
   @Override
-  public Iterable<Artifact> getArtifactsAllVersions(String collection, String auid, String url) throws IOException {
-    if ((collection == null) || (auid == null) || (url == null))
-      throw new IllegalArgumentException("Null collection id, au id or url");
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+  public Iterable<Artifact> getArtifactsAllVersions(String namespace, String auid, String url) throws IOException {
+    if (auid == null || url == null) {
+      throw new IllegalArgumentException("Null AUID or URL");
+    }
+
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("url", url)
         .queryParam("version", "all");
 
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
+
     return IteratorUtils.asIterable(getArtifactIterator(builder));
   }
 
   /**
-   * Returns the committed artifacts of all versions of a given URL, from a specified collection.
+   * Returns the committed artifacts of all versions of a given URL, from a specified namespace.
    *
-   * @param collection A {@code String} with the collection identifier.
+   * @param namespace A {@code String} with the namespace.
    * @param url        A {@code String} with the URL to be matched.
    * @return An {@code Iterator<Artifact>} containing the committed artifacts of all versions of a given URL.
    */
   @Override
-  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String collection, String url, ArtifactVersions versions) throws IOException {
-    if (collection == null || url == null) {
-      throw new IllegalArgumentException("Null collection id or url");
+  public Iterable<Artifact> getArtifactsWithUrlFromAllAus(String namespace, String url, ArtifactVersions versions) throws IOException {
+    if (url == null) {
+      throw new IllegalArgumentException("Null URL");
     }
 
-    String endpoint = String.format("%s/collections/%s/artifacts", repositoryUrl, collection);
+    String endpoint = String.format("%s/artifacts", repositoryUrl);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("url", url)
         .queryParam("versions", versions);
 
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
+
     return IteratorUtils.asIterable(artCache.cachingLatestIterator(getArtifactIterator(builder)));
   }
 
   /**
-   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and collection.
+   * Returns the artifact of the latest version of given URL, from a specified Archival Unit and namespace.
    *
-   * @param collection A {@code String} containing the collection ID.
+   * @param namespace A {@code String} containing the namespace.
    * @param auid       A {@code String} containing the Archival Unit ID.
    * @param url        A {@code String} containing a URL.
    * @return The {@code Artifact} representing the latest version of the URL in the AU.
    * @throws IOException
    */
   @Override
-  public Artifact getArtifact(String collection, String auid, String url) throws IOException {
-    if ((collection == null) || (auid == null) || (url == null))
-      throw new IllegalArgumentException("Null collection id, au id or url");
-    Artifact cached = artCache.getLatest(collection, auid, url);
+  public Artifact getArtifact(String namespace, String auid, String url) throws IOException {
+    if (auid == null || url == null) {
+      throw new IllegalArgumentException("Null AUID or URL");
+    }
+
+    Artifact cached = artCache.getLatest(namespace, auid, url);
     if (cached != null) {
       return cached;
     }
 
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("url", url)
         .queryParam("version", "latest");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     try {
       ResponseEntity<String> response =
@@ -868,15 +933,15 @@ public class RestLockssRepository implements LockssRepository {
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
           false);
-      List<Artifact> artifacts = mapper.readValue((String) response.getBody(),
+      List<Artifact> artifacts = mapper.readValue(response.getBody(),
           ArtifactPageInfo.class).getArtifacts();
 
       if (!artifacts.isEmpty()) {
         if (artifacts.size() > 1) {
           log.warn(String.format(
-              "Expected one or no artifacts for latest version but got %d (Collection: %s, AU: %s, URL: %s)",
+              "Expected one or no artifacts for latest version but got %d (Namespace: %s, AU: %s, URL: %s)",
               artifacts.size(),
-              collection,
+              namespace,
               url,
               auid
           ));
@@ -904,32 +969,38 @@ public class RestLockssRepository implements LockssRepository {
   }
 
   /**
-   * Returns the artifact of a given version of a URL, from a specified Archival Unit and collection.
+   * Returns the artifact of a given version of a URL, from a specified Archival Unit and namespace.
    *
-   * @param collection         A String with the collection identifier.
+   * @param namespace         A String with the namespace.
    * @param auid               A String with the Archival Unit identifier.
    * @param url                A String with the URL to be matched.
    * @param version            An Integer with the version.
    * @param includeUncommitted A boolean with the indication of whether an uncommitted artifact
    *                           may be returned.
-   * @return The {@code Artifact} of a given version of a URL, from a specified AU and collection.
+   * @return The {@code Artifact} of a given version of a URL, from a specified AU and namespace.
    */
   @Override
-  public Artifact getArtifactVersion(String collection, String auid, String url, Integer version, boolean includeUncommitted) throws IOException {
-    if ((collection == null) || (auid == null) ||
-        (url == null) || version == null)
-      throw new IllegalArgumentException("Null collection id, au id, url or version");
+  public Artifact getArtifactVersion(String namespace, String auid, String url, Integer version,
+                                     boolean includeUncommitted) throws IOException {
 
-    Artifact cached = artCache.get(collection, auid, url, version);
+    if (auid == null || url == null || version == null) {
+      throw new IllegalArgumentException("Null AUID, URL or version");
+    }
+
+    Artifact cached = artCache.get(namespace, auid, url, version);
     if (cached != null) {
       return cached;
     }
 
-    String endpoint = String.format("%s/collections/%s/aus/%s/artifacts", repositoryUrl, collection, auid);
+    String endpoint = String.format("%s/aus/%s/artifacts", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("url", url)
         .queryParam("version", version);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     if (includeUncommitted) {
       builder.queryParam("includeUncommitted", includeUncommitted);
@@ -955,9 +1026,10 @@ public class RestLockssRepository implements LockssRepository {
       if (!artifacts.isEmpty()) {
         // Warn if the server returned more than one artifact
         if (artifacts.size() > 1) {
-          log.warn(String.format("Expected one or no artifacts but got %d (Collection: %s, AU: %s, URL: %s, Version: %s)",
+          log.warn(String.format("Expected one or no artifacts but got %d (Namespace: %s, AU: %s, URL: %s, Version: " +
+                  "%s)",
               artifacts.size(),
-              collection,
+              namespace,
               auid,
               url,
               version
@@ -978,23 +1050,75 @@ public class RestLockssRepository implements LockssRepository {
     }
   }
 
-  /**
-   * Returns the size, in bytes, of AU in a collection.
-   *
-   * @param collection A {@code String} containing the collection ID.
-   * @param auid       A {@code String} containing the Archival Unit ID.
-   * @return A {@code Long} with the total size of the specified AU in bytes.
-   */
-  @Override
-  public Long auSize(String collection, String auid) throws IOException {
-    if (collection == null || auid == null) {
-      throw new IllegalArgumentException("Null collection id or au id");
+  /** Start a bulk store operation for the namespace/auid.
+   * Substantially speeds Artifact creation, but the index isn't
+   * permanently updated until a matching {@link
+   * #finishBulkStore(String, String)} completes) */
+  public void startBulkStore(String namespace, String auid)
+      throws IOException {
+    doBulkOp(namespace, auid, "start");
+  }
+
+  /** Finish a bulk store operation for the namespace/auid.  Blocks
+   * until the Artifacts have been moved to the permanent ArtifactIndex. */
+  public void finishBulkStore(String namespace, String auid)
+      throws IOException {
+    doBulkOp(namespace, auid, "finish");
+  }
+
+  void doBulkOp(String namespace, String auid, String op) throws IOException {
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
     }
 
-    String endpoint = String.format("%s/collections/%s/aus/%s/size", repositoryUrl, collection, auid);
+    String endpoint = String.format("%s/aus/%s/bulk", repositoryUrl, auid);
+    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
+        .queryParam("op", op);
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
+
+    // Required by REST API specification
+    HttpHeaders headers = getInitializedHttpHeaders();
+    headers.setContentType(MediaType.valueOf("multipart/form-data"));
+
+    try {
+      ResponseEntity<String> response =
+          RestUtil.callRestService(restTemplate,
+              builder.build().encode().toUri(),
+              HttpMethod.PUT,
+              new HttpEntity<>(null, headers),
+              String.class,
+              "startBulk");
+      checkStatusOk(response);
+    } catch (LockssRestException e) {
+      log.error("Could not start bulk for: {}", auid, e);
+      throw e;
+    }
+  }
+
+  /**
+   * Returns the size, in bytes, of AU in a namespace.
+   *
+   * @param namespace A {@code String} containing the namespace.
+   * @param auid       A {@code String} containing the Archival Unit ID.
+   * @return A {@link AuSize} with byte size statistics of the specified AU.
+   */
+  @Override
+  public AuSize auSize(String namespace, String auid) throws IOException {
+    if (auid == null) {
+      throw new IllegalArgumentException("Null AUID");
+    }
+
+    String endpoint = String.format("%s/aus/%s/size", repositoryUrl, auid);
 
     UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(endpoint)
         .queryParam("version", "all");
+
+    if (namespace != null) {
+      builder.queryParam("namespace", namespace);
+    }
 
     ResponseEntity<String> response =
         RestUtil.callRestService(restTemplate,
@@ -1008,7 +1132,9 @@ public class RestLockssRepository implements LockssRepository {
     checkStatusOk(response);
 
     ObjectMapper objectMapper = new ObjectMapper();
-    return objectMapper.readValue(response.getBody(), Long.class);
+
+    // Parse and return JSON response body as an AuSize bean
+    return objectMapper.readValue(response.getBody(), AuSize.class);
   }
 
   /**

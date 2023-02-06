@@ -34,7 +34,7 @@ import org.junit.jupiter.api.*;
 import org.lockss.util.test.LockssTestCase5;
 
 public class TestArtifactIdentifier extends LockssTestCase5 {
-    private final static String ARTIFACT_COLLECTION = "collection123";
+    private final static String ARTIFACT_NAMESPACE = "ns1";
     private final static String ARTIFACT_AUID = "auid123";
     private final static String ARTIFACT_URI = "uri123";
     private final static Integer ARTIFACT_VERSION = 1;
@@ -45,7 +45,7 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     public void setUp() throws Exception {
         // Instantiate an ArtifactInstance to test getters against
         this.identifier = new ArtifactIdentifier(
-                ARTIFACT_COLLECTION,
+            ARTIFACT_NAMESPACE,
                 ARTIFACT_AUID,
                 ARTIFACT_URI,
                 ARTIFACT_VERSION
@@ -53,8 +53,8 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     }
 
     @Test
-    public void getCollection() {
-        assertEquals(ARTIFACT_COLLECTION, identifier.getCollection());
+    public void getNamespace() {
+        assertEquals(ARTIFACT_NAMESPACE, identifier.getNamespace());
     }
 
     @Test
@@ -131,9 +131,74 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
         assertTrue(id1.compareTo(id2) <= -1);
     }
 
-  
-  ArtifactIdentifier artId(String coll, String auid, String uri, int version) {
-    return new ArtifactIdentifier(coll, auid, uri, version);
+    @Test
+    public void equals() {
+        ArtifactIdentifier id1 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id2 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id3 = new ArtifactIdentifier(
+                "id3",
+                "c",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id4 = new ArtifactIdentifier(
+                "id1",
+                "ddd",
+                "a",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id5 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "b",
+                "u",
+                1
+        );
+
+        ArtifactIdentifier id6 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "sdflkja",
+                1
+        );
+
+        ArtifactIdentifier id7 = new ArtifactIdentifier(
+                "id1",
+                "c",
+                "a",
+                "u",
+                42
+        );
+
+        assertEquals(id1, id2);
+        assertEquals(id1, id3);         // UUId not part of equals()
+        assertNotEquals(id1, id4);
+        assertNotEquals(id1, id5);
+        assertNotEquals(id1, id6);
+        assertNotEquals(id1, id7);
+    }
+
+  ArtifactIdentifier artId(String namespace, String auid, String uri, int version) {
+    return new ArtifactIdentifier(namespace, auid, uri, version);
   }
 
   @Test
@@ -143,5 +208,4 @@ public class TestArtifactIdentifier extends LockssTestCase5 {
     assertTrue(artId("c", "a", "foo/", 1).compareTo(artId("c", "a", "foo/a", 1)) <= -1);
     assertTrue(artId("c", "a", "bar", 1).compareTo(artId("c", "a", "foo", 1)) <= -1);
   };
-
 }

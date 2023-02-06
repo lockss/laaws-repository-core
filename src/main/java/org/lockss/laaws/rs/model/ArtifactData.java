@@ -1,38 +1,41 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 package org.lockss.laaws.rs.model;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.http.StatusLine;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.CloseCallbackInputStream;
 import org.lockss.util.io.EofRememberingInputStream;
@@ -78,15 +81,16 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   private InputStream closableInputStream;
 
   // Artifact data properties
-  private HttpHeaders artifactMetadata; // TODO: Switch from Spring to Apache?
+  private HttpHeaders httpHeaders = new HttpHeaders();
   private StatusLine httpStatus;
   private InputStream origInputStream;
+  private boolean inputStreamUsed = false;
   private boolean hadAnInputStream = false;
   private long contentLength = -1;
   private String contentDigest;
 
   // Internal repository state
-  private ArtifactRepositoryState artifactRepositoryState;
+  private ArtifactState artifactState = null;
   private URI storageUrl;
 
   // The collection date.
@@ -107,12 +111,12 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   /**
    * Constructor for artifact data that is not (yet) part of a LOCKSS repository.
    *
-   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param httpHeaders A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param responseStatus   A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    */
-  public ArtifactData(HttpHeaders artifactMetadata, InputStream inputStream, StatusLine responseStatus) {
-    this(null, artifactMetadata, inputStream, responseStatus, null, null);
+  public ArtifactData(HttpHeaders httpHeaders, InputStream inputStream, StatusLine responseStatus) {
+    this(null, httpHeaders, inputStream, responseStatus, null, null);
   }
 
   /**
@@ -120,45 +124,44 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * an artifact store.
    *
    * @param identifier       An {@code ArtifactIdentifier} for this artifact data.
-   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param httpHeaders A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    */
   public ArtifactData(ArtifactIdentifier identifier,
-                      HttpHeaders artifactMetadata,
+                      HttpHeaders httpHeaders,
                       InputStream inputStream,
                       StatusLine httpStatus) {
-    this(identifier, artifactMetadata, inputStream, httpStatus, null, null);
+    this(identifier, httpHeaders, inputStream, httpStatus, null, null);
   }
 
   /**
    * Full constructor for artifact data.
    *
    * @param identifier       An {@code ArtifactIdentifier} for this artifact data.
-   * @param artifactMetadata A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
+   * @param httpHeaders A {@code HttpHeaders} containing additional key-value properties associated with this artifact data.
    * @param inputStream      An {@code InputStream} containing the byte stream of this artifact.
    * @param httpStatus       A {@code StatusLine} representing the HTTP response status if the data originates from a web server.
    * @param storageUrl       A {@code String} URL pointing to the storage of this artifact data.
    * @param state     A {@code RepositoryArtifactMetadata} containing repository state information for this artifact data.
    */
   public ArtifactData(ArtifactIdentifier identifier,
-                      HttpHeaders artifactMetadata,
+                      HttpHeaders httpHeaders,
                       InputStream inputStream,
                       StatusLine httpStatus,
                       URI storageUrl,
-                      ArtifactRepositoryState state) {
+                      ArtifactState state) {
     this.identifier = identifier;
     this.httpStatus = httpStatus;
     this.storageUrl = storageUrl;
-    this.artifactRepositoryState = state;
+    this.artifactState = state;
     stats.totalAllocated++;
 
     this.setInputStream(inputStream);
 
-    this.artifactMetadata = Objects.nonNull(artifactMetadata) ? artifactMetadata : new HttpHeaders();
+    this.httpHeaders = Objects.nonNull(httpHeaders) ? httpHeaders : new HttpHeaders();
 
-    setCollectionDate(this.artifactMetadata.getDate());
-
+    setCollectionDate(this.httpHeaders.getDate());
   }
 
   /**
@@ -166,12 +169,12 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    *
    * @return A {@code HttpHeaders} containing this artifact's additional properties.
    */
-  public HttpHeaders getMetadata() {
-    return artifactMetadata;
+  public HttpHeaders getHttpHeaders() {
+    return httpHeaders;
   }
 
-  public void setMetadata(HttpHeaders headers) {
-    this.artifactMetadata = headers;
+  public void setHttpHeaders(HttpHeaders headers) {
+    this.httpHeaders = headers;
   }
 
   /**
@@ -180,7 +183,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    * @return true if this artifact's byte stream is available
    */
   public boolean hasContentInputStream() {
-    return origInputStream != null;
+    return origInputStream != null && !inputStreamUsed;
   }
 
   /**
@@ -214,7 +217,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
       if (!hadAnInputStream) {
 	throw new IllegalStateException("Attempt to get InputStream from ArtifactData that was created without one");
       }
-      if (origInputStream == null) {
+      if (inputStreamUsed) {
 	throw new IllegalStateException("Attempt to get InputStream from ArtifactData whose InputStream has been used");
       }
       cis = new CountingInputStream(origInputStream);
@@ -237,7 +240,7 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
             }
           },
           this);
-      origInputStream = null;
+      inputStreamUsed = true;
     } catch (NoSuchAlgorithmException e) {
       String errMsg = String.format(
           "Unknown digest algorithm: %s; could not instantiate a MessageDigest", DEFAULT_DIGEST_ALGORITHM
@@ -266,6 +269,13 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    */
   public StatusLine getHttpStatus() {
     return this.httpStatus;
+  }
+
+  /**
+   * @return Returns a boolean indicating whether this artifact has an HTTP status (was therefore from a web crawl).
+   */
+  public boolean isHttpResponse() {
+    return httpStatus != null;
   }
 
   public void setHttpStatus(StatusLine status) {
@@ -297,18 +307,18 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
    *
    * @return A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact data.
    */
-  public ArtifactRepositoryState getArtifactRepositoryState() {
-    return artifactRepositoryState;
+  public ArtifactState getArtifactState() {
+    return artifactState;
   }
 
   /**
    * Sets the repository state information for this artifact data.
    *
-   * @param metadata A {@code RepositoryArtifactMetadata} containing the repository state information for this artifact.
-   * @return
+   * @param state A {@link ArtifactState} representing the state of this artifact.
+   * @return This {@link ArtifactData}.
    */
-  public ArtifactData setArtifactRepositoryState(ArtifactRepositoryState metadata) {
-    this.artifactRepositoryState = metadata;
+  public ArtifactData setArtifactState(ArtifactState state) {
+    this.artifactState = state;
     return this;
   }
 
@@ -344,9 +354,6 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
   }
 
   public String getContentDigest() {
-    if (contentDigest == null) {
-      throw new RuntimeException("Content digest has not been set");
-    }
     return contentDigest;
   }
 
@@ -356,12 +363,19 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
   public long getContentLength() {
     if (contentLength < 0) {
-      throw new RuntimeException("Content length has not been set");
+      throw new IllegalStateException("Content length has not been set");
     }
     return contentLength;
   }
 
+  public boolean hasContentLength() {
+    return !(contentLength < 0);
+  }
+
   public void setContentLength(long contentLength) {
+    if (contentLength < 0) {
+      throw new IllegalArgumentException("Invalid content length: " + contentLength);
+    }
     this.contentLength = contentLength;
   }
 
@@ -385,16 +399,6 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
     if (collectionDate >= 0) {
       this.collectionDate = collectionDate;
     }
-  }
-
-  /**
-   * Returns a closable version of this artifact's byte stream.
-   *
-   * @return an {@code InputStream} with the underlying, closable, byte
-   * stream.
-   */
-  public InputStream getClosableInputStream() {
-    return closableInputStream;
   }
 
   /**
@@ -433,9 +437,9 @@ public class ArtifactData implements Comparable<ArtifactData>, AutoCloseable {
 
   @Override
   public String toString() {
-    return "[ArtifactData identifier=" + identifier + ", artifactMetadata="
-        + artifactMetadata + ", httpStatus=" + httpStatus
-        + ", artifactRepositoryState=" + artifactRepositoryState + ", storageUrl="
+    return "[ArtifactData identifier=" + identifier + ", httpHeaders="
+        + httpHeaders + ", httpStatus=" + httpStatus
+        + ", artifactState=" + artifactState + ", storageUrl="
         + storageUrl + ", contentDigest=" + contentDigest
         + ", contentLength=" + contentLength + ", collectionDate="
         + getCollectionDate() + "]";

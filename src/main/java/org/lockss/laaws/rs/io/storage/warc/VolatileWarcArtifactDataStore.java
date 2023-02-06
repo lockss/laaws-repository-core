@@ -33,7 +33,7 @@ package org.lockss.laaws.rs.io.storage.warc;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.archive.format.warc.WARCConstants;
-import org.lockss.laaws.rs.model.CollectionAuidPair;
+import org.lockss.laaws.rs.model.NamespacedAuid;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.storage.StorageInfo;
 import org.springframework.util.MultiValueMap;
@@ -79,18 +79,18 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   // *******************************************************************************************************************
 
   @Override
-  public void initCollection(String collectionId) {
+  public void initNamespace(String namespace) {
     // NOP
   }
 
   @Override
-  public List<Path> initAu(String collectionId, String auid) throws IOException {
-    CollectionAuidPair key = new CollectionAuidPair(collectionId, auid);
+  public List<Path> initAu(String namespace, String auid) throws IOException {
+    NamespacedAuid key = new NamespacedAuid(namespace, auid);
     List<Path> auPaths = auPathsMap.get(key);
 
     if (auPaths == null) {
       auPaths = new ArrayList<>();
-      auPaths.add(initAuDir(collectionId, auid));
+      auPaths.add(initAuDir(namespace, auid));
       auPathsMap.put(key, auPaths);
     }
 
@@ -98,8 +98,8 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  protected Path initAuDir(String collectionId, String auid) throws IOException {
-    return getAuPath(getBasePaths()[0], collectionId, auid);
+  protected Path initAuDir(String namespace, String auid) throws IOException {
+    return getAuPath(getBasePaths()[0], namespace, auid);
   }
 
   @Override
@@ -164,8 +164,12 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
   }
 
   @Override
-  public OutputStream getAppendableOutputStream(Path path) {
+  public OutputStream getAppendableOutputStream(Path path) throws IOException {
     synchronized (warcs) {
+      if (!warcs.containsKey(path)) {
+        throw new FileNotFoundException("Volatile WARC not in map: " + path);
+      }
+
       return warcs.get(path);
     }
   }
@@ -177,7 +181,7 @@ public class VolatileWarcArtifactDataStore extends WarcArtifactDataStore {
 
       if (warc == null) {
         // Translate to FileNotFound exception if the WARC could not be found in the map
-        throw new FileNotFoundException(path.toString());
+        throw new FileNotFoundException("Volatile WARC not in map: " + path);
       } else {
         InputStream is = warc.toInputStream();
         long skipped = is.skip(seek);

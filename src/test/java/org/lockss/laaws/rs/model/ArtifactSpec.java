@@ -1,32 +1,35 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+*/
+
 package org.lockss.laaws.rs.model;
 
 import org.apache.commons.codec.binary.Hex;
@@ -82,7 +85,7 @@ public class ArtifactSpec implements Comparable<Object> {
     }
   }
 
-  protected static String COLL1 = "coll1";
+  protected static String NS1 = "ns1";
   protected static String AUID1 = "auid1";
 
   protected static StatusLine STATUS_LINE_OK =
@@ -97,21 +100,21 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR =
-      Comparator.comparing(ArtifactSpec::getCollection)
+      Comparator.comparing(ArtifactSpec::getNamespace)
       .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
       .thenComparing(
 	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
   public static final Comparator<ArtifactSpec> ART_SPEC_COMPARATOR_BY_URL =
-      Comparator.comparing(ArtifactSpec::getCollection)
+      Comparator.comparing(ArtifactSpec::getNamespace)
       .thenComparing(ArtifactSpec::getUrl, PreOrderComparator.INSTANCE)
       .thenComparing(ArtifactSpec::getAuid)
       .thenComparing(
 	  Comparator.comparingInt(ArtifactSpec::getVersion).reversed());
 
   // Identifying fields used in lookups
-  String coll = COLL1;
+  String ns = NS1;
   String auid = AUID1;
   String url;
   int fixedVer = -1;
@@ -134,7 +137,7 @@ public class ArtifactSpec implements Comparable<Object> {
   // state
   boolean isCommitted = false;
   boolean isDeleted;
-  String artId;
+  String artifactUuid;
 
   public enum ArtifactDataStoreOperation {
     COMMIT,
@@ -148,23 +151,23 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactSpec copy() {
-    return ArtifactSpec.forCollAuUrl(coll, auid, url)
+    return ArtifactSpec.forNsAuUrl(ns, auid, url)
         .setStatusLine(getStatusLine())
         .setHeaders(new HashMap<String, String>(getHeaders()))
         .setContent(getContent())
         .setContentLength(len);
   }
 
-  public static ArtifactSpec forCollAuUrl(String coll, String auid, String url) {
+  public static ArtifactSpec forNsAuUrl(String ns, String auid, String url) {
     return new ArtifactSpec()
-        .setCollection(coll)
+        .setNamespace(ns)
         .setAuid(auid)
         .setUrl(url);
   }
 
-  public static ArtifactSpec forCollAuUrlVer(String coll, String auid,
-                                        String url, int version) {
-    return ArtifactSpec.forCollAuUrl(coll, auid, url).setVersion(version);
+  public static ArtifactSpec forNsAuUrlVer(String ns, String auid,
+                                           String url, int version) {
+    return ArtifactSpec.forNsAuUrl(ns, auid, url).setVersion(version);
   }
 
   public ArtifactSpec setUrl(String url) {
@@ -177,8 +180,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return this;
   }
 
-  public ArtifactSpec setCollection(String coll) {
-    this.coll = coll;
+  public ArtifactSpec setNamespace(String ns) {
+    this.ns = ns;
     return this;
   }
 
@@ -205,8 +208,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return this;
   }
 
-  public ArtifactSpec setArtifactId(String id) {
-    this.artId = id;
+  public ArtifactSpec setArtifactUuid(String uuid) {
+    this.artifactUuid = uuid;
     return this;
   }
 
@@ -287,8 +290,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return url;
   }
 
-  public String getCollection() {
-    return coll;
+  public String getNamespace() {
+    return ns;
   }
 
   public String getAuid() {
@@ -307,8 +310,8 @@ public class ArtifactSpec implements Comparable<Object> {
     return expVer;
   }
 
-  public String getArtifactId() {
-    return artId;
+  public String getArtifactUuid() {
+    return artifactUuid;
   }
 
   public boolean hasContent() {
@@ -316,6 +319,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactSpec generateContent() {
+    // Check whether the content length of the artifact was specified
     if (len >= 0) {
       if (len > Integer.MAX_VALUE) {
         throw new IllegalArgumentException("Refusing to generate content > 2GB: "
@@ -326,8 +330,9 @@ public class ArtifactSpec implements Comparable<Object> {
       setContent(RandomStringUtils.randomAlphabetic(0, MAX_RANDOM_FILE));
     }
 
-    // Set an artificial collection date
-    setCollectionDate(TimeBase.nowMs());
+    // Set an artificial collection date if not set
+    if (collectionDate < 0)
+      setCollectionDate(TimeBase.nowMs());
 
     log.debug2("Generated content");
     return this;
@@ -428,6 +433,15 @@ public class ArtifactSpec implements Comparable<Object> {
     return statLine;
   }
 
+  public boolean isHttpResponse() {
+    return statLine != null;
+  }
+
+  public ArtifactSpec setIsHttpResponse(boolean isHttpResponse) {
+    this.statLine = isHttpResponse ? STATUS_LINE_OK : null;
+    return this;
+  }
+
   public long getCollectionDate() {
     if (collectionDate >= 0) {
       return collectionDate;
@@ -446,13 +460,13 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public ArtifactIdentifier getArtifactIdentifier() {
-    return new ArtifactIdentifier(artId, coll, auid, url, getVersion());
+    return new ArtifactIdentifier(artifactUuid, ns, auid, url, getVersion());
   }
 
   public Artifact getArtifact() {
     Artifact artifact = new Artifact(
-        getArtifactId(),
-        getCollection(),
+        getArtifactUuid(),
+        getNamespace(),
         getAuid(),
         getUrl(),
         getVersion(),
@@ -472,7 +486,7 @@ public class ArtifactSpec implements Comparable<Object> {
         getArtifactIdentifier(),
         getMetadata(),
         getInputStream(),
-        getStatusLine(),
+        isHttpResponse() ? getStatusLine() : null,
         getStorageUrl(),
         null
     );
@@ -498,7 +512,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   /**
-   * Order agrees with repository enumeration order: collection, auid,
+   * Order agrees with repository enumeration order: namespace, auid,
    * url, version high-to-low
    */
   public int compareTo(Object o) {
@@ -508,29 +522,29 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   /**
-   * Return a key that's unique to the collection,au,url
+   * Return a key that's unique to the namespace,au,url
    */
   public String artButVerKey() {
-    return getCollection() + "|" + getAuid() + "|" + getUrl();
+    return getNamespace() + "|" + getAuid() + "|" + getUrl();
   }
 
   /**
-   * true if other refers to an artifact with the same collection, auid
+   * true if other refers to an artifact with the same namespace, auid
    * and url, independent of version.
    */
   public boolean sameArtButVer(ArtifactSpec other) {
     return artButVerKey().equals(other.artButVerKey());
   }
 
-  /** true if other refers to an artifact with the same collection
+  /** true if other refers to an artifact with the same namespace
    * and url, independent of AU and version. */
   public boolean sameArtButVerAllAus(ArtifactSpec other) {
     return artButVerKeyAllAus().equals(other.artButVerKeyAllAus());
   }
 
-  /** Return a key that's unique to the collection,url */
+  /** Return a key that's unique to the namespace,url */
   public String artButVerKeyAllAus() {
-    return getCollection() + "|" + getUrl();
+    return getNamespace() + "|" + getUrl();
   }
 
   /**
@@ -549,7 +563,7 @@ public class ArtifactSpec implements Comparable<Object> {
       }
 
       // Test for getArtifactData(String, String)
-      try (ArtifactData ad2 = repository.getArtifactData(getCollection(), art.getId())) {
+      try (ArtifactData ad2 = repository.getArtifactData(getNamespace(), art.getUuid())) {
         Assertions.assertEquals(getContentLength(), ad2.getContentLength());
         Assertions.assertEquals(getContentDigest(), ad2.getContentDigest());
         assertArtifactData(ad2);
@@ -572,7 +586,7 @@ public class ArtifactSpec implements Comparable<Object> {
       Assertions.assertEquals(getContentDigest(), ad1.getContentDigest());
       assertArtifactData(ad1);
     } catch (Exception e) {
-      log.error( "Caught exception asserting artifact [artifactId: {}, artifactSpec = {}]: {}", artifact, this, e);
+      log.error( "Caught exception asserting artifact [uuid: {}, artifactSpec = {}]: {}", artifact.getUuid(), this, e);
       throw e;
     }
   }
@@ -581,7 +595,7 @@ public class ArtifactSpec implements Comparable<Object> {
     Assertions.assertNotNull(art, "Comparing with " + this);
 
 //    Assertions.assertEquals(getArtifactId(), art.getId());
-    Assertions.assertEquals(getCollection(), art.getCollection(), "Collection");
+    Assertions.assertEquals(getNamespace(), art.getNamespace(), "Namespace");
     Assertions.assertEquals(getUrl(), art.getUri(), "URL");
     Assertions.assertEquals(getAuid(), art.getAuid(), "Auid");
     Assertions.assertEquals(isCommitted(), art.getCommitted(),
@@ -601,7 +615,7 @@ public class ArtifactSpec implements Comparable<Object> {
   }
 
   public void assertEquals(StatusLine exp, StatusLine line) {
-    Assertions.assertEquals(exp.toString(), line.toString());
+    Assertions.assertEquals(String.valueOf(exp), String.valueOf(line));
   }
 
   /**
@@ -609,7 +623,17 @@ public class ArtifactSpec implements Comparable<Object> {
    */
   public void assertArtifactData(ArtifactData ad) {
     Assertions.assertNotNull(ad, "Didn't find ArtifactData for: " + this);
-    assertEquals(getStatusLine(), ad.getHttpStatus());
+
+    if (this.isHttpResponse() || ad.isHttpResponse()) {
+      // FIXME: This is ugly...
+      Assertions.assertEquals(String.valueOf(getStatusLine()), String.valueOf(ad.getHttpStatus()));
+      Assertions.assertEquals(getHeaders(), RepoUtil.mapFromHttpHeaders(ad.getHttpHeaders()));
+    }
+
+    // Assert Content-Type matches
+    Assertions.assertEquals(getHeaders().get(HttpHeaders.CONTENT_TYPE),
+        ad.getHttpHeaders().getFirst(HttpHeaders.CONTENT_TYPE));
+
     Assertions.assertEquals(getContentLength(), ad.getContentLength());
     Assertions.assertEquals(getContentDigest(), ad.getContentDigest());
 
@@ -618,7 +642,6 @@ public class ArtifactSpec implements Comparable<Object> {
     }
 
     new LockssTestCase5().assertSameBytes(getInputStream(), ad.getInputStream(), getContentLength());
-    Assertions.assertEquals(getHeaders(), RepoUtil.mapFromHttpHeaders(ad.getMetadata()));
   }
 
   /**
@@ -639,7 +662,7 @@ public class ArtifactSpec implements Comparable<Object> {
 
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(String.format("[ArtifactSpec: (%s,%s,%s,%d)", url, coll, auid, fixedVer));
+    sb.append(String.format("[ArtifactSpec: (%s,%s,%s,%d)", url, ns, auid, fixedVer));
     if (isCommitted()) {
       sb.append("C");
     }

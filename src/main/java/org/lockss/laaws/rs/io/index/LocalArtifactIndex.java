@@ -36,7 +36,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.LinkedHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.util.os.PlatformUtil;
 import org.lockss.util.storage.StorageInfo;
@@ -83,17 +83,6 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
     }
 
     /**
-     * Overrides {@link VolatileArtifactIndex#stop()} to persist map to disk.
-     */
-    @Override
-    public void stop() {
-        super.stop();
-
-        // Persist index one last time
-        persist();
-    }
-
-    /**
      * Returns information about the device the index is stored on: size,
      * free space, etc.
      * @return A {@code StorageInfo}
@@ -121,12 +110,10 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
      */
     @Override
     protected void addToIndex(String id, Artifact artifact) {
-      synchronized (index) {
-          super.addToIndex(id, artifact);
+      super.addToIndex(id, artifact);
 
-          // Persist the just modified index.
-          persist();
-      }
+      // Persist the just modified index.
+      persist();
     }
 
     /**
@@ -139,13 +126,36 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
      */
     @Override
     protected Artifact removeFromIndex(String id) {
-      synchronized (index) {
-          Artifact artifact = super.removeFromIndex(id);
+      Artifact artifact = super.removeFromIndex(id);
 
-          // Persist the just modified index.
-          persist();
-          return artifact;
+      // Persist the just modified index.
+      persist();
+      return artifact;
+    }
+
+    /**
+     * Commits to the index an artifact with a given text index identifier.
+     *
+     * @param artifactUuid
+     *          A String with the artifact index identifier.
+     * @return an Artifact with the committed artifact indexing data.
+     */
+    @Override
+    public Artifact commitArtifact(String artifactUuid) {
+      Artifact artifact = super.commitArtifact(artifactUuid);
+      if (artifact != null) {
+        persist();
       }
+      return artifact;
+    }
+
+    @Override
+    public Artifact updateStorageUrl(String artifactUuid, String storageUrl) throws IOException {
+      Artifact artifact = super.updateStorageUrl(artifactUuid, storageUrl);
+      if (artifact != null) {
+        persist();
+      }
+      return artifact;
     }
 
     /**
@@ -164,7 +174,7 @@ public class LocalArtifactIndex extends VolatileArtifactIndex {
         try {
             fis = new FileInputStream(persistedIndex);
             ois = new ObjectInputStream(fis);
-            index = (LinkedHashMap<String, Artifact>)ois.readObject();
+            index = (ConcurrentHashMap<String, Artifact>)ois.readObject();
             log.info("Index successfully deserialized from file " + persistedIndex);
         } catch(IOException ioe) {
             log.error("Exception caught deserializing index from " + persistedIndex, ioe);

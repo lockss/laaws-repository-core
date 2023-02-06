@@ -1,46 +1,47 @@
 /*
- * Copyright (c) 2019, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 package org.lockss.laaws.rs.util;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.StatusLine;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.http.*;
+import org.apache.http.message.BasicHeader;
 import org.archive.io.warc.WARCRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.test.LockssTestCase5;
 import org.springframework.http.HttpHeaders;
@@ -69,12 +70,6 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "Connection: keep-alive\n" +
             "ETag: \"595f57cc-76\"\n" +
             "Accept-Ranges: bytes\n" +
-            "X-LockssRepo-Artifact-Id: id1\n" +
-            "X-LockssRepo-Artifact-Collection: coll1\n" +
-            "X-LockssRepo-Artifact-AuId: auid1\n" +
-            "X-LockssRepo-Artifact-Uri: url1\n" +
-            "X-LockssRepo-Artifact-Version: 1\n" +
-            "X-LockssRepo-Artifact-Origin: warc\n" +
             "\n" +
             ARTIFACT_BYTES;
 
@@ -86,7 +81,7 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             "WARC-Target-URI: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
             "Content-Type: application/http; msgtype=response\n" +
             "X-LockssRepo-Artifact-Id: 74e3b795-c1e6-49ce-8b27-de7e747322b7\n" +
-            "X-LockssRepo-Artifact-Collection: demo\n" +
+            "X-LockssRepo-Artifact-Namespace: demo\n" +
             "X-LockssRepo-Artifact-AuId: testauid\n" +
             "X-LockssRepo-Artifact-Uri: http://biorisk.pensoft.net/article_preview.php?id=1904\n" +
             "X-LockssRepo-Artifact-Version: 1" +
@@ -133,17 +128,9 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponseStream(new ByteArrayInputStream(ARTIFACT_HTTP_ENCODED.getBytes()));
             assertNotNull(artifact);
 
-            ArtifactIdentifier identifier = artifact.getIdentifier();
-            assertNotNull(identifier);
-            assertEquals("id1", identifier.getId());
-            assertEquals("coll1", identifier.getCollection());
-            assertEquals("auid1", identifier.getAuid());
-            assertEquals("url1", identifier.getUri());
-            assertEquals(1, (int)identifier.getVersion());
-
-            HttpHeaders metadata = artifact.getMetadata();
-            assertNotNull(metadata);
-            assertEquals(MediaType.TEXT_HTML, metadata.getContentType());
+            HttpHeaders headers = artifact.getHttpHeaders();
+            assertNotNull(headers);
+            assertEquals(MediaType.TEXT_HTML, headers.getContentType());
 
             InputStream inputStream = artifact.getInputStream();
             assertNotNull(inputStream);
@@ -158,8 +145,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
-            assertNull(repositoryState);
+            ArtifactState state = artifact.getArtifactState();
+            assertNull(state);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         }
@@ -189,17 +176,9 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             ArtifactData artifact = ArtifactDataFactory.fromHttpResponse(response);
             assertNotNull(artifact);
 
-            ArtifactIdentifier identifier = artifact.getIdentifier();
-            assertNotNull(identifier);
-            assertEquals("id1", identifier.getId());
-            assertEquals("coll1", identifier.getCollection());
-            assertEquals("auid1", identifier.getAuid());
-            assertEquals("url1", identifier.getUri());
-            assertEquals(1, (int)identifier.getVersion());
-
-            HttpHeaders metadata = artifact.getMetadata();
-            assertNotNull(metadata);
-            assertEquals(MediaType.TEXT_HTML, metadata.getContentType());
+            HttpHeaders headers = artifact.getHttpHeaders();
+            assertNotNull(headers);
+            assertEquals(MediaType.TEXT_HTML, headers.getContentType());
 
             InputStream inputStream = artifact.getInputStream();
             assertNotNull(inputStream);
@@ -214,8 +193,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
             URI storageUrl = artifact.getStorageUrl();
             assertNull(storageUrl);
 
-            ArtifactRepositoryState repositoryState = artifact.getArtifactRepositoryState();
-            assertNull(repositoryState);
+            ArtifactState state = artifact.getArtifactState();
+            assertNull(state);
         } catch (IOException e) {
             fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
         } catch (HttpException e) {
@@ -248,8 +227,8 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
 
                 ArtifactIdentifier identifier = artifact.getIdentifier();
                 assertNotNull(identifier);
-                assertEquals("id1", identifier.getId());
-                assertEquals("coll1", identifier.getCollection());
+                assertEquals("id1", identifier.getUuid());
+                assertEquals("ns1", identifier.getNamespace());
                 assertEquals("auid1", identifier.getAuid());
                 assertEquals("url1", identifier.getUri());
                 assertEquals("v1", identifier.getVersion());
@@ -261,6 +240,22 @@ public class TestArtifactDataFactory extends LockssTestCase5 {
                 e.printStackTrace();
                 fail(String.format("Unexpected IOException was caught: %s", e.getMessage()));
             }
+        }
+    }
+
+    @Test
+    public void testHttpResponseHeaderTransforms() throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentLength(123);
+
+        headers.add("k", "v1");
+        headers.add("k", "v2");
+
+
+
+        Header[] transHeaders = ArtifactDataFactory.transformHttpHeadersToHeaderArray(headers);
+        for (Header header : transHeaders) {
+            log.info("header = {}", header);
         }
     }
 }

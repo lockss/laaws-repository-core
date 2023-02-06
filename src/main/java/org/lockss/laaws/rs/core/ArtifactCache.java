@@ -41,8 +41,8 @@ import org.lockss.log.L4JLogger;
 
 /**
  * Caches recently referenced Artifacts.  Artifacts are keyed by
- * (collection, auid, url, version).  The latest version, when known, is
- * stored under the key (collection, auid, url, -1).  Two caches are
+ * (namespace, auid, url, version).  The latest version, when known, is
+ * stored under the key (namespace, auid, url, -1).  Two caches are
  * employed: one for requests for a specific Artifact version, the other
  * for the results of iterations.  Otherwise, every non-trivial iteration
  * would flush all other Artifacts from the cache.  If an Artifact
@@ -54,8 +54,8 @@ import org.lockss.log.L4JLogger;
  * it's unnecessary as Artifacts are immutable (or soon will be), and
  * LockssRepository doesn't guarantee uniqueness anyway.
  *
- * Separately caches recently used ArtifactData, keyed by collection +
- * artifactId.
+ * Separately caches recently used ArtifactData, keyed by namespace +
+ * artifact UUID.
  */
 public class ArtifactCache {
   private final static L4JLogger log = L4JLogger.getLogger();
@@ -150,28 +150,28 @@ public class ArtifactCache {
     return get(protoArt.makeKey());
   }
 
-  /** Return a cached latest-version Artifact with the collection, auid and
+  /** Return a cached latest-version Artifact with the namespace, auid and
    * url.
-   * @param collection
+   * @param namespace
    * @param auid
    * @param url
    * @return cached latest version of specified Artifact or null if not
    * found in cache.
    */
-  public Artifact getLatest(String collection, String auid, String url) {
+  public Artifact getLatest(String namespace, String auid, String url) {
     // "latest"
-    return get(Artifact.makeLatestKey(collection, auid, url));
+    return get(Artifact.makeLatestKey(namespace, auid, url));
   }
 
-  /** Return a cached Artifact with the collection, auid, url and version.
-   * @param collection
+  /** Return a cached Artifact with the namespace, auid, url and version.
+   * @param namespace
    * @param auid
    * @param url
    * @param version
    * @return cached Artifact or null if not found in cache.
    */
-  public Artifact get(String collection, String auid, String url, int version) {
-    return get(Artifact.makeKey(collection, auid, url, version));
+  public Artifact get(String namespace, String auid, String url, int version) {
+    return get(Artifact.makeKey(namespace, auid, url, version));
   }
 
   /** Internal store
@@ -381,17 +381,17 @@ public class ArtifactCache {
   /** Store the ArtifactData in the cache.  If there is already one there,
    * do not replace it if it has a content InputStream and the new one
    * doesn't.
-   * @param collection
-   * @param artifactId
+   * @param namespace
+   * @param artifactUuid
    * @return the ArtifactData that is now in the cache
    */
-  public synchronized ArtifactData putArtifactData(String collection,
-						   String artifactId,
+  public synchronized ArtifactData putArtifactData(String namespace,
+						   String artifactUuid,
 						   ArtifactData ad) {
     if (artDataMap == null) {
       return ad;
     }
-    String key = artifactDataKey(collection, artifactId);
+    String key = artifactDataKey(namespace, artifactUuid);
     ArtifactData old = artDataMap.get(key);
     if (old != null && old.hasContentInputStream()
 	&& !ad.hasContentInputStream()) {
@@ -406,18 +406,18 @@ public class ArtifactCache {
   }
 
   /** Return a cached ArtifactData
-   * @param collection
-   * @param artifactId
+   * @param namespace
+   * @param artifactUuid
    * @param needInputStream if true, a cached item will be returned only if
    * it has an unused InputStream
    * @return cached ArtifactDate or null if not found or if an InputStream
    * is requred and not available.
    */
-  public synchronized ArtifactData getArtifactData(String collection,
-						   String artifactId,
+  public synchronized ArtifactData getArtifactData(String namespace,
+						   String artifactUuid,
 						   boolean needInputStream) {
     if (artDataMap == null) return null;
-    String key = artifactDataKey(collection, artifactId);
+    String key = artifactDataKey(namespace, artifactUuid);
     updateHist(stats.artDataHist, artDataMap, key);
     ArtifactData res = artDataMap.get(key);
     if (res != null && needInputStream && !res.hasContentInputStream()) {
@@ -435,8 +435,8 @@ public class ArtifactCache {
     return res;
   }
 
-  private static String artifactDataKey(String collection, String artifactId) {
-    return collection + "|" + artifactId;
+  private static String artifactDataKey(String namespace, String artifactUuid) {
+    return namespace + "|" + artifactUuid;
   }
 
   /** Update the histogram of positions in the cache where a hit was found.

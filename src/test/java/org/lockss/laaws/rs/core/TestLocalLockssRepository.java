@@ -81,7 +81,7 @@ public class TestLocalLockssRepository extends AbstractLockssRepositoryTest {
     assertEquals(VolatileArtifactIndex.ARTIFACT_INDEX_TYPE, ind.getType());
     assertEquals(LocalWarcArtifactDataStore.ARTIFACT_DATASTORE_TYPE,
 		 sto.getType());
-    assertTrue(sto.getSize() > 0);
+    assertTrue(sto.getSizeKB() > 0);
     assertFalse(sto.isSameDevice(ind));
   }
 }

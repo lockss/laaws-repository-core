@@ -79,26 +79,26 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     }
 
     private void compareArtifactIndexes(ArtifactIndex index1, ArtifactIndex index2) throws IOException {
-        // Compare collections IDs
-        List<String> cids1 = IteratorUtils.toList(index1.getCollectionIds().iterator());
-        List<String> cids2 = IteratorUtils.toList(index2.getCollectionIds().iterator());
-        if (!(cids1.containsAll(cids2) && cids2.containsAll(cids1))) {
-            fail("Expected both the original and rebuilt artifact indexes to contain the same set of collection IDs");
+        // Compare namespaces
+        List<String> nss1 = IteratorUtils.toList(index1.getNamespaces().iterator());
+        List<String> nss2 = IteratorUtils.toList(index2.getNamespaces().iterator());
+        if (!(nss1.containsAll(nss2) && nss2.containsAll(nss1))) {
+            fail("Expected both the original and rebuilt artifact indexes to contain the same set of namespaces");
         }
 
-        // Iterate over the collection IDs
-        for (String cid : cids1) {
+        // Iterate over the namespaces
+        for (String ns : nss1) {
             // Compare the set of AUIDs
-            List<String> auids1 = IteratorUtils.toList(index1.getAuIds(cid).iterator());
-            List<String> auids2 = IteratorUtils.toList(index2.getAuIds(cid).iterator());
+            List<String> auids1 = IteratorUtils.toList(index1.getAuIds(ns).iterator());
+            List<String> auids2 = IteratorUtils.toList(index2.getAuIds(ns).iterator());
             if (!(auids1.containsAll(auids2) && auids2.containsAll(auids1))) {
                 fail("Expected both the original and rebuilt artifact indexes to contain the same set of AUIDs");
             }
 
             // Iterate over AUIDs
             for (String auid : auids1) {
-                List<Artifact> artifacts1 = IteratorUtils.toList(index1.getArtifacts(cid, auid, true).iterator());
-                List<Artifact> artifacts2 = IteratorUtils.toList(index2.getArtifacts(cid, auid, true).iterator());
+                List<Artifact> artifacts1 = IteratorUtils.toList(index1.getArtifacts(ns, auid, true).iterator());
+                List<Artifact> artifacts2 = IteratorUtils.toList(index2.getArtifacts(ns, auid, true).iterator());
 
                 // Debugging
                 artifacts1.forEach(artifact -> log.debug("Artifact from artifact1: {}", artifact));
@@ -118,12 +118,12 @@ public class TestLocalArtifactIndex extends AbstractArtifactIndexTest<LocalArtif
     @Test
     void addToIndexTest() throws IOException {
         // Create an Artifact to add
-        String artifactId = UUID.randomUUID().toString();
-        ArtifactIdentifier ident = new ArtifactIdentifier(artifactId, "collection1", "auid1", "uri1", 1);
+        String artifactUuid = UUID.randomUUID().toString();
+        ArtifactIdentifier ident = new ArtifactIdentifier(artifactUuid, "ns1", "auid1", "uri1", 1);
         Artifact artifact = new Artifact(ident, true, "volatile://test.warc?offset=0", 1024, "sha1");
 
         // Add Artifact to index
-        index.addToIndex(artifactId, artifact);
+        index.addToIndex(artifactUuid, artifact);
 
         // Check that the persisted file exists
         File persistedIndexFile = new File(testBaseDir, PERSISTED_INDEX_NAME);

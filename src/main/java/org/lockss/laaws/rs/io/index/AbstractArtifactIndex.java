@@ -30,10 +30,10 @@
 
 package org.lockss.laaws.rs.io.index;
 
-import org.lockss.laaws.rs.core.LockssRepository;
+import org.lockss.laaws.rs.core.BaseLockssRepository;
 
 public abstract class AbstractArtifactIndex implements ArtifactIndex {
-  protected LockssRepository repository;
+  protected BaseLockssRepository repository;
 
   protected ArtifactIndexState indexState = ArtifactIndexState.STOPPED;
 
@@ -52,7 +52,18 @@ public abstract class AbstractArtifactIndex implements ArtifactIndex {
   }
 
   @Override
-  public void setLockssRepository(LockssRepository repository) {
+  public void setLockssRepository(BaseLockssRepository repository) {
     this.repository = repository;
+  }
+
+  @Override
+  public void startBulkStore(String namespace, String auid) {
+    throw new UnsupportedOperationException("Bulk Store not supported in this ArtifactIndex");
+  }
+
+  @Override
+  public void finishBulkStore(String namespace, String auid,
+                              int copyBatchSize) {
+    throw new UnsupportedOperationException("Bulk Store not supported in this ArtifactIndex");
   }
 }

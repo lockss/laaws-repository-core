@@ -50,16 +50,18 @@ public class RepoUtil {
   // TK should concatenate multi-value keys
   public static Map<String,String> mapFromHttpHeaders(HttpHeaders hdrs) {
     Map<String,String> res = new HashMap<String,String>();
-    for (String key : hdrs.keySet()) {
-      res.put(key, String.join(",", hdrs.get(key)));
+    if (hdrs != null) {
+      for (String key : hdrs.keySet()) {
+        res.put(key, String.join(",", hdrs.get(key)));
+      }
     }
     return res;
   }
 
-//   public static Artifact storeArt(LockssRepository repo, String coll,
+//   public static Artifact storeArt(LockssRepository repo, String ns,
 // 				  String auid, String url, InputStream in,
 // 				  CIProperties props) throws IOException {
-//     ArtifactIdentifier id = new ArtifactIdentifier(coll, auid,
+//     ArtifactIdentifier id = new ArtifactIdentifier(ns, auid,
 // 						   url, null);
 //     CIProperties propsCopy  = CIProperties.fromProperties(props);
 //     propsCopy.setProperty(CachedUrl.PROPERTY_NODE_URL, url);

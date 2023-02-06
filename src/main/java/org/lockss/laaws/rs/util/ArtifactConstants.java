@@ -34,22 +34,28 @@ package org.lockss.laaws.rs.util;
  * Class to hold constants related to artifacts.
  */
 public class ArtifactConstants {
-    // Artifact identity
-    public static final String ARTIFACT_ID_KEY = "X-LockssRepo-Artifact-Id";
+    // Deprecated
     public static final String ARTIFACT_COLLECTION_KEY = "X-LockssRepo-Artifact-Collection";
+
+    // Artifact identity
+    public static final String ARTIFACT_NAMESPACE_KEY = "X-LockssRepo-Artifact-Namespace";
     public static final String ARTIFACT_AUID_KEY = "X-LockssRepo-Artifact-AuId";
     public static final String ARTIFACT_URI_KEY = "X-LockssRepo-Artifact-Uri";
     public static final String ARTIFACT_VERSION_KEY = "X-LockssRepo-Artifact-Version";
 
     // Repository state
-    public static final String ARTIFACT_STATE_COMMITTED = "X-LockssRepo-Artifact-Committed";
-    public static final String ARTIFACT_STATE_DELETED = "X-LockssRepo-Artifact-Deleted";
+    public static final String ARTIFACT_STATE = "X-LockssRepo-Artifact-State";
 
     // Repository
+//    public static final String ARTIFACT_LENGTH_KEY = "WARC-Payload-Length";
+//    public static final String ARTIFACT_DIGEST_KEY = "WARC-Payload-Digest";
     public static final String ARTIFACT_LENGTH_KEY = "X-LockssRepo-Artifact-Length";
     public static final String ARTIFACT_DIGEST_KEY = "X-LockssRepo-Artifact-Digest";
 
     // Miscellaneous
     public static final String ARTIFACT_ORIGIN_KEY = "X-LockssRepo-Artifact-Origin";
     public static final String ARTIFACT_STORED_DATE = "X-LockssRepo-Artifact-StoredDate";
+    public static final String ARTIFACT_COLLECTION_DATE_KEY = "X-LockssRepo-Artifact-CollectionDate";
+
+    public static final String X_LOCKSS_CONTENT_TYPE = "X-Lockss-Content-Type";
 }

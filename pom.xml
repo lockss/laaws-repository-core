@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
-All rights reserved.
+Copyright (c) 2000-2023, Board of Trustees of Leland Stanford Jr. University
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -39,13 +38,13 @@ POSSIBILITY OF SUCH DAMAGE.
   <parent>
     <groupId>org.lockss</groupId>
     <artifactId>lockss-parent-pom</artifactId>
-    <version>1.14.3</version>
+    <version>1.15.0</version>
     <relativePath />
   </parent>
 
   <groupId>org.lockss.laaws</groupId>
   <artifactId>laaws-repository-core</artifactId>
-  <version>2.16.1</version>
+  <version>2.17.0</version>
   <packaging>jar</packaging>
 
   <name>laaws-repository-core</name>
@@ -80,6 +79,18 @@ POSSIBILITY OF SUCH DAMAGE.
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -89,6 +100,20 @@ POSSIBILITY OF SUCH DAMAGE.
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <version>${version.group.hadoop}</version>
+      <exclusions>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -199,6 +224,20 @@ POSSIBILITY OF SUCH DAMAGE.
       <groupId>org.apache.solr</groupId>
       <artifactId>solr-core</artifactId>
       <version>${version.group.solr}</version>
+      <exclusions>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Needed for Solr testing -->
@@ -207,6 +246,20 @@ POSSIBILITY OF SUCH DAMAGE.
       <artifactId>solr-test-framework</artifactId>
       <version>${version.group.solr}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+            <artifactId>javax.servlet</artifactId>
+            <groupId>org.eclipse.jetty.orbit</groupId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -304,6 +357,12 @@ POSSIBILITY OF SUCH DAMAGE.
       <artifactId>commons-csv</artifactId>
       <version>1.4</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.jwat</groupId>
+      <artifactId>jwat-warc</artifactId>
+      <version>1.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -344,7 +403,7 @@ POSSIBILITY OF SUCH DAMAGE.
         <dependency>
           <groupId>org.skyscreamer</groupId>
           <artifactId>jsonassert</artifactId>
-          <version>1.4.0</version>
+          <version>${version.dependency.jsonassert}</version>
           <scope>test</scope>
           <exclusions>
             <exclusion>
@@ -354,6 +413,30 @@ POSSIBILITY OF SUCH DAMAGE.
           </exclusions>
         </dependency>
       </dependencies>
+    </profile>
+
+    <!-- Enable this profile to skip the currently slow HDFS tests -->
+    <profile>
+      <id>skip-hdfs-tests</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>runTests</id>
+                <phase>test</phase>
+                <configuration>
+                  <excludes>
+                    <exclude>TestHdfsWarcArtifactStore.java</exclude>
+                  </excludes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
 
   </profiles>

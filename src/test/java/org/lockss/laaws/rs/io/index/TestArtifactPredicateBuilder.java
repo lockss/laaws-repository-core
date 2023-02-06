@@ -52,7 +52,7 @@ public class TestArtifactPredicateBuilder extends LockssTestCase5 {
     }
 
     @Test
-    public void filterByCollection() {
+    public void filterByNamespace() {
     }
 
     @Test

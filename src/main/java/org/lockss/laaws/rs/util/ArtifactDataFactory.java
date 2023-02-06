@@ -1,37 +1,40 @@
 /*
- * Copyright (c) 2017-2019, Board of Trustees of Leland Stanford Jr. University,
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
+Copyright (c) 2000-2022, Board of Trustees of Leland Stanford Jr. University
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 package org.lockss.laaws.rs.util;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.*;
 import org.apache.http.entity.BasicHttpEntity;
@@ -39,33 +42,38 @@ import org.apache.http.impl.io.DefaultHttpResponseParser;
 import org.apache.http.impl.io.HttpTransportMetricsImpl;
 import org.apache.http.impl.io.IdentityInputStream;
 import org.apache.http.impl.io.SessionInputBufferImpl;
-import org.apache.http.message.BasicLineParser;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicHttpResponse;
 import org.apache.http.message.BasicStatusLine;
 import org.archive.format.warc.WARCConstants;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.jwat.common.HeaderLine;
+import org.jwat.common.HttpHeader;
+import org.jwat.warc.WarcRecord;
 import org.lockss.laaws.rs.core.RestLockssRepository;
+import org.lockss.laaws.rs.io.storage.warc.ArtifactState;
+import org.lockss.laaws.rs.model.Artifact;
 import org.lockss.laaws.rs.model.ArtifactData;
 import org.lockss.laaws.rs.model.ArtifactIdentifier;
-import org.lockss.laaws.rs.model.ArtifactRepositoryState;
+import org.lockss.laaws.rs.model.ArtifactProperties;
 import org.lockss.log.L4JLogger;
 import org.lockss.util.rest.multipart.MultipartMessage;
 import org.lockss.util.rest.multipart.MultipartResponse;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * ArtifactData factory: Instantiates ArtifactData objects from a variety of sources.
@@ -133,8 +141,8 @@ public class ArtifactDataFactory {
    */
   public static HttpResponse getHttpResponseFromStream(InputStream inputStream) throws HttpException, IOException {
     // Create a SessionInputBuffer from the InputStream containing a HTTP response
-    SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
-    buffer.bind(inputStream);
+    SessionInputBufferImpl buffer =
+      ArtifactDataUtil.getSessionInputBuffer(inputStream);
 
     // Parse the InputStream to a HttpResponse object
     HttpResponse response = (new DefaultHttpResponseParser(buffer)).parse();
@@ -164,11 +172,10 @@ public class ArtifactDataFactory {
     HttpHeaders headers = transformHeaderArrayToHttpHeaders(response.getAllHeaders());
 
     ArtifactData artifactData = new ArtifactData(
-        buildArtifactIdentifier(headers),
+        null,
         headers,
         response.getEntity().getContent(),
-        response.getStatusLine()
-    );
+        response.getStatusLine());
 
 //        artifactData.setContentLength(response.getEntity().getContentLength());
 
@@ -176,27 +183,63 @@ public class ArtifactDataFactory {
   }
 
   /**
+   * Constructs an {@link ArtifactData} from a jwat-warc {@link WarcRecord} object.
+   * @param record A {@link WarcRecord} containing the backing WARC record.
+   * @return An {@link ArtifactData} object constructed from its underlying WARC record.
+   * @throws IOException Thrown if there were any IO errors.
+   */
+  private static ArtifactData fromHttpResponseWarcRecord(WarcRecord record) throws IOException {
+    HttpHeader httpHeader = record.getHttpHeader();
+
+    ProtocolVersion protoVer = new ProtocolVersion(
+        httpHeader.httpVersion,
+        httpHeader.httpVersionMajor,
+        httpHeader.httpVersionMinor);
+
+    StatusLine statusLine = new BasicStatusLine(protoVer, httpHeader.statusCode, httpHeader.reasonPhrase);
+    HttpResponse response = new BasicHttpResponse(statusLine);
+
+    BasicHttpEntity entity = new BasicHttpEntity();
+    entity.setContent(record.getPayloadContent());
+
+    for (HeaderLine hline : httpHeader.getHeaderList()) {
+      response.setHeader(hline.name, hline.value);
+    }
+
+    response.setEntity(entity);
+
+    return fromHttpResponse(response);
+  }
+
+  /**
    * Instantiates an {@code ArtifactIdentifier} from HTTP headers in a {@code HttpHeaders} object.
    *
-   * @param headers An {@code HttpHeaders} object representing HTTP headers containing an artifact identity.
+   * @param props An {@code Map} object representing HTTP headers containing an artifact identity.
    * @return An {@code ArtifactIdentifier}.
    */
-  public static ArtifactIdentifier buildArtifactIdentifier(HttpHeaders headers) {
-    Integer version = -1;
+  public static ArtifactIdentifier buildArtifactIdentifier(Map<String, String> props) {
+    int version = 0;
 
-    String versionHeader = getHeaderValue(headers, ArtifactConstants.ARTIFACT_VERSION_KEY);
-
-    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
-      version = Integer.valueOf(versionHeader);
+    String versionVal = props.get(Artifact.ARTIFACT_VERSION_KEY);
+    if (!StringUtil.isNullOrEmpty(versionVal)) {
+      version = Integer.parseInt(versionVal);
     }
 
     return new ArtifactIdentifier(
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_ID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_AUID_KEY),
-        getHeaderValue(headers, ArtifactConstants.ARTIFACT_URI_KEY),
-        version
-    );
+        props.get(Artifact.ARTIFACT_UUID_KEY),
+        props.get(Artifact.ARTIFACT_NAMESPACE_KEY),
+        props.get(Artifact.ARTIFACT_AUID_KEY),
+        props.get(Artifact.ARTIFACT_URI_KEY),
+        version);
+  }
+
+  public static ArtifactIdentifier buildArtifactIdentifier(ArtifactProperties props) {
+    return new ArtifactIdentifier(
+        props.getUuid(),
+        props.getNamespace(),
+        props.getAuid(),
+        props.getUri(),
+        props.getVersion());
   }
 
   /**
@@ -206,44 +249,63 @@ public class ArtifactDataFactory {
    * @return An {@code ArtifactIdentifier}.
    */
   public static ArtifactIdentifier buildArtifactIdentifier(ArchiveRecordHeader headers) {
-    Integer version = -1;
+    int version = 0;
 
     String versionHeader = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_VERSION_KEY);
+    if (!StringUtils.isEmpty(versionHeader)) {
+      version = Integer.parseInt(versionHeader);
+    }
 
-    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
-      version = Integer.valueOf(versionHeader);
+    String namespace = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_NAMESPACE_KEY);
+    if (StringUtils.isEmpty(namespace)) {
+      namespace = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY);
     }
 
     return new ArtifactIdentifier(
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_ID_KEY),
-//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-        (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
+        parseWarcRecordIdForUUID((String)headers.getHeaderValue(WARCConstants.HEADER_KEY_ID)),
+        namespace,
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_AUID_KEY),
+        // Q: Use (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI)?
         (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_URI_KEY),
-//                (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI),
-        version
-    );
+        version);
   }
 
-  @Deprecated
-  public static ArtifactIdentifier buildArtifactIdentifier(Map<String, String> headers) {
-    log.trace("headers = {}", headers);
+  public static ArtifactIdentifier buildArtifactIdentifier(WarcRecord record) {
+    int version = 0;
+    String versionVal = getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_VERSION_KEY));
+    if (!StringUtils.isEmpty(versionVal)) {
+      version = Integer.parseInt(versionVal);
+    }
 
-    Integer version = -1;
-
-    String versionHeader = headers.get(ArtifactConstants.ARTIFACT_VERSION_KEY);
-
-    if ((versionHeader != null) && (!versionHeader.isEmpty())) {
-      version = Integer.valueOf(versionHeader);
+    String namespace = getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_NAMESPACE_KEY));
+    if (StringUtils.isEmpty(namespace)) {
+      namespace = getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_COLLECTION_KEY));
     }
 
     return new ArtifactIdentifier(
-        headers.get(ArtifactConstants.ARTIFACT_ID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_AUID_KEY),
-        headers.get(ArtifactConstants.ARTIFACT_URI_KEY),
-        version
-    );
+        parseWarcRecordIdForUUID(getHeadValueOrNull(record.getHeader(WARCConstants.HEADER_KEY_ID))),
+        namespace,
+        getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_AUID_KEY)),
+        // Q: Use (String)headers.getHeaderValue(WARCConstants.HEADER_KEY_URI)?
+        getHeadValueOrNull(record.getHeader(ArtifactConstants.ARTIFACT_URI_KEY)),
+        version);
+  }
+
+  private static String getHeadValueOrNull(HeaderLine headerLine) {
+    return headerLine == null ? null : headerLine.value;
+  }
+
+  private final static Pattern uuidPattern = Pattern.compile("<urn:uuid:(.+)>");
+
+   public static String parseWarcRecordIdForUUID(String recordId) {
+    Matcher result = uuidPattern.matcher(recordId);
+
+    if (result.matches()) {
+      // Validate UUID class
+      return UUID.fromString(result.group(1)).toString();
+    }
+
+    throw new IllegalArgumentException("Unexpected WARC-Record-ID: " + recordId);
   }
 
   /**
@@ -283,6 +345,17 @@ public class ArtifactDataFactory {
     return headers;
   }
 
+  public static Header[] transformHttpHeadersToHeaderArray(HttpHeaders headers) {
+    Header[] result = headers.entrySet()
+        .stream()
+        .flatMap(entry -> entry.getValue()
+            .stream()
+            .map(v -> new BasicHeader(entry.getKey(), v)))
+        .toArray(Header[]::new);
+
+    return result;
+  }
+
   /**
    * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
    * <p>
@@ -296,22 +369,14 @@ public class ArtifactDataFactory {
   }
 
   /**
-   * Instantiates an {@code ArtifactData} from an arbitrary byte stream in an {@code InputStream}.
-   * <p>
-   * Uses a default HTTP response status of HTTP/1.1 200 OK.
+   * Constructs an {@link ArtifactData} from an arbitrary byte stream in an {@link InputStream}.
    *
-   * @param metadata       A Spring {@code HttpHeaders} object containing optional artifact headers.
-   * @param resourceStream An {@code InputStream} containing an arbitrary byte stream.
-   * @return An {@code ArtifactData} wrapping the byte stream.
+   * @param headers       A Spring {@link HttpHeaders} object containing optional artifact headers.
+   * @param resourceStream An {@link InputStream} containing an arbitrary byte stream.
+   * @return An {@link ArtifactData} wrapping the byte stream.
    */
-  public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream) {
-    StatusLine responseStatus = new BasicStatusLine(
-        new ProtocolVersion("HTTP", 1, 1),
-        200,
-        "OK"
-    );
-
-    return fromResourceStream(metadata, resourceStream, responseStatus);
+  public static ArtifactData fromResourceStream(HttpHeaders headers, InputStream resourceStream) {
+    return fromResourceStream(headers, resourceStream, null);
   }
 
   /**
@@ -319,13 +384,13 @@ public class ArtifactDataFactory {
    * <p>
    * Takes a {@code StatusLine} containing the HTTP response status associated with this byte stream.
    *
-   * @param metadata       A Spring {@code HttpHeaders} object containing optional artifact headers.
+   * @param headers       A Spring {@code HttpHeaders} object containing optional artifact headers.
    * @param resourceStream An {@code InputStream} containing an arbitrary byte stream.
    * @param responseStatus
    * @return An {@code ArtifactData} wrapping the byte stream.
    */
-  public static ArtifactData fromResourceStream(HttpHeaders metadata, InputStream resourceStream, StatusLine responseStatus) {
-    return new ArtifactData(metadata, resourceStream, responseStatus);
+  public static ArtifactData fromResourceStream(HttpHeaders headers, InputStream resourceStream, StatusLine responseStatus) {
+    return new ArtifactData(headers, resourceStream, responseStatus);
   }
 
   /**
@@ -337,93 +402,81 @@ public class ArtifactDataFactory {
    */
   public static ArtifactData fromArchiveRecord(ArchiveRecord record) throws IOException {
     // Get WARC record header
-    ArchiveRecordHeader headers = record.getHeader();
+    ArchiveRecordHeader recordHeader = record.getHeader();
 
+    ArtifactData ad;
+
+    // Read ArtifactIdentifier from the WARC record headers
+    ArtifactIdentifier artifactId = buildArtifactIdentifier(recordHeader);
+
+    // Read WARC record type from record headers
     WARCConstants.WARCRecordType recordType =
-        WARCConstants.WARCRecordType.valueOf((String) headers.getHeaderValue(WARCConstants.HEADER_KEY_TYPE));
-
-    // Create an ArtifactIdentifier object from the WARC record headers
-    ArtifactIdentifier artifactId = buildArtifactIdentifier(headers);
+        WARCConstants.WARCRecordType.valueOf((String) recordHeader.getHeaderValue(WARCConstants.HEADER_KEY_TYPE));
 
     // Artifacts can only be read out of WARC response and resource type records
     switch (recordType) {
       case response:
-        if (!headers.getMimetype().startsWith("application/http")) {
-          log.warn(String.format(
-              "Unexpected content MIME type (%s) from a WARC response record",
-              headers.getMimetype()
-          ));
-
-          // TODO: Return null or throw?
-          return null;
+        // Sanity check
+        String mimeType = recordHeader.getMimetype();
+        if (!mimeType.startsWith("application/http")) {
+          log.warn("Unexpected content MIME type WARC response record: {}", mimeType);
+          throw new IllegalStateException("Invalid MIME type: " + mimeType);
         }
 
-        // Parse the ArchiveRecord into an artifact and return it
-        ArtifactData ad = ArtifactDataFactory.fromHttpResponseStream(record);
+        // Parse the ArchiveRecord into an ArtifactData
+        ad = ArtifactDataFactory.fromHttpResponseStream(record);
         ad.setIdentifier(artifactId);
-
-        String artifactContentLength = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
-        log.trace("artifactContentLength = {}", artifactContentLength);
-        if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
-          ad.setContentLength(Long.parseLong(artifactContentLength));
-        }
-
-        String artifactDigest = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
-        log.trace("artifactDigest = {}", artifactDigest);
-        if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
-          ad.setContentDigest(artifactDigest);
-        }
-
-        String artifactStoredDate = (String) headers.getHeaderValue(ArtifactConstants.ARTIFACT_STORED_DATE);
-        log.trace("artifactStoredDate = {}", artifactStoredDate);
-        if (artifactStoredDate != null && !artifactStoredDate.trim().isEmpty()) {
-          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactStoredDate);
-          ad.setStoredDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
-        }
-
-        String artifactCollectionDate = (String) headers.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
-        log.trace("artifactCollectionDate = {}", artifactCollectionDate);
-        if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
-          TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
-          ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
-        }
-
-        log.trace("ad = {}", ad);
-
-        return ad;
+        break;
 
       case resource:
-        // Holds optional HTTP headers for metadata
-        HttpHeaders metadata = new HttpHeaders();
+        // Parse the ArchiveRecord into an ArtifactData
+        ad = ArtifactDataFactory.fromResource(record);
+        ad.setIdentifier(artifactId);
 
-        // Setup artifact headers from WARC record headers
-        metadata.setContentLength((int) headers.getContentLength());
-        metadata.setContentType(MediaType.valueOf(headers.getMimetype()));
-
-        // Use WARC-Date as our notion of crawl/capture/collecton time in this context
-        TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(headers.getDate());
-        metadata.setDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toEpochSecond());
-        //metadata.setDate(DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC)));
-        //metadata.setDate(DateTimeFormatter.RFC_1123_DATE_TIME.format(
-        //        ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC)
-        //));
-
-        // Custom header to indicate the origin of this artifact
-        metadata.add(ArtifactConstants.ARTIFACT_ORIGIN_KEY, "warc");
-
-        // Parse the ArchiveRecord into an artifact and return it
-        return ArtifactDataFactory.fromResourceStream(metadata, record);
+        // Set the ArtifactData content-type to that of the WARC record block if present
+        String typeVal = recordHeader.getMimetype();
+        if (!StringUtil.isNullOrEmpty(typeVal)) {
+          ad.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, typeVal);
+        }
+        break;
 
       default:
-        log.warn(
-            "Cannot instantiate ArtifactData object: Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
-            headers.getHeaderValue(WARCConstants.HEADER_KEY_ID),
-            recordType
-        );
+        log.warn("Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
+            recordHeader.getHeaderValue(WARCConstants.HEADER_KEY_ID), recordType);
+
+        // Could not return an artifact elsewhere
+        return null;
     }
 
-    // Could not return an artifact elsewhere
-    return null;
+    String artifactContentLength = (String) recordHeader.getHeaderValue(ArtifactConstants.ARTIFACT_LENGTH_KEY);
+    log.trace("artifactContentLength = {}", artifactContentLength);
+    if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
+      ad.setContentLength(Long.parseLong(artifactContentLength));
+    }
+
+    String artifactDigest = (String) recordHeader.getHeaderValue(ArtifactConstants.ARTIFACT_DIGEST_KEY);
+    log.trace("artifactDigest = {}", artifactDigest);
+    if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
+      ad.setContentDigest(artifactDigest);
+    }
+
+    String artifactStoredDate = (String) recordHeader.getHeaderValue(ArtifactConstants.ARTIFACT_STORED_DATE);
+    log.trace("artifactStoredDate = {}", artifactStoredDate);
+    if (artifactStoredDate != null && !artifactStoredDate.trim().isEmpty()) {
+      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactStoredDate);
+      ad.setStoredDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+    }
+
+    String artifactCollectionDate = (String) recordHeader.getHeaderValue(WARCConstants.HEADER_KEY_DATE);
+    log.trace("artifactCollectionDate = {}", artifactCollectionDate);
+    if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
+      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
+      ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+    }
+
+    log.trace("ad = {}", ad);
+
+    return ad;
   }
 
   public static ArtifactData fromTransportResponseEntity(ResponseEntity<MultipartMessage> response) throws IOException {
@@ -439,69 +492,67 @@ public class ArtifactDataFactory {
 
       //// Set artifact repository properties
       {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_REPO_PROPS);
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_PROPS);
 
-        HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
+        ArtifactProperties props = mapper.readValue(part.getInputStream(), ArtifactProperties.class);
 
         // Set ArtifactIdentifier
-        ArtifactIdentifier id = new ArtifactIdentifier(
-            headers.getFirst(ArtifactConstants.ARTIFACT_ID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_COLLECTION_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_AUID_KEY),
-            headers.getFirst(ArtifactConstants.ARTIFACT_URI_KEY),
-            Integer.valueOf(headers.getFirst(ArtifactConstants.ARTIFACT_VERSION_KEY))
-        );
+        ArtifactIdentifier id = buildArtifactIdentifier(props);
 
         result.setIdentifier(id);
 
-        // Set artifact repository state
-        String committedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED);
-        String deletedHeaderValue = headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED);
-
-        if (!(StringUtils.isEmpty(committedHeaderValue) || StringUtils.isEmpty(deletedHeaderValue))) {
-          ArtifactRepositoryState artifactState = new ArtifactRepositoryState(
-              id,
-              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-              Boolean.parseBoolean(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-          );
-          result.setArtifactRepositoryState(artifactState);
+        String stateVal = props.getState();
+        if (!StringUtil.isNullOrEmpty(stateVal)) {
+          result.setArtifactState(ArtifactState.valueOf(stateVal));
         }
 
         // Set misc. artifact properties
-        result.setContentLength(Long.parseLong(headers.getFirst(ArtifactConstants.ARTIFACT_LENGTH_KEY)));
-        result.setContentDigest(headers.getFirst(ArtifactConstants.ARTIFACT_DIGEST_KEY));
+        result.setContentLength(props.getContentLength());
+        result.setContentDigest(props.getContentDigest());
       }
 
-      //// Set artifact headers
+      //// Set artifact HTTP response status and headers
       {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HEADER);
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_RESPONSE_HEADER);
 
         // Parse header part body into HttpHeaders object
-        HttpHeaders headers = mapper.readValue(part.getInputStream(), HttpHeaders.class);
-        result.setMetadata(headers);
-      }
-
-      //// Set artifact HTTP status if present
-      {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_HTTP_STATUS);
-
         if (part != null) {
-          // Create a SessionInputBuffer and bind the InputStream from the multipart
-          SessionInputBufferImpl buffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), 4096);
-          buffer.bind(part.getInputStream());
+          try {
+            HttpResponse httpResponse =
+                ArtifactDataFactory.getHttpResponseFromStream(part.getInputStream());
 
-          // Read and parse HTTP status line
-          StatusLine httpStatus = BasicLineParser.parseStatusLine(buffer.readLine(), null);
-          result.setHttpStatus(httpStatus);
+            // Set HTTP status
+            result.setHttpStatus(httpResponse.getStatusLine());
+
+            // Set HTTP headers
+            result.setHttpHeaders(ArtifactDataFactory.transformHeaderArrayToHttpHeaders(httpResponse.getAllHeaders()));
+          } catch (HttpException e) {
+            throw new IOException("Error parsing HTTP response header part", e);
+          }
         }
       }
 
       //// Set artifact content if present
       {
-        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_CONTENT);
+        MultipartResponse.Part part = parts.get(RestLockssRepository.MULTIPART_ARTIFACT_PAYLOAD);
 
         if (part != null) {
           result.setInputStream(part.getInputStream());
+
+          // Set artifact's Content-Type to value of X-Lockss-Content-Type if present,
+          // otherwise use value of Content-Type
+          HttpHeaders partHeaders = part.getHeaders();
+
+          String contentType = partHeaders.getFirst(ArtifactConstants.X_LOCKSS_CONTENT_TYPE);
+
+          // Fallback
+          if (StringUtils.isEmpty(contentType)) {
+            contentType = partHeaders.getFirst(HttpHeaders.CONTENT_TYPE);
+          }
+
+          if (!StringUtils.isEmpty(contentType)) {
+            result.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, contentType);
+          }
         }
       }
 
@@ -513,19 +564,88 @@ public class ArtifactDataFactory {
     }
   }
 
-  private static ArtifactRepositoryState buildRepositoryMetadata(HttpHeaders headers) {
-    return new ArtifactRepositoryState(
-        buildArtifactIdentifier(headers),
-        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_COMMITTED)),
-        getBooleanHeaderValue(headers.getFirst(ArtifactConstants.ARTIFACT_STATE_DELETED))
-    );
-  }
+  public static ArtifactData fromWarcRecord(WarcRecord record) throws IOException {
+    // Get WARC record header
+    List<HeaderLine> headersList = record.getHeaderList();
 
-  private static boolean getBooleanHeaderValue(String value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Header value is null");
+    Map<String, String> headers = new HashMap<>();
+    for (HeaderLine hl: record.getHeaderList()) {
+      headers.put(hl.name, hl.value);
     }
 
-    return value.equalsIgnoreCase(String.valueOf(true));
+    ArtifactData ad;
+
+    // Read ArtifactIdentifier from the WARC record headers
+    ArtifactIdentifier artifactId = buildArtifactIdentifier(record);
+
+    // Read WARC record type from record headers
+    WARCConstants.WARCRecordType recordType =
+        WARCConstants.WARCRecordType.valueOf(headers.get(WARCConstants.HEADER_KEY_TYPE));
+
+    String mimeType = headers.get(WARCConstants.CONTENT_TYPE);
+
+    // Artifacts can only be read out of WARC response and resource type records
+    switch (recordType) {
+      case response:
+        // Sanity check
+        if (mimeType == null || !mimeType.startsWith("application/http")) {
+          log.warn("Unexpected content MIME type WARC response record: {}", mimeType);
+          throw new IllegalStateException("Invalid MIME type: " + mimeType);
+        }
+
+        // Parse the ArchiveRecord into an ArtifactData
+//        ad = ArtifactDataFactory.fromHttpResponseStream(record.getPayload().getInputStreamComplete()); // FIXME
+        ad = fromHttpResponseWarcRecord(record);
+        ad.setIdentifier(artifactId);
+        break;
+
+      case resource:
+        // Parse the ArchiveRecord into an ArtifactData
+        ad = ArtifactDataFactory.fromResource(record.getPayloadContent());
+        ad.setIdentifier(artifactId);
+
+        // Set the ArtifactData content-type to that of the WARC record block if present
+        if (!StringUtil.isNullOrEmpty(mimeType)) {
+          ad.getHttpHeaders().set(HttpHeaders.CONTENT_TYPE, mimeType);
+        }
+        break;
+
+      default:
+        log.warn("Unexpected WARC record type [WARC-Record-ID: {}, WARC-Type: {}]",
+            headers.get(WARCConstants.HEADER_KEY_ID), recordType);
+
+        // Could not return an artifact elsewhere
+        return null;
+    }
+
+    String artifactContentLength = headers.get(ArtifactConstants.ARTIFACT_LENGTH_KEY);
+    log.trace("artifactContentLength = {}", artifactContentLength);
+    if (artifactContentLength != null && !artifactContentLength.trim().isEmpty()) {
+      ad.setContentLength(Long.parseLong(artifactContentLength));
+    }
+
+    String artifactDigest = headers.get(ArtifactConstants.ARTIFACT_DIGEST_KEY);
+    log.trace("artifactDigest = {}", artifactDigest);
+    if (artifactDigest != null && !artifactDigest.trim().isEmpty()) {
+      ad.setContentDigest(artifactDigest);
+    }
+
+    String artifactStoredDate = headers.get(ArtifactConstants.ARTIFACT_STORED_DATE);
+    log.trace("artifactStoredDate = {}", artifactStoredDate);
+    if (artifactStoredDate != null && !artifactStoredDate.trim().isEmpty()) {
+      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactStoredDate);
+      ad.setStoredDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+    }
+
+    String artifactCollectionDate = headers.get(WARCConstants.HEADER_KEY_DATE);
+    log.trace("artifactCollectionDate = {}", artifactCollectionDate);
+    if (artifactCollectionDate != null && !artifactCollectionDate.trim().isEmpty()) {
+      TemporalAccessor t = DateTimeFormatter.ISO_INSTANT.parse(artifactCollectionDate);
+      ad.setCollectionDate(ZonedDateTime.ofInstant(Instant.from(t), ZoneOffset.UTC).toInstant().toEpochMilli());
+    }
+
+    log.trace("ad = {}", ad);
+
+    return ad;
   }
 }
