@@ -1209,7 +1209,7 @@ public class RestLockssRepository implements LockssRepository {
   // ArtifactCache support.
 
   // Definitions for cache invalidate messages from repo service
-  public static final String REST_ARTIFACT_CACHE_ID = null;
+  public static final String REST_ARTIFACT_CACHE_ID = "ArtifactCache";
   public static final String REST_ARTIFACT_CACHE_TOPIC = "ArtifactCacheTopic";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION = "CacheAction";
   public static final String REST_ARTIFACT_CACHE_MSG_ACTION_INVALIDATE =
