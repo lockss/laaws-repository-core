@@ -287,6 +287,9 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
       // Ensure Solr update journal directory exists
       FileUtil.ensureDirExists(getSolrJournalDirectory().toFile());
 
+      // Replay journal of Solr index updates if it exists
+      replayUpdateJournal();
+
       setState(ArtifactIndexState.INITIALIZED);
     }
   }
@@ -302,9 +305,6 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public synchronized void start() {
-    // Replay journal of Solr index updates if it exists
-    replayUpdateJournal();
-
     // Start journal of Solr index updates
     startUpdateJournal();
 
@@ -658,8 +658,7 @@ public class SolrArtifactIndex extends AbstractArtifactIndex {
    */
   @Override
   public boolean isReady() {
-    return getState() == ArtifactIndexState.RUNNING
-        || getState() == ArtifactIndexState.INITIALIZED && checkAlive();
+    return getState() == ArtifactIndexState.RUNNING && checkAlive();
   }
 
   @Override

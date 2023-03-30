@@ -236,7 +236,7 @@ public class LocalWarcArtifactDataStore extends WarcArtifactDataStore {
    */
   @Override
   public boolean isReady() {
-    return dataStoreState != DataStoreState.STOPPED;
+    return dataStoreState == DataStoreState.RUNNING;
   }
 
   /**

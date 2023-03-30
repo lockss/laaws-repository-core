@@ -84,7 +84,8 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   protected ArtifactIndex index;
   protected JmsFactory jmsFact;
 
-  protected ScheduledExecutorService scheduledExecutor;
+  protected ScheduledExecutorService scheduledExecutor =
+      Executors.newSingleThreadScheduledExecutor();
 
   /**
    * Create a LOCKSS repository with the provided artifact index and storage layers.
@@ -196,19 +197,30 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
   public void initRepository() throws IOException {
     log.info("Initializing repository");
 
-    // Start executor
-    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-
-    // Initialize the index and data store
+    // Initialize and start the index
     index.init();
-    store.init();
-
     index.start();
+
+    // Initialize the data store
+    store.init();
 
     // Re-index artifacts in the data store if needed
     reindexArtifactsIfNeeded();
 
+    // Start the data store
     store.start();
+  }
+
+  /**
+   * Returns a boolean indicating whether this repository is ready.
+   * <p>
+   * Delegates to readiness of internal artifact index and data store components.
+   *
+   * @return
+   */
+  @Override
+  public boolean isReady() {
+    return store.isReady() && index.isReady();
   }
 
   @Override
@@ -754,29 +766,12 @@ public class BaseLockssRepository implements LockssRepository, JmsFactorySource 
     // Get AU size from index query
     AuSize auSize = index.auSize(namespace, auid);
 
-//    long allVersionSize = index.auSize(namespace, auid, true);
-//    auSize.setTotalAllVersions();
-
-//    long latestVersionsSize = index.auSize(namespace, auid, false);
-//    auSize.setTotalLatestVersions();
-
     long totalWarcSize = getArtifactDataStore().auWarcSize(namespace, auid);
     auSize.setTotalWarcSize(totalWarcSize);
 
     return auSize;
   }
 
-  /**
-   * Returns a boolean indicating whether this repository is ready.
-   * <p>
-   * Delegates to readiness of internal artifact index and data store components.
-   *
-   * @return
-   */
-  @Override
-  public boolean isReady() {
-    return store.isReady() && index.isReady();
-  }
 
   public void setArtifactIndex(ArtifactIndex index) {
     this.index = index;

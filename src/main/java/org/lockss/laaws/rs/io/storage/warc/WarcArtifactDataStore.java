@@ -2186,6 +2186,16 @@ public abstract class WarcArtifactDataStore implements ArtifactDataStore<Artifac
     // if the state file exists
     if (!reindexStateFile.exists()) return;
 
+    log.info("Waiting for artifact index to become ready...");
+    while (!index.isReady()) {
+      try {
+        Thread.sleep(5000);
+      } catch (InterruptedException e) {
+        log.error("Interrupted while waiting for artifact index to become ready");
+        throw new IllegalStateException();
+      }
+    }
+
     // Enable usage of MapDB for large structures
     enableRepoDB();
 
