@@ -1,3 +1,23 @@
+**ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED**
+
+```
+  ##    ####    ###   #    #  ###  #   #  #####  #####   
+ #  #   #   #  #   #  #    #   #   #   #  #       #   #  
+#    #  #   #  #      #    #   #   #   #  #       #   #  
+#    #  #   #  #      #    #   #    # #   #       #   #  
+#    #  ####   #      ######   #    # #   ####    #   #  
+######  ##     #      #    #   #    # #   #       #   #  
+#    #  # #    #      #    #   #     #    #       #   #  
+#    #  #  #   #   #  #    #   #     #    #       #   #  
+#    #  #   #   ###   #    #  ###    #    #####  #####  
+```
+
+**ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED ARCHIVED**
+
+**This Git repository is obsolete and has been archived.**
+
+----
+
 # The LOCKSS Repository
 
 ## Introduction
